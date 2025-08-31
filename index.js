@@ -11,7 +11,7 @@ async function baixarArquivo(codigoArquivo) {
     const response = await axios.post("https://lunasdigital.atenderbem.com/int/downloadFile", {
       queueId: 25, // ajustar se precisar
       apiKey: "cd4d0509169d4e2ea9177ac66c1c9376", // ⚠️ substitua pela real
-      fileId: codigoArquivo,
+      fileId: 5779,
       download: true
     }, {
       responseType: "arraybuffer" // importante para receber PDF como binário
