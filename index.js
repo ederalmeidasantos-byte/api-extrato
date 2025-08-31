@@ -9,10 +9,14 @@ function extrairContratosAtivos(texto) {
   const linhas = texto.split(/\r?\n/);
   const contratos = [];
 
-  linhas.forEach((linha) => {
-    if (linha.includes("Ativo")) {
-      // junta espaços múltiplos em 1
-      const partes = linha.split(/\s+/);
+  for (let i = 0; i < linhas.length; i++) {
+    if (linhas[i].includes("Ativo")) {
+      // junta esta linha + 2 seguintes
+      const bloco = [
+        linhas[i],
+        linhas[i + 1] || "",
+        linhas[i + 2] || ""
+      ].join(" ");
 
       let contrato = {
         contrato: null,
@@ -24,40 +28,40 @@ function extrairContratosAtivos(texto) {
         inicioDesconto: null
       };
 
-      // contrato → primeiro número grande
-      const contratoMatch = linha.match(/\b\d{5,}\b/);
+      // Nº contrato → primeiro número grande
+      const contratoMatch = bloco.match(/\b\d{5,}\b/);
       if (contratoMatch) contrato.contrato = contratoMatch[0];
 
-      // banco → palavras conhecidas
-      const bancoMatch = linha.match(/(ITAU|C6|BRADESCO|BANCO DO BRASIL|FACTA|QI|SAFRA|SANTANDER|CAIXA)/i);
+      // Banco → palavras conhecidas
+      const bancoMatch = bloco.match(/(ITAU|C6|BRADESCO|BANCO DO BRASIL|FACTA|QI|SAFRA|SANTANDER|CAIXA)/i);
       if (bancoMatch) contrato.banco = bancoMatch[1].toUpperCase();
 
-      // parcelas → primeiro número de 2 dígitos depois de "Ativo"
-      const parcelasMatch = linha.match(/\b(\d{2,3})\b/);
+      // Parcelas → número de 2-3 dígitos seguido de R$
+      const parcelasMatch = bloco.match(/\b(\d{2,3})\s+R\$/);
       if (parcelasMatch) contrato.parcelas = parseInt(parcelasMatch[1]);
 
-      // valores em R$
-      const valores = linha.match(/R\$?\s?\d+[.,]\d{2}/g);
+      // Valores em R$
+      const valores = bloco.match(/R\$?\s?\d+[.,]\d{2}/g);
       if (valores) {
         if (valores[0]) contrato.parcela = valores[0].replace("R$", "").trim();
         if (valores[1]) contrato.valorEmprestado = valores[1].replace("R$", "").trim();
       }
 
-      // taxas → capturar a 3ª (juros mensal)
-      const taxas = linha.match(/\d+[.,]\d{2}/g);
+      // Taxas → pega a 3ª (juros mensal)
+      const taxas = bloco.match(/\d+[.,]\d{2}/g);
       if (taxas && taxas.length >= 3) {
         contrato.taxaMensal = taxas[2].replace(".", ",");
       }
 
-      // início desconto → última data
-      const datas = linha.match(/\d{2}\/\d{2}\/\d{2,4}/g);
+      // Início do desconto → última data encontrada
+      const datas = bloco.match(/\d{2}\/\d{2}\/\d{2,4}/g);
       if (datas) {
         contrato.inicioDesconto = datas[datas.length - 1];
       }
 
       contratos.push(contrato);
     }
-  });
+  }
 
   return contratos;
 }
