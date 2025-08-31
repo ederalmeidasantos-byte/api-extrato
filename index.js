@@ -1,71 +1,75 @@
 import express from "express";
+import multer from "multer";
 import axios from "axios";
-import pdf from "pdf-parse";
 
 const app = express();
-app.use(express.json());
+const upload = multer(); // middleware para multipart/form-data
 
-app.post("/extrato", async (req, res) => {
+const CLOUDMERSIVE_API_KEY = "1d68371d-57cf-42ee-9b19-c7d950c12e39";
+
+// rota para enviar o PDF do extrato
+app.post("/extrato", upload.single("arquivo"), async (req, res) => {
   try {
-    const { codigoArquivo } = req.body;
-
-    // ✅ só valida codigoArquivo, nada de "texto obrigatório"
-    if (!codigoArquivo) {
-      return res.json({});
+    if (!req.file) {
+      return res.status(400).json({ error: "PDF não enviado" });
     }
 
-    // 1. Buscar PDF da sua API
-    const pdfResponse = await axios.post(
-      "https://lunasdigital.atenderbem.com/int/downloadFile",
+    // 📤 Envia o PDF recebido para a API Cloudmersive (OCR)
+    const ocrResponse = await axios.post(
+      "https://api.cloudmersive.com/convert/pdf/to/txt",
+      req.file.buffer,
       {
-        queueId: 25,
-        apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
-        fileId: codigoArquivo,
-        download: true,
-      },
-      { responseType: "arraybuffer" }
+        headers: {
+          Apikey: CLOUDMERSIVE_API_KEY,
+          "Content-Type": "application/pdf",
+        },
+      }
     );
 
-    // 2. Extrair texto do PDF
-    const data = await pdf(pdfResponse.data);
-    const texto = data.text;
-
-    // 3. Verificar se está bloqueado
-    const bloqueado = !/Elegível para empréstimos/i.test(texto);
-
-    // 4. Capturar margem extrapolada
-    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*{0,3}\s+R\$([\d\.,]+)/i);
-    const margemExtrapolada = margemMatch ? margemMatch[1].trim() : "0,00";
-
-    // 5. Buscar contratos em "EMPRÉSTIMOS BANCÁRIOS"
-    const contratos = [];
-    const regexContrato = /(\d{5,})\s+.*?\s+(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$([\d\.,]+)\s+R\$([\d\.,]+).*?(\d,\d{2})\s+\d+,\d{2}\s+(\d,\d{2})\s+\d+,\d{2}.*?(\d{2}\/\d{2}\/\d{2})/gs;
-
-    let match;
-    while ((match = regexContrato.exec(texto)) !== null) {
-      contratos.push({
-        contrato: match[1],
-        parcelas: parseInt(match[4]),
-        parcela: match[5],
-        valorEmprestado: match[6],
-        taxaMensal: match[7],
-        inicioDesconto: match[9],
-      });
+    const texto = ocrResponse.data.TextResult || "";
+    if (!texto) {
+      return res.status(400).json({ error: "Não foi possível extrair texto do PDF" });
     }
 
-    return res.json({
-      codigoArquivo,
-      bloqueado,
+    // 🔍 Extração de dados
+    const contratos = [];
+    const linhas = texto.split("\n");
+
+    for (let i = 0; i < linhas.length; i++) {
+      const linha = linhas[i];
+
+      if (linha.includes("Ativo")) {
+        // regex para capturar as colunas principais
+        const regex =
+          /(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$(\d+,\d{2})\s+R\$(\d+,\d{2}).*?(\d+,\d{2})/;
+        const match = linha.match(regex);
+
+        if (match) {
+          contratos.push({
+            parcelas: match[3],
+            parcela: match[4],
+            valorEmprestado: match[5],
+            taxaMensal: match[6] || "0",
+            inicioDesconto: match[1],
+          });
+        }
+      }
+    }
+
+    // 📊 Busca da margem extrapolada
+    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$(\d+,\d{2})/);
+    const margemExtrapolada = margemMatch ? margemMatch[1] : "0,00";
+
+    res.json({
+      bloqueado: texto.includes("Bloqueado para empréstimo"),
       margemExtrapolada,
       contratos,
     });
-  } catch (error) {
-    console.error("Erro ao processar extrato:", error);
-    return res.status(500).json({ error: "Erro ao processar extrato" });
+  } catch (err) {
+    console.error("Erro na API:", err.message);
+    res.status(500).json({ error: "Erro interno na API" });
   }
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`API rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
