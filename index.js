@@ -1,133 +1,46 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-const pdfParse = require("pdf-parse");
-
-const app = express();
-app.use(bodyParser.json({ limit: "50mb" }));
-
-function normalizarValor(str) {
-  if (!str) return null;
-  return str.replace(/[^\d,]/g, "").replace(",", ".");
-}
-
-function extrairContratos(texto) {
-  const contratos = [];
-  const inicio = texto.indexOf("EMPRÉSTIMOS BANCÁRIOS");
-  if (inicio === -1) return contratos;
-
-  const bloco = texto.substring(inicio);
-  const linhas = bloco.split("\n").map(l => l.trim()).filter(l => l);
-
-  let contratoAtual = null;
-
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i];
-
-    // Detecta contrato (número com 5+ dígitos)
-    if (/^\d{5,}/.test(linha)) {
-      if (contratoAtual) contratos.push(contratoAtual);
-      contratoAtual = {
-        contrato: linha,
-        banco: null,
-        parcelas: null,
-        parcela: null,
-        valorEmprestado: null,
-        taxaMensal: "0",
-        inicioDesconto: null,
-      };
-    }
-
-    if (contratoAtual) {
-      // Detecta banco (se linha ou próxima linha tiver banco)
-      if (/BANCO|ITAU|BRASIL|BRADESCO|C6|FACTA/i.test(linha)) {
-        contratoAtual.banco = linha.replace("BANCO", "").trim();
-      } else if (!contratoAtual.banco && i + 1 < linhas.length && /ITAU|BRASIL|C6|FACTA|BRADESCO/i.test(linhas[i + 1])) {
-        contratoAtual.banco = linhas[i + 1].trim();
-      }
-
-      // Detecta linha com parcelas / valor parcela / valor emprestado
-      if (/R\$/.test(linha)) {
-        const partes = linha.split(/\s+/);
-        const valores = partes.filter(p => p.includes("R$"));
-
-        if (valores.length >= 2) {
-          contratoAtual.parcela = normalizarValor(valores[0]);
-          contratoAtual.valorEmprestado = normalizarValor(valores[1]);
-        }
-
-        // Número de parcelas (procura número entre datas e R$)
-        const qtdParcelas = partes.find(p => /^\d{2,3}$/.test(p));
-        if (qtdParcelas) contratoAtual.parcelas = parseInt(qtdParcelas);
-      }
-
-      // Taxa Juros Mensal
-      if (/JUROS/i.test(linha) || /\d,\d{2}/.test(linha)) {
-        const taxa = linha.match(/\d,\d{2}/g);
-        if (taxa) {
-          contratoAtual.taxaMensal = taxa[taxa.length - 1]; // pega a última da linha
-        }
-      }
-
-      // Início do desconto (data dd/mm/aa)
-      if (/\d{2}\/\d{2}\/\d{2}/.test(linha)) {
-        contratoAtual.inicioDesconto = linha.match(/\d{2}\/\d{2}\/\d{2}/)[0];
-      }
-    }
-  }
-
-  if (contratoAtual) contratos.push(contratoAtual);
-
-  // Só ATIVOS
-  return contratos.filter(c => c.contrato);
-}
-
 app.post("/extrato", async (req, res) => {
   try {
-    const { codigoArquivo } = req.body;
-    if (!codigoArquivo) {
-      return res.status(400).json({ error: "codigoArquivo é obrigatório" });
+    const { codigoArquivo, pdfTexto } = req.body; // pdfTexto = texto do extrato convertido em string
+
+    if (!codigoArquivo || !pdfTexto) {
+      return res.status(400).json({ error: "codigoArquivo e pdfTexto são obrigatórios" });
     }
 
-    const response = await axios.post(
-      "https://lunasdigital.atenderbem.com/int/downloadFile",
-      {
-        queueId: 25,
-        apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
-        fileId: codigoArquivo,
-        download: true,
-      },
-      { responseType: "arraybuffer" }
-    );
+    const texto = pdfTexto.replace(/\s+/g, " "); // normalizar espaços
 
-    const pdfBuffer = Buffer.from(response.data);
-    const data = await pdfParse(pdfBuffer);
-    const texto = data.text;
+    // 🔹 Detectar bloqueio de empréstimo
+    const bloqueado = !/Elegível para empréstimos/i.test(texto);
 
-    // Extrai contratos
-    const contratos = extrairContratos(texto);
+    // 🔹 Capturar Margem Extrapolada somente na seção correta
+    const matchMargem = texto.match(/VALORES DO BENEF.*?MARGEM EXTRAPOLADA\*{3}\s+R\$\s*([\d.,]+)/i);
+    const margemExtrapolada = matchMargem ? matchMargem[1] : "0,00";
 
-    // Bloqueio de empréstimo
-    const bloqueado = texto.includes("Bloqueado para empréstimo");
+    // 🔹 Capturar contratos (somente da seção Empréstimos Bancários)
+    const contratos = [];
+    const regexContrato =
+      /(\d{5,6})\s+([A-Z0-9\s-]+)?\s+Ativo.*?(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$([\d.,]+)\s+R\$([\d.,]+).*?(\d,\d+)\s+[\d.,]+\s+(\d{2}\/\d{2}\/\d{2})/gi;
 
-    // Margem Extrapolada
-    let margemExtrapolada = "0,00";
-    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$?([\d.,]+)/);
-    if (margemMatch) margemExtrapolada = margemMatch[1];
+    let match;
+    while ((match = regexContrato.exec(texto)) !== null) {
+      contratos.push({
+        contrato: match[1] || null,
+        banco: match[2] ? match[2].replace(/\s+/g, " ").trim() : null,
+        parcelas: match[5] ? parseInt(match[5]) : null,
+        parcela: match[6] || null,
+        valorEmprestado: match[7] || null,
+        taxaMensal: match[8] || "0",
+        inicioDesconto: match[9] || null
+      });
+    }
 
-    res.json({
+    return res.json({
       codigoArquivo,
       bloqueado,
       margemExtrapolada,
-      contratos,
+      contratos
     });
   } catch (err) {
-    console.error("Erro ao processar PDF:", err);
-    res.status(500).json({ error: "Erro ao processar PDF" });
+    console.error("Erro no /extrato:", err);
+    res.status(500).json({ error: "Erro interno ao processar extrato" });
   }
-});
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`✅ API rodando na porta ${PORT}`);
 });
