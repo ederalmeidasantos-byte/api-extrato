@@ -5,10 +5,14 @@ import pdf from "pdf-parse";
 const app = express();
 app.use(express.json());
 
-// rota principal
 app.post("/extrato", async (req, res) => {
   try {
     const { codigoArquivo } = req.body;
+
+    // Se não veio codigoArquivo, retorna vazio
+    if (!codigoArquivo) {
+      return res.json({});
+    }
 
     // 1. Buscar PDF da sua API
     const pdfResponse = await axios.post(
@@ -26,74 +30,42 @@ app.post("/extrato", async (req, res) => {
     const data = await pdf(pdfResponse.data);
     const texto = data.text;
 
-    // 🔍 3. Extrair informações do benefício
-    const bloqueado = texto.includes("Bloqueado para empréstimo");
-    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$(.*)/);
-    const margemExtrapolada = margemMatch
-      ? margemMatch[1].trim()
-      : "0,00";
+    // 3. Verificar se está bloqueado
+    const bloqueado = !/Elegível para empréstimos/i.test(texto);
 
-    // 🔍 4. Extrair contratos
+    // 4. Capturar margem extrapolada
+    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*{0,3}\s+R\$([\d\.,]+)/i);
+    const margemExtrapolada = margemMatch ? margemMatch[1].trim() : "0,00";
+
+    // 5. Buscar contratos em "EMPRÉSTIMOS BANCÁRIOS"
     const contratos = [];
-    const linhas = texto.split("\n");
+    const regexContrato = /(\d{5,})\s+.*?\s+(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$([\d\.,]+)\s+R\$([\d\.,]+).*?(\d,\d{2})\s+\d+,\d{2}\s+(\d,\d{2})\s+\d+,\d{2}.*?(\d{2}\/\d{2}\/\d{2})/gs;
 
-    for (let i = 0; i < linhas.length; i++) {
-      const linha = linhas[i];
-
-      if (/^\d{5,}/.test(linha)) {
-        const contrato = linha.trim();
-
-        let banco = "";
-        for (let j = i; j < i + 4; j++) {
-          if (linhas[j] && linhas[j].match(/BANCO|BRASIL|ITAU|C6|FACTA/i)) {
-            banco = linhas[j].replace("BANCO", "").trim();
-            break;
-          }
-        }
-
-        const detalhesLinha = linhas[i + 5] || "";
-        const parcelasMatch = detalhesLinha.match(/(\d{2,3})\s/);
-        const parcelaMatch = detalhesLinha.match(/R\$[\d.,]+/g);
-
-        const parcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : null;
-        const parcela = parcelaMatch ? parcelaMatch[0].replace("R$", "").trim() : null;
-        const valorEmprestado = parcelaMatch && parcelaMatch[1]
-          ? parcelaMatch[1].replace("R$", "").trim()
-          : null;
-
-        const taxaMatch = detalhesLinha.match(/\s(\d,\d{2})\s/);
-        const taxaMensal = taxaMatch ? taxaMatch[1] : "0";
-
-        const inicioMatch = detalhesLinha.match(/\d{2}\/\d{2}\/\d{2}/);
-        const inicioDesconto = inicioMatch ? inicioMatch[0] : null;
-
-        contratos.push({
-          contrato,
-          banco: banco || null,
-          parcelas,
-          parcela,
-          valorEmprestado,
-          taxaMensal,
-          inicioDesconto,
-        });
-      }
+    let match;
+    while ((match = regexContrato.exec(texto)) !== null) {
+      contratos.push({
+        contrato: match[1],
+        parcelas: parseInt(match[4]),
+        parcela: match[5],
+        valorEmprestado: match[6],
+        taxaMensal: match[7],
+        inicioDesconto: match[9],
+      });
     }
 
-    // 5. Retorno final
     return res.json({
       codigoArquivo,
       bloqueado,
       margemExtrapolada,
       contratos,
     });
-
-  } catch (err) {
-    console.error("Erro na rota /extrato:", err);
+  } catch (error) {
+    console.error("Erro ao processar extrato:", error);
     return res.status(500).json({ error: "Erro ao processar extrato" });
   }
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`✅ API rodando na porta ${PORT}`);
+  console.log(`API rodando na porta ${PORT}`);
 });
