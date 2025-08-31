@@ -5,18 +5,21 @@ const FormData = require("form-data");
 const app = express();
 app.use(express.json());
 
-// Sua API interna que baixa o arquivo pelo codigoArquivo
+// === Função para baixar o PDF da sua API interna ===
 async function baixarArquivo(codigoArquivo) {
   try {
+    console.log("📥 Baixando arquivo do CRM, codigoArquivo:", codigoArquivo);
+
     const response = await axios.post("https://lunasdigital.atenderbem.com/int/downloadFile", {
-      queueId: 25, // ajustar se precisar
+      queueId: 25, // ajuste se precisar
       apiKey: "cd4d0509169d4e2ea9177ac66c1c9376", // ⚠️ substitua pela real
-      fileId: 5779,
+      fileId: codigoArquivo,
       download: true
     }, {
-      responseType: "arraybuffer" // importante para receber PDF como binário
+      responseType: "arraybuffer" // importante para PDF
     });
 
+    console.log("✅ Arquivo baixado com sucesso, tamanho:", response.data.length);
     return response.data;
   } catch (err) {
     console.error("❌ Erro ao baixar arquivo:", err.message);
@@ -24,20 +27,23 @@ async function baixarArquivo(codigoArquivo) {
   }
 }
 
-// Enviar PDF para Cloudmersive e obter texto
+// === Converter PDF em texto (Cloudmersive) ===
 async function pdfParaTexto(pdfBuffer) {
   try {
+    console.log("🔄 Enviando PDF para Cloudmersive...");
+
     const form = new FormData();
     form.append("file", pdfBuffer, { filename: "extrato.pdf" });
 
     const response = await axios.post("https://api.cloudmersive.com/convert/pdf/to/txt", form, {
       headers: {
-        "Apikey": "1d68371d-57cf-42ee-9b19-c7d950c12e39", // sua API KEY da Cloudmersive
+        "Apikey": "1d68371d-57cf-42ee-9b19-c7d950c12e39", // sua API KEY
         ...form.getHeaders()
       },
       maxBodyLength: Infinity
     });
 
+    console.log("✅ PDF convertido em texto, tamanho:", response.data.TextResult.length);
     return response.data.TextResult;
   } catch (err) {
     console.error("❌ Erro ao converter PDF:", err.message);
@@ -45,8 +51,9 @@ async function pdfParaTexto(pdfBuffer) {
   }
 }
 
-// Extrair contratos ativos
+// === Extrair contratos ativos ===
 function extrairContratosAtivos(texto) {
+  console.log("📑 Iniciando parser de contratos...");
   const contratos = [];
   const linhas = texto.split(/\r?\n/);
 
@@ -75,30 +82,33 @@ function extrairContratosAtivos(texto) {
     }
   }
 
+  console.log("✅ Contratos encontrados:", contratos.length);
   return contratos;
 }
 
-// Verificar bloqueio
+// === Verificar bloqueio ===
 function verificarBloqueio(texto) {
   if (/Elegível para empréstimos/i.test(texto)) return false;
   if (/Bloqueado para empréstimo/i.test(texto)) return true;
   return null;
 }
 
-// Extrair Margem Extrapolada
+// === Extrair margem extrapolada ===
 function extrairMargemExtrapolada(texto) {
   const regex = /MARGEM EXTRAPOLADA\*{3}\s+R\$([\d.,]+)/i;
   const match = texto.match(regex);
   return match ? match[1] : null;
 }
 
-// === ROTA PRINCIPAL ===
+// === Rota principal ===
 app.post("/extrato", async (req, res) => {
   const { codigoArquivo } = req.body;
 
   if (!codigoArquivo) {
     return res.status(400).json({ error: "codigoArquivo não enviado" });
   }
+
+  console.log("🚀 Iniciando processamento para codigoArquivo:", codigoArquivo);
 
   const pdfBuffer = await baixarArquivo(codigoArquivo);
   if (!pdfBuffer) {
@@ -114,6 +124,8 @@ app.post("/extrato", async (req, res) => {
   const bloqueado = verificarBloqueio(texto);
   const margemExtrapolada = extrairMargemExtrapolada(texto);
 
+  console.log("📤 Retornando resposta final...");
+
   res.json({
     codigoArquivo,
     bloqueado,
@@ -122,7 +134,7 @@ app.post("/extrato", async (req, res) => {
   });
 });
 
-// Porta do Render
+// === Porta do Render ===
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 API rodando na porta ${PORT}`);
