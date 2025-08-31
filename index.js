@@ -5,16 +5,17 @@ import pdf from "pdf-parse";
 const app = express();
 app.use(express.json());
 
-// rota para extrair dados do extrato
+// rota principal
 app.post("/extrato", async (req, res) => {
   try {
     const { codigoArquivo } = req.body;
+
     if (!codigoArquivo) {
-      return res.status(400).json({ error: "codigoArquivo não enviado" });
+      return res.status(400).json({ error: "codigoArquivo é obrigatório" });
     }
 
-    // 🔹 Chama a API que traz o PDF bruto
-    const response = await axios.post(
+    // 1. Buscar PDF da sua API
+    const pdfResponse = await axios.post(
       "https://lunasdigital.atenderbem.com/int/downloadFile",
       {
         queueId: 25,
@@ -25,64 +26,83 @@ app.post("/extrato", async (req, res) => {
       { responseType: "arraybuffer" }
     );
 
-    // 🔹 Converte PDF em texto
-    const dataBuffer = Buffer.from(response.data, "binary");
-    const pdfData = await pdf(dataBuffer);
-    const texto = pdfData.text;
+    // 2. Extrair texto do PDF
+    const data = await pdf(pdfResponse.data);
+    const texto = data.text;
 
-    // 🔹 Verifica se benefício está bloqueado
-    const bloqueado = !/Elegível para empréstimos/i.test(texto);
+    // 🔍 3. Extrair informações do benefício
+    const bloqueado = texto.includes("Bloqueado para empréstimo");
+    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$(.*)/);
+    const margemExtrapolada = margemMatch
+      ? margemMatch[1].trim()
+      : "0,00";
 
-    // 🔹 Captura a margem extrapolada apenas de "VALORES DO BENEFÍCIO"
-    let margemExtrapolada = "0,00";
-    const matchMargem = texto.match(/VALORES DO BENEF[ÍI]CIO[\s\S]*?MARGEM EXTRAPOLADA\*{3}\s+R\$\s*([\d\.,]+)/i);
-    if (matchMargem) {
-      margemExtrapolada = matchMargem[1].trim();
-    }
-
-    // 🔹 Captura bloco de contratos
-    const blocoContratosMatch = texto.match(/EMPR[ÉE]STIMOS BANC[ÁA]RIOS[\s\S]*?CONTRATOS ATIVOS E SUSPENSOS\*([\s\S]*?)(?:\*Contratos|\nVALORES DO BENEF[ÍI]CIO|$)/i);
+    // 🔍 4. Extrair contratos em "EMPRÉSTIMOS BANCÁRIOS"
     const contratos = [];
+    const linhas = texto.split("\n");
 
-    if (blocoContratosMatch) {
-      const bloco = blocoContratosMatch[1];
+    for (let i = 0; i < linhas.length; i++) {
+      const linha = linhas[i];
 
-      // Divide cada contrato pelo número do contrato (5+ dígitos)
-      const contratosBrutos = bloco.split(/\n\s*(?=\d{5,})/);
+      // cada contrato ativo geralmente tem número e banco
+      if (/^\d{5,}/.test(linha)) {
+        const contrato = linha.trim();
 
-      contratosBrutos.forEach(c => {
-        const contrato = (c.match(/(\d{5,})/) || [])[1] || null;
-        const banco = (c.match(/BANCO\s+([A-ZÇ\s]+)/i) || [])[1]?.trim() || null;
-        const parcelas = (c.match(/\b(\d{2,3})\b\s+R\$/) || [])[1] || null;
-        const parcela = (c.match(/R\$\s*([\d\.,]+)\s+(?=R\$)/) || [])[1] || null;
-        const valorEmprestado = (c.match(/R\$\s*([\d\.,]+)(?!.*R\$)/) || [])[1] || null;
-        const taxaMensal = (c.match(/JUROS\s+MENSAL\s+(\d,\d{2})/i) || [])[1] || "0";
-        const inicioDesconto = (c.match(/(\d{2}\/\d{2}\/\d{2})/) || [])[1] || null;
+        // busca banco próximo
+        let banco = "";
+        for (let j = i; j < i + 4; j++) {
+          if (linhas[j] && linhas[j].match(/BANCO|BRASIL|ITAU|C6|FACTA/i)) {
+            banco = linhas[j].replace("BANCO", "").trim();
+            break;
+          }
+        }
+
+        // buscar linha com parcelas e valores
+        const detalhesLinha = linhas[i + 5] || "";
+        const parcelasMatch = detalhesLinha.match(/(\d{2,3})\s/);
+        const parcelaMatch = detalhesLinha.match(/R\$[\d.,]+/g);
+
+        const parcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : null;
+        const parcela = parcelaMatch ? parcelaMatch[0].replace("R$", "").trim() : null;
+        const valorEmprestado = parcelaMatch && parcelaMatch[1]
+          ? parcelaMatch[1].replace("R$", "").trim()
+          : null;
+
+        // taxa mensal
+        const taxaMatch = detalhesLinha.match(/\s(\d,\d{2})\s/);
+        const taxaMensal = taxaMatch ? taxaMatch[1] : "0";
+
+        // início do desconto (data dd/mm/aa)
+        const inicioMatch = detalhesLinha.match(/\d{2}\/\d{2}\/\d{2}/);
+        const inicioDesconto = inicioMatch ? inicioMatch[0] : null;
 
         contratos.push({
           contrato,
-          banco,
+          banco: banco || null,
           parcelas,
           parcela,
           valorEmprestado,
           taxaMensal,
-          inicioDesconto
+          inicioDesconto,
         });
-      });
+      }
     }
 
-    res.json({
+    // 5. Retorno final
+    return res.json({
       codigoArquivo,
       bloqueado,
       margemExtrapolada,
-      contratos
+      contratos,
     });
 
   } catch (err) {
-    console.error("Erro:", err);
-    res.status(500).json({ error: "Erro ao processar extrato" });
+    console.error("Erro na rota /extrato:", err);
+    return res.status(500).json({ error: "Erro ao processar extrato" });
   }
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`✅ API rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ API rodando na porta ${PORT}`);
+});
