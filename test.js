@@ -1,42 +1,33 @@
 const fs = require("fs");
 const axios = require("axios");
 
-(async () => {
+async function testarDownload(codigoArquivo) {
   try {
-    // Lê o PDF local e converte para base64
-    const pdfBase64 = fs.readFileSync("extrato.pdf").toString("base64");
-    console.log("✅ PDF carregado. Enviando para a API...");
+    // 1. Baixar PDF da sua API
+    const response = await axios.post(
+      "https://lunasdigital.atenderbem.com/int/downloadFile",
+      {
+        queueId: 25,
+        apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
+        fileId: codigoArquivo,
+        download: true
+      },
+      { responseType: "arraybuffer" } // <- garante binário cru
+    );
 
-    // Chama sua API local
-    const resp = await axios.post("http://localhost:3000/extrair", { pdfBase64 });
+    // 2. Salvar em disco para inspecionar
+    const pdfBuffer = Buffer.from(response.data);
+    fs.writeFileSync("teste.pdf", pdfBuffer);
 
-    // Pega o campo correto retornado pelo Cloudmersive
-    const texto = resp?.data?.textoExtraido?.TextResult || "";
-
-    console.log("\n📄 Primeiros caracteres do texto extraído:");
-    console.log(texto.slice(0, 500) + (texto.length > 500 ? "..." : ""));
-
-    // Regex específicas para os contratos
-    // Cada contrato está em linhas tipo:
-    // "...     96     R$12,14      R$528,71 ..."
-    // Qtde parcelas → valor da parcela → valor emprestado
-
-    const contratos = [];
-    const regex = /(\d{1,3})\s+R\$\s*([\d.,]+)\s+R\$\s*([\d.,]+)/g;
-    let match;
-
-    while ((match = regex.exec(texto)) !== null) {
-      contratos.push({
-        prazo: match[1],                // número de parcelas
-        parcela: match[2],              // valor da parcela
-        valorEmprestado: match[3]       // valor emprestado/liberado
-      });
-    }
-
-    console.log("\n🔎 Contratos encontrados:");
-    console.log(contratos);
-
+    console.log("✅ Arquivo salvo como teste.pdf, confira se abre no seu leitor de PDF.");
   } catch (err) {
-    console.error("❌ Erro:", err.response?.data || err.message);
+    console.error("❌ Erro ao baixar:", err.message);
+    if (err.response) {
+      console.error("Status:", err.response.status);
+      console.error("Data:", err.response.data.toString());
+    }
   }
-})();
+}
+
+// Teste passando um fileId válido
+testarDownload("123456789");
