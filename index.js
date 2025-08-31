@@ -4,14 +4,16 @@ const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json());
 
+// =========================
 // Função para extrair contratos ativos
+// =========================
 function extrairContratosAtivos(texto) {
   const linhas = texto.split(/\r?\n/);
   const contratos = [];
 
   for (let i = 0; i < linhas.length; i++) {
     if (linhas[i].includes("Ativo")) {
-      // junta esta linha + 2 seguintes
+      // Junta esta linha + 2 seguintes (contrato pode estar quebrado em várias linhas)
       const bloco = [
         linhas[i],
         linhas[i + 1] || "",
@@ -47,7 +49,7 @@ function extrairContratosAtivos(texto) {
         if (valores[1]) contrato.valorEmprestado = valores[1].replace("R$", "").trim();
       }
 
-      // Taxas → pega a 3ª (juros mensal)
+      // Taxas → pega a 3ª (juros mensal, não CET)
       const taxas = bloco.match(/\d+[.,]\d{2}/g);
       if (taxas && taxas.length >= 3) {
         contrato.taxaMensal = taxas[2].replace(".", ",");
@@ -66,15 +68,19 @@ function extrairContratosAtivos(texto) {
   return contratos;
 }
 
-// Rota de teste
+// =========================
+// Rota principal
+// =========================
 app.post("/extrato", (req, res) => {
-  const { codigoArquivo } = req.body;
+  const { codigoArquivo, texto } = req.body;
+
   if (!codigoArquivo) {
     return res.status(400).json({ error: "codigoArquivo não enviado" });
   }
 
-  // aqui você colocaria a leitura do PDF → por enquanto mock de texto
-  const texto = req.body.texto || ""; // para testar manualmente
+  if (!texto) {
+    return res.status(400).json({ error: "texto não enviado (teste manual)" });
+  }
 
   const contratos = extrairContratosAtivos(texto);
 
@@ -86,5 +92,8 @@ app.post("/extrato", (req, res) => {
   });
 });
 
+// =========================
+// Inicia servidor
+// =========================
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`✅ API rodando na porta ${PORT}`));
