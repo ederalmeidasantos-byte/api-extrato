@@ -1,75 +1,93 @@
-import express from "express";
-import multer from "multer";
-import axios from "axios";
+const express = require("express");
+const axios = require("axios");
+require("dotenv").config();
 
 const app = express();
-const upload = multer(); // middleware para multipart/form-data
+app.use(express.json());
 
-const CLOUDMERSIVE_API_KEY = "1d68371d-57cf-42ee-9b19-c7d950c12e39";
+const CLOUD_API_KEY = process.env.CLOUD_API_KEY;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
-// rota para enviar o PDF do extrato
-app.post("/extrato", upload.single("arquivo"), async (req, res) => {
+// Função para converter PDF → Texto via Cloudmersive
+async function pdfParaTexto(pdfBuffer) {
+  const resp = await axios.post(
+    "https://api.cloudmersive.com/convert/pdf/to/txt",
+    pdfBuffer,
+    {
+      headers: {
+        Apikey: CLOUD_API_KEY,
+        "Content-Type": "application/pdf"
+      },
+      timeout: 60000
+    }
+  );
+  return resp.data.TextResult || "";
+}
+
+// Rota principal
+app.post("/extrato", async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "PDF não enviado" });
+    const { codigoArquivo } = req.body;
+    if (!codigoArquivo) {
+      return res.status(400).json({ error: "codigoArquivo é obrigatório" });
     }
 
-    // 📤 Envia o PDF recebido para a API Cloudmersive (OCR)
-    const ocrResponse = await axios.post(
-      "https://api.cloudmersive.com/convert/pdf/to/txt",
-      req.file.buffer,
+    // 1. Buscar PDF binário na sua API
+    const pdfResponse = await axios.post(
+      "https://lunasdigital.atenderbem.com/int/downloadFile",
       {
-        headers: {
-          Apikey: CLOUDMERSIVE_API_KEY,
-          "Content-Type": "application/pdf",
-        },
-      }
+        queueId: 25,
+        apiKey: INTERNAL_API_KEY,
+        fileId: codigoArquivo,
+        download: true
+      },
+      { responseType: "arraybuffer", timeout: 30000 }
     );
 
-    const texto = ocrResponse.data.TextResult || "";
-    if (!texto) {
-      return res.status(400).json({ error: "Não foi possível extrair texto do PDF" });
-    }
+    const pdfBuffer = Buffer.from(pdfResponse.data);
 
-    // 🔍 Extração de dados
+    // 2. Converter PDF em texto no Cloudmersive
+    const texto = await pdfParaTexto(pdfBuffer);
+
+    // 3. Extrair informações do extrato
+    const bloqueado = !/Elegível para empréstimos/i.test(texto);
+    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$\s*([\d.,]+)/i);
+    const margemExtrapolada = margemMatch ? margemMatch[1].trim() : "0,00";
+
     const contratos = [];
-    const linhas = texto.split("\n");
+    const regexContratos =
+      /(\d{5,})[\s\S]*?(ITAU|C6|BRASIL|FACTA|BRADESCO|SANTANDER)?[\s\S]*?(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$\s*([\d.,]+)\s+R\$\s*([\d.,]+)[\s\S]*?(\d+,\d+)?[\s\S]*?(\d{2}\/\d{2}\/\d{2})?/gi;
 
-    for (let i = 0; i < linhas.length; i++) {
-      const linha = linhas[i];
-
-      if (linha.includes("Ativo")) {
-        // regex para capturar as colunas principais
-        const regex =
-          /(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$(\d+,\d{2})\s+R\$(\d+,\d{2}).*?(\d+,\d{2})/;
-        const match = linha.match(regex);
-
-        if (match) {
-          contratos.push({
-            parcelas: match[3],
-            parcela: match[4],
-            valorEmprestado: match[5],
-            taxaMensal: match[6] || "0",
-            inicioDesconto: match[1],
-          });
-        }
-      }
+    let match;
+    while ((match = regexContratos.exec(texto)) !== null) {
+      contratos.push({
+        contrato: match[1] || null,
+        banco: match[2] || null,
+        inicio: match[3] || null,
+        fim: match[4] || null,
+        parcelas: match[5] ? parseInt(match[5]) : null,
+        parcela: match[6] || null,
+        valorEmprestado: match[7] || null,
+        taxaMensal: match[8] || "0",
+        inicioDesconto: match[9] || null
+      });
     }
-
-    // 📊 Busca da margem extrapolada
-    const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$(\d+,\d{2})/);
-    const margemExtrapolada = margemMatch ? margemMatch[1] : "0,00";
 
     res.json({
-      bloqueado: texto.includes("Bloqueado para empréstimo"),
+      codigoArquivo,
+      bloqueado,
       margemExtrapolada,
-      contratos,
+      contratos
     });
+
   } catch (err) {
-    console.error("Erro na API:", err.message);
-    res.status(500).json({ error: "Erro interno na API" });
+    console.error("Erro:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Porta no Render
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`API rodando na porta ${PORT}`);
+});
