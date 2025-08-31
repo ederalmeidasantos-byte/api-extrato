@@ -1,39 +1,37 @@
 const express = require("express");
-const axios = require("axios");
 const app = express();
 
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json()); // permite receber JSON no body
 
 // Rota de teste
 app.get("/", (req, res) => {
-  res.send("🚀 API do Extrato rodando!");
+  res.send("✅ API de Extrato funcionando!");
 });
 
-// Rota para extrair texto do PDF
-app.post("/extrair", async (req, res) => {
-  try {
-    const { pdfBase64 } = req.body;
-    if (!pdfBase64) {
-      return res.status(400).json({ error: "pdfBase64 é obrigatório" });
-    }
+// Rota para extrair dados do texto
+app.post("/extrato", (req, res) => {
+  const { texto } = req.body;
 
-    const response = await axios.post(
-      "https://api.cloudmersive.com/convert/pdf/to/txt",
-      Buffer.from(pdfBase64, "base64"),
-      {
-        headers: {
-          "Apikey": "1d68371d-57cf-42ee-9b19-c7d950c12e39",
-          "Content-Type": "application/pdf"
-        }
-      }
-    );
-
-    res.json({ textoExtraido: response.data });
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({ error: "Erro ao processar PDF" });
+  if (!texto) {
+    return res.status(400).json({ error: "Texto não enviado" });
   }
+
+  // Regex para capturar prazo e parcela (exemplo: "96 R$424,20")
+  const regex = /(\d+)\s+R\$([\d.,]+)/;
+  const match = texto.match(regex);
+
+  if (!match) {
+    return res.status(200).json({ prazo: null, parcela: null });
+  }
+
+  const prazo = match[1];
+  const parcela = match[2];
+
+  res.json({ prazo, parcela });
 });
 
+// Render usa a porta do ambiente ou 3000
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
