@@ -1,12 +1,13 @@
 const express = require("express");
 const axios = require("axios");
-require("dotenv").config();
 
 const app = express();
+
+// Middleware para ler JSON no corpo da requisição
 app.use(express.json());
 
-const CLOUD_API_KEY = process.env.CLOUD_API_KEY;
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+// sua chave da Cloudmersive
+const CLOUD_API_KEY = "1d68371d-57cf-42ee-9b19-c7d950c12e39";
 
 // Função para converter PDF → Texto via Cloudmersive
 async function pdfParaTexto(pdfBuffer) {
@@ -17,8 +18,7 @@ async function pdfParaTexto(pdfBuffer) {
       headers: {
         Apikey: CLOUD_API_KEY,
         "Content-Type": "application/pdf"
-      },
-      timeout: 60000
+      }
     }
   );
   return resp.data.TextResult || "";
@@ -26,8 +26,11 @@ async function pdfParaTexto(pdfBuffer) {
 
 // Rota principal
 app.post("/extrato", async (req, res) => {
+  console.log("📥 BODY RECEBIDO:", req.body); // debug nos logs Render
+
   try {
     const { codigoArquivo } = req.body;
+
     if (!codigoArquivo) {
       return res.status(400).json({ error: "codigoArquivo é obrigatório" });
     }
@@ -37,11 +40,11 @@ app.post("/extrato", async (req, res) => {
       "https://lunasdigital.atenderbem.com/int/downloadFile",
       {
         queueId: 25,
-        apiKey: INTERNAL_API_KEY,
+        apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
         fileId: codigoArquivo,
         download: true
       },
-      { responseType: "arraybuffer", timeout: 30000 }
+      { responseType: "arraybuffer" }
     );
 
     const pdfBuffer = Buffer.from(pdfResponse.data);
@@ -54,17 +57,15 @@ app.post("/extrato", async (req, res) => {
     const margemMatch = texto.match(/MARGEM EXTRAPOLADA\*+\s+R\$\s*([\d.,]+)/i);
     const margemExtrapolada = margemMatch ? margemMatch[1].trim() : "0,00";
 
+    // Regex para contratos
     const contratos = [];
-    const regexContratos =
-      /(\d{5,})[\s\S]*?(ITAU|C6|BRASIL|FACTA|BRADESCO|SANTANDER)?[\s\S]*?(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$\s*([\d.,]+)\s+R\$\s*([\d.,]+)[\s\S]*?(\d+,\d+)?[\s\S]*?(\d{2}\/\d{2}\/\d{2})?/gi;
+    const regexContratos = /(\d{5,})[\s\S]*?(ITAU|C6|BRASIL|FACTA|BRADESCO|SANTANDER)?[\s\S]*?(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$\s*([\d.,]+)\s+R\$\s*([\d.,]+)[\s\S]*?(\d+,\d+)?[\s\S]*?(\d{2}\/\d{2}\/\d{2})?/gi;
 
     let match;
     while ((match = regexContratos.exec(texto)) !== null) {
       contratos.push({
         contrato: match[1] || null,
         banco: match[2] || null,
-        inicio: match[3] || null,
-        fim: match[4] || null,
         parcelas: match[5] ? parseInt(match[5]) : null,
         parcela: match[6] || null,
         valorEmprestado: match[7] || null,
@@ -81,7 +82,7 @@ app.post("/extrato", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Erro:", err.message);
+    console.error("❌ Erro:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -89,6 +90,5 @@ app.post("/extrato", async (req, res) => {
 // Porta no Render
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`API rodando na porta ${PORT}`);
+  console.log(`🚀 API rodando na porta ${PORT}`);
 });
-{}
