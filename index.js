@@ -1,46 +1,77 @@
-app.post("/extrato", async (req, res) => {
-  try {
-    const { codigoArquivo, pdfTexto } = req.body; // pdfTexto = texto do extrato convertido em string
+const express = require("express");
+const bodyParser = require("body-parser");
 
-    if (!codigoArquivo || !pdfTexto) {
-      return res.status(400).json({ error: "codigoArquivo e pdfTexto são obrigatórios" });
+const app = express();
+app.use(bodyParser.json());
+
+// =========================
+// ROTA PRINCIPAL
+// =========================
+app.post("/extrato", (req, res) => {
+  try {
+    const { codigoArquivo, texto } = req.body;
+    if (!codigoArquivo || !texto) {
+      return res.status(400).json({ error: "codigoArquivo e texto são obrigatórios" });
     }
 
-    const texto = pdfTexto.replace(/\s+/g, " "); // normalizar espaços
-
-    // 🔹 Detectar bloqueio de empréstimo
+    // =========================
+    // BLOQUEIO DE BENEFÍCIO
+    // =========================
     const bloqueado = !/Elegível para empréstimos/i.test(texto);
 
-    // 🔹 Capturar Margem Extrapolada somente na seção correta
-    const matchMargem = texto.match(/VALORES DO BENEF.*?MARGEM EXTRAPOLADA\*{3}\s+R\$\s*([\d.,]+)/i);
-    const margemExtrapolada = matchMargem ? matchMargem[1] : "0,00";
+    // =========================
+    // PEGAR MARGEM EXTRAPOLADA
+    // =========================
+    const margemMatch = texto.match(/VALORES DO BENEF[ÍI]CIO[\s\S]*?MARGEM EXTRAPOLADA\*+\s+R\$(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    const margemExtrapolada = margemMatch ? margemMatch[1] : "0,00";
 
-    // 🔹 Capturar contratos (somente da seção Empréstimos Bancários)
-    const contratos = [];
-    const regexContrato =
-      /(\d{5,6})\s+([A-Z0-9\s-]+)?\s+Ativo.*?(\d{2}\/\d{4})\s+(\d{2}\/\d{4})\s+(\d+)\s+R\$([\d.,]+)\s+R\$([\d.,]+).*?(\d,\d+)\s+[\d.,]+\s+(\d{2}\/\d{2}\/\d{2})/gi;
+    // =========================
+    // PEGAR CONTRATOS
+    // =========================
+    const contratoRegex =
+      /(\d{4,})\s+([\s\S]*?)\s+(?:Ativo|Suspenso)[\s\S]*?(?:\d{2}\/\d{4})?[\s\S]*?(\d{1,2},\d{2})?\s+(\d{1,3}(?:\.\d{3})*,\d{2})?[\s\S]*?(?:\d{1,2},\d{2})?\s+(\d{1,2},\d{2})?[\s\S]*?(\d{2}\/\d{2}\/\d{2})?/gi;
 
+    let contratos = [];
     let match;
-    while ((match = regexContrato.exec(texto)) !== null) {
+    while ((match = contratoRegex.exec(texto)) !== null) {
+      let contrato = match[1];
+      let banco = (match[2] || "").replace(/\r?\n|\s{2,}/g, " ").trim();
+
+      // Normaliza banco: pega apenas a parte principal
+      if (banco.toUpperCase().includes("BANCO")) {
+        banco = banco.replace(/.*BANCO\s+/i, "").split(" ")[0];
+      }
+
       contratos.push({
-        contrato: match[1] || null,
-        banco: match[2] ? match[2].replace(/\s+/g, " ").trim() : null,
-        parcelas: match[5] ? parseInt(match[5]) : null,
-        parcela: match[6] || null,
-        valorEmprestado: match[7] || null,
-        taxaMensal: match[8] || "0",
-        inicioDesconto: match[9] || null
+        contrato,
+        banco: banco || null,
+        parcelas: null, // pode ser refinado depois
+        parcela: match[3] || null,
+        valorEmprestado: match[4] || null,
+        taxaMensal: match[5] || "0",
+        inicioDesconto: match[6] || null,
       });
     }
 
-    return res.json({
+    // =========================
+    // RESPOSTA
+    // =========================
+    res.json({
       codigoArquivo,
       bloqueado,
       margemExtrapolada,
-      contratos
+      contratos,
     });
   } catch (err) {
-    console.error("Erro no /extrato:", err);
-    res.status(500).json({ error: "Erro interno ao processar extrato" });
+    console.error(err);
+    res.status(500).json({ error: "Erro ao processar extrato" });
   }
+});
+
+// =========================
+// INICIA SERVIDOR
+// =========================
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`API rodando na porta ${PORT}`);
 });
