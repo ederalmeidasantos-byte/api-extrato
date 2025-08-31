@@ -1,35 +1,60 @@
 const express = require("express");
-const app = express();
+const axios = require("axios");
+const FormData = require("form-data");
 
+const app = express();
 app.use(express.json());
 
-// Mock de arquivos de teste (aqui futuramente você chama a outra API)
-function carregarExtratoPorCodigo(codigoArquivo) {
-  if (codigoArquivo === "12345") {
-    return `
-      Nº Benefício: 604.321.543-1
-      Elegível para empréstimos
-      MARGEM EXTRAPOLADA*** R$0,00
-      266683 ITAU Ativo Refinanciamento 05/2025 04/2033 96 R$424,20 R$18.314,24 1,85 24,60 07/06/25
-      901381 C6 Ativo Refinanciamento 11/2024 10/2031 84 R$470,64 R$20.413,71 1,62 21,53 07/12/24
-      140184 BANCO DO BRASIL Ativo Portabilidade 10/2023 02/2030 77 R$1.219,85 R$15.000,00 1,84 24,44 05/11/23
-    `;
+// Sua API interna que baixa o arquivo pelo codigoArquivo
+async function baixarArquivo(codigoArquivo) {
+  try {
+    const response = await axios.post("https://lunasdigital.atenderbem.com/int/downloadFile", {
+      queueId: 25, // ajustar se precisar
+      apiKey: "cd4d0509169d4e2ea9177ac66c1c9376", // ⚠️ substitua pela real
+      fileId: codigoArquivo,
+      download: true
+    }, {
+      responseType: "arraybuffer" // importante para receber PDF como binário
+    });
+
+    return response.data;
+  } catch (err) {
+    console.error("❌ Erro ao baixar arquivo:", err.message);
+    return null;
   }
-  return null;
 }
 
-// === Funções auxiliares ===
+// Enviar PDF para Cloudmersive e obter texto
+async function pdfParaTexto(pdfBuffer) {
+  try {
+    const form = new FormData();
+    form.append("file", pdfBuffer, { filename: "extrato.pdf" });
 
-// Extrair todos os contratos ATIVOS
+    const response = await axios.post("https://api.cloudmersive.com/convert/pdf/to/txt", form, {
+      headers: {
+        "Apikey": "1d68371d-57cf-42ee-9b19-c7d950c12e39", // sua API KEY da Cloudmersive
+        ...form.getHeaders()
+      },
+      maxBodyLength: Infinity
+    });
+
+    return response.data.TextResult;
+  } catch (err) {
+    console.error("❌ Erro ao converter PDF:", err.message);
+    return null;
+  }
+}
+
+// Extrair contratos ativos
 function extrairContratosAtivos(texto) {
   const contratos = [];
   const linhas = texto.split(/\r?\n/);
 
   for (let i = 0; i < linhas.length; i++) {
     if (/Ativo/i.test(linhas[i])) {
-      let bloco = linhas.slice(i, i + 6).join(" "); // pega até 6 linhas após "Ativo"
+      let bloco = linhas.slice(i, i + 6).join(" ");
 
-      const contrato = bloco.match(/(\d{6,})/); // número contrato
+      const contrato = bloco.match(/(\d{6,})/);
       const banco = bloco.match(/(ITAU|C6|BANCO DO BRASIL|FACTA|SAFRA|CAIXA|SANTANDER)/i);
       const parcelas = bloco.match(/\s(\d{2,3})\s+R\$/);
       const parcela = bloco.match(/R\$([\d.,]+)/);
@@ -53,7 +78,7 @@ function extrairContratosAtivos(texto) {
   return contratos;
 }
 
-// Verificar se benefício está bloqueado
+// Verificar bloqueio
 function verificarBloqueio(texto) {
   if (/Elegível para empréstimos/i.test(texto)) return false;
   if (/Bloqueado para empréstimo/i.test(texto)) return true;
@@ -67,18 +92,22 @@ function extrairMargemExtrapolada(texto) {
   return match ? match[1] : null;
 }
 
-// === Rota principal ===
-app.post("/extrato", (req, res) => {
+// === ROTA PRINCIPAL ===
+app.post("/extrato", async (req, res) => {
   const { codigoArquivo } = req.body;
 
   if (!codigoArquivo) {
     return res.status(400).json({ error: "codigoArquivo não enviado" });
   }
 
-  const texto = carregarExtratoPorCodigo(codigoArquivo);
+  const pdfBuffer = await baixarArquivo(codigoArquivo);
+  if (!pdfBuffer) {
+    return res.status(500).json({ error: "Erro ao baixar arquivo" });
+  }
 
+  const texto = await pdfParaTexto(pdfBuffer);
   if (!texto) {
-    return res.status(404).json({ error: "Extrato não encontrado para este codigoArquivo" });
+    return res.status(500).json({ error: "Erro ao converter PDF para texto" });
   }
 
   const contratosAtivos = extrairContratosAtivos(texto);
