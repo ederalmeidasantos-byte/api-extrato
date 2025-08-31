@@ -10,10 +10,6 @@ app.post("/extrato", async (req, res) => {
   try {
     const { codigoArquivo } = req.body;
 
-    if (!codigoArquivo) {
-      return res.status(400).json({ error: "codigoArquivo é obrigatório" });
-    }
-
     // 1. Buscar PDF da sua API
     const pdfResponse = await axios.post(
       "https://lunasdigital.atenderbem.com/int/downloadFile",
@@ -37,18 +33,16 @@ app.post("/extrato", async (req, res) => {
       ? margemMatch[1].trim()
       : "0,00";
 
-    // 🔍 4. Extrair contratos em "EMPRÉSTIMOS BANCÁRIOS"
+    // 🔍 4. Extrair contratos
     const contratos = [];
     const linhas = texto.split("\n");
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i];
 
-      // cada contrato ativo geralmente tem número e banco
       if (/^\d{5,}/.test(linha)) {
         const contrato = linha.trim();
 
-        // busca banco próximo
         let banco = "";
         for (let j = i; j < i + 4; j++) {
           if (linhas[j] && linhas[j].match(/BANCO|BRASIL|ITAU|C6|FACTA/i)) {
@@ -57,7 +51,6 @@ app.post("/extrato", async (req, res) => {
           }
         }
 
-        // buscar linha com parcelas e valores
         const detalhesLinha = linhas[i + 5] || "";
         const parcelasMatch = detalhesLinha.match(/(\d{2,3})\s/);
         const parcelaMatch = detalhesLinha.match(/R\$[\d.,]+/g);
@@ -68,11 +61,9 @@ app.post("/extrato", async (req, res) => {
           ? parcelaMatch[1].replace("R$", "").trim()
           : null;
 
-        // taxa mensal
         const taxaMatch = detalhesLinha.match(/\s(\d,\d{2})\s/);
         const taxaMensal = taxaMatch ? taxaMatch[1] : "0";
 
-        // início do desconto (data dd/mm/aa)
         const inicioMatch = detalhesLinha.match(/\d{2}\/\d{2}\/\d{2}/);
         const inicioDesconto = inicioMatch ? inicioMatch[0] : null;
 
