@@ -9,7 +9,7 @@ app.post("/extrato", async (req, res) => {
   try {
     const { codigoArquivo } = req.body;
 
-    // Se não veio codigoArquivo, retorna vazio
+    // ✅ só valida codigoArquivo, nada de "texto obrigatório"
     if (!codigoArquivo) {
       return res.json({});
     }
