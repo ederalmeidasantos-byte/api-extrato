@@ -1,10 +1,22 @@
 function extrairContratosAtivos(texto) {
   const linhas = texto.split(/\r?\n/);
-
   const contratos = [];
+  let bloco = [];
 
-  linhas.forEach((linha, i) => {
+  for (let i = 0; i < linhas.length; i++) {
+    const linha = linhas[i];
+
+    // Se achou "Ativo", começa a montar o bloco do contrato
     if (linha.includes("Ativo")) {
+      bloco = [linha];
+
+      // Pega mais 3 a 5 linhas seguintes (dados do contrato ficam logo abaixo)
+      for (let j = 1; j <= 5; j++) {
+        if (linhas[i + j]) bloco.push(linhas[i + j]);
+      }
+
+      const textoContrato = bloco.join(" ");
+
       let contrato = {
         contrato: null,
         banco: null,
@@ -15,40 +27,36 @@ function extrairContratosAtivos(texto) {
         inicioDesconto: null
       };
 
-      // Extrair nº contrato → primeiro número da linha
-      const contratoMatch = linha.match(/\b\d{5,}\b/);
+      // Nº contrato
+      const contratoMatch = textoContrato.match(/\b\d{5,}\b/);
       if (contratoMatch) contrato.contrato = contratoMatch[0];
 
-      // Extrair banco → palavras antes de "Ativo"
-      const bancoMatch = linha.match(/([A-Z\s]{2,})(?=\s+Ativo)/i);
+      // Banco
+      const bancoMatch = textoContrato.match(/(ITAU|BRADESCO|C6|FACTA|BANCO DO BRASIL|QI CREDIT|FINANCEIRA)/i);
       if (bancoMatch) contrato.banco = bancoMatch[1].trim();
 
-      // Extrair quantidade de parcelas
-      const parcelasMatch = linha.match(/\s(\d{2,3})\s+/);
+      // Parcelas
+      const parcelasMatch = textoContrato.match(/\s(\d{2,3})\s+R\$/);
       if (parcelasMatch) contrato.parcelas = parseInt(parcelasMatch[1]);
 
-      // Extrair parcela mensal
-      const parcelaMatch = linha.match(/R\$\s?\d+[\.,]\d{2}/g);
-      if (parcelaMatch && parcelaMatch.length > 0) {
-        contrato.parcela = parcelaMatch[0].replace("R$", "").trim();
+      // Valores em R$
+      const valores = textoContrato.match(/R\$\s?\d+[\.,]\d{2}/g);
+      if (valores) {
+        if (valores[0]) contrato.parcela = valores[0].replace("R$", "").trim();
+        if (valores[1]) contrato.valorEmprestado = valores[1].replace("R$", "").trim();
       }
 
-      // Extrair valor emprestado → segundo valor em R$
-      if (parcelaMatch && parcelaMatch.length > 1) {
-        contrato.valorEmprestado = parcelaMatch[1].replace("R$", "").trim();
-      }
-
-      // Extrair taxa mensal
-      const taxaMatch = linha.match(/\s(\d{1,2}[,\.]\d{2})\s/);
+      // Taxa mensal
+      const taxaMatch = textoContrato.match(/\s(\d{1,2}[,\.]\d{2})\s/);
       if (taxaMatch) contrato.taxaMensal = taxaMatch[1].replace(".", ",");
 
-      // Extrair início do desconto (formato DD/MM/AA ou DD/MM/AAAA)
-      const dataMatch = linha.match(/\d{2}\/\d{2}\/\d{2,4}/);
+      // Início desconto
+      const dataMatch = textoContrato.match(/\d{2}\/\d{2}\/\d{2,4}/);
       if (dataMatch) contrato.inicioDesconto = dataMatch[0];
 
       contratos.push(contrato);
     }
-  });
+  }
 
   return contratos;
 }
