@@ -1,14 +1,14 @@
 const express = require("express");
 const app = express();
 
-app.use(express.json()); // permite receber JSON no body
+app.use(express.json());
 
-// Rota de teste
+// Rota raiz
 app.get("/", (req, res) => {
   res.send("✅ API de Extrato funcionando!");
 });
 
-// Rota para extrair dados do texto
+// Rota de extrato
 app.post("/extrato", (req, res) => {
   const { texto } = req.body;
 
@@ -16,7 +16,7 @@ app.post("/extrato", (req, res) => {
     return res.status(400).json({ error: "Texto não enviado" });
   }
 
-  // Regex para capturar prazo e parcela (exemplo: "96 R$424,20")
+  // Regex para capturar "96 R$424,20"
   const regex = /(\d+)\s+R\$([\d.,]+)/;
   const match = texto.match(regex);
 
@@ -30,8 +30,8 @@ app.post("/extrato", (req, res) => {
   res.json({ prazo, parcela });
 });
 
-// Render usa a porta do ambiente ou 3000
+// Porta do Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 API rodando na porta ${PORT}`);
 });
