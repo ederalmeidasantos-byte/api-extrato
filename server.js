@@ -1,11 +1,14 @@
-// server.js
-const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+import express from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
-const { extrairDeLunas, extrairDeUpload } = require("./extrair_pdf.js");
-const { calcularTrocoEndpoint } = require("./calculo.js");
+import { extrairDeLunas, extrairDeUpload } from "./extrair_pdf.js";
+import { calcularTrocoEndpoint } from "./calculo.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // pastas
 const PDF_DIR = path.join(__dirname, "extratos");
@@ -13,7 +16,7 @@ const JSON_DIR = path.join(__dirname, "json");
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 
-// upload local opcional (mantido se quiser testar com upload)
+// upload local
 const upload = multer({ dest: PDF_DIR });
 
 const app = express();
@@ -34,7 +37,7 @@ app.get("/extrair/:fileId", async (req, res) => {
   }
 });
 
-// 2) Extrair via upload (opcional)
+// 2) Extrair via upload
 app.post("/extrair", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
@@ -47,9 +50,8 @@ app.post("/extrair", upload.single("file"), async (req, res) => {
   }
 });
 
-// 3) Calcular troco a partir do JSON gerado
+// 3) Calcular troco
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 API na porta ${PORT}`));
-
