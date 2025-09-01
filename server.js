@@ -20,7 +20,10 @@ if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 const upload = multer({ dest: PDF_DIR });
 
 const app = express();
-app.use(express.json({ limit: "10mb" }));
+
+// só aplica body-parser JSON quando precisar
+app.use("/extrair", express.json({ limit: "10mb" }));
+app.use("/calcular", express.json({ limit: "10mb" }));
 
 // health
 app.get("/", (req, res) => res.send("API Extrato rodando ✅"));
