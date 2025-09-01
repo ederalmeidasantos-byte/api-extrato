@@ -1,7 +1,8 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
-import pdfParse from "pdf-parse";
+import pkg from "pdf-parse-fixed";
+const pdfParse = pkg;
 import OpenAI from "openai";
 
 // === OpenAI ===
