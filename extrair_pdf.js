@@ -146,6 +146,9 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
+    // 🔧 garante que a pasta existe
+    await fsp.mkdir(jsonDir, { recursive: true });
+
     const texto = await pdfToText(pdfPath);
     console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
 
@@ -174,6 +177,9 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+    // 🔧 garante que a pasta existe
+    await fsp.mkdir(jsonDir, { recursive: true });
 
     const body = {
       queueId: Number(LUNAS_QUEUE_ID),
