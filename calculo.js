@@ -44,12 +44,29 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
+// ===================== Fórmulas financeiras =====================
+function calcularSaldoDevedor(parcela, taxaMes, prazoRestante) {
+  const i = Number(taxaMes) / 100;
+  const n = Number(prazoRestante);
+
+  if (!parcela || !n) return 0;
+
+  if (!i || i <= 0) {
+    return parcela * n;
+  }
+
+  // Fórmula de PV (valor presente de anuidade)
+  return parcela * ((1 - Math.pow(1 + i, -n)) / i);
+}
+
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
   const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
-  const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  const prazoTotal = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  const prazoRestante = parseInt(c.prazo_restante || prazoTotal, 10);
+
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
@@ -57,7 +74,7 @@ function calcularParaContrato(c) {
   // pega taxa informada ou assume 1.79 como fallback
   const taxa = Number(c.taxa_juros_mensal) || 1.79;
 
-  // tenta usar coeficiente do JSON
+  // tenta usar coeficiente do JSON para simulação 96x
   let coef = null;
   if (coeficientes && coeficientes[taxa.toFixed(2)]) {
     coef = coeficientes[taxa.toFixed(2)][dia];
@@ -71,9 +88,9 @@ function calcularParaContrato(c) {
     };
   }
 
-  // Cálculo
-  const saldoDevedor = parcelaAtual / coef;   // usando prazo restante
-  const valorEmprestimo = parcelaAtual / coef; // simulando novo contrato 96x
+  // === Cálculos ===
+  const saldoDevedor = calcularSaldoDevedor(parcelaAtual, taxa, prazoRestante);
+  const valorEmprestimo = parcelaAtual / coef; // novo contrato 96x
   const troco = valorEmprestimo - saldoDevedor;
 
   if (!Number.isFinite(troco)) {
@@ -88,7 +105,9 @@ function calcularParaContrato(c) {
     banco: c.banco,
     contrato: c.contrato,
     parcela: formatBRL(parcelaAtual),
-    prazo: totalParcelas,
+    prazo_total: prazoTotal,
+    parcelas_pagas: c.parcelas_pagas || 0,
+    prazo_restante: prazoRestante,
     taxa_aplicada: taxa,
     coeficiente_usado: coef,
     saldo_devedor: formatBRL(saldoDevedor),
