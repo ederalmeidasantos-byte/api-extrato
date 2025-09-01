@@ -50,11 +50,13 @@ function calcularParaContrato(c) {
 
   const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  const prazoRestante = c.prazo_restante || totalParcelas;
+
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  // taxa do contrato → usada para saldo devedor
+  // taxa do contrato (para saldo devedor)
   const taxaAtual = Number(c.taxa_juros_mensal);
   if (!(taxaAtual > 0 && taxaAtual <= 3)) {
     return {
@@ -77,8 +79,8 @@ function calcularParaContrato(c) {
     };
   }
 
-  const prazoRestante = c.prazo_restante || totalParcelas;
-  const saldoDevedor = parcelaAtual / coefSaldo;
+  // saldo devedor ajustado pelo prazo restante
+  const saldoDevedor = (parcelaAtual / coefSaldo) * (prazoRestante / totalParcelas);
 
   // simulação novo contrato sempre 96x, testando as 3 taxas padrão
   const taxasPadrao = [1.85, 1.79, 1.66];
@@ -157,13 +159,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       // ==== resumo consolidado ====
-      const bancos = calculados.map(c => {
-        let b = (c.banco || "").toUpperCase();
-        if (b.includes("ITAÚ")) return "Itaú";
-        if (b.includes("C6")) return "C6";
-        return b.split(" ")[0];
-      });
-
+      const bancos = calculados.map(c => (c.banco || "").split(" ")[0]);
       const parcelas = calculados.map(c => toNumber(c.parcela).toFixed(2));
       const taxas = calculados.map(c => c.taxa_aplicada.toFixed(2));
       const saldos = calculados.map(c => toNumber(c.saldo_devedor).toFixed(2));
