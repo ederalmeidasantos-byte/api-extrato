@@ -9,6 +9,10 @@ import OpenAI from "openai";
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+console.log("📤 Body enviado para Lunas:", JSON.stringify(body, null, 2));
+console.log("🌐 LUNAS_API_URL:", LUNAS_API_URL);
+console.log("🔑 LUNAS_API_KEY:", LUNAS_API_KEY ? "[OK]" : "[FALTANDO]");
+console.log("📂 LUNAS_QUEUE_ID:", LUNAS_QUEUE_ID);
 
 // === Lunas config ===
 const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
