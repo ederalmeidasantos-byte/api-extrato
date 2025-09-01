@@ -111,56 +111,59 @@ async function gptExtrairJSON(texto) {
 
 // === fluxo para LUNAS ===
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
-  if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
-  if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
+  try {
+    console.log("🚀 Iniciando extração do fileId:", fileId);
 
-  const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
-  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+    if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
+    if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
 
-  // 1) baixa o PDF
-  const body = {
-    queueId: Number(LUNAS_QUEUE_ID),
-    apiKey: LUNAS_API_KEY,
-    fileId: Number(fileId),
-    download: true
-  };
+    const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
+    const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-  const resp = await fetch(LUNAS_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+    // 1) baixa o PDF
+    const body = {
+      queueId: Number(LUNAS_QUEUE_ID),
+      apiKey: LUNAS_API_KEY,
+      fileId: Number(fileId),
+      download: true
+    };
 
-  if (!resp.ok) {
-    const t = await resp.text();
-    throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+    console.log("📥 Requisitando PDF na Lunas:", body);
+
+    const resp = await fetch(LUNAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error("❌ Falha ao baixar da Lunas:", resp.status, t);
+      throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+    }
+
+    const arrayBuffer = await resp.arrayBuffer();
+    await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+    console.log("✅ PDF salvo em", pdfPath);
+
+    // 2) extrai texto e pede JSON ao GPT
+    const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
+
+    const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
+
+    // 3) salva JSON
+    await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
+    // 4) agendar exclusão
+    agendarExclusao24h(pdfPath, jsonPath);
+
+    return { ok: true, fileId, pdfPath, jsonPath };
+
+  } catch (err) {
+    console.error("💥 Erro em extrairDeLunas:", err);
+    throw err;
   }
-
-  const arrayBuffer = await resp.arrayBuffer();
-  await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
-  console.log("✅ PDF salvo em", pdfPath);
-
-  // 2) extrai texto e pede JSON ao GPT
-  const texto = await pdfToText(pdfPath);
-  const json = await gptExtrairJSON(texto);
-
-  // 3) salva JSON
-  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-
-  // 4) agendar exclusão em 24h
-  agendarExclusao24h(pdfPath, jsonPath);
-
-  return { ok: true, fileId, json };
-}
-
-// === fluxo para upload local ===
-export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
-  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-  const texto = await pdfToText(pdfPath);
-  const json = await gptExtrairJSON(texto);
-  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-  agendarExclusao24h(pdfPath, jsonPath);
-  return { ok: true, fileId, json };
 }
