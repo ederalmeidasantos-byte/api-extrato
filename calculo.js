@@ -1,6 +1,19 @@
 import fs from "fs";
 import path from "path";
-import coeficientes from "./coeficientes_96.json" assert { type: "json" };
+
+// ===================== Carrega coeficientes =====================
+let coeficientes = {};
+try {
+  const coefPath = path.join(process.cwd(), "coeficientes_96.json");
+  if (fs.existsSync(coefPath)) {
+    coeficientes = JSON.parse(fs.readFileSync(coefPath, "utf-8")).coeficiente_diario;
+    console.log("✅ Coeficientes carregados.");
+  } else {
+    console.warn("⚠️ coeficientes_96.json não encontrado.");
+  }
+} catch (err) {
+  console.error("⚠️ Erro ao carregar coeficientes_96.json:", err.message);
+}
 
 // ===================== Utils =====================
 function toNumber(v) {
@@ -31,59 +44,57 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
-// ===================== Cálculo usando coeficientes =====================
-function getCoeficiente(taxa, dia) {
-  const tabela = coeficientes.coeficiente_diario[String(taxa)];
-  if (!tabela) return null;
-  const key = String(dia).padStart(2, "0");
-  return tabela[key] || null;
-}
-
+// ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
   const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
+  const dtContrato = parseBRDate(dataContrato);
+  const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  const dataProposta = c.data_contrato || c.data_inclusao || todayBR();
-  const dt = parseBRDate(dataProposta);
-  const dia = dt ? dt.getDate() : 1;
+  // pega taxa informada ou assume 1.79 como fallback
+  const taxa = Number(c.taxa_juros_mensal) || 1.79;
 
-  const taxas = [1.85, 1.79, 1.66];
-  const resultados = [];
-
-  for (const tx of taxas) {
-    const coef = getCoeficiente(tx, dia);
-    if (!coef) continue;
-
-    const saldoDevedor = parcelaAtual / coef;
-    const valorEmprestimo = parcelaAtual / coef;
-    const troco = valorEmprestimo - saldoDevedor;
-
-    resultados.push({
-      taxa_aplicada: tx,
-      saldoDevedor,
-      valorEmprestimo,
-      troco
-    });
+  // tenta usar coeficiente do JSON
+  let coef = null;
+  if (coeficientes && coeficientes[taxa.toFixed(2)]) {
+    coef = coeficientes[taxa.toFixed(2)][dia];
   }
 
-  if (!resultados.length) return null;
+  if (!coef) {
+    return {
+      contrato: c.contrato,
+      banco: c.banco,
+      critica: `Coeficiente não encontrado para taxa ${taxa.toFixed(2)}% no dia ${dia}`
+    };
+  }
 
-  // pega a melhor simulação (maior troco)
-  const melhor = resultados.reduce((a, b) => (b.troco > a.troco ? b : a));
+  // Cálculo
+  const saldoDevedor = parcelaAtual / coef;   // usando prazo restante
+  const valorEmprestimo = parcelaAtual / coef; // simulando novo contrato 96x
+  const troco = valorEmprestimo - saldoDevedor;
+
+  if (!Number.isFinite(troco)) {
+    return {
+      contrato: c.contrato,
+      banco: c.banco,
+      critica: `Não foi possível calcular troco para taxa ${taxa.toFixed(2)}%`
+    };
+  }
 
   return {
     banco: c.banco,
     contrato: c.contrato,
     parcela: formatBRL(parcelaAtual),
-    prazo_restante: totalParcelas,
-    prazo_novo: 96, // fixo porque estamos simulando coeficientes de 96x
-    taxa_aplicada: melhor.taxa_aplicada,
-    saldo_devedor: formatBRL(melhor.saldoDevedor),
-    valor_emprestimo: formatBRL(melhor.valorEmprestimo),
-    troco: formatBRL(melhor.troco),
-    data_contrato: dataProposta,
+    prazo: totalParcelas,
+    taxa_aplicada: taxa,
+    coeficiente_usado: coef,
+    saldo_devedor: formatBRL(saldoDevedor),
+    valor_emprestimo: formatBRL(valorEmprestimo),
+    troco: formatBRL(troco),
+    data_contrato: dataContrato
   };
 }
 
@@ -114,8 +125,8 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const calculados = contratos
         .map(c => calcularParaContrato(c))
-        .filter(Boolean)
-        .filter(r => toNumber(r.troco) >= 100) // só trocos >= 100
+        .filter(r => r && !r.critica)
+        .filter(r => toNumber(r.troco) >= 100) // regra: só trocos >= 100
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       // ==== resumo consolidado ====
