@@ -164,7 +164,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       return res.json({
         fileId,
-        matricula: extrato?.beneficio?.numero || null,
+        matricula: extrato?.beneficio?.nb || null,
         contratos: calculados,
         resumo: {
           bancos: bancos.join(", "),
