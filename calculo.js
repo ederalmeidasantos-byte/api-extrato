@@ -80,64 +80,37 @@ function todayBR() {
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
-  if (c.origem_taxa === "critica") {
-    return {
-      contrato: c.contrato,
-      banco: c.banco,
-      critica: "Contrato marcado como CRÍTICO (sem taxa válida); não simulado."
-    };
-  }
+  if (c.origem_taxa === "critica") return null;
 
-  // ⚠️ Sempre usar valor_parcela (NUNCA valor_liberado)
   const parcelaAtual = toNumber(c.valor_parcela ?? c.parcela);
+
+  // ⚠️ regra: parcela mínima R$25,00
+  if (parcelaAtual < 25) return null;
+
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
   const prazoRestante = Number.isFinite(c.prazo_restante) ? c.prazo_restante : totalParcelas;
-
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  // taxa do contrato → usada para SALDO DEVEDOR
+  // taxa atual → usada para saldo devedor
   const taxaAtual = Number(c.taxa_juros_mensal);
-  if (!(taxaAtual > 0 && taxaAtual <= 3)) {
-    return {
-      contrato: c.contrato,
-      banco: c.banco,
-      critica: "Taxa inválida para cálculo"
-    };
-  }
+  if (!(taxaAtual > 0 && taxaAtual <= 3)) return null;
 
-  // coeficiente do contrato (coeficientes_96 por dia; saldo ajustado pelo prazo restante)
-  let coefSaldo = null;
-  if (coeficientes && coeficientes[taxaAtual.toFixed(2)]) {
-    coefSaldo = coeficientes[taxaAtual.toFixed(2)][dia];
-  }
-  if (!coefSaldo) {
-    return {
-      contrato: c.contrato,
-      banco: c.banco,
-      critica: `Coeficiente não encontrado para taxa ${taxaAtual.toFixed(2)}%`
-    };
-  }
+  const coefSaldo = coeficientes?.[taxaAtual.toFixed(2)]?.[dia];
+  if (!coefSaldo) return null;
 
-  // saldo devedor usando a taxa atual, ajustando pela proporção do prazo restante
-  const saldoBruto96 = parcelaAtual / coefSaldo; // equivalente a 96x
-  const saldoDevedor = totalParcelas > 0
-    ? saldoBruto96 * (prazoRestante / totalParcelas)
-    : saldoBruto96;
+  const saldoDevedor = parcelaAtual / coefSaldo;
 
-  // Simulação de novo contrato 96x nas taxas fixas (1.85, 1.79, 1.66)
+  // simulação novo contrato (96x) nas 3 taxas padrão
   const taxasPadrao = [1.85, 1.79, 1.66];
   let melhor = null;
 
   for (const tx of taxasPadrao) {
-    let coefNovo = null;
-    if (coeficientes && coeficientes[tx.toFixed(2)]) {
-      coefNovo = coeficientes[tx.toFixed(2)][dia];
-    }
+    const coefNovo = coeficientes?.[tx.toFixed(2)]?.[dia];
     if (!coefNovo) continue;
 
-    const valorEmprestimo = parcelaAtual / coefNovo; // 96x
+    const valorEmprestimo = parcelaAtual / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
     if (!Number.isFinite(troco)) continue;
@@ -154,6 +127,7 @@ function calcularParaContrato(c) {
 
   if (!melhor) return null;
 
+  // 🔥 retorno final, sem duplicação
   return {
     banco: c.banco,
     contrato: c.contrato,
