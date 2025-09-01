@@ -31,10 +31,10 @@ function parseBRDate(d) {
   const dt = new Date(+yyyy, +mm - 1, +dd);
   return isNaN(dt.getTime()) ? null : dt;
 }
-function formatBRL(n) {
+function formatBRNumber(n) {
   return Number.isFinite(n)
-    ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    : null;
+    ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "0,00";
 }
 function todayBR() {
   const x = new Date();
@@ -44,75 +44,83 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
-// ===================== Fórmulas financeiras =====================
-function calcularSaldoDevedor(parcela, taxaMes, prazoRestante) {
-  const i = Number(taxaMes) / 100;
-  const n = Number(prazoRestante);
-
-  if (!parcela || !n) return 0;
-
-  if (!i || i <= 0) {
-    return parcela * n;
-  }
-
-  // Fórmula de PV (valor presente de anuidade)
-  return parcela * ((1 - Math.pow(1 + i, -n)) / i);
-}
-
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
   const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
-  const prazoTotal = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
-  const prazoRestante = parseInt(c.prazo_restante || prazoTotal, 10);
-
+  const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  // pega taxa informada ou assume 1.79 como fallback
-  const taxa = Number(c.taxa_juros_mensal) || 1.79;
-
-  // tenta usar coeficiente do JSON para simulação 96x
-  let coef = null;
-  if (coeficientes && coeficientes[taxa.toFixed(2)]) {
-    coef = coeficientes[taxa.toFixed(2)][dia];
-  }
-
-  if (!coef) {
+  // taxa do contrato → usada para saldo devedor
+  const taxaAtual = Number(c.taxa_juros_mensal);
+  if (!(taxaAtual > 0 && taxaAtual <= 3)) {
     return {
       contrato: c.contrato,
       banco: c.banco,
-      critica: `Coeficiente não encontrado para taxa ${taxa.toFixed(2)}% no dia ${dia}`
+      critica: "Taxa inválida para cálculo"
     };
   }
 
-  // === Cálculos ===
-  const saldoDevedor = calcularSaldoDevedor(parcelaAtual, taxa, prazoRestante);
-  const valorEmprestimo = parcelaAtual / coef; // novo contrato 96x
-  const troco = valorEmprestimo - saldoDevedor;
-
-  if (!Number.isFinite(troco)) {
+  // coeficiente do contrato (prazo restante + taxa atual)
+  let coefSaldo = null;
+  if (coeficientes && coeficientes[taxaAtual.toFixed(2)]) {
+    coefSaldo = coeficientes[taxaAtual.toFixed(2)][dia];
+  }
+  if (!coefSaldo) {
     return {
       contrato: c.contrato,
       banco: c.banco,
-      critica: `Não foi possível calcular troco para taxa ${taxa.toFixed(2)}%`
+      critica: `Coeficiente não encontrado para taxa ${taxaAtual.toFixed(2)}%`
     };
   }
+
+  const prazoRestante = c.prazo_restante || totalParcelas;
+  const saldoDevedor = parcelaAtual / coefSaldo;
+
+  // simulação novo contrato sempre 96x, testando as 3 taxas padrão
+  const taxasPadrao = [1.85, 1.79, 1.66];
+  let melhor = null;
+
+  for (const tx of taxasPadrao) {
+    let coefNovo = null;
+    if (coeficientes && coeficientes[tx.toFixed(2)]) {
+      coefNovo = coeficientes[tx.toFixed(2)][dia];
+    }
+    if (!coefNovo) continue;
+
+    const valorEmprestimo = parcelaAtual / coefNovo;
+    const troco = valorEmprestimo - saldoDevedor;
+
+    if (!Number.isFinite(troco)) continue;
+    if (!melhor || troco > melhor.troco) {
+      melhor = {
+        taxa_aplicada: tx,
+        coeficiente_usado: coefNovo,
+        saldoDevedor,
+        valorEmprestimo,
+        troco
+      };
+    }
+  }
+
+  if (!melhor) return null;
 
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRL(parcelaAtual),
-    prazo_total: prazoTotal,
+    parcela: formatBRNumber(parcelaAtual),
+    prazo_total: totalParcelas,
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
-    taxa_aplicada: taxa,
-    coeficiente_usado: coef,
-    saldo_devedor: formatBRL(saldoDevedor),
-    valor_emprestimo: formatBRL(valorEmprestimo),
-    troco: formatBRL(troco),
+    taxa_atual: taxaAtual,
+    taxa_aplicada: melhor.taxa_aplicada,
+    coeficiente_usado: melhor.coeficiente_usado,
+    saldo_devedor: formatBRNumber(melhor.saldoDevedor),
+    valor_emprestimo: formatBRNumber(melhor.valorEmprestimo),
+    troco: formatBRNumber(melhor.troco),
     data_contrato: dataContrato
   };
 }
@@ -170,7 +178,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
           parcelas: parcelas.join(", "),
           taxas_calculadas: taxas.join(", "),
           saldos_devedores: saldos.join(", "),
-          total_troco: totalTroco.toFixed(2),
+          total_troco: formatBRNumber(totalTroco),
           total_contratos_simulados: calculados.length
         }
       });
