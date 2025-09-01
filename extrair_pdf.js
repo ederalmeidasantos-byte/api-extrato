@@ -99,7 +99,6 @@ async function gptExtrairJSON(texto) {
 
     let raw = completion.choices[0]?.message?.content?.trim() || "{}";
 
-    // remove blocos de código
     if (raw.startsWith("```")) {
       raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     }
@@ -118,22 +117,18 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-    // 1) extrai texto
     const texto = await pdfToText(pdfPath);
     console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
 
-    // 2) pede JSON ao GPT
     const json = await gptExtrairJSON(texto);
     console.log("🤖 JSON retornado pelo GPT:", json);
 
-    // 3) salva JSON
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
     console.log("✅ JSON salvo em", jsonPath);
 
-    // 4) agenda exclusão
     agendarExclusao24h(pdfPath, jsonPath);
 
-    return json; // retorna o JSON direto no corpo da resposta
+    return { fileId, ...json }; // 🔥 garante fileId no corpo
   } catch (err) {
     console.error("💥 Erro em extrairDeUpload:", err);
     throw err;
@@ -151,7 +146,6 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-    // 1) baixa o PDF
     const body = {
       queueId: Number(LUNAS_QUEUE_ID),
       apiKey: LUNAS_API_KEY,
@@ -177,22 +171,18 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
     console.log("✅ PDF salvo em", pdfPath);
 
-    // 2) extrai texto e pede JSON ao GPT
     const texto = await pdfToText(pdfPath);
     console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
 
     const json = await gptExtrairJSON(texto);
     console.log("🤖 JSON retornado pelo GPT:", json);
 
-    // 3) salva JSON
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
     console.log("✅ JSON salvo em", jsonPath);
 
-    // 4) agendar exclusão
     agendarExclusao24h(pdfPath, jsonPath);
 
-    return json; // retorna o JSON direto no corpo da resposta
-
+    return { fileId, ...json }; // 🔥 garante fileId no corpo
   } catch (err) {
     console.error("💥 Erro em extrairDeLunas:", err);
     throw err;

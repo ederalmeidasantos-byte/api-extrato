@@ -170,11 +170,15 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       return res.json({
         fileId,
-        trocos: resultados,
+        cliente: extrato.cliente || null,
+        beneficio: extrato.beneficio || null,
+        contratos: contratos,
+        resultados,
         soma_trocos: formatBRL(somaTrocos),
         bancos: bancos.join(", "),
         parcelas: parcelas.join(", "),
         saldos_devedores: saldos.join(", "),
+        data_extrato: extrato.data_extrato || todayBR()
       });
     } catch (err) {
       console.error("Erro /calcular", err);
