@@ -109,6 +109,34 @@ async function gptExtrairJSON(texto) {
   }
 }
 
+  // === fluxo para upload local ===
+  export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
+  try {
+    console.log("🚀 Iniciando extração de upload:", fileId);
+
+    const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+    // 1) extrai texto
+    const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
+
+    // 2) pede JSON ao GPT
+    const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
+
+    // 3) salva JSON
+    await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
+    // 4) agenda exclusão
+    agendarExclusao24h(pdfPath, jsonPath);
+
+    return { ok: true, fileId, pdfPath, jsonPath };
+  } catch (err) {
+    console.error("💥 Erro em extrairDeUpload:", err);
+    throw err;
+  }
+}
 // === fluxo para LUNAS ===
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   try {
