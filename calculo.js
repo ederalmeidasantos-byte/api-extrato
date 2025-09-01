@@ -6,7 +6,8 @@ function toNumber(v) {
   if (v == null) return 0;
   return (
     parseFloat(
-      v.toString().replace("%", "").replace(/\./g, "").replace(",", ".").trim()
+      v.toString().replace("R$", "").replace(/\s/g, "")
+        .replace("%", "").replace(/\./g, "").replace(",", ".").trim()
     ) || 0
   );
 }
@@ -62,7 +63,7 @@ function calcularParaContrato(c) {
   if (c.fim_desconto && /^\d{2}\/\d{4}$/.test(c.fim_desconto)) {
     const [m, y] = c.fim_desconto.split("/").map(Number);
     const hoje = new Date();
-    const mesesHoje = hoje.getFullYear() * 12 + hoje.getMonth() + 1;
+    const mesesHoje = hoje.getFullYear() * 12 + (hoje.getMonth() + 1);
     const mesesFim = y * 12 + m;
     prazoRestante = Math.max(1, mesesFim - mesesHoje + 1);
   } else {
@@ -73,45 +74,47 @@ function calcularParaContrato(c) {
   const dataProposta = c.data_contrato || c.data_inclusao || todayBR();
   const dataPrimeiroVenc = primeiroVencDia20(dataProposta, 2);
 
-  const taxas = [1.85, 1.79, 1.66];
+  const taxaInformada = toNumber(c.taxa_juros_mensal);
+  const candidatos = [];
+  if (taxaInformada > 0.1 && taxaInformada < 30) candidatos.push(taxaInformada);
+  [1.85, 1.79, 1.66].forEach(t => { if (!candidatos.includes(t)) candidatos.push(t); });
+
   let melhor = null;
 
-  for (const tx of taxas) {
+  for (const tx of candidatos) {
     const coefAtual = coeficienteDiario(tx, prazoRestante, dataProposta, dataPrimeiroVenc);
-    const coefNovo = coeficienteDiario(tx, prazoNovo, dataProposta, dataPrimeiroVenc);
+    const coefNovo  = coeficienteDiario(tx, prazoNovo,     dataProposta, dataPrimeiroVenc);
 
-    const saldoDevedor = coefAtual > 0 ? parcelaAtual / coefAtual : NaN;
-    const valorEmprestimo = coefNovo > 0 ? parcelaAtual / coefNovo : NaN;
-    const troco =
-      Number.isFinite(valorEmprestimo) && Number.isFinite(saldoDevedor)
-        ? valorEmprestimo - saldoDevedor
-        : NaN;
+    const saldoDevedor    = coefAtual > 0 ? parcelaAtual / coefAtual : NaN;
+    const valorEmprestimo = coefNovo  > 0 ? parcelaAtual / coefNovo  : NaN;
+    const troco = (Number.isFinite(valorEmprestimo) && Number.isFinite(saldoDevedor))
+      ? (valorEmprestimo - saldoDevedor)
+      : NaN;
 
-    if (Number.isFinite(troco)) {
-      const pack = { taxa_aplicada: tx, saldoDevedor, valorEmprestimo, troco };
-      if (troco >= 100) {
-        melhor = pack;
-        break;
-      }
-      if (troco > 0 && (!melhor || melhor.troco <= 0)) {
-        melhor = pack;
-      }
+    if (!Number.isFinite(troco)) continue;
+    if (!melhor || troco > melhor.troco) {
+      melhor = {
+        taxa_aplicada: tx,
+        saldoDevedor,
+        valorEmprestimo,
+        troco
+      };
     }
   }
 
-  if (!melhor || !(melhor.troco > 0)) return null;
+  if (!melhor) return null;
 
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: parcelaAtual,
+    parcela: formatBRL(parcelaAtual),
     prazo_restante: prazoRestante,
     prazo_novo: prazoNovo,
     taxa_aplicada: melhor.taxa_aplicada,
-    saldo_devedor: melhor.saldoDevedor,
-    valor_emprestimo: melhor.valorEmprestimo,
-    troco: melhor.troco,
-    data_contrato: dataProposta,
+    saldo_devedor: formatBRL(melhor.saldoDevedor),
+    valor_emprestimo: formatBRL(melhor.valorEmprestimo),
+    troco: formatBRL(melhor.troco),
+    data_contrato: c.data_contrato || c.data_inclusao || todayBR(),
   };
 }
 
@@ -139,46 +142,17 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       const contratos = extrairEmprestimos(extrato);
-      const resultados = [];
 
-      let somaTrocos = 0;
-      const bancos = [];
-      const parcelas = [];
-      const saldos = [];
-
-      for (const c of contratos) {
-        const r = calcularParaContrato(c);
-        if (r) {
-          resultados.push({
-            banco: r.banco,
-            contrato: r.contrato,
-            parcela: formatBRL(r.parcela),
-            prazo_restante: r.prazo_restante,
-            prazo_novo: r.prazo_novo,
-            taxa_aplicada: r.taxa_aplicada,
-            saldo_devedor: formatBRL(r.saldo_devedor),
-            valor_emprestimo: formatBRL(r.valor_emprestimo),
-            troco: formatBRL(r.troco),
-            data_contrato: r.data_contrato,
-          });
-          somaTrocos += r.troco;
-          bancos.push(r.banco);
-          parcelas.push(formatBRL(r.parcela));
-          saldos.push(formatBRL(r.saldo_devedor));
-        }
-      }
+      const calculados = contratos
+        .map(c => calcularParaContrato(c))
+        .filter(Boolean)
+        .filter(r => toNumber(r.troco) >= 100) // só trocos >= 100
+        .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       return res.json({
         fileId,
-        cliente: extrato.cliente || null,
-        beneficio: extrato.beneficio || null,
-        contratos: contratos,
-        resultados,
-        soma_trocos: formatBRL(somaTrocos),
-        bancos: bancos.join(", "),
-        parcelas: parcelas.join(", "),
-        saldos_devedores: saldos.join(", "),
-        data_extrato: extrato.data_extrato || todayBR()
+        matricula: extrato?.beneficio?.numero || null,
+        contratos: calculados
       });
     } catch (err) {
       console.error("Erro /calcular", err);
