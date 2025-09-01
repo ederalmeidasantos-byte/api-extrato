@@ -25,8 +25,8 @@ app.use(express.json({ limit: "10mb" }));
 // health
 app.get("/", (req, res) => res.send("API Extrato rodando ✅"));
 
-// 1) Extrair via LUNAS pelo fileId
-app.get("/extrair/:fileId", async (req, res) => {
+// 1) Extrair via LUNAS pelo fileId (sem body, apenas params)
+app.post("/extrair/:fileId", async (req, res) => {
   try {
     const { fileId } = req.params;
     const out = await extrairDeLunas({ fileId, pdfDir: PDF_DIR, jsonDir: JSON_DIR });
@@ -40,7 +40,9 @@ app.get("/extrair/:fileId", async (req, res) => {
 // 2) Extrair via upload
 app.post("/extrair", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
+    if (!req.file) {
+      return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
+    }
     const fileId = req.body.fileId || req.file.filename;
     const out = await extrairDeUpload({ fileId, pdfPath: req.file.path, jsonDir: JSON_DIR });
     res.json(out);
