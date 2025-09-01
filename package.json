@@ -1,17 +1,32 @@
 {
   "name": "api-extrato",
   "version": "1.0.0",
-  "description": "",
+  "description": "API para extrair dados do extrato INSS e calcular taxas",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "api",
+    "extrato",
+    "inss",
+    "node",
+    "express"
+  ],
+  "author": "Eder Almeida Santos",
+  "license": "MIT",
   "dependencies": {
-    "axios": "^1.11.0",
-    "express": "^5.1.0",
-    "pdf-parse": "^1.1.1"
+    "axios": "^1.7.7",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^4.68.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
