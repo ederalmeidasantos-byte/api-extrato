@@ -4,6 +4,7 @@ import path from "path";
 import pkg from "pdf-parse-fixed";
 const pdfParse = pkg;
 import OpenAI from "openai";
+import { mapBeneficio } from "./beneficios.js";
 
 // === OpenAI ===
 const openai = new OpenAI({
@@ -32,6 +33,11 @@ function agendarExclusao24h(...paths) {
   }, DAY);
 }
 
+function normalizarNB(nb) {
+  if (!nb) return "";
+  return String(nb).replace(/\D/g, "");
+}
+
 // prompt que força schema e múltiplos contratos ativos
 function buildPrompt(texto) {
   return `
@@ -55,7 +61,9 @@ Esquema esperado:
     "meio_pagamento": "conta corrente",
     "banco_pagamento": "Banco Bradesco S A",
     "agencia": "877",
-    "conta": "0001278479"
+    "conta": "0001278479",
+    "nome": "NOME DA ESPÉCIE (quando conseguir do extrato)",
+    "codigo": "CÓDIGO DA ESPÉCIE (quando conseguir do extrato)"
   },
   "contratos": [
     {
@@ -88,6 +96,15 @@ async function pdfToText(pdfPath) {
   return data.text;
 }
 
+function mesesEntre(inicioMMYYYY, referencia = new Date()) {
+  if (!inicioMMYYYY || !/^\d{2}\/\d{4}$/.test(inicioMMYYYY)) return 0;
+  const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
+  const a = new Date(yyyy, mm - 1, 1);
+  const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  return Math.max(0, meses);
+}
+
 async function gptExtrairJSON(texto) {
   try {
     const completion = await openai.chat.completions.create({
@@ -107,12 +124,23 @@ async function gptExtrairJSON(texto) {
 
     let parsed = JSON.parse(raw);
 
-    // 🔎 Normaliza contratos, valida taxa e adiciona origem
+    // === Normaliza BENEFÍCIO ===
+    if (parsed?.beneficio) {
+      // NB somente números
+      parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
+
+      // tenta mapear espécie por código ou nome/tipo vindo do GPT
+      const preferencia = parsed.beneficio.codigo || parsed.beneficio.especie || parsed.beneficio.tipo || parsed.beneficio.nome || "";
+      const mapped = mapBeneficio(preferencia);
+      parsed.beneficio.codigo = mapped.codigo;
+      parsed.beneficio.nome = mapped.nome;
+    }
+
+    // === Normaliza CONTRATOS ===
     if (parsed?.contratos && Array.isArray(parsed.contratos)) {
       parsed.contratos = parsed.contratos.map(c => {
         let critica = c.critica ?? null;
         let origem_taxa = "extrato"; // default
-
         const taxa = Number(c.taxa_juros_mensal);
 
         if (!Number.isFinite(taxa)) {
@@ -124,8 +152,15 @@ async function gptExtrairJSON(texto) {
           origem_taxa = "critica";
         }
 
+        // calcula parcelas pagas e prazo restante
+        const total = Number(c.qtde_parcelas) || 0;
+        const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
+        const restante = Math.max(0, total - pagas);
+
         return {
           ...c,
+          parcelas_pagas: pagas,
+          prazo_restante: restante,
           origem_taxa,
           ...(critica ? { critica } : {})
         };
