@@ -1,13 +1,11 @@
-import express from "express";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { extrairDeLunas, extrairDeUpload } from "./extrair_pdf.js";
-import { calcularTrocoEndpoint } from "./calculo.js";
+// server.js
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { extrairDeLunas, extrairDeUpload } = require("./extrair_pdf.js");
+const { calcularTrocoEndpoint } = require("./calculo.js");
 
 // pastas
 const PDF_DIR = path.join(__dirname, "extratos");
@@ -40,7 +38,6 @@ app.get("/extrair/:fileId", async (req, res) => {
 app.post("/extrair", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
-    // permite passar um fileId opcional; se não vier, usa o filename temporário do multer
     const fileId = req.body.fileId || req.file.filename;
     const out = await extrairDeUpload({ fileId, pdfPath: req.file.path, jsonDir: JSON_DIR });
     res.json(out);
@@ -55,3 +52,4 @@ app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 API na porta ${PORT}`));
+

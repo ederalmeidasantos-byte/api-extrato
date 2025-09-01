@@ -1,202 +1,165 @@
 import fs from "fs";
+import fsp from "fs/promises";
 import path from "path";
+import pdfParse from "pdf-parse";
+import OpenAI from "openai";
 
-// ===================== Utils =====================
-function toNumber(v) {
-  if (v == null) return 0;
-  return parseFloat(
-    v.toString().replace("%", "").replace(/\./g, "").replace(",", ".").trim()
-  ) || 0;
-}
-function parseBRDate(d) {
-  if (!d || typeof d !== "string") return null;
-  const [dd, mm, yyyy] = d.split("/");
-  const dt = new Date(+yyyy, +mm - 1, +dd);
-  return isNaN(dt.getTime()) ? null : dt;
-}
-function formatBRL(n) {
-  return Number.isFinite(n) ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : null;
-}
-function todayBR() {
-  const x = new Date();
-  const dd = String(x.getDate()).padStart(2, "0");
-  const mm = String(x.getMonth() + 1).padStart(2, "0");
-  const yy = x.getFullYear();
-  return `${dd}/${mm}/${yy}`;
-}
-function primeiroVencDia20(dataPropostaBR, addMeses = 2) {
-  const dt = parseBRDate(dataPropostaBR);
-  if (!dt) return null;
-  const ref = new Date(dt.getFullYear(), dt.getMonth() + addMeses, 20);
-  const dd = "20";
-  const mm = String(ref.getMonth() + 1).padStart(2, "0");
-  const yy = ref.getFullYear();
-  return `${dd}/${mm}/${yy}`;
-}
-function diffDays(d1, d2) {
-  if (!d1 || !d2) return 0;
-  const MS = 24 * 60 * 60 * 1000;
-  return Math.max(0, Math.round((d2 - d1) / MS));
-}
-function coeficienteDiario(taxaMesPercent, prazoMeses, dataPropostaBR, dataPrimeiroVencBR) {
-  const iMes = toNumber(taxaMesPercent) / 100;
-  const n = parseInt(prazoMeses || 0, 10);
-  if (!(iMes > 0) || !(n > 0)) return 0;
+// === OpenAI ===
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-  const iDia = Math.pow(1 + iMes, 1 / 30) - 1;
-  const fator = Math.pow(1 + iMes, n);
-  const coefBase = (iMes * fator) / (fator - 1);
-  const dias = diffDays(parseBRDate(dataPropostaBR), parseBRDate(dataPrimeiroVencBR));
-  return coefBase * Math.pow(1 + iDia, dias);
-}
+// === Lunas config ===
+const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
+const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
+const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
-/**
- * Tenta taxas 1,85% -> 1,79% -> 1,66% até o troco ficar >= 100 (se possível).
- * Prazo atual = meses até fim_desconto.
- * Prazo novo   = qtde_parcelas (renova para o prazo cheio).
- */
-function calcularParaContrato(c) {
-  // filtros mínimos
-  if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
-
-  const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
-  const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
-
-  // fim_desconto no formato "MM/YYYY"
-  let prazoRestante = 0;
-  if (c.fim_desconto && /^\d{2}\/\d{4}$/.test(c.fim_desconto)) {
-    const [m, y] = c.fim_desconto.split("/").map(Number);
-    const hoje = new Date();
-    const mesesHoje = hoje.getFullYear() * 12 + hoje.getMonth() + 1; // 1..12
-    const mesesFim = y * 12 + m;
-    prazoRestante = Math.max(1, mesesFim - mesesHoje + 1);
-  } else {
-    // fallback se não tiver fim_desconto
-    prazoRestante = totalParcelas || 0;
-  }
-
-  const prazoNovo = totalParcelas || prazoRestante;
-  const dataProposta = c.data_contrato || c.data_inclusao || todayBR();
-  const dataPrimeiroVenc = primeiroVencDia20(dataProposta, 2);
-
-  // taxas a testar
-  const taxas = [1.85, 1.79, 1.66];
-
-  let melhor = null;
-
-  for (const tx of taxas) {
-    const txStr = String(tx).replace(".", ","); // para função que aceita "1,85" também
-    const coefAtual = coeficienteDiario(txStr, prazoRestante, dataProposta, dataPrimeiroVenc);
-    const coefNovo = coeficienteDiario(txStr, prazoNovo, dataProposta, dataPrimeiroVenc);
-
-    const saldoDevedor = coefAtual > 0 ? (parcelaAtual / coefAtual) : NaN;
-    const valorEmprestimo = coefNovo > 0 ? (parcelaAtual / coefNovo) : NaN;
-    const troco = (Number.isFinite(valorEmprestimo) && Number.isFinite(saldoDevedor))
-      ? (valorEmprestimo - saldoDevedor)
-      : NaN;
-
-    // guarda o primeiro que atingir troco >= 100; se nenhum atingir, fica com o melhor positivo
-    if (Number.isFinite(troco)) {
-      const pack = {
-        taxa_aplicada: tx,
-        saldoDevedor,
-        valorEmprestimo,
-        troco
-      };
-      if (troco >= 100 && (!melhor || melhor.troco < 100)) {
-        melhor = pack;
-        break;
-      }
-      if (troco > 0 && (!melhor || melhor.troco <= 0)) {
-        melhor = pack;
-      }
-      if (!melhor) melhor = pack; // fallback (pode ser negativo)
-    }
-  }
-
-  if (!melhor || !(melhor.troco > 0)) return null;
-
-  return {
-    banco: c.banco,
-    contrato: c.contrato,
-    parcela: parcelaAtual,
-    prazo_restante: prazoRestante,
-    prazo_novo: prazoNovo,
-    taxa_aplicada: melhor.taxa_aplicada,
-    saldo_devedor: melhor.saldoDevedor,
-    valor_emprestimo: melhor.valorEmprestimo,
-    troco: melhor.troco,
-    data_contrato: dataProposta
-  };
-}
-
-/**
- * Localiza a lista de empréstimos ativos no JSON (suporta variações de schema)
- */
-function extrairEmprestimos(json) {
-  // novo schema proposto
-  if (Array.isArray(json.contratos)) {
-    return json.contratos.filter(c => (c.situacao || "").toLowerCase() === "ativo");
-  }
-  // schema original do INSS agrupado
-  const raiz = json.contratos_ativos_suspensos?.emprestimos_bancarios;
-  if (Array.isArray(raiz)) {
-    return raiz.filter(c => (c.situacao || "").toLowerCase() === "ativo");
-  }
-  return [];
-}
-
-export function calcularTrocoEndpoint(JSON_DIR) {
-  return (req, res) => {
-    try {
-      const { fileId } = req.params;
-      const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
-      if (!fs.existsSync(jsonPath)) {
-        return res.status(404).json({ error: "Extrato não encontrado (pode ter expirado)" });
-      }
-
-      const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-      const contratos = extrairEmprestimos(extrato);
-      const resultados = [];
-
-      let somaTrocos = 0;
-      const bancos = [];
-      const parcelas = [];
-      const saldos = [];
-
-      for (const c of contratos) {
-        const r = calcularParaContrato(c);
-        if (r) {
-          resultados.push({
-            banco: r.banco,
-            contrato: r.contrato,
-            parcela: formatBRL(r.parcela),
-            prazo_restante: r.prazo_restante,
-            prazo_novo: r.prazo_novo,
-            taxa_aplicada: Number(r.taxa_aplicada),   // 1.85 etc
-            saldo_devedor: formatBRL(r.saldo_devedor),
-            valor_emprestimo: formatBRL(r.valor_emprestimo),
-            troco: formatBRL(r.troco),
-            data_contrato: r.data_contrato
-          });
-          somaTrocos += r.troco;
-          bancos.push(r.banco);
-          parcelas.push(formatBRL(r.parcela));
-          saldos.push(formatBRL(r.saldo_devedor));
+// agendar exclusão em 24h
+function agendarExclusao24h(...paths) {
+  const DAY = 24 * 60 * 60 * 1000;
+  setTimeout(() => {
+    for (const p of paths) {
+      try {
+        if (p && fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          console.log("🗑️ Removido após 24h:", p);
         }
+      } catch (e) {
+        console.warn("Falha ao excluir", p, e.message);
       }
-
-      return res.json({
-        fileId,
-        trocos: resultados,
-        soma_trocos: formatBRL(somaTrocos),
-        bancos: bancos.join(", "),
-        parcelas: parcelas.join(", "),
-        saldos_devedores: saldos.join(", ")
-      });
-    } catch (err) {
-      console.error("Erro /calcular", err);
-      res.status(500).json({ error: "Erro interno no cálculo", detalhe: err.message });
     }
+  }, DAY);
+}
+
+// prompt que força schema e números com ponto
+function buildPrompt(texto) {
+  return `
+Você é um assistente que extrai **apenas empréstimos ativos** de um extrato do INSS e retorna **JSON válido**.
+
+REGRAS IMPORTANTES:
+- Retorne SOMENTE JSON (sem comentários, sem texto extra).
+- Campos numéricos devem vir em número com ponto decimal (ex.: 1.85).
+- Incluir "data_contrato" (data do contrato quando identificada no extrato; se não achar, usar data de inclusão).
+- Ignorar cartões RMC/RCC e quaisquer contratos não "Ativo".
+
+Esquema desejado:
+{
+  "cliente": "Nome",
+  "beneficio": {
+    "nb": "604321543-1",
+    "bloqueio_beneficio": "SIM|NAO",
+    "meio_pagamento": "conta corrente",
+    "banco_pagamento": "Banco Bradesco S A",
+    "agencia": "877",
+    "conta": "0001278479"
+  },
+  "contratos": [
+    {
+      "contrato": "2666838921",
+      "banco": "Banco Itau Consignado S A",
+      "situacao": "Ativo",
+      "valor_parcela": 12.14,
+      "qtde_parcelas": 96,
+      "data_inclusao": "09/04/2025",
+      "inicio_desconto": "05/2025",
+      "fim_desconto": "04/2033",
+      "data_contrato": "09/04/2025",
+      "taxa_juros_mensal": 1.85,
+      "taxa_juros_anual": 24.60
+    }
+  ],
+  "data_extrato": "DD/MM/AAAA"
+}
+
+Agora, gere o JSON a partir do texto abaixo:
+
+${texto}
+`;
+}
+
+async function pdfToText(pdfPath) {
+  const buffer = await fsp.readFile(pdfPath);
+  const data = await pdfParse(buffer);
+  return data.text;
+}
+
+async function gptExtrairJSON(texto) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      messages: [
+        { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
+        { role: "user", content: buildPrompt(texto) }
+      ]
+    });
+
+    let raw = completion.choices[0]?.message?.content?.trim() || "{}";
+
+    // remove blocos de código
+    if (raw.startsWith("```")) {
+      raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    }
+
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("❌ Erro parseando JSON do GPT:", err.message);
+    return { error: "Falha ao interpretar extrato", detalhe: err.message };
+  }
+}
+
+// === fluxo para LUNAS ===
+export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
+  if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
+  if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
+
+  const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+  // 1) baixa o PDF
+  const body = {
+    queueId: Number(LUNAS_QUEUE_ID),
+    apiKey: LUNAS_API_KEY,
+    fileId: Number(fileId),
+    download: true
   };
+
+  const resp = await fetch(LUNAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+  }
+
+  const arrayBuffer = await resp.arrayBuffer();
+  await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+  console.log("✅ PDF salvo em", pdfPath);
+
+  // 2) extrai texto e pede JSON ao GPT
+  const texto = await pdfToText(pdfPath);
+  const json = await gptExtrairJSON(texto);
+
+  // 3) salva JSON
+  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
+
+  // 4) agendar exclusão em 24h
+  agendarExclusao24h(pdfPath, jsonPath);
+
+  return { ok: true, fileId, json };
+}
+
+// === fluxo para upload local ===
+export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+  const texto = await pdfToText(pdfPath);
+  const json = await gptExtrairJSON(texto);
+  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
+  agendarExclusao24h(pdfPath, jsonPath);
+  return { ok: true, fileId, json };
 }
