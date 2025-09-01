@@ -1,31 +1,29 @@
 import express from "express";
-import { extrairContratos } from "./extrair_pdf.js"; // importa sua função de extração
+import dotenv from "dotenv";
+import { processarExtratoPorFileId } from "./extrair_pdf.js";
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware para JSON
 app.use(express.json());
 
-// Rota de teste
-app.get("/", (req, res) => {
-  res.send("🚀 API Extrato rodando!");
-});
+// Healthcheck
+app.get("/", (_req, res) => res.send("🚀 API Extrato rodando!"));
 
-// Rota principal de extração
+// Endpoint principal
 app.post("/extrair", async (req, res) => {
   try {
     const { fileId } = req.body;
-
     if (!fileId) {
       return res.status(400).json({ error: "fileId é obrigatório" });
     }
-
-    const contratos = await extrairContratos(fileId);
-    res.json(contratos);
-  } catch (error) {
-    console.error("❌ Erro na rota /extrair:", error);
-    res.status(500).json({ error: "Erro interno" });
+    const resultado = await processarExtratoPorFileId(fileId);
+    return res.json(resultado);
+  } catch (err) {
+    console.error("❌ Erro /extrair:", err);
+    return res.status(500).json({ error: "Erro interno", detalhe: err.message });
   }
 });
 
