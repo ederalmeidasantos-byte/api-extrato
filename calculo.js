@@ -149,10 +149,31 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         .filter(r => toNumber(r.troco) >= 100) // só trocos >= 100
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
+      // ==== resumo consolidado ====
+      const bancos = calculados.map(c => {
+        let b = (c.banco || "").toUpperCase();
+        if (b.includes("ITAÚ")) return "Itaú";
+        if (b.includes("C6")) return "C6";
+        return b.split(" ")[0]; // pega só a primeira palavra como simplificação
+      });
+
+      const parcelas = calculados.map(c => toNumber(c.parcela).toFixed(2));
+      const taxas = calculados.map(c => c.taxa_aplicada.toFixed(2));
+      const saldos = calculados.map(c => toNumber(c.saldo_devedor).toFixed(2));
+      const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
+
       return res.json({
         fileId,
         matricula: extrato?.beneficio?.numero || null,
-        contratos: calculados
+        contratos: calculados,
+        resumo: {
+          bancos: bancos.join(", "),
+          parcelas: parcelas.join(", "),
+          taxas_calculadas: taxas.join(", "),
+          saldos_devedores: saldos.join(", "),
+          total_troco: totalTroco.toFixed(2),
+          total_contratos_simulados: calculados.length
+        }
       });
     } catch (err) {
       console.error("Erro /calcular", err);

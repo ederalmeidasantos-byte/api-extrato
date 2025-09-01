@@ -41,6 +41,7 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Retorne SOMENTE JSON (sem comentários, sem texto extra).
 - Inclua todos os contratos "Ativo".
 - Ignore cartões RMC/RCC ou contratos não ativos.
+- Sempre incluir "valor_liberado" (quando existir no extrato).
 - Se não houver taxa de juros no extrato, calcule a taxa de juros mensal e anual e preencha.
 - Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
 - Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
@@ -61,6 +62,7 @@ Esquema esperado:
       "contrato": "2666838921",
       "banco": "Banco Itau Consignado S A",
       "situacao": "Ativo",
+      "valor_liberado": 1000.00,
       "valor_parcela": 12.14,
       "qtde_parcelas": 96,
       "data_inclusao": "09/04/2025",
@@ -103,7 +105,34 @@ async function gptExtrairJSON(texto) {
       raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     }
 
-    return JSON.parse(raw);
+    let parsed = JSON.parse(raw);
+
+    // 🔎 Normaliza contratos, valida taxa e adiciona origem
+    if (parsed?.contratos && Array.isArray(parsed.contratos)) {
+      parsed.contratos = parsed.contratos.map(c => {
+        let critica = c.critica ?? null;
+        let origem_taxa = "extrato"; // default
+
+        const taxa = Number(c.taxa_juros_mensal);
+
+        if (!Number.isFinite(taxa)) {
+          origem_taxa = "calculado"; // não tinha taxa → calculada
+        } else if (taxa < 1 || taxa > 3) {
+          critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente com contrato físico.";
+          delete c.taxa_juros_mensal;
+          delete c.taxa_juros_anual;
+          origem_taxa = "critica";
+        }
+
+        return {
+          ...c,
+          origem_taxa,
+          ...(critica ? { critica } : {})
+        };
+      });
+    }
+
+    return parsed;
   } catch (err) {
     console.error("❌ Erro parseando JSON do GPT:", err.message);
     return { error: "Falha ao interpretar extrato", detalhe: err.message };
@@ -128,7 +157,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
     agendarExclusao24h(pdfPath, jsonPath);
 
-    return { fileId, ...json }; // 🔥 garante fileId no corpo
+    return { fileId, ...json };
   } catch (err) {
     console.error("💥 Erro em extrairDeUpload:", err);
     throw err;
@@ -182,7 +211,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     agendarExclusao24h(pdfPath, jsonPath);
 
-    return { fileId, ...json }; // 🔥 garante fileId no corpo
+    return { fileId, ...json };
   } catch (err) {
     console.error("💥 Erro em extrairDeLunas:", err);
     throw err;
