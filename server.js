@@ -2,7 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import multer from "multer";
 
-import { extrairPDF } from "./extrair_pdf.js";
+import { extrairPDF } from "./extrair_pdf.mjs";
 import { calcularTroco } from "./calculo.js";
 
 const app = express();
