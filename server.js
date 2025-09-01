@@ -50,3 +50,15 @@ app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
+
+// novo endpoint para ver o JSON cru
+app.get("/extrato/:fileId/raw", (req, res) => {
+  const { fileId } = req.params;
+  const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
+
+  if (!fs.existsSync(jsonPath)) {
+    return res.status(404).json({ error: "Extrato não encontrado" });
+  }
+
+  res.sendFile(jsonPath);
+});
