@@ -1,6 +1,17 @@
 import fs from "fs";
 import path from "path";
 
+// ===================== Carrega coeficientes =====================
+let coeficientes = {};
+try {
+  const coefPath = path.join(process.cwd(), "coeficientes_96.json");
+  if (fs.existsSync(coefPath)) {
+    coeficientes = JSON.parse(fs.readFileSync(coefPath, "utf-8")).coeficiente_diario;
+  }
+} catch (err) {
+  console.error("⚠️ Erro ao carregar coeficientes_96.json:", err.message);
+}
+
 // ===================== Utils =====================
 function toNumber(v) {
   if (v == null) return 0;
@@ -29,28 +40,6 @@ function todayBR() {
   const yy = x.getFullYear();
   return `${dd}/${mm}/${yy}`;
 }
-function primeiroVencDia20(dataPropostaBR, addMeses = 2) {
-  const dt = parseBRDate(dataPropostaBR);
-  if (!dt) return null;
-  const ref = new Date(dt.getFullYear(), dt.getMonth() + addMeses, 20);
-  return `20/${String(ref.getMonth() + 1).padStart(2, "0")}/${ref.getFullYear()}`;
-}
-function diffDays(d1, d2) {
-  if (!d1 || !d2) return 0;
-  const MS = 24 * 60 * 60 * 1000;
-  return Math.max(0, Math.round((d2 - d1) / MS));
-}
-function coeficienteDiario(taxaMesPercent, prazoMeses, dataPropostaBR, dataPrimeiroVencBR) {
-  const iMes = toNumber(taxaMesPercent) / 100;
-  const n = parseInt(prazoMeses || 0, 10);
-  if (!(iMes > 0) || !(n > 0)) return 0;
-
-  const iDia = Math.pow(1 + iMes, 1 / 30) - 1;
-  const fator = Math.pow(1 + iMes, n);
-  const coefBase = (iMes * fator) / (fator - 1);
-  const dias = diffDays(parseBRDate(dataPropostaBR), parseBRDate(dataPrimeiroVencBR));
-  return coefBase * Math.pow(1 + iDia, dias);
-}
 
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
@@ -58,63 +47,42 @@ function calcularParaContrato(c) {
 
   const parcelaAtual = toNumber(c.valor_parcela || c.parcela || 0);
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
+  const dtContrato = parseBRDate(dataContrato);
+  const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  let prazoRestante = 0;
-  if (c.fim_desconto && /^\d{2}\/\d{4}$/.test(c.fim_desconto)) {
-    const [m, y] = c.fim_desconto.split("/").map(Number);
-    const hoje = new Date();
-    const mesesHoje = hoje.getFullYear() * 12 + (hoje.getMonth() + 1);
-    const mesesFim = y * 12 + m;
-    prazoRestante = Math.max(1, mesesFim - mesesHoje + 1);
-  } else {
-    prazoRestante = totalParcelas || 0;
+  // pega taxa informada ou assume 1.79
+  const taxa = Number(c.taxa_juros_mensal) || 1.79;
+
+  // tenta usar coeficiente do JSON
+  let coef = null;
+  if (coeficientes && coeficientes[taxa.toFixed(2)]) {
+    coef = coeficientes[taxa.toFixed(2)][dia];
   }
 
-  const prazoNovo = totalParcelas || prazoRestante;
-  const dataProposta = c.data_contrato || c.data_inclusao || todayBR();
-  const dataPrimeiroVenc = primeiroVencDia20(dataProposta, 2);
-
-  const taxaInformada = toNumber(c.taxa_juros_mensal);
-  const candidatos = [];
-  if (taxaInformada > 0.1 && taxaInformada < 30) candidatos.push(taxaInformada);
-  [1.85, 1.79, 1.66].forEach(t => { if (!candidatos.includes(t)) candidatos.push(t); });
-
-  let melhor = null;
-
-  for (const tx of candidatos) {
-    const coefAtual = coeficienteDiario(tx, prazoRestante, dataProposta, dataPrimeiroVenc);
-    const coefNovo  = coeficienteDiario(tx, prazoNovo,     dataProposta, dataPrimeiroVenc);
-
-    const saldoDevedor    = coefAtual > 0 ? parcelaAtual / coefAtual : NaN;
-    const valorEmprestimo = coefNovo  > 0 ? parcelaAtual / coefNovo  : NaN;
-    const troco = (Number.isFinite(valorEmprestimo) && Number.isFinite(saldoDevedor))
-      ? (valorEmprestimo - saldoDevedor)
-      : NaN;
-
-    if (!Number.isFinite(troco)) continue;
-    if (!melhor || troco > melhor.troco) {
-      melhor = {
-        taxa_aplicada: tx,
-        saldoDevedor,
-        valorEmprestimo,
-        troco
-      };
-    }
+  if (!coef) {
+    return {
+      contrato: c.contrato,
+      banco: c.banco,
+      critica: `Coeficiente não encontrado para taxa ${taxa.toFixed(2)}% no dia ${dia}`
+    };
   }
 
-  if (!melhor) return null;
+  const saldoDevedor = parcelaAtual / coef;
+  const valorEmprestimo = parcelaAtual / coef; // 96x padrão
+  const troco = valorEmprestimo - saldoDevedor;
 
   return {
     banco: c.banco,
     contrato: c.contrato,
     parcela: formatBRL(parcelaAtual),
-    prazo_restante: prazoRestante,
-    prazo_novo: prazoNovo,
-    taxa_aplicada: melhor.taxa_aplicada,
-    saldo_devedor: formatBRL(melhor.saldoDevedor),
-    valor_emprestimo: formatBRL(melhor.valorEmprestimo),
-    troco: formatBRL(melhor.troco),
-    data_contrato: c.data_contrato || c.data_inclusao || todayBR(),
+    prazo: totalParcelas,
+    taxa_aplicada: taxa,
+    coeficiente_usado: coef,
+    saldo_devedor: formatBRL(saldoDevedor),
+    valor_emprestimo: formatBRL(valorEmprestimo),
+    troco: formatBRL(troco),
+    data_contrato: dataContrato
   };
 }
 
@@ -145,8 +113,8 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const calculados = contratos
         .map(c => calcularParaContrato(c))
-        .filter(Boolean)
-        .filter(r => toNumber(r.troco) >= 100) // só trocos >= 100
+        .filter(r => r && !r.critica)
+        .filter(r => toNumber(r.troco) >= 50)
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       // ==== resumo consolidado ====
@@ -154,7 +122,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         let b = (c.banco || "").toUpperCase();
         if (b.includes("ITAÚ")) return "Itaú";
         if (b.includes("C6")) return "C6";
-        return b.split(" ")[0]; // pega só a primeira palavra como simplificação
+        return b.split(" ")[0];
       });
 
       const parcelas = calculados.map(c => toNumber(c.parcela).toFixed(2));
