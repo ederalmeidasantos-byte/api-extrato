@@ -88,14 +88,24 @@ ${texto}`;
 
 function promptContratos(texto) {
   return `
-Extraia do texto do extrato TODOS os contratos ATIVOS. Retorne JSON válido no formato:
+Você deve extrair do texto abaixo **TODOS os contratos de empréstimos consignados ativos** e retornar **somente um JSON válido**.
 
+⚠️ Regras obrigatórias:
+- Retorne um array JSON com todos os contratos "Ativo".
+- Se não houver contratos ativos no texto, retorne um array vazio [].
+- Não invente contratos, apenas use o que aparece no texto.
+- Sempre que possível preencha os campos com número.
+- Campos monetários devem ser número com ponto decimal (ex.: 1249.28).
+- Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
+- Incluir parcelas_pagas e prazo_restante como números (mesmo que 0).
+
+Exemplo de formato:
 [
   {
     "contrato": "2666838921",
     "banco": "Banco Itau Consignado S A",
     "situacao": "Ativo",
-    "valor_liberado": 1000.00,
+    "valor_liberado": 528.71,
     "valor_parcela": 12.14,
     "qtde_parcelas": 96,
     "data_inclusao": "09/04/2025",
@@ -107,8 +117,10 @@ Extraia do texto do extrato TODOS os contratos ATIVOS. Retorne JSON válido no f
   }
 ]
 
-Texto:
-${texto}`;
+Agora, extraia os contratos ativos do seguinte texto:
+
+${texto}
+  `;
 }
 
 // =========================================================
@@ -134,11 +146,17 @@ async function gptJSON(prompt, model = "gpt-4o-mini") {
 async function gptExtrairJSON(texto) {
   const textoFiltrado = filtrarTextoExtrato(texto);
 
-  // processa em duas chamadas: benefício (gpt-4o) e contratos (gpt-4o-mini)
-  const [beneficio, contratos] = await Promise.all([
+  // tenta contratos com texto filtrado
+  let [beneficio, contratos] = await Promise.all([
     gptJSON(promptBeneficio(textoFiltrado), "gpt-4o"),
     gptJSON(promptContratos(textoFiltrado), "gpt-4o-mini")
   ]);
+
+  // fallback se não trouxe contratos
+  if (!contratos || !Array.isArray(contratos) || contratos.length === 0) {
+    console.warn("⚠️ Nenhum contrato encontrado no texto filtrado. Tentando texto completo...");
+    contratos = await gptJSON(promptContratos(texto), "gpt-4o-mini");
+  }
 
   // === normalização benefício ===
   beneficio.nb = normalizarNB(beneficio.nb);
