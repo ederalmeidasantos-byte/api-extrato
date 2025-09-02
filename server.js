@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { extrairDeLunas, extrairDeUpload } from "./extrair_pdf.js";
+import { extrairDeUploadPaginas } from "./extrair_pdf_paginas.js"; // ✅ novo
 import { calcularTrocoEndpoint } from "./calculo.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,13 +17,13 @@ if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 
 const upload = multer({ dest: PDF_DIR });
 const app = express();
-app.use(express.json({ limit: "10mb" })); // habilita JSON body
+app.use(express.json({ limit: "10mb" }));
 
 // health check
 app.get("/", (req, res) => res.send("API rodando ✅"));
 
 /**
- * 1) POST /extrair (CRM) → envia { "fileId": "123" } no body
+ * 1) POST /extrair (Lunas CRM)
  */
 app.post("/extrair", async (req, res) => {
   try {
@@ -39,7 +40,7 @@ app.post("/extrair", async (req, res) => {
 });
 
 /**
- * 2) POST /extrair/upload → upload local de PDF (form-data: file=<arquivo>)
+ * 2) POST /extrair/upload → upload local com modelo original corrigido
  */
 app.post("/extrair/upload", upload.single("file"), async (req, res) => {
   try {
@@ -57,7 +58,25 @@ app.post("/extrair/upload", upload.single("file"), async (req, res) => {
 });
 
 /**
- * 3) GET /extrair/:fileId → compatibilidade com versão antiga
+ * 3) POST /extrair/upload_paginas → upload local com modelo separado por páginas
+ */
+app.post("/extrair/upload_paginas", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
+    const out = await extrairDeUploadPaginas({
+      fileId: req.body.fileId || req.file.filename,
+      pdfPath: req.file.path,
+      jsonDir: JSON_DIR
+    });
+    res.json(out);
+  } catch (err) {
+    console.error("❌ Erro em /extrair/upload_paginas:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * 4) GET /extrair/:fileId → compatibilidade com versão antiga
  */
 app.get("/extrair/:fileId", async (req, res) => {
   try {
@@ -70,12 +89,12 @@ app.get("/extrair/:fileId", async (req, res) => {
 });
 
 /**
- * 4) GET /calcular/:fileId → cálculo
+ * 5) GET /calcular/:fileId → cálculo de troco
  */
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 /**
- * 5) GET /extrato/:fileId/raw → retorna JSON cru
+ * 6) GET /extrato/:fileId/raw → retorna JSON cru
  */
 app.get("/extrato/:fileId/raw", (req, res) => {
   const { fileId } = req.params;

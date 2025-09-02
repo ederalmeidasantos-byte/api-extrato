@@ -63,7 +63,6 @@ function formatBRNumber(n) {
 }
 
 function formatBRTaxa(nAsDecimal) {
-  // nAsDecimal ex.: 0.0138 -> "1,38"
   return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -85,59 +84,25 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-function stripDiacritics(s) {
-  return (s || "")
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-}
-
-// ------- Buscar primeiro valor não-vazio em aliases -------
-function pick(obj, ...keys) {
-  for (const k of keys) {
-    const v = obj?.[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-  }
-  return undefined;
-}
-
-// ======== PARSE MARGENS diretamente do TEXTO (robusto) ========
+// ======== PARSE MARGENS ========
 function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-
   let disponivel = null, rmc = null, rcc = null, extrapolada = null;
 
   const linhas = texto.split(/\r?\n/);
+  for (const ln of linhas) {
+    const line = clean(ln.toUpperCase());
 
-  for (let idx = 0; idx < linhas.length; idx++) {
-    const raw = clean(linhas[idx]);
-    const line = stripDiacritics(raw.toUpperCase());
-
-    // 1) MARGEM DISPONÍVEL* (na mesma linha costumam vir os 3: disponivel, RMC e RCC)
-    if (line.includes("MARGEM DISPONIVEL")) {
+    if (line.includes("MARGEM DISPONÍVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
-      const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
-      const rRcc = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
-
-      if (nums.length > 0 && disponivel === null) disponivel = nums[0];
-      if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
-      if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
-
-      // Se por algum motivo RMC/RCC estiverem na linha seguinte
-      if ((!rmc || !rcc) && idx + 1 < linhas.length) {
-        const next = stripDiacritics(clean(linhas[idx + 1]).toUpperCase());
-        const rRmc2 = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(next);
-        const rRcc2 = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(next);
-        if (!rmc && rRmc2) rmc = rRmc2[1];
-        if (!rcc && rRcc2) rcc = rRcc2[1];
-      }
-      continue;
+      if (nums.length > 0) disponivel = nums[0];
+      if (nums.length > 1) rmc = nums[1];
+      if (nums.length > 2) rcc = nums[2];
     }
 
-    // 2) MARGEM EXTRAPOLADA***
     if (line.includes("MARGEM EXTRAPOLADA")) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) extrapolada = n;
-      continue;
     }
   }
 
@@ -154,21 +119,12 @@ function buildPrompt(texto) {
   return `
 Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
 
-Ordem do PDF (importante):
-- **Página 1**: Dados do cliente e do benefício (NB, nome do benefício exatamente como aparece no PDF, banco de pagamento, agência, conta, situação).
-- **Página 2**: Margens. NÃO calcule: apenas leia os valores. 
-  - "MARGEM DISPONÍVEL*" -> primeira coluna: disponível; também contém RMC e RCC na mesma linha.
-  - "MARGEM EXTRAPOLADA***" -> valor único.
-- **Página 3 em diante**: Contratos ativos. Ignore cartões RMC/RCC e qualquer item não-ativo.
-
 ⚠️ Regras:
-- Retorne **SOMENTE JSON** (sem comentários).
-- Contratos devem ter estes campos e nomes exatamente:
-  "contrato","banco","situacao","data_inclusao","competencia_inicio_desconto","qtde_parcelas",
-  "valor_parcela","valor_liberado","iof","cet_mensal","cet_anual","taxa_juros_mensal","taxa_juros_anual","valor_pago"
-- Use números **crus** (sem formatação BR) dentro de contratos (exemplo: 15529.56, 424.10, 0.0238).
-- Cabeçalho "beneficio": mantenha o nome do benefício **exatamente como está no PDF** (não padronize).
-- Não invente valores. Se não houver, use null ou 0.
+- Retorne SOMENTE JSON.
+- Inclua todos os contratos ativos (exceto RMC/RCC).
+- Valores dentro de contratos devem vir crus (sem formatação BR).
+- O nome do benefício deve vir exatamente como está no PDF.
+- Se não houver valores, use null ou 0.
 
 Esquema esperado:
 {
@@ -180,10 +136,10 @@ Esquema esperado:
     "banco_pagamento": "Banco ...",
     "agencia": "877",
     "conta": "0001278479",
-    "nomeBeneficio": "Texto exato do PDF em azul",
+    "nomeBeneficio": "Texto exato do PDF",
     "codigoBeneficio": null
   },
-  "margens": {},   // será sobrescrito depois
+  "margens": {},
   "contratos": [
     {
       "contrato": "...",
@@ -215,7 +171,7 @@ async function gptExtrairJSON(texto) {
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0,
-    max_tokens: 1500,
+    max_tokens: 2000,
     messages: [
       { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
       { role: "user", content: buildPrompt(texto) }
@@ -229,27 +185,19 @@ async function gptExtrairJSON(texto) {
   return JSON.parse(raw);
 }
 
-// ======== Cálculo de taxa (bisseção) sempre que vier zerada ========
+// ======== Cálculo taxa ========
 function calcularTaxaJurosMensalPorPMT(valorParcela, valorLiberado, prazoTotal) {
   const PMT = toNumber(valorParcela);
   const PV = toNumber(valorLiberado);
   const n = parseInt(prazoTotal, 10);
 
   if (PMT <= 0 || PV <= 0 || !Number.isFinite(n) || n <= 0) return 0;
-
-  // Função PVcalc(r) = PMT * (1 - (1+r)^-n) / r
   const pvCalc = (r) => PMT * (1 - Math.pow(1 + r, -n)) / r;
 
-  // Bracketing dinâmico: [lo, hi] com PVcalc(lo) >= PV >= PVcalc(hi)
-  let lo = 1e-9;
-  let hi = 0.05; // 5% a.m. inicial (consignado geralmente < 3% a.m., mas abrimos margem)
-  while (pvCalc(hi) > PV && hi < 0.2) hi *= 2; // aumenta até cruzar
-  if (hi >= 0.2 && pvCalc(hi) > PV) {
-    // não conseguiu cruzar — devolve 0 para não chutar
-    return 0;
-  }
+  let lo = 1e-9, hi = 0.05;
+  while (pvCalc(hi) > PV && hi < 0.2) hi *= 2;
+  if (hi >= 0.2 && pvCalc(hi) > PV) return 0;
 
-  // Bisseção
   for (let i = 0; i < 80; i++) {
     const mid = (lo + hi) / 2;
     const pv = pvCalc(mid);
@@ -261,135 +209,53 @@ function calcularTaxaJurosMensalPorPMT(valorParcela, valorLiberado, prazoTotal) 
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, texto) {
-  // --------- Normalizar benefício ---------
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  // NB pode vir como "nb" ou "numero" etc.
-  const nbRaw = pick(parsed.beneficio, "nb", "numero", "beneficio", "n_beneficio");
-  parsed.beneficio.nb = normalizarNB(nbRaw || "");
+  parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
+  const nomeOriginal = parsed.beneficio.nomeBeneficio || "";
+  const mapped = mapBeneficio(nomeOriginal);
+  parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
-  // Nome do benefício: preservar o que veio do PDF
-  const nomeOriginal = pick(parsed.beneficio, "nomeBeneficio", "nome_beneficio", "descricao");
-  parsed.beneficio.nomeBeneficio = nomeOriginal || "";
-
-  // Mapear código a partir do melhor indicativo, mas NÃO sobrescrever o nome original
-  const preferenciaParaCodigo =
-    pick(parsed.beneficio, "codigoBeneficio") ||
-    nomeOriginal ||
-    pick(parsed.beneficio, "tipo", "descricao") ||
-    "";
-
-  const mapped = mapBeneficio(preferenciaParaCodigo);
-  parsed.beneficio.codigoBeneficio = mapped?.codigo ?? parsed.beneficio.codigoBeneficio ?? null;
-
-  // --------- Margens (fonte da verdade = texto) ---------
   const margensFromText = parseMargensDoTexto(texto);
-  parsed.margens = {
-    disponivel: margensFromText.disponivel,
-    extrapolada: margensFromText.extrapolada,
-    rmc: margensFromText.rmc,
-    rcc: margensFromText.rcc
-  };
+  parsed.margens = margensFromText;
 
-  // --------- Contratos ---------
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
-
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
     .filter(c => (String(c.situacao || "").toUpperCase() === "ATIVO"))
-    .map((c, i) => {
-      // Padronizar campos/aliases
-      const valorLiberadoRaw = pick(c, "valor_liberado", "valor_emprestado", "valor_creditado");
-      const inicioRaw = pick(
-        c,
-        "competencia_inicio_desconto",
-        "competencia_inicio",
-        "inicio_desconto",
-        "primeiro_desconto" // pode vir DD/MM/AAAA
-      );
-      const qtdeParcelasRaw = pick(c, "qtde_parcelas", "prazo_total", "parcelas");
-      const dataInclusaoRaw = pick(c, "data_inclusao", "data", "data_contratacao");
-
-      // Normalizar "MM/AAAA" se vier "DD/MM/AAAA"
-      const normMMYYYY = (s) => {
-        if (!s) return "";
-        const t = String(s).trim();
-        const m1 = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // DD/MM/AAAA
-        if (m1) return `${m1[2]}/${m1[3]}`;
-        const m2 = t.match(/^(\d{2})\/(\d{4})$/); // MM/AAAA
-        if (m2) return t;
-        return t; // deixar como veio (tentaremos mesmo assim)
-      };
-
-      let competenciaInicio = normMMYYYY(inicioRaw) || normMMYYYY(dataInclusaoRaw) || "";
-      const prazoTotal = parseInt(qtdeParcelasRaw || 0, 10) || 0;
-
-      // Calcular parcelas pagas / prazo restante
+    .map((c) => {
+      const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
       let prazoRestante = prazoTotal;
 
-      if (competenciaInicio && prazoTotal > 0) {
-        parcelasPagas = diffMeses(competenciaInicio, competenciaAtual);
-        if (!Number.isFinite(parcelasPagas)) parcelasPagas = 0;
-
-        if (parcelasPagas < 0) parcelasPagas = 0;                  // início no futuro
-        if (parcelasPagas > prazoTotal) parcelasPagas = prazoTotal; // não ultrapassar
+      if (c.competencia_inicio_desconto && prazoTotal > 0) {
+        parcelasPagas = diffMeses(c.competencia_inicio_desconto, competenciaAtual);
+        if (parcelasPagas < 0) parcelasPagas = 0;
+        if (parcelasPagas > prazoTotal) parcelasPagas = prazoTotal;
         prazoRestante = prazoTotal - parcelasPagas;
-
-        console.log(
-          `🧮 Prazo contrato#${i + 1} (${c.contrato || "s/num"}): inicio=${competenciaInicio}, atual=${competenciaAtual}, pagas=${parcelasPagas}, restante=${prazoRestante}`
-        );
-      } else {
-        console.log(
-          `⚠️ Prazo não calculado contrato#${i + 1} (${c.contrato || "s/num"}): inicio='${competenciaInicio}' prazoTotal=${prazoTotal}`
-        );
       }
 
-      // Calcular taxas se vierem vazias/zeradas
-      const valorParcelaN = toNumber(c.valor_parcela);
-      const valorLiberadoN = toNumber(valorLiberadoRaw);
       let taxaMensal = toNumber(c.taxa_juros_mensal);
       let taxaAnual = toNumber(c.taxa_juros_anual);
-
-      const veioZerada = !taxaMensal || taxaMensal === 0;
-      if (veioZerada) {
-        const estimada = calcularTaxaJurosMensalPorPMT(valorParcelaN, valorLiberadoN, prazoTotal);
+      if (!taxaMensal) {
+        const estimada = calcularTaxaJurosMensalPorPMT(c.valor_parcela, c.valor_liberado, prazoTotal);
         if (estimada > 0) {
           taxaMensal = estimada;
           taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
-          console.log(
-            `🔁 Taxa recalculada contrato#${i + 1} (${c.contrato || "s/num"}): mensal=${formatBRTaxa(taxaMensal)}% a.m., anual=${formatBRTaxa(taxaAnual)}% a.a.`
-          );
-        } else {
-          console.log(
-            `⚠️ Não foi possível recalcular taxa contrato#${i + 1} (${c.contrato || "s/num"}): parcela=${valorParcelaN}, liberado=${valorLiberadoN}, prazo=${prazoTotal}`
-          );
         }
-      } else if (!taxaAnual || taxaAnual === 0) {
-        taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
       }
-
-      // CET: por padrão igual à taxa (você pode evoluir para incluir IOF/tarifas)
-      const cetMensal = toNumber(c.cet_mensal) || taxaMensal || 0;
-      const cetAnual = toNumber(c.cet_anual) || (Math.pow(1 + cetMensal, 12) - 1);
 
       return {
         ...c,
-        // garantir o nome padrão que o resto do fluxo espera
-        competencia_inicio_desconto: competenciaInicio || c.competencia_inicio_desconto || "",
-        qtde_parcelas: prazoTotal,
-
-        valor_parcela: formatBRNumber(valorParcelaN),
-        valor_liberado: formatBRNumber(valorLiberadoN),
+        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
+        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-
         taxa_juros_mensal: formatBRTaxa(taxaMensal),
         taxa_juros_anual: formatBRTaxa(taxaAnual),
-        cet_mensal: formatBRTaxa(cetMensal),
-        cet_anual: formatBRTaxa(cetAnual),
-
+        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal) || taxaMensal),
+        cet_anual: formatBRTaxa(toNumber(c.cet_anual) || taxaAnual),
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
         prazo_restante: prazoRestante
@@ -421,7 +287,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
   const texto = await pdfToText(pdfPath);
 
-  // Fatiamento automático (se necessário)
   let parsed;
   if (texto.length > 5000) {
     console.log("✂️ Texto grande, fatiando...");
@@ -431,7 +296,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
       console.log(`🔎 Processando bloco ${i + 1}/${blocos.length}`);
       const parcial = await gptExtrairJSON(blocos[i]);
       contratos = contratos.concat(parcial.contratos || []);
-      if (i === 0) parsed = parcial; // cabeçalho do 1º
+      if (i === 0) parsed = parcial;
     }
     parsed.contratos = contratos;
   } else {
@@ -439,7 +304,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   }
 
   const json = posProcessar(parsed, texto);
-
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
 
