@@ -16,15 +16,32 @@ try {
 }
 
 // ===================== Utils =====================
+// Parser robusto: entende "27.98", "27,98" e "1.234,56" sem distorcer valores
 function toNumber(v) {
   if (v == null) return 0;
-  return (
-    parseFloat(
-      v.toString().replace("R$", "").replace(/\s/g, "")
-        .replace("%", "").replace(/\./g, "").replace(",", ".").trim()
-    ) || 0
-  );
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+
+  let s = v.toString().replace(/[R$\s%]/g, "").trim();
+  if (s === "") return 0;
+
+  const hasDot = s.includes(".");
+  const hasComma = s.includes(",");
+
+  if (hasDot && hasComma) {
+    // usa o último separador como decimal
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  }
+
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
 }
+
 function parseBRDate(d) {
   if (!d || typeof d !== "string") return null;
   const [dd, mm, yyyy] = d.split("/");
@@ -44,14 +61,35 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
+// Coeficiente com fallback de dia (tenta "DD", depois "01", depois primeira chave existente)
+function getCoeficiente(tx, dia) {
+  const tabela = coeficientes?.[tx.toFixed(2)];
+  if (!tabela) return null;
+  return (
+    tabela[dia] ??
+    tabela[String(+dia)] ?? // "01" -> "1" (se existir)
+    tabela["01"] ??
+    tabela["1"] ??
+    (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
+  );
+}
+
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
   if (c.origem_taxa === "critica") return null;
 
-  const parcelaAtual = toNumber(c.valor_parcela ?? c.parcela);
-  const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
+  // usa SEMPRE valor_parcela do extrato; só cai pra "parcela" se não existir
+  const parcelaAtual = Number.isFinite(Number(c.valor_parcela))
+    ? Number(c.valor_parcela)
+    : toNumber(c.parcela);
+
+  // regra: parcela mínima R$25,00
+  if (!(parcelaAtual >= 25)) return null;
+
+  const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10) || 0;
   const prazoRestante = Number.isFinite(c.prazo_restante) ? c.prazo_restante : totalParcelas;
+
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
@@ -60,49 +98,53 @@ function calcularParaContrato(c) {
   const taxaAtual = Number(c.taxa_juros_mensal);
   if (!(taxaAtual > 0 && taxaAtual <= 3)) return null;
 
-  const coefSaldo = coeficientes?.[taxaAtual.toFixed(2)]?.[dia];
+  // coeficiente para saldo (taxa atual do contrato)
+  const coefSaldo = getCoeficiente(taxaAtual, dia);
   if (!coefSaldo) return null;
 
+  // saldo devedor calculado com a taxa ATUAL e prazo restante embutido no coeficiente (96x)
   const saldoDevedor = parcelaAtual / coefSaldo;
 
-  // simulação novo contrato (96x) nas 3 taxas padrão
-  const taxasPadrao = [1.85, 1.79, 1.66];
-  let melhor = null;
+  // ======= Regra SEQUENCIAL de taxa para NOVO empréstimo (sempre 96x) =======
+  // Ordem fixa: 1.85 → 1.79 → 1.66. Escolhe a PRIMEIRA cuja simulação gere troco >= 100.
+  const ordemTaxas = [1.85, 1.79, 1.66];
+  let escolhido = null;
 
-  for (const tx of taxasPadrao) {
-    const coefNovo = coeficientes?.[tx.toFixed(2)]?.[dia];
+  for (const tx of ordemTaxas) {
+    const coefNovo = getCoeficiente(tx, dia);
     if (!coefNovo) continue;
 
     const valorEmprestimo = parcelaAtual / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
-    if (!Number.isFinite(troco)) continue;
-    if (!melhor || troco > melhor.troco) {
-      melhor = {
+    if (Number.isFinite(troco) && troco >= 100) {
+      escolhido = {
         taxa_aplicada: tx,
         coeficiente_usado: coefNovo,
         saldoDevedor,
         valorEmprestimo,
         troco
       };
+      break; // pega a PRIMEIRA taxa que passa no mínimo
     }
   }
 
-  if (!melhor) return null;
+  // se nenhuma taxa gerou troco >= 100, não simula esse contrato
+  if (!escolhido) return null;
 
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRNumber(parcelaAtual),
+    parcela: formatBRNumber(parcelaAtual),     // "10.000,00"
     prazo_total: totalParcelas,
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
     taxa_atual: taxaAtual,
-    taxa_aplicada: melhor.taxa_aplicada,
-    coeficiente_usado: melhor.coeficiente_usado,
-    saldo_devedor: formatBRNumber(melhor.saldoDevedor),
-    valor_emprestimo: formatBRNumber(melhor.valorEmprestimo),
-    troco: formatBRNumber(melhor.troco),
+    taxa_aplicada: escolhido.taxa_aplicada,
+    coeficiente_usado: escolhido.coeficiente_usado,
+    saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
+    valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
+    troco: formatBRNumber(escolhido.troco),
     data_contrato: dataContrato
   };
 }
@@ -134,9 +176,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const calculados = contratos
         .map(c => calcularParaContrato(c))
-        .filter(r => r && !r.critica)
-        .filter(r => toNumber(r.parcela) >= 25)  // regra: só parcelas >= 25
-        .filter(r => toNumber(r.troco) >= 100)  // regra: só trocos >= 100
+        .filter(r => r) // já aplicamos todas as regras dentro do cálculo
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       // ==== resumo consolidado ====
