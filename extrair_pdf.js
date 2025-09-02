@@ -84,25 +84,47 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS ========
+// ======== PARSE MARGENS diretamente do TEXTO (robusto) ========
 function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+
   let disponivel = null, rmc = null, rcc = null, extrapolada = null;
+  let encontrouPrimeiraTabela = false;
 
   const linhas = texto.split(/\r?\n/);
-  for (const ln of linhas) {
-    const line = clean(ln.toUpperCase());
 
-    if (line.includes("MARGEM DISPONÍVEL")) {
+  for (let idx = 0; idx < linhas.length; idx++) {
+    const raw = clean(linhas[idx]);
+    const line = stripDiacritics(raw.toUpperCase());
+
+    // --- Primeira tabela detectada ---
+    if (line.includes("MARGEM DISPONIVEL") && !encontrouPrimeiraTabela) {
+      encontrouPrimeiraTabela = true;
+
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
-      if (nums.length > 0) disponivel = nums[0];
-      if (nums.length > 1) rmc = nums[1];
-      if (nums.length > 2) rcc = nums[2];
+      const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
+      const rRcc = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
+
+      if (nums.length > 0 && disponivel === null) disponivel = nums[0];
+      if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
+      if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
+
+      // Se por algum motivo RMC/RCC estiverem na linha seguinte
+      if ((!rmc || !rcc) && idx + 1 < linhas.length) {
+        const next = stripDiacritics(clean(linhas[idx + 1]).toUpperCase());
+        const rRmc2 = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(next);
+        const rRcc2 = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(next);
+        if (!rmc && rRmc2) rmc = rRmc2[1];
+        if (!rcc && rRcc2) rcc = rRcc2[1];
+      }
+      continue;
     }
 
-    if (line.includes("MARGEM EXTRAPOLADA")) {
+    // --- Margem Extrapolada: pegar somente a da primeira tabela ---
+    if (line.includes("MARGEM EXTRAPOLADA") && encontrouPrimeiraTabela && extrapolada === null) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) extrapolada = n;
+      continue;
     }
   }
 
@@ -212,14 +234,30 @@ function posProcessar(parsed, texto) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
-  const nomeOriginal = parsed.beneficio.nomeBeneficio || "";
+  // --------- NB ---------
+  let nb = normalizarNB(parsed.beneficio.nb || "");
+  if (nb.length < 10) nb = ""; // evita confundir com número de contrato
+  parsed.beneficio.nb = nb;
+
+  // --------- Nome do benefício ---------
+  let nomeOriginal = parsed.beneficio.nomeBeneficio || "";
+  if (!nomeOriginal || nomeOriginal.trim() === "") {
+    // tenta extrair do texto caso o GPT não traga
+    const regex = /BENEFICIO[\s:-]*(.+)/i;
+    const match = regex.exec(stripDiacritics(texto));
+    if (match) nomeOriginal = match[1].trim();
+  }
+  parsed.beneficio.nomeBeneficio = nomeOriginal;
+
+  // --------- Código do benefício (somente mapeamento, sem trocar o nome) ---------
   const mapped = mapBeneficio(nomeOriginal);
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
+  // --------- Margens (fonte da verdade = texto) ---------
   const margensFromText = parseMargensDoTexto(texto);
   parsed.margens = margensFromText;
 
+  // --------- Contratos ---------
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
@@ -245,6 +283,8 @@ function posProcessar(parsed, texto) {
           taxaMensal = estimada;
           taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
         }
+      } else if (!taxaAnual) {
+        taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
       }
 
       return {
