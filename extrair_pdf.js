@@ -35,6 +35,23 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
+// === cálculo da taxa de juros (Newton-Raphson) ===
+function calcularTaxaJurosMensal(valorParcela, valorFinanciado, numeroParcelas, maxIter = 100, tol = 1e-10) {
+  let i = 0.02; // chute inicial 2% ao mês
+  for (let k = 0; k < maxIter; k++) {
+    const f = valorParcela - valorFinanciado * (i / (1 - Math.pow(1 + i, -numeroParcelas)));
+    const fprime =
+      -valorFinanciado *
+      ((1 - Math.pow(1 + i, -numeroParcelas)) - i * numeroParcelas * Math.pow(1 + i, -numeroParcelas - 1)) /
+      Math.pow(1 - Math.pow(1 + i, -numeroParcelas), 2);
+
+    const newi = i - f / fprime;
+    if (Math.abs(newi - i) < tol) return newi;
+    i = newi;
+  }
+  return i; // retorna taxa decimal (ex.: 0.0233 = 2,33%)
+}
+
 function buildPrompt(texto) {
   return `
 Você é um assistente que extrai **todos os empréstimos ativos** de um extrato do INSS e retorna **JSON válido**.
@@ -44,7 +61,7 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Inclua todos os contratos "Ativo".
 - Ignore cartões RMC/RCC ou contratos não ativos.
 - Sempre incluir "valor_liberado" (quando existir no extrato).
-- Se não houver taxa de juros no extrato, calcule a taxa de juros mensal e anual e preencha.
+- Não calcule taxa de juros: apenas deixe nulo se não existir.
 - Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
 - Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
 
@@ -58,8 +75,8 @@ Esquema esperado:
     "banco_pagamento": "Banco Bradesco S A",
     "agencia": "877",
     "conta": "0001278479",
-    "nome": "NOME DO BENEFÍCIO",
-    "codigo": "CÓDIGO DO BENEFÍCIO"
+    "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
+    "codigoBeneficio": "32"
   },
   "contratos": [ ... ],
   "data_extrato": "DD/MM/AAAA"
@@ -98,10 +115,36 @@ async function gptExtrairJSON(texto) {
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
 
-    const preferencia = parsed.beneficio.codigo || parsed.beneficio.nome || "";
+    const preferencia =
+      parsed.beneficio.codigoBeneficio ||
+      parsed.beneficio.nomeBeneficio ||
+      parsed.beneficio.tipo ||
+      parsed.beneficio.descricao ||
+      "";
+
     const mapped = mapBeneficio(preferencia);
-    parsed.beneficio.codigo = mapped.codigo;
-    parsed.beneficio.nome = mapped.nome;
+    parsed.beneficio.codigoBeneficio = mapped.codigo;
+    parsed.beneficio.nomeBeneficio = mapped.nome;
+  }
+
+  // normalização dos contratos → calcula taxa se não vier
+  if (Array.isArray(parsed?.contratos)) {
+    parsed.contratos = parsed.contratos.map((c) => {
+      if (!c.taxa_juros_mensal && c.valor_parcela && c.valor_liberado && c.qtde_parcelas) {
+        try {
+          const i = calcularTaxaJurosMensal(Number(c.valor_parcela), Number(c.valor_liberado), Number(c.qtde_parcelas));
+          if (Number.isFinite(i) && i > 0) {
+            c.taxa_juros_mensal = +(i * 100).toFixed(6);
+            c.taxa_juros_anual = +((Math.pow(1 + i, 12) - 1) * 100).toFixed(6);
+            c.origem_taxa = "calculada";
+          }
+        } catch (err) {
+          console.warn("⚠️ Falha ao calcular taxa de juros:", err.message);
+          c.origem_taxa = "critica";
+        }
+      }
+      return c;
+    });
   }
 
   return parsed;
@@ -111,14 +154,12 @@ async function gptExtrairJSON(texto) {
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-  // ⚡ cache: já existe JSON pronto?
   if (fs.existsSync(jsonPath)) {
     console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
 
-  // fluxo normal
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
@@ -137,7 +178,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-  // ⚡ cache: já existe JSON pronto?
   if (fs.existsSync(jsonPath)) {
     console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
