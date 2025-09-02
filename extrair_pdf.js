@@ -106,6 +106,8 @@ if (/MARGEM\s+EXTRAPOLADA/i.test(line) && !extrapoladaEncontrada) {
   if (n) {
     extrapolada = n;
     extrapoladaEncontrada = true; // ✅ marca que já achou
+    console.log("🔎 Linha com extrapolada:", line); // 👈 debug aqui
+    console.log("📌 Valor capturado:", extrapolada);
   }
 }
 
@@ -239,6 +241,7 @@ function posProcessar(parsed, texto) {
 
   // Margens
   parsed.margens = parseMargensDoTexto(texto);
+  console.log("📄 Linha:", line);
 
   // Contratos
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
@@ -330,7 +333,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const json = posProcessar(parsed, texto);
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
-
+  console.log("✅ Margens extraídas:", parsed.margens);
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };
