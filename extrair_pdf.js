@@ -62,7 +62,6 @@ function formatBRNumber(n) {
 }
 
 function formatBRTaxa(nAsDecimal) {
-  // nAsDecimal ex.: 0.0138 -> "1,38"
   return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -84,48 +83,37 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS diretamente do TEXTO (robusto) ========
+// ======== PARSE MARGENS diretamente do TEXTO ========
 function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-
-  // 1) Linha MARGEM DISPONÍVEL* — contém disponível (empréstimo), RMC e RCC
-  //     padrões possíveis: "... MARGEM DISPONÍVEL* ... 0,20 ... RMC ... 455,40 ... RCC ... 75,90 ..."
-  let disponivel = null, rmc = null, rcc = null;
-
   const linhas = texto.split(/\r?\n/);
+
+  let disponivel = null, rmc = null, rcc = null, extrapolada = null;
+
   for (const ln of linhas) {
     const line = clean(ln.toUpperCase());
+
+    // linha "MARGEM DISPONÍVEL*"
     if (line.includes("MARGEM DISPONÍVEL")) {
-      // tenta capturar os três números nessa ordem: disponível, RMC, RCC
-      // pega todos números da linha:
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
-      // heurística: normalmente a 1ª ocorrência é a disponível;
-      // depois procure "RMC <num>" e "RCC <num>"
-      // se a palavra estiver ausente, caia na posição sequencial.
       const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
       const rRcc = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
 
-      if (nums.length > 0 && disponivel === null) disponivel = nums[0];
+      if (nums.length > 0) disponivel = nums[0];
       if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
       if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
-      break;
     }
-  }
 
-  // 2) Linha MARGEM EXTRAPOLADA*** — extrair extrapolada (valor positivo exibido, mas semanticamente “negativo”)
-  let extrapolada = null;
-  for (const ln of linhas) {
-    const line = clean(ln.toUpperCase());
+    // linha "MARGEM EXTRAPOLADA***" (primeira tabela)
     if (line.includes("MARGEM EXTRAPOLADA")) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) extrapolada = n;
-      break;
     }
   }
 
   return {
     disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
-    extrapolada: extrapolada ? formatBRNumber(toNumber(extrapolada)) : "0,00", // exibe positiva
+    extrapolada: extrapolada ? formatBRNumber(toNumber(extrapolada)) : "0,00",
     rmc: rmc ? formatBRNumber(toNumber(rmc)) : "0,00",
     rcc: rcc ? formatBRNumber(toNumber(rcc)) : "0,00"
   };
@@ -140,48 +128,9 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Retorne SOMENTE JSON.
 - Inclua todos os contratos "Ativo".
 - Ignore cartões RMC/RCC e qualquer contrato não ativo.
-- Retorne números **crus** (sem formatação BR) apenas dentro de contratos; eu formato depois.
-  Exemplo (contratos):
-    valor_liberado: 15529.56
-    valor_parcela: 424.10
-    taxa_juros_mensal: 0.0238  // 2.38%
-- Para o cabeçalho (cliente/benefício) preencha normalmente.
-- Não calcule margens; eu vou ler do texto depois.
-
-Esquema esperado:
-{
-  "cliente": "Nome",
-  "beneficio": {
-    "nb": "604321543-1",
-    "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "conta corrente",
-    "banco_pagamento": "Banco Bradesco S A",
-    "agencia": "877",
-    "conta": "0001278479",
-    "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
-    "codigoBeneficio": "32"
-  },
-  "margens": {},   // será sobrescrito por parsing determinístico
-  "contratos": [
-    {
-      "contrato": "...",
-      "banco": "...",
-      "situacao": "ATIVO",
-      "data_inclusao": "MM/AAAA",
-      "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 84,
-      "valor_parcela": 424.10,
-      "valor_liberado": 15529.56,
-      "iof": 0,
-      "cet_mensal": 0.023,
-      "cet_anual": 0.31,
-      "taxa_juros_mensal": 0.0238,
-      "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00
-    }
-  ],
-  "data_extrato": "DD/MM/AAAA"
-}
+- Retorne números crus (sem formatação BR) apenas dentro de contratos; eu formato depois.
+- "Nome do benefício" deve ser exatamente como aparece em azul no extrato.
+- "Margem extrapolada" deve vir da primeira tabela (VALORES DO BENEFÍCIO).
 
 Texto do extrato:
 ${texto}
@@ -209,32 +158,18 @@ async function gptExtrairJSON(texto) {
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, texto) {
-  // Normalizar benefício
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
 
-    const preferencia =
-      parsed.beneficio.codigoBeneficio ||
-      parsed.beneficio.nomeBeneficio ||
-      parsed.beneficio.tipo ||
-      parsed.beneficio.descricao ||
-      "";
+    const nomeBruto = parsed.beneficio.nomeBeneficio || "";
+    const mapped = mapBeneficio(nomeBruto);
 
-    const mapped = mapBeneficio(preferencia);
-    parsed.beneficio.codigoBeneficio = mapped.codigo;
-    parsed.beneficio.nomeBeneficio = mapped.nome;
+    parsed.beneficio.nomeBeneficio = nomeBruto; // mantém como no extrato
+    parsed.beneficio.codigoBeneficio = mapped.codigo || parsed.beneficio.codigoBeneficio;
   }
 
-  // Margens: sobrescrever lendo direto do texto (fonte da verdade)
-  const margensFromText = parseMargensDoTexto(texto);
-  parsed.margens = {
-    disponivel: margensFromText.disponivel,
-    extrapolada: margensFromText.extrapolada, // exibida positiva (p/ cálculo usamos o valor absoluto)
-    rmc: margensFromText.rmc,
-    rcc: margensFromText.rcc
-  };
+  parsed.margens = parseMargensDoTexto(texto);
 
-  // Contratos: formatar números e calcular prazos (pagas/restante) pela competência
   if (Array.isArray(parsed?.contratos)) {
     const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
     parsed.contratos = parsed.contratos
@@ -256,7 +191,7 @@ function posProcessar(parsed, texto) {
           valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
           valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
           valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-          taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)), // exibe 2,38
+          taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)),
           taxa_juros_anual: formatBRTaxa(toNumber(c.taxa_juros_anual)),
           cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
           cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
@@ -282,27 +217,22 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
 
-  console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
   const texto = await pdfToText(pdfPath);
 
-  // Fatiamento automático (se necessário)
   let parsed;
   if (texto.length > 5000) {
-    console.log("✂️ Texto grande, fatiando...");
     const blocos = texto.match(/[\s\S]{1,4000}/g) || [];
     let contratos = [];
     for (let i = 0; i < blocos.length; i++) {
-      console.log(`🔎 Processando bloco ${i + 1}/${blocos.length}`);
       const parcial = await gptExtrairJSON(blocos[i]);
       contratos = contratos.concat(parcial.contratos || []);
-      if (i === 0) parsed = parcial; // cabeçalho do 1º
+      if (i === 0) parsed = parcial;
     }
     parsed.contratos = contratos;
   } else {
@@ -312,7 +242,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const json = posProcessar(parsed, texto);
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
 
   agendarExclusao24h(pdfPath, jsonPath);
 
@@ -324,12 +253,9 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
-
-  console.log("🚀 Iniciando extração do fileId:", fileId);
 
   if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
   if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
@@ -344,8 +270,6 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     download: true
   };
 
-  console.log("📥 Requisitando PDF na Lunas:", body);
-
   const resp = await fetch(LUNAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -359,8 +283,6 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
   const arrayBuffer = await resp.arrayBuffer();
   await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
-  console.log("✅ PDF salvo em", pdfPath);
 
   return extrairDeUpload({ fileId, pdfPath, jsonDir });
 }
-
