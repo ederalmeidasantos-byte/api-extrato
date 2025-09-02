@@ -1,8 +1,6 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
-import pkg from "pdf-parse-fixed";
-const pdfParse = pkg;
 import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
@@ -84,78 +82,10 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS (robusto: valor pode estar na linha seguinte) ========
-function parseMargensDoTexto(texto) {
-  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
-  const linhas = texto.split(/\r?\n/);
-
-  const getNumbers = (s) =>
-    (String(s).match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g) || [])
-      .map(x => x.replace(/^R\$\s*/, ""));
-
-  const collectNextNumbers = (i, look = 3) => {
-    const out = [];
-    for (let j = i + 1; j <= i + look && j < linhas.length; j++) {
-      const nums = getNumbers(linhas[j]);
-      if (nums.length) out.push(...nums);
-      if (out.length >= 3) break;
-    }
-    return out;
-  };
-
-  let disponivel = null, extrapolada = null, rmc = null, rcc = null;
-  let pegouExtrapolada = false;
-
-  for (let i = 0; i < linhas.length; i++) {
-    const line = norm(linhas[i]).toUpperCase();
-
-    // MARGEM DISPONÍVEL (aceita com/sem acento)
-    if (/MARGEM\s+DISPON[ÍI]VEL/.test(line) && disponivel == null) {
-      let nums = getNumbers(linhas[i]);
-      if (!nums.length) nums = collectNextNumbers(i, 3);
-      if (nums.length) disponivel = nums[0];
-    }
-
-    // RMC: geralmente aparecem 3 números (consignável, utilizada, disponível) – usamos o 3º se existir
-    if (/^RMC$/.test(line) && rmc == null) {
-      let nums = collectNextNumbers(i, 4);
-      if (!nums.length) nums = getNumbers(linhas[i]);
-      if (nums.length >= 3) rmc = nums[2];
-      else if (nums.length) rmc = nums[nums.length - 1];
-    }
-
-    // RCC: idem RMC
-    if (/^RCC$/.test(line) && rcc == null) {
-      let nums = collectNextNumbers(i, 4);
-      if (!nums.length) nums = getNumbers(linhas[i]);
-      if (nums.length >= 3) rcc = nums[2];
-      else if (nums.length) rcc = nums[nums.length - 1];
-    }
-
-    // MARGEM EXTRAPOLADA (valor pode estar na próxima linha)
-    if (/MARGEM\s+EXTRAPOLADA/.test(line) && !pegouExtrapolada) {
-      let nums = getNumbers(linhas[i]);
-      if (!nums.length) nums = collectNextNumbers(i, 3);
-      if (nums.length) {
-        extrapolada = nums[0];
-        pegouExtrapolada = true;
-        console.log("📌 Margem extrapolada capturada:", extrapolada);
-      }
-    }
-  }
-
-  return {
-    disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
-    extrapolada: extrapolada ? formatBRNumber(toNumber(extrapolada)) : "0,00",
-    rmc: rmc ? formatBRNumber(toNumber(rmc)) : "0,00",
-    rcc: rcc ? formatBRNumber(toNumber(rcc)) : "0,00",
-  };
-}
-
 // ================== Prompt ==================
-function buildPrompt(texto) {
+function buildPrompt() {
   return `
-Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS (em PDF) e retorna **JSON válido**.
 
 ⚠️ Regras:
 - Retorne SOMENTE JSON.
@@ -177,7 +107,12 @@ Esquema esperado:
     "nomeBeneficio": "Texto exato do PDF",
     "codigoBeneficio": null
   },
-  "margens": {},
+  "margens": {
+    "disponivel": "",
+    "extrapolada": "",
+    "rmc": "",
+    "rcc": ""
+  },
   "contratos": [
     {
       "contrato": "...",
@@ -198,21 +133,31 @@ Esquema esperado:
   ],
   "data_extrato": "DD/MM/AAAA"
 }
-
-Texto do extrato:
-${texto}
 `;
 }
 
-// ================== GPT Call ==================
-async function gptExtrairJSON(texto) {
+// ================== GPT Call com PDF direto ==================
+async function gptExtrairJSONdoPDF(pdfPath) {
+  // Faz upload do PDF
+  const file = await openai.files.create({
+    file: fs.createReadStream(pdfPath),
+    purpose: "assistants"
+  });
+
+  // Pede pro GPT ler o PDF
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4.1", // ou gpt-4o se quiser mais rápido
     temperature: 0,
-    max_tokens: 2000,
+    max_tokens: 4000,
     messages: [
       { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
-      { role: "user", content: buildPrompt(texto) }
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: buildPrompt() },
+          { type: "input_file", file_id: file.id }
+        ]
+      }
     ]
   });
 
@@ -223,30 +168,8 @@ async function gptExtrairJSON(texto) {
   return JSON.parse(raw);
 }
 
-// ======== Cálculo taxa ========
-function calcularTaxaJurosMensalPorPMT(valorParcela, valorLiberado, prazoTotal) {
-  const PMT = toNumber(valorParcela);
-  const PV = toNumber(valorLiberado);
-  const n = parseInt(prazoTotal, 10);
-
-  if (PMT <= 0 || PV <= 0 || !Number.isFinite(n) || n <= 0) return 0;
-  const pvCalc = (r) => PMT * (1 - Math.pow(1 + r, -n)) / r;
-
-  let lo = 1e-9, hi = 0.05;
-  while (pvCalc(hi) > PV && hi < 0.2) hi *= 2;
-  if (hi >= 0.2 && pvCalc(hi) > PV) return 0;
-
-  for (let i = 0; i < 80; i++) {
-    const mid = (lo + hi) / 2;
-    const pv = pvCalc(mid);
-    if (Math.abs(pv - PV) < 0.01) return mid;
-    if (pv > PV) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
 // ================== Pós-processamento ==================
-function posProcessar(parsed, texto) {
+function posProcessar(parsed) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
@@ -255,20 +178,8 @@ function posProcessar(parsed, texto) {
   parsed.beneficio.nb = nb;
 
   let nomeOriginal = parsed.beneficio.nomeBeneficio || "";
-  if (!nomeOriginal || nomeOriginal.trim() === "") {
-    const regex = /BENEFICIO\s+DE\s+(.+?)\n/i;
-    const match = regex.exec(texto.toUpperCase());
-    if (match) {
-      nomeOriginal = match[0].replace("BENEFICIO", "").trim();
-    }
-  }
-  parsed.beneficio.nomeBeneficio = nomeOriginal;
-
   const mapped = mapBeneficio(nomeOriginal);
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
-
-  parsed.margens = parseMargensDoTexto(texto);
-  console.log("✅ Margens extraídas:", parsed.margens);
 
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
@@ -287,27 +198,15 @@ function posProcessar(parsed, texto) {
         prazoRestante = prazoTotal - parcelasPagas;
       }
 
-      let taxaMensal = toNumber(c.taxa_juros_mensal);
-      let taxaAnual = toNumber(c.taxa_juros_anual);
-      if (!taxaMensal) {
-        const estimada = calcularTaxaJurosMensalPorPMT(c.valor_parcela, c.valor_liberado, prazoTotal);
-        if (estimada > 0) {
-          taxaMensal = estimada;
-          taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
-        }
-      } else if (!taxaAnual) {
-        taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
-      }
-
       return {
         ...c,
         valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
         valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        taxa_juros_mensal: formatBRTaxa(taxaMensal),
-        taxa_juros_anual: formatBRTaxa(taxaAnual),
-        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal) || taxaMensal),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual) || taxaAnual),
+        taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)),
+        taxa_juros_anual: formatBRTaxa(toNumber(c.taxa_juros_anual)),
+        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
+        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
         prazo_restante: prazoRestante
@@ -315,13 +214,6 @@ function posProcessar(parsed, texto) {
     });
 
   return parsed;
-}
-
-// ================== PDF to Text ==================
-async function pdfToText(pdfPath) {
-  const buffer = await fsp.readFile(pdfPath);
-  const data = await pdfParse(buffer);
-  return data.text || "";
 }
 
 // ================== Fluxo Upload ==================
@@ -337,25 +229,9 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
-  const texto = await pdfToText(pdfPath);
+  const parsed = await gptExtrairJSONdoPDF(pdfPath);
+  const json = posProcessar(parsed);
 
-  let parsed;
-  if (texto.length > 5000) {
-    console.log("✂️ Texto grande, fatiando...");
-    const blocos = texto.match(/[\s\S]{1,4000}/g) || [];
-    let contratos = [];
-    for (let i = 0; i < blocos.length; i++) {
-      console.log(`🔎 Processando bloco ${i + 1}/${blocos.length}`);
-      const parcial = await gptExtrairJSON(blocos[i]);
-      contratos = contratos.concat(parcial.contratos || []);
-      if (i === 0) parsed = parcial;
-    }
-    parsed.contratos = contratos;
-  } else {
-    parsed = await gptExtrairJSON(texto);
-  }
-
-  const json = posProcessar(parsed, texto);
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
   agendarExclusao24h(pdfPath, jsonPath);
