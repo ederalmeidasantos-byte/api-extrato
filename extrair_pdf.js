@@ -84,28 +84,61 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS (corrigido extrapolada) ========
+// ======== PARSE MARGENS (robusto: valor pode estar na linha seguinte) ========
 function parseMargensDoTexto(texto) {
-  const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-  let disponivel = null, rmc = null, rcc = null, extrapolada = null;
-  let extrapoladaEncontrada = false;
-
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
   const linhas = texto.split(/\r?\n/);
-  for (const ln of linhas) {
-    const line = clean(ln.toUpperCase());
 
-    if (line.includes("MARGEM DISPONÍVEL")) {
-      const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
-      if (nums.length > 0) disponivel = nums[0];
-      if (nums.length > 1) rmc = nums[1];
-      if (nums.length > 2) rcc = nums[2];
+  const getNumbers = (s) =>
+    (String(s).match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g) || [])
+      .map(x => x.replace(/^R\$\s*/, ""));
+
+  const collectNextNumbers = (i, look = 3) => {
+    const out = [];
+    for (let j = i + 1; j <= i + look && j < linhas.length; j++) {
+      const nums = getNumbers(linhas[j]);
+      if (nums.length) out.push(...nums);
+      if (out.length >= 3) break;
+    }
+    return out;
+  };
+
+  let disponivel = null, extrapolada = null, rmc = null, rcc = null;
+  let pegouExtrapolada = false;
+
+  for (let i = 0; i < linhas.length; i++) {
+    const line = norm(linhas[i]).toUpperCase();
+
+    // MARGEM DISPONÍVEL (aceita com/sem acento)
+    if (/MARGEM\s+DISPON[ÍI]VEL/.test(line) && disponivel == null) {
+      let nums = getNumbers(linhas[i]);
+      if (!nums.length) nums = collectNextNumbers(i, 3);
+      if (nums.length) disponivel = nums[0];
     }
 
-    if (/MARGEM\s+EXTRAPOLADA/i.test(line) && !extrapoladaEncontrada) {
-      const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
-      if (n) {
-        extrapolada = n;
-        extrapoladaEncontrada = true;
+    // RMC: geralmente aparecem 3 números (consignável, utilizada, disponível) – usamos o 3º se existir
+    if (/^RMC$/.test(line) && rmc == null) {
+      let nums = collectNextNumbers(i, 4);
+      if (!nums.length) nums = getNumbers(linhas[i]);
+      if (nums.length >= 3) rmc = nums[2];
+      else if (nums.length) rmc = nums[nums.length - 1];
+    }
+
+    // RCC: idem RMC
+    if (/^RCC$/.test(line) && rcc == null) {
+      let nums = collectNextNumbers(i, 4);
+      if (!nums.length) nums = getNumbers(linhas[i]);
+      if (nums.length >= 3) rcc = nums[2];
+      else if (nums.length) rcc = nums[nums.length - 1];
+    }
+
+    // MARGEM EXTRAPOLADA (valor pode estar na próxima linha)
+    if (/MARGEM\s+EXTRAPOLADA/.test(line) && !pegouExtrapolada) {
+      let nums = getNumbers(linhas[i]);
+      if (!nums.length) nums = collectNextNumbers(i, 3);
+      if (nums.length) {
+        extrapolada = nums[0];
+        pegouExtrapolada = true;
         console.log("📌 Margem extrapolada capturada:", extrapolada);
       }
     }
@@ -115,7 +148,7 @@ function parseMargensDoTexto(texto) {
     disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
     extrapolada: extrapolada ? formatBRNumber(toNumber(extrapolada)) : "0,00",
     rmc: rmc ? formatBRNumber(toNumber(rmc)) : "0,00",
-    rcc: rcc ? formatBRNumber(toNumber(rcc)) : "0,00"
+    rcc: rcc ? formatBRNumber(toNumber(rcc)) : "0,00",
   };
 }
 
