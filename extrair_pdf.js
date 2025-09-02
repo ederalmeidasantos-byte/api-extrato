@@ -86,15 +86,12 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
 // ======== PARSE MARGENS diretamente do TEXTO ========
 function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-  const linhas = texto.split(/\r?\n/);
 
   let disponivel = null, rmc = null, rcc = null;
-  let extrapolada = null;
+  const linhas = texto.split(/\r?\n/);
 
   for (const ln of linhas) {
     const line = clean(ln.toUpperCase());
-
-    // 🔹 MARGEM DISPONÍVEL* — empréstimos, RMC, RCC
     if (line.includes("MARGEM DISPONÍVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
       const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
@@ -103,12 +100,17 @@ function parseMargensDoTexto(texto) {
       if (nums.length > 0 && disponivel === null) disponivel = nums[0];
       if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
       if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
+      break;
     }
+  }
 
-    // 🔹 MARGEM EXTRAPOLADA*** (primeira tabela!)
-    if (line.startsWith("MARGEM EXTRAPOLADA")) {
+  let extrapolada = null;
+  for (const ln of linhas) {
+    const line = clean(ln.toUpperCase());
+    if (line.includes("MARGEM EXTRAPOLADA")) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) extrapolada = n;
+      break;
     }
   }
 
@@ -123,19 +125,22 @@ function parseMargensDoTexto(texto) {
 // ================== Prompt ==================
 function buildPrompt(texto) {
   return `
-Você é um assistente que extrai **todos os empréstimos ativos** de um extrato do INSS e retorna **JSON válido**.
+Você é um assistente que extrai **dados de um extrato do INSS** e retorna **JSON válido**.
 
-⚠️ Regras:
-- Retorne SOMENTE JSON.
-- Inclua todos os contratos "Ativo".
-- Ignore cartões RMC/RCC e qualquer contrato não ativo.
-- Retorne números **crus** (sem formatação BR) apenas dentro de contratos; eu formato depois.
-- Para o cabeçalho (cliente/benefício) preencha normalmente.
-- Não calcule margens; eu vou ler do texto depois.
+⚠️ Regras por página:
+- **Página 1** → Dados do cliente e do benefício (nome, NB, bloqueio, banco de pagamento, agência, conta, nome e código do benefício).
+- **Página 2** → Margens NÃO devem ser lidas pelo GPT. Essas serão extraídas pelo código. Apenas ignore.
+- **Página 3 em diante** → Extrair todos os contratos "ATIVO". Ignore contratos RMC/RCC ou cancelados.
+
+⚠️ Formatação:
+- Retorne SOMENTE JSON válido.
+- Retorne números crus (sem formatação BR) nos contratos.
+- Campos de taxa, IOF, CET, etc. devem vir em formato numérico decimal (ex: 0.0238 para 2,38%).
+- Se não existir valor, retorne 0 ou null.
 
 Esquema esperado:
 {
-  "cliente": "Nome",
+  "cliente": "Nome completo",
   "beneficio": {
     "nb": "604321543-1",
     "bloqueio_beneficio": "SIM|NAO",
@@ -143,11 +148,28 @@ Esquema esperado:
     "banco_pagamento": "Banco Bradesco S A",
     "agencia": "877",
     "conta": "0001278479",
-    "nomeBeneficio": "BENEFICIO DE PRESTACAO CONTINUADA A PESSOA IDOSA",
+    "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
     "codigoBeneficio": "32"
   },
-  "margens": {},
-  "contratos": [ ... ],
+  "margens": {},   // será sobrescrito pelo código
+  "contratos": [
+    {
+      "contrato": "...",
+      "banco": "...",
+      "situacao": "ATIVO",
+      "data_inclusao": "MM/AAAA",
+      "competencia_inicio_desconto": "MM/AAAA",
+      "qtde_parcelas": 84,
+      "valor_parcela": 424.10,
+      "valor_liberado": 15529.56,
+      "iof": 0,
+      "cet_mensal": 0.023,
+      "cet_anual": 0.31,
+      "taxa_juros_mensal": 0.0238,
+      "taxa_juros_anual": 0.32,
+      "valor_pago": 5000.00
+    }
+  ],
   "data_extrato": "DD/MM/AAAA"
 }
 
@@ -177,27 +199,27 @@ async function gptExtrairJSON(texto) {
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, texto) {
-  // 🔹 Benefício: mantém nome do extrato, só ajusta código pelo mapBeneficio
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
-    const nomeOriginal = parsed.beneficio.nomeBeneficio || "";
-
     const preferencia =
       parsed.beneficio.codigoBeneficio ||
-      nomeOriginal ||
+      parsed.beneficio.nomeBeneficio ||
       parsed.beneficio.tipo ||
       parsed.beneficio.descricao ||
       "";
-
     const mapped = mapBeneficio(preferencia);
     parsed.beneficio.codigoBeneficio = mapped.codigo;
-    parsed.beneficio.nomeBeneficio = nomeOriginal; // mantém original em azul
+    parsed.beneficio.nomeBeneficio = mapped.nome;
   }
 
-  // 🔹 Margens: sobrescreve pelo parser determinístico
-  parsed.margens = parseMargensDoTexto(texto);
+  const margensFromText = parseMargensDoTexto(texto);
+  parsed.margens = {
+    disponivel: margensFromText.disponivel,
+    extrapolada: margensFromText.extrapolada,
+    rmc: margensFromText.rmc,
+    rcc: margensFromText.rcc
+  };
 
-  // 🔹 Contratos: formatar
   if (Array.isArray(parsed?.contratos)) {
     const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
     parsed.contratos = parsed.contratos
@@ -272,7 +294,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   }
 
   const json = posProcessar(parsed, texto);
-
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
 
