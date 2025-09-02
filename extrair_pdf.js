@@ -14,7 +14,6 @@ const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atender
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
-// agendar exclusão em 24h
 function agendarExclusao24h(...paths) {
   const DAY = 24 * 60 * 60 * 1000;
   setTimeout(() => {
@@ -36,65 +35,38 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
-function limparRespostaGPT(raw) {
-  if (!raw) return "{}";
-  raw = raw.trim();
-  if (raw.startsWith("```")) {
-    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  }
-  return raw;
-}
-
-// Prompt benefício
-function promptClienteBeneficio(texto) {
+function buildPrompt(texto) {
   return `
-Extraia do extrato apenas os dados do cliente e benefício.
-Responda somente em JSON válido.
+Você é um assistente que extrai **todos os empréstimos ativos** de um extrato do INSS e retorna **JSON válido**.
 
+⚠️ REGRAS IMPORTANTES:
+- Retorne SOMENTE JSON (sem comentários, sem texto extra).
+- Inclua todos os contratos "Ativo".
+- Ignore cartões RMC/RCC ou contratos não ativos.
+- Sempre incluir "valor_liberado" (quando existir no extrato).
+- Se não houver taxa de juros no extrato, calcule a taxa de juros mensal e anual e preencha.
+- Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
+- Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
+
+Esquema esperado:
 {
-  "cliente": "Nome completo",
+  "cliente": "Nome",
   "beneficio": {
-    "nb": "Número do benefício",
+    "nb": "604321543-1",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "conta corrente|cartão magnético",
-    "banco_pagamento": "Banco XYZ",
-    "agencia": "0000",
-    "conta": "000000",
-    "codigo": "código da espécie do benefício",
-    "nome": "nome da espécie do benefício"
+    "meio_pagamento": "conta corrente",
+    "banco_pagamento": "Banco Bradesco S A",
+    "agencia": "877",
+    "conta": "0001278479",
+    "nome": "NOME DO BENEFÍCIO",
+    "codigo": "CÓDIGO DO BENEFÍCIO"
   },
+  "contratos": [ ... ],
   "data_extrato": "DD/MM/AAAA"
 }
 
-Texto:
-${texto}
-`;
-}
+Agora gere o JSON com **todos os contratos ativos** a partir do texto abaixo:
 
-// Prompt contratos
-function promptContratos(texto) {
-  return `
-Extraia todos os empréstimos consignados ativos do extrato.
-Responda apenas em JSON válido (array).
-
-[
-  {
-    "contrato": "123456",
-    "banco": "Banco X",
-    "situacao": "Ativo",
-    "valor_liberado": 1000.00,
-    "valor_parcela": 100.00,
-    "qtde_parcelas": 96,
-    "data_inclusao": "DD/MM/AAAA",
-    "inicio_desconto": "MM/AAAA",
-    "fim_desconto": "MM/AAAA",
-    "data_contrato": "DD/MM/AAAA",
-    "taxa_juros_mensal": 1.85,
-    "taxa_juros_anual": 24.60
-  }
-]
-
-Texto:
 ${texto}
 `;
 }
@@ -105,169 +77,113 @@ async function pdfToText(pdfPath) {
   return data.text;
 }
 
-function mesesEntre(inicioMMYYYY, referencia = new Date()) {
-  if (!inicioMMYYYY || !/^\d{2}\/\d{4}$/.test(inicioMMYYYY)) return 0;
-  const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
-  const a = new Date(yyyy, mm - 1, 1);
-  const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
-  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
-  return Math.max(0, meses);
-}
-
-// GPT extrair JSON
 async function gptExtrairJSON(texto) {
-  try {
-    // 1) cliente e benefício
-    const respBeneficio = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0,
-      max_tokens: 500,
-      messages: [
-        { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
-        { role: "user", content: promptClienteBeneficio(texto) }
-      ]
-    });
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0,
+    messages: [
+      { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
+      { role: "user", content: buildPrompt(texto) }
+    ]
+  });
 
-    let rawBeneficio = respBeneficio.choices[0]?.message?.content || "{}";
-    rawBeneficio = limparRespostaGPT(rawBeneficio);
-    let parsedBeneficio = JSON.parse(rawBeneficio);
-
-    if (parsedBeneficio?.beneficio) {
-      parsedBeneficio.beneficio.nb = normalizarNB(parsedBeneficio.beneficio.nb);
-      const preferencia = parsedBeneficio.beneficio.codigo || parsedBeneficio.beneficio.nome || "";
-      const mapped = mapBeneficio(preferencia);
-      parsedBeneficio.beneficio.codigo = mapped.codigo;
-      parsedBeneficio.beneficio.nome = mapped.nome;
-    }
-
-    // 2) contratos
-    const respContratos = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0,
-      max_tokens: 1000,
-      messages: [
-        { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
-        { role: "user", content: promptContratos(texto) }
-      ]
-    });
-
-    let rawContratos = respContratos.choices[0]?.message?.content || "[]";
-    rawContratos = limparRespostaGPT(rawContratos);
-    let contratos = JSON.parse(rawContratos);
-
-    if (Array.isArray(contratos)) {
-      contratos = contratos.map(c => {
-        let critica = c.critica ?? null;
-        let origem_taxa = "extrato";
-        const taxa = Number(c.taxa_juros_mensal);
-
-        if (!Number.isFinite(taxa)) {
-          origem_taxa = "calculado";
-        } else if (taxa < 1 || taxa > 3) {
-          critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente.";
-          delete c.taxa_juros_mensal;
-          delete c.taxa_juros_anual;
-          origem_taxa = "critica";
-        }
-
-        const total = Number(c.qtde_parcelas) || 0;
-        const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
-        const restante = Math.max(0, total - pagas);
-
-        return {
-          ...c,
-          parcelas_pagas: pagas,
-          prazo_restante: restante,
-          origem_taxa,
-          ...(critica ? { critica } : {})
-        };
-      });
-    }
-
-    return { ...parsedBeneficio, contratos };
-  } catch (err) {
-    console.error("❌ Erro parseando JSON do GPT:", err.message);
-    return { error: "Falha ao interpretar extrato", detalhe: err.message };
+  let raw = completion.choices[0]?.message?.content?.trim() || "{}";
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   }
+
+  let parsed = JSON.parse(raw);
+
+  // normalização do benefício
+  if (parsed?.beneficio) {
+    parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
+
+    const preferencia = parsed.beneficio.codigo || parsed.beneficio.nome || "";
+    const mapped = mapBeneficio(preferencia);
+    parsed.beneficio.codigo = mapped.codigo;
+    parsed.beneficio.nome = mapped.nome;
+  }
+
+  return parsed;
 }
 
-// upload local
+// === fluxo para upload local ===
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
-  try {
-    console.log("🚀 Iniciando extração de upload:", fileId);
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-    const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-    await fsp.mkdir(jsonDir, { recursive: true });
-
-    const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0, 200));
-
-    const json = await gptExtrairJSON(texto);
-    console.log("🤖 JSON retornado pelo GPT:", json);
-
-    await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-    console.log("✅ JSON salvo em", jsonPath);
-
-    agendarExclusao24h(pdfPath, jsonPath);
-
-    return { fileId, ...json };
-  } catch (err) {
-    console.error("💥 Erro em extrairDeUpload:", err);
-    throw err;
+  // ⚡ cache: já existe JSON pronto?
+  if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
+    const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
+    return { fileId, ...cached };
   }
+
+  // fluxo normal
+  console.log("🚀 Iniciando extração de upload:", fileId);
+  await fsp.mkdir(jsonDir, { recursive: true });
+
+  const texto = await pdfToText(pdfPath);
+  const json = await gptExtrairJSON(texto);
+
+  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
+
+  agendarExclusao24h(pdfPath, jsonPath);
+
+  return { fileId, ...json };
 }
 
-// fluxo LUNAS
+// === fluxo para LUNAS ===
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
-  try {
-    console.log("🚀 Iniciando extração do fileId:", fileId);
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-    if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
-    if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
-
-    const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
-    const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-    await fsp.mkdir(jsonDir, { recursive: true });
-
-    const body = {
-      queueId: Number(LUNAS_QUEUE_ID),
-      apiKey: LUNAS_API_KEY,
-      fileId: Number(fileId),
-      download: true
-    };
-
-    console.log("📥 Requisitando PDF na Lunas:", body);
-
-    const resp = await fetch(LUNAS_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error("❌ Falha ao baixar da Lunas:", resp.status, t);
-      throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
-    }
-
-    const arrayBuffer = await resp.arrayBuffer();
-    await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
-    console.log("✅ PDF salvo em", pdfPath);
-
-    const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0, 200));
-
-    const json = await gptExtrairJSON(texto);
-    console.log("🤖 JSON retornado pelo GPT:", json);
-
-    await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-    console.log("✅ JSON salvo em", jsonPath);
-
-    agendarExclusao24h(pdfPath, jsonPath);
-
-    return { fileId, ...json };
-  } catch (err) {
-    console.error("💥 Erro em extrairDeLunas:", err);
-    throw err;
+  // ⚡ cache: já existe JSON pronto?
+  if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
+    const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
+    return { fileId, ...cached };
   }
+
+  console.log("🚀 Iniciando extração do fileId:", fileId);
+
+  if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
+  if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
+
+  const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
+
+  await fsp.mkdir(jsonDir, { recursive: true });
+
+  const body = {
+    queueId: Number(LUNAS_QUEUE_ID),
+    apiKey: LUNAS_API_KEY,
+    fileId: Number(fileId),
+    download: true
+  };
+
+  console.log("📥 Requisitando PDF na Lunas:", body);
+
+  const resp = await fetch(LUNAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+  }
+
+  const arrayBuffer = await resp.arrayBuffer();
+  await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+  console.log("✅ PDF salvo em", pdfPath);
+
+  const texto = await pdfToText(pdfPath);
+  const json = await gptExtrairJSON(texto);
+
+  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
+
+  agendarExclusao24h(pdfPath, jsonPath);
+
+  return { fileId, ...json };
 }
