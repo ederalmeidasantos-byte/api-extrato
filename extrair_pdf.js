@@ -45,7 +45,9 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Ignore cartões RMC/RCC ou contratos não ativos.
 - Sempre incluir "valor_liberado" (quando existir no extrato).
 - Se não houver taxa de juros no extrato, calcule a taxa de juros mensal e anual e preencha.
-- Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
+- Todos os valores DEVEM vir no formato brasileiro:
+  - Valores monetários → "15.529,56"
+  - Taxas (%) → "2,80"
 - Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
 
 Esquema esperado:
@@ -61,7 +63,31 @@ Esquema esperado:
     "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
     "codigoBeneficio": "32"
   },
-  "contratos": [ ... ],
+  "margens": {
+    "disponivel": "123,45",
+    "extrapolada": "-76,20",
+    "rmc": "0,00",
+    "rcc": "0,00"
+  },
+  "contratos": [
+    {
+      "contrato": "021033",
+      "banco": "BANCO SANTANDER OLE",
+      "data_contrato": "16/05/2022",
+      "competencia_inicio_desconto": "06/2022",
+      "competencia_fim_desconto": "05/2029",
+      "qtde_parcelas": 84,
+      "valor_parcela": "424,10",
+      "valor_liberado": "15.529,56",
+      "iof": "0,00",
+      "cet_mensal": "2,80",
+      "cet_anual": "33,60",
+      "taxa_juros_mensal": "2,80",
+      "taxa_juros_anual": "33,60",
+      "valor_pago": "15.529,56",
+      "situacao": "Ativo"
+    }
+  ],
   "data_extrato": "DD/MM/AAAA"
 }
 
@@ -94,7 +120,7 @@ async function gptExtrairJSON(texto) {
 
   let parsed = JSON.parse(raw);
 
-  // === normalização do benefício ===
+  // normalização do benefício
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
 
@@ -108,34 +134,6 @@ async function gptExtrairJSON(texto) {
     const mapped = mapBeneficio(preferencia);
     parsed.beneficio.codigoBeneficio = mapped.codigo;
     parsed.beneficio.nomeBeneficio = mapped.nome;
-  }
-
-  // === crítica dos contratos: parcelas pagas e prazo restante ===
-  if (Array.isArray(parsed?.contratos)) {
-    const hoje = new Date();
-    const anoAtual = hoje.getFullYear();
-    const mesAtual = hoje.getMonth() + 1;
-
-    parsed.contratos = parsed.contratos.map((c) => {
-      const totalParcelas = parseInt(c.qtde_parcelas || 0, 10) || 0;
-
-      let parcelasPagas = 0;
-      let prazoRestante = totalParcelas;
-
-      if (c.competencia_inicio_desconto && c.competencia_fim_desconto) {
-        const [iniMes, iniAno] = c.competencia_inicio_desconto.split("/").map(Number);
-        const mesesDecorridos = (anoAtual - iniAno) * 12 + (mesAtual - iniMes);
-
-        parcelasPagas = Math.max(0, Math.min(totalParcelas, mesesDecorridos));
-        prazoRestante = Math.max(0, totalParcelas - parcelasPagas);
-      }
-
-      return {
-        ...c,
-        parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante
-      };
-    });
   }
 
   return parsed;

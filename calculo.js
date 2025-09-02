@@ -16,6 +16,7 @@ try {
 }
 
 // ===================== Utils =====================
+// Parser robusto (aceita "27.98", "27,98", "1.234,56")
 function toNumber(v) {
   if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
@@ -61,6 +62,7 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
+// Coeficiente 96x com fallback de dia
 function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[tx.toFixed(2)];
   if (!tabela) return null;
@@ -73,7 +75,7 @@ function getCoeficiente(tx, dia) {
   );
 }
 
-// PV de série uniforme
+// PV de série uniforme: saldo = PMT * (1 - (1+i)^(-n)) / i
 function pvFromParcela(parcela, taxaPercentMes, n) {
   const i = Number(taxaPercentMes) / 100;
   if (!(i > 0) || !(n > 0)) return 0;
@@ -82,48 +84,38 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
 }
 
 // ===================== Cálculo do contrato =====================
-function calcularParaContrato(c) {
+function calcularParaContrato(c, margemExtrapolada = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
   if (c.origem_taxa === "critica") return null;
 
-  // parcela
-  const parcelaAtual = Number.isFinite(Number(c.valor_parcela))
-    ? Number(c.valor_parcela)
-    : toNumber(c.parcela);
-
+  // SEMPRE converter valores vindos do JSON (formatados em pt-BR)
+  const parcelaAtual = toNumber(c.valor_parcela);
   if (!(parcelaAtual >= 25)) return null;
 
-  // total de parcelas
-  const totalParcelas = parseInt(c.qtde_parcelas || 0, 10) || 0;
+  const totalParcelas = parseInt(toNumber(c.qtde_parcelas), 10) || 0;
+  const prazoRestante = Number.isFinite(c.prazo_restante)
+    ? c.prazo_restante
+    : totalParcelas;
 
-  // calcula parcelas pagas e prazo restante a partir das competências
-  let parcelasPagas = 0;
-  let prazoRestante = totalParcelas;
+  const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
+  const dtContrato = parseBRDate(dataContrato);
+  const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  if (c.competencia_inicio_desconto && c.competencia_fim_desconto) {
-    const [iniMes, iniAno] = c.competencia_inicio_desconto.split("/").map(Number);
-    const hoje = new Date();
-    const mesesDecorridos = (hoje.getFullYear() - iniAno) * 12 + (hoje.getMonth() + 1 - iniMes);
-
-    parcelasPagas = Math.max(0, Math.min(totalParcelas, mesesDecorridos));
-    prazoRestante = Math.max(0, totalParcelas - parcelasPagas);
-  }
-
-  c.parcelas_pagas = parcelasPagas;
-  c.prazo_restante = prazoRestante;
-
-  // taxa atual
-  const taxaAtual = Number(c.taxa_juros_mensal);
+  // Taxa ATUAL do contrato → apenas para SALDO DEVEDOR
+  const taxaAtual = toNumber(c.taxa_juros_mensal);
   if (!Number.isFinite(taxaAtual) || taxaAtual <= 0) return null;
 
-  // saldo devedor (PV)
-  const saldoDevedor = pvFromParcela(parcelaAtual, taxaAtual, prazoRestante);
+  // Ajusta margem extrapolada na maior parcela
+  let parcelaConsiderada = parcelaAtual;
+  if (margemExtrapolada < 0) {
+    parcelaConsiderada = parcelaAtual + margemExtrapolada; // reduz
+    if (parcelaConsiderada < 25) return null; // inviável
+  }
 
-  // sempre usar o dia atual para buscar coeficiente
-  const hoje = new Date();
-  const dia = String(hoje.getDate()).padStart(2, "0");
+  // Saldo devedor com fórmula PV usando taxaAtual e prazoRestante
+  const saldoDevedor = pvFromParcela(parcelaConsiderada, taxaAtual, prazoRestante);
 
-  // simulação 96x
+  // ===== Simulação novo contrato (sempre 96x) =====
   const ordemTaxas = [1.85, 1.79, 1.66];
   let escolhido = null;
 
@@ -131,10 +123,10 @@ function calcularParaContrato(c) {
     const coefNovo = getCoeficiente(tx, dia);
     if (!coefNovo) continue;
 
-    const valorEmprestimo = parcelaAtual / coefNovo;
+    const valorEmprestimo = parcelaConsiderada / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
-    if (Number.isFinite(troco) && troco >= 50) {
+    if (Number.isFinite(troco) && troco >= 100) {
       escolhido = {
         taxa_aplicada: tx,
         coeficiente_usado: coefNovo,
@@ -151,17 +143,17 @@ function calcularParaContrato(c) {
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRNumber(parcelaAtual),
+    parcela: formatBRNumber(parcelaConsiderada),
     prazo_total: totalParcelas,
-    parcelas_pagas: parcelasPagas,
+    parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
-    taxa_atual: taxaAtual,
-    taxa_aplicada: escolhido.taxa_aplicada,
+    taxa_atual: formatBRNumber(taxaAtual),
+    taxa_aplicada: formatBRNumber(escolhido.taxa_aplicada),
     coeficiente_usado: escolhido.coeficiente_usado,
     saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
     valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
     troco: formatBRNumber(escolhido.troco),
-    data_contrato: c.data_contrato || c.data_inclusao || todayBR()
+    data_contrato: dataContrato
   };
 }
 
@@ -190,19 +182,27 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       const contratos = extrairEmprestimos(extrato);
 
+      const margemExtrapolada = toNumber(extrato?.margens?.extrapolada) * -1 || 0;
+
       const calculados = contratos
-        .map((c) => calcularParaContrato(c))
+        .map((c) => calcularParaContrato(c, -margemExtrapolada))
         .filter(Boolean)
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      if (!calculados.length) {
-        return res.json({ fileId, message: "cliente não tem contrato elegível" });
+      if (calculados.length === 0) {
+        return res.json({
+          fileId,
+          matricula: extrato?.beneficio?.nb || null,
+          contratos: [],
+          resumo: { mensagem: "Cliente não tem contrato elegível" }
+        });
       }
 
+      // Resumo
       const bancos = calculados.map((c) => bancosMap[c.banco || ""] || c.banco || "");
-      const parcelas = calculados.map((c) => toNumber(c.parcela).toFixed(2));
-      const taxas = calculados.map((c) => (c.taxa_aplicada ?? 0).toFixed(2));
-      const saldos = calculados.map((c) => toNumber(c.saldo_devedor).toFixed(2));
+      const parcelas = calculados.map((c) => c.parcela);
+      const taxas = calculados.map((c) => c.taxa_aplicada);
+      const saldos = calculados.map((c) => c.saldo_devedor);
       const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
 
       return res.json({
@@ -225,4 +225,5 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
   };
 }
 
+// Exporta helpers pro teste local (opcional)
 export const __internals = { toNumber, pvFromParcela, getCoeficiente, formatBRNumber };
