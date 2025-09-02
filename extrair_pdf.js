@@ -105,7 +105,7 @@ function parseMargensDoTexto(texto) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) {
         extrapolada = n;
-        extrapoladaEncontrada = true; // ✅ só a primeira ocorrência
+        break; // para na primeira vez
       }
     }
   }
