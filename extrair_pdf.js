@@ -10,14 +10,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// === Lunas config ===
+// === Config Lunas ===
 const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
-// =========================================================
-// Utils
-// =========================================================
+// agendar exclusão em 24h
 function agendarExclusao24h(...paths) {
   const DAY = 24 * 60 * 60 * 1000;
   setTimeout(() => {
@@ -39,73 +37,52 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
-// filtra linhas úteis para reduzir tokens
-function filtrarTextoExtrato(texto) {
+// === Limpeza de texto para reduzir tokens ===
+function limparTextoExtrato(texto) {
   return texto
-    .split(/\n+/)
-    .filter(l =>
-      /benef[ií]cio|esp[eé]cie|contrato|banco|parcela|taxa|liberado|desconto|valor/i.test(l)
-    )
-    .join("\n");
+    .replace(/\s+/g, " ") // espaços extras
+    .replace(/-{5,}/g, "") // linhas separadoras
+    .replace(/Página \d+ de \d+/gi, "") // numeração de páginas
+    .trim();
 }
 
-async function pdfToText(pdfPath) {
-  const buffer = await fsp.readFile(pdfPath);
-  const data = await pdfParse(buffer);
-  return data.text;
-}
-
-function mesesEntre(inicioMMYYYY, referencia = new Date()) {
-  if (!inicioMMYYYY || !/^\d{2}\/\d{4}$/.test(inicioMMYYYY)) return 0;
-  const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
-  const a = new Date(yyyy, mm - 1, 1);
-  const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
-  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
-  return Math.max(0, meses);
-}
-
-// =========================================================
-// GPT prompts enxutos
-// =========================================================
-function promptBeneficio(texto) {
+// === Prompts otimizados ===
+function promptClienteBeneficio(texto) {
   return `
-Extraia do texto do extrato os dados do BENEFÍCIO. Retorne JSON válido no formato:
+Você é um assistente que extrai apenas os **dados do cliente e do benefício** de um extrato do INSS.
+Responda SOMENTE com JSON válido.
 
 {
-  "nb": "6043215431",
-  "bloqueio_beneficio": "SIM|NAO",
-  "meio_pagamento": "conta corrente",
-  "banco_pagamento": "Banco Bradesco S A",
-  "agencia": "877",
-  "conta": "0001278479",
-  "nome": "NOME DA ESPÉCIE",
-  "codigo": "CÓDIGO DA ESPÉCIE"
+  "cliente": "Nome do titular",
+  "beneficio": {
+    "nb": "número do benefício",
+    "bloqueio_beneficio": "SIM|NAO",
+    "meio_pagamento": "conta corrente|cartao",
+    "banco_pagamento": "Banco ...",
+    "agencia": "877",
+    "conta": "0001278479",
+    "nome": "Nome da espécie",
+    "codigo": "Código da espécie"
+  },
+  "data_extrato": "DD/MM/AAAA"
 }
 
-Texto:
-${texto}`;
+Texto do extrato:
+${texto}
+`;
 }
 
 function promptContratos(texto) {
   return `
-Você deve extrair do texto abaixo **TODOS os contratos de empréstimos consignados ativos** e retornar **somente um JSON válido**.
+Você é um assistente que extrai apenas os **contratos de empréstimos ativos** de um extrato do INSS.
+Responda SOMENTE com JSON válido.
 
-⚠️ Regras obrigatórias:
-- Retorne um array JSON com todos os contratos "Ativo".
-- Se não houver contratos ativos no texto, retorne um array vazio [].
-- Não invente contratos, apenas use o que aparece no texto.
-- Sempre que possível preencha os campos com número.
-- Campos monetários devem ser número com ponto decimal (ex.: 1249.28).
-- Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
-- Incluir parcelas_pagas e prazo_restante como números (mesmo que 0).
-
-Exemplo de formato:
 [
   {
     "contrato": "2666838921",
     "banco": "Banco Itau Consignado S A",
     "situacao": "Ativo",
-    "valor_liberado": 528.71,
+    "valor_liberado": 1000.00,
     "valor_parcela": 12.14,
     "qtde_parcelas": 96,
     "data_inclusao": "09/04/2025",
@@ -117,81 +94,67 @@ Exemplo de formato:
   }
 ]
 
-Agora, extraia os contratos ativos do seguinte texto:
-
+Texto do extrato:
 ${texto}
-  `;
+`;
 }
 
-// =========================================================
-// GPT extractors
-// =========================================================
-async function gptJSON(prompt, model = "gpt-4o-mini") {
-  const completion = await openai.chat.completions.create({
-    model,
-    temperature: 0,
-    messages: [
-      { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
-      { role: "user", content: prompt }
-    ]
-  });
-
-  let raw = completion.choices[0]?.message?.content?.trim() || "{}";
-  if (raw.startsWith("```")) {
-    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  }
-  return JSON.parse(raw);
+// === PDF to texto ===
+async function pdfToText(pdfPath) {
+  const buffer = await fsp.readFile(pdfPath);
+  const data = await pdfParse(buffer);
+  return limparTextoExtrato(data.text);
 }
 
+// === GPT extrair JSON ===
 async function gptExtrairJSON(texto) {
-  const textoFiltrado = filtrarTextoExtrato(texto);
+  try {
+    // 1) cliente e benefício
+    const respBeneficio = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      max_tokens: 500,
+      messages: [
+        { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
+        { role: "user", content: promptClienteBeneficio(texto) }
+      ]
+    });
 
-  // tenta contratos com texto filtrado
-  let [beneficio, contratos] = await Promise.all([
-    gptJSON(promptBeneficio(textoFiltrado), "gpt-4o"),
-    gptJSON(promptContratos(textoFiltrado), "gpt-4o-mini")
-  ]);
+    let parsedBeneficio = JSON.parse(respBeneficio.choices[0]?.message?.content?.trim() || "{}");
 
-  // fallback se não trouxe contratos
-  if (!contratos || !Array.isArray(contratos) || contratos.length === 0) {
-    console.warn("⚠️ Nenhum contrato encontrado no texto filtrado. Tentando texto completo...");
-    contratos = await gptJSON(promptContratos(texto), "gpt-4o-mini");
-  }
-
-  // === normalização benefício ===
-  beneficio.nb = normalizarNB(beneficio.nb);
-  const mapped = mapBeneficio(beneficio.codigo || beneficio.nome || "");
-  beneficio.codigo = mapped.codigo;
-  beneficio.nome = mapped.nome;
-
-  // === normalização contratos ===
-  const contratosNorm = (contratos || []).map(c => {
-    let critica = c.critica ?? null;
-    let origem_taxa = "extrato";
-    const taxa = Number(c.taxa_juros_mensal);
-
-    if (!Number.isFinite(taxa)) {
-      origem_taxa = "calculado";
-    } else if (taxa < 1 || taxa > 3) {
-      critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente.";
-      delete c.taxa_juros_mensal;
-      delete c.taxa_juros_anual;
-      origem_taxa = "critica";
+    // normalizar benefício
+    if (parsedBeneficio?.beneficio) {
+      parsedBeneficio.beneficio.nb = normalizarNB(parsedBeneficio.beneficio.nb);
+      const preferencia = parsedBeneficio.beneficio.codigo || parsedBeneficio.beneficio.nome || "";
+      const mapped = mapBeneficio(preferencia);
+      parsedBeneficio.beneficio.codigo = mapped.codigo;
+      parsedBeneficio.beneficio.nome = mapped.nome;
     }
 
-    const total = Number(c.qtde_parcelas) || 0;
-    const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
-    const restante = Math.max(0, total - pagas);
+    // 2) contratos
+    const respContratos = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      max_tokens: 1000,
+      messages: [
+        { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
+        { role: "user", content: promptContratos(texto) }
+      ]
+    });
 
-    return { ...c, parcelas_pagas: pagas, prazo_restante: restante, origem_taxa, ...(critica ? { critica } : {}) };
-  });
+    let contratos = JSON.parse(respContratos.choices[0]?.message?.content?.trim() || "[]");
 
-  return { cliente: "", beneficio, contratos: contratosNorm };
+    return {
+      ...parsedBeneficio,
+      contratos
+    };
+  } catch (err) {
+    console.error("❌ Erro parseando JSON do GPT:", err.message);
+    return { error: "Falha ao interpretar extrato", detalhe: err.message };
+  }
 }
 
-// =========================================================
-// Fluxos de extração
-// =========================================================
+// === fluxo para upload local ===
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   try {
     console.log("🚀 Iniciando extração de upload:", fileId);
@@ -200,9 +163,14 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto limpo (primeiros 200 chars):", texto.slice(0, 200));
+
     const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
@@ -212,6 +180,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   }
 }
 
+// === fluxo para Lunas ===
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   try {
     console.log("🚀 Iniciando extração do fileId:", fileId);
@@ -223,18 +192,39 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
     await fsp.mkdir(jsonDir, { recursive: true });
 
-    const body = { queueId: Number(LUNAS_QUEUE_ID), apiKey: LUNAS_API_KEY, fileId: Number(fileId), download: true };
+    const body = {
+      queueId: Number(LUNAS_QUEUE_ID),
+      apiKey: LUNAS_API_KEY,
+      fileId: Number(fileId),
+      download: true
+    };
 
-    const resp = await fetch(LUNAS_API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!resp.ok) throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${await resp.text()}`);
+    console.log("📥 Requisitando PDF na Lunas:", body);
+
+    const resp = await fetch(LUNAS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+    }
 
     const arrayBuffer = await resp.arrayBuffer();
     await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+    console.log("✅ PDF salvo em", pdfPath);
 
     const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto limpo (primeiros 200 chars):", texto.slice(0, 200));
+
     const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
