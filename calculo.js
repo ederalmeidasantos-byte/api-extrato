@@ -15,60 +15,27 @@ try {
   console.error("⚠️ Erro ao carregar coeficientes_96.json:", err.message);
 }
 
-// ===================== Normalização de bancos =====================
-function normalizarBanco(nome = "") {
-  const u = nome.toUpperCase();
-  if (u.includes("ITAU") || u.includes("ITAÚ")) return "Itaú";
-  if (u.includes("BANCO DO BRASIL")) return "Banco do Brasil";
-  if (u.includes("BRADESCO")) return "Bradesco";
-  if (u.includes("SANTANDER")) return "Santander";
-  if (u.includes("C6")) return "C6";
-  if (u.includes("AGIBANK")) return "Agibank";
-  if (u.includes("FACTA")) return "Facta";
-  if (u.includes("PINE")) return "Pine";
-  // fallback: retorna como veio no extrato
-  return nome;
-}
-
 // ===================== Utils =====================
-// Corrigido: preserva números JS; só “limpa” se vier no formato BR com vírgula/R$.
 function toNumber(v) {
   if (v == null) return 0;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-
-  const s = v.toString().trim();
-  if (!s) return 0;
-
-  // Se tem vírgula (formato BR) ou símbolo R$
-  if (s.includes(",") || s.includes("R$")) {
-    return (
-      parseFloat(
-        s
-          .replace("R$", "")
-          .replace(/\s/g, "")
-          .replace(/\./g, "") // remove milhar
-          .replace(",", ".")  // vírgula -> ponto
-      ) || 0
-    );
-  }
-
-  // Caso comum: já vem como "27.98"
-  return parseFloat(s) || 0;
+  return (
+    parseFloat(
+      v.toString().replace("R$", "").replace(/\s/g, "")
+        .replace("%", "").replace(/\./g, "").replace(",", ".").trim()
+    ) || 0
+  );
 }
-
 function parseBRDate(d) {
   if (!d || typeof d !== "string") return null;
   const [dd, mm, yyyy] = d.split("/");
   const dt = new Date(+yyyy, +mm - 1, +dd);
   return isNaN(dt.getTime()) ? null : dt;
 }
-
 function formatBRNumber(n) {
   return Number.isFinite(n)
     ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "0,00";
 }
-
 function todayBR() {
   const x = new Date();
   const dd = String(x.getDate()).padStart(2, "0");
@@ -83,10 +50,6 @@ function calcularParaContrato(c) {
   if (c.origem_taxa === "critica") return null;
 
   const parcelaAtual = toNumber(c.valor_parcela ?? c.parcela);
-
-  // ⚠️ regra: parcela mínima R$25,00
-  if (parcelaAtual < 25) return null;
-
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10);
   const prazoRestante = Number.isFinite(c.prazo_restante) ? c.prazo_restante : totalParcelas;
   const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
@@ -127,11 +90,10 @@ function calcularParaContrato(c) {
 
   if (!melhor) return null;
 
-  // 🔥 retorno final, sem duplicação
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRNumber(parcelaAtual),     // "10.000,00"
+    parcela: formatBRNumber(parcelaAtual),
     prazo_total: totalParcelas,
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
@@ -173,14 +135,25 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       const calculados = contratos
         .map(c => calcularParaContrato(c))
         .filter(r => r && !r.critica)
-        .filter(r => toNumber(r.troco) >= 100) // regra: só trocos >= 100
+        .filter(r => toNumber(r.parcela) >= 25)  // regra: só parcelas >= 25
+        .filter(r => toNumber(r.troco) >= 100)  // regra: só trocos >= 100
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       // ==== resumo consolidado ====
-      const bancos = calculados.map(c => normalizarBanco(c.banco));
-      const parcelas = calculados.map(c => c.parcela);               // já "10.000,00"
-      const taxas = calculados.map(c => c.taxa_aplicada.toFixed(2)); // ex.: "1.66"
-      const saldos = calculados.map(c => c.saldo_devedor);           // já "10.000,00"
+      const bancos = calculados.map(c => {
+        let b = (c.banco || "").toUpperCase();
+        if (b.includes("ITAÚ")) return "Itaú";
+        if (b.includes("C6")) return "C6";
+        if (b.includes("BRADESCO")) return "Bradesco";
+        if (b.includes("BRASIL")) return "Banco do Brasil";
+        if (b.includes("FACTA")) return "Facta";
+        if (b.includes("PINE")) return "Pine";
+        return c.banco; // se não tiver mapeado, retorna como está
+      });
+
+      const parcelas = calculados.map(c => toNumber(c.parcela).toFixed(2));
+      const taxas = calculados.map(c => c.taxa_aplicada.toFixed(2));
+      const saldos = calculados.map(c => toNumber(c.saldo_devedor).toFixed(2));
       const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
 
       return res.json({
