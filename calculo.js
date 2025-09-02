@@ -122,7 +122,7 @@ function calcularParaContrato(c) {
     const valorEmprestimo = parcelaAtual / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
-    if (Number.isFinite(troco) && troco >= 100) {
+    if (Number.isFinite(troco) && troco >= 50) {
       escolhido = {
         taxa_aplicada: tx,
         coeficiente_usado: coefNovo,

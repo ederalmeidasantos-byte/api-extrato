@@ -12,7 +12,9 @@ const openai = new OpenAI({
 });
 
 // === Lunas config ===
-const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
+const LUNAS_API_URL =
+  process.env.LUNAS_API_URL ||
+  "https://lunasdigital.atenderbem.com/int/downloadFile";
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
@@ -101,7 +103,8 @@ function mesesEntre(inicioMMYYYY, referencia = new Date()) {
   const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
   const a = new Date(yyyy, mm - 1, 1);
   const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
-  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  const meses =
+    (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
   return Math.max(0, meses);
 }
 
@@ -126,19 +129,25 @@ async function gptExtrairJSON(texto) {
 
     // === Normaliza BENEFÍCIO ===
     if (parsed?.beneficio) {
-      // NB somente números
       parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
 
-      // tenta mapear espécie por código ou nome/tipo vindo do GPT
-      const preferencia = parsed.beneficio.codigo || parsed.beneficio.especie || parsed.beneficio.tipo || parsed.beneficio.nome || "";
+      const preferencia =
+        parsed.beneficio.codigo ||
+        parsed.beneficio.especie ||
+        parsed.beneficio.tipo ||
+        parsed.beneficio.nome ||
+        "";
+
       const mapped = mapBeneficio(preferencia);
-      parsed.beneficio.codigo = mapped.codigo;
-      parsed.beneficio.nome = mapped.nome;
+      parsed.beneficio.codigo =
+        mapped?.codigo || parsed.beneficio.codigo || preferencia || "";
+      parsed.beneficio.nome =
+        mapped?.nome || parsed.beneficio.nome || preferencia || "";
     }
 
     // === Normaliza CONTRATOS ===
     if (parsed?.contratos && Array.isArray(parsed.contratos)) {
-      parsed.contratos = parsed.contratos.map(c => {
+      parsed.contratos = parsed.contratos.map((c) => {
         let critica = c.critica ?? null;
         let origem_taxa = "extrato"; // default
         const taxa = Number(c.taxa_juros_mensal);
@@ -146,13 +155,13 @@ async function gptExtrairJSON(texto) {
         if (!Number.isFinite(taxa)) {
           origem_taxa = "calculado"; // não tinha taxa → calculada
         } else if (taxa < 1 || taxa > 3) {
-          critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente com contrato físico.";
+          critica =
+            "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente com contrato físico.";
           delete c.taxa_juros_mensal;
           delete c.taxa_juros_anual;
           origem_taxa = "critica";
         }
 
-        // calcula parcelas pagas e prazo restante
         const total = Number(c.qtde_parcelas) || 0;
         const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
         const restante = Math.max(0, total - pagas);
@@ -180,19 +189,12 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
     console.log("🚀 Iniciando extração de upload:", fileId);
 
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-
-    // 🔧 garante que a pasta existe
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
-
     const json = await gptExtrairJSON(texto);
-    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-    console.log("✅ JSON salvo em", jsonPath);
-
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
@@ -212,8 +214,6 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-
-    // 🔧 garante que a pasta existe
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const body = {
@@ -223,8 +223,6 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
       download: true
     };
 
-    console.log("📥 Requisitando PDF na Lunas:", body);
-
     const resp = await fetch(LUNAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -233,23 +231,16 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     if (!resp.ok) {
       const t = await resp.text();
-      console.error("❌ Falha ao baixar da Lunas:", resp.status, t);
       throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
     }
 
     const arrayBuffer = await resp.arrayBuffer();
     await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
-    console.log("✅ PDF salvo em", pdfPath);
 
     const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
-
     const json = await gptExtrairJSON(texto);
-    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-    console.log("✅ JSON salvo em", jsonPath);
-
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
@@ -257,4 +248,45 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     console.error("💥 Erro em extrairDeLunas:", err);
     throw err;
   }
+}
+
+// === endpoint HTTP ===
+export function extrairEndpoint(JSON_DIR, PDF_DIR) {
+  return async (req, res) => {
+    try {
+      const fileId = req.params.fileId || req.body.fileId || req.query.fileId;
+      if (!fileId) {
+        return res.status(400).json({ error: "fileId obrigatório" });
+      }
+
+      const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
+      const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
+
+      let json;
+      if (fs.existsSync(jsonPath)) {
+        json = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      } else {
+        json = await extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR });
+      }
+
+      if (json?.beneficio) {
+        const preferencia =
+          json.beneficio.codigo ||
+          json.beneficio.nome ||
+          json.beneficio.tipo ||
+          json.beneficio.especie ||
+          "";
+        const mapped = mapBeneficio(preferencia);
+        json.beneficio.codigo =
+          mapped?.codigo || json.beneficio.codigo || preferencia || "";
+        json.beneficio.nome =
+          mapped?.nome || json.beneficio.nome || preferencia || "";
+      }
+
+      return res.json({ fileId, ...json });
+    } catch (err) {
+      console.error("❌ Erro no extrairEndpoint:", err);
+      res.status(500).json({ error: "Erro interno", detalhe: err.message });
+    }
+  };
 }

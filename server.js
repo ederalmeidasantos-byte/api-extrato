@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { extrairDeLunas, extrairDeUpload } from "./extrair_pdf.js";
+import { extrairEndpoint } from "./extrator.js"; // ✅ agora usamos o endpoint unificado
 import { calcularTrocoEndpoint } from "./calculo.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,39 +19,19 @@ const app = express();
 
 const jsonParser = express.json({ limit: "10mb" });
 
-// health
+// health check
 app.get("/", (req, res) => res.send("API rodando ✅"));
 
-// route /extrair/:fileId — SEM JSON no body
-app.post("/extrair/:fileId", async (req, res) => {
-  try {
-    const out = await extrairDeLunas({ fileId: req.params.fileId, pdfDir: PDF_DIR, jsonDir: JSON_DIR });
-    res.json(out);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+// 🔹 endpoint unificado /extrair
+app.post("/extrair", upload.single("file"), jsonParser, extrairEndpoint(JSON_DIR, PDF_DIR));
 
-// route upload — usa JSON parser se quiser ler req.body além do file
-app.post("/extrair", upload.single("file"), jsonParser, async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
-    const out = await extrairDeUpload({ fileId: req.body.fileId || req.file.filename, pdfPath: req.file.path, jsonDir: JSON_DIR });
-    res.json(out);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+// 🔹 também aceita GET com fileId na URL
+app.get("/extrair/:fileId", extrairEndpoint(JSON_DIR, PDF_DIR));
 
-// calcular endpoint (no JSON body)
+// 🔹 calcular endpoint (usa JSON já salvo)
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
-
-// novo endpoint para ver o JSON cru
+// 🔹 novo endpoint para ver JSON cru
 app.get("/extrato/:fileId/raw", (req, res) => {
   const { fileId } = req.params;
   const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
@@ -62,3 +42,6 @@ app.get("/extrato/:fileId/raw", (req, res) => {
 
   res.sendFile(jsonPath);
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));
