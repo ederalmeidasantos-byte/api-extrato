@@ -1,3 +1,4 @@
+// extrair_pdf_paginas.js
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
@@ -16,9 +17,30 @@ const LUNAS_API_URL =
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
-// ================= Helpers =================
+// ================== Helpers ==================
+function agendarExclusao24h(...paths) {
+  const DAY = 24 * 60 * 60 * 1000;
+  setTimeout(() => {
+    for (const p of paths) {
+      try {
+        if (p && fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          console.log("🗑️ Removido após 24h:", p);
+        }
+      } catch (e) {
+        console.warn("Falha ao excluir", p, e.message);
+      }
+    }
+  }, DAY);
+}
+
+function normalizarNB(nb) {
+  if (!nb) return "";
+  return String(nb).replace(/\D/g, "");
+}
+
 function toNumber(v) {
-  if (!v) return 0;
+  if (v == null) return 0;
   if (typeof v === "number") return v;
   let s = v.toString().replace(/[^\d.,-]/g, "").trim();
   if (!s) return 0;
@@ -33,98 +55,88 @@ function toNumber(v) {
   }
   return parseFloat(s) || 0;
 }
+
 function formatBRNumber(n) {
   return Number(n).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
 }
-function formatBRTaxa(nAsDecimal) {
-  return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+
+function stripDiacritics(s) {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
 }
-function diffMeses(inicioMMYYYY, fimMMYYYY) {
-  const [mi, ai] = (inicioMMYYYY || "01/1900").split("/").map(Number);
-  const [mf, af] = (fimMMYYYY || "01/1900").split("/").map(Number);
-  return (af - ai) * 12 + (mf - mi);
-}
-function getCompetenciaAtual(dataExtratoDDMMYYYY) {
-  if (!dataExtratoDDMMYYYY) {
-    const hoje = new Date();
-    return `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+
+function pick(obj, ...keys) {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
   }
-  const [dd, mm, yyyy] = dataExtratoDDMMYYYY.split("/");
-  return `${mm}/${yyyy}`;
+  return undefined;
 }
 
-// ================= Prompt =================
-function buildPromptPaginas(texto) {
+// ================== Prompt ==================
+function buildPromptSeparado(pagina1, pagina2, paginasContratos) {
   return `
-Você é um assistente que extrai dados de extratos INSS.  
-⚠️ Importante: o PDF segue essa estrutura:
-- Página 1 → Dados do cliente e do benefício
-- Página 2 → Margens (MARGEM DISPONÍVEL* e MARGEM EXTRAPOLADA***)
-- Página 3 em diante → Lista de contratos consignados ativos (ignore RMC/RCC)
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
 
-Regras:
+- Página 1: contém dados do cliente e do benefício.
+- Página 2: contém margens (MARGEM DISPONÍVEL*, MARGEM EXTRAPOLADA***, RMC, RCC).
+- Página 3 em diante: lista de contratos ativos.
+
+⚠️ Regras:
 - Retorne SOMENTE JSON.
-- No campo "nomeBeneficio", mantenha o texto exatamente como aparece no PDF.
-- Margens não devem ser inventadas, serão sobrescritas.
-- Todos os contratos "ATIVO" devem ser listados.
+- Contratos ativos apenas (ignore RMC/RCC).
+- Não invente valores, se não tiver coloque null ou 0.
 
-Esquema esperado:
+Esquema:
 {
-  "cliente": "NOME",
+  "cliente": "Nome exato",
   "beneficio": {
     "nb": "...",
-    "bloqueio_beneficio": "SIM|NAO",
+    "bloqueio_beneficio": "...",
     "meio_pagamento": "...",
     "banco_pagamento": "...",
     "agencia": "...",
     "conta": "...",
-    "nomeBeneficio": "...",
+    "nomeBeneficio": "Texto exato em azul",
     "codigoBeneficio": null
   },
-  "margens": {},
-  "contratos": [
-    {
-      "contrato": "...",
-      "banco": "...",
-      "situacao": "ATIVO",
-      "data_inclusao": "MM/AAAA",
-      "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 84,
-      "valor_parcela": 424.10,
-      "valor_liberado": 15529.56,
-      "iof": 0,
-      "cet_mensal": 0.023,
-      "cet_anual": 0.31,
-      "taxa_juros_mensal": 0.0238,
-      "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00
-    }
-  ],
+  "margens": {
+    "disponivel": "...",
+    "extrapolada": "...",
+    "rmc": "...",
+    "rcc": "..."
+  },
+  "contratos": [...],
   "data_extrato": "DD/MM/AAAA"
 }
 
-Texto do extrato:
-${texto}
+📄 Página 1 (dados cliente/benefício):
+${pagina1}
+
+📄 Página 2 (margens):
+${pagina2}
+
+📄 Páginas 3+ (contratos):
+${paginasContratos}
 `;
 }
 
-// ================= GPT =================
-async function gptExtrairJSONPaginas(texto) {
+// ================== GPT Call ==================
+async function gptExtrairJSONSeparado(pagina1, pagina2, paginasContratos) {
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0,
     max_tokens: 2000,
     messages: [
       { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
-      { role: "user", content: buildPromptPaginas(texto) }
+      { role: "user", content: buildPromptSeparado(pagina1, pagina2, paginasContratos) }
     ]
   });
+
   let raw = completion.choices[0]?.message?.content?.trim() || "{}";
   if (raw.startsWith("```")) {
     raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
@@ -132,23 +144,52 @@ async function gptExtrairJSONPaginas(texto) {
   return JSON.parse(raw);
 }
 
-// ================= PDF =================
-async function pdfToText(pdfPath) {
+// ================== PDF Utils ==================
+async function pdfToPages(pdfPath) {
   const buffer = await fsp.readFile(pdfPath);
   const data = await pdfParse(buffer);
-  return data.text || "";
+  return (data.text || "").split(/\f/); // quebra por página
 }
 
-// ================= Fluxo Upload (com Lunas) =================
-export async function extrairDeLunasPaginas({ fileId, pdfDir, jsonDir }) {
-  const jsonPath = path.join(jsonDir, `extrato_paginas_${fileId}.json`);
+// ================== Fluxo Upload ==================
+export async function extrairDeUploadPaginas({ fileId, pdfPath, jsonDir }) {
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado (páginas)", jsonPath);
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
 
-  console.log("🚀 Iniciando extração PAGINAS fileId:", fileId);
+  console.log("🚀 Iniciando extração (por páginas):", fileId);
+  await fsp.mkdir(jsonDir, { recursive: true });
+
+  const paginas = await pdfToPages(pdfPath);
+  const pagina1 = paginas[0] || "";
+  const pagina2 = paginas[1] || "";
+  const paginasContratos = paginas.slice(2).join("\n");
+
+  const parsed = await gptExtrairJSONSeparado(pagina1, pagina2, paginasContratos);
+
+  await fsp.writeFile(jsonPath, JSON.stringify(parsed, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
+
+  agendarExclusao24h(pdfPath, jsonPath);
+
+  return { fileId, ...parsed };
+}
+
+// ================== Fluxo Lunas ==================
+export async function extrairDeLunasPaginas({ fileId, pdfDir, jsonDir }) {
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+  if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
+    const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
+    return { fileId, ...cached };
+  }
+
+  console.log("🚀 Iniciando extração do fileId (por páginas):", fileId);
 
   if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
   if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
@@ -162,6 +203,8 @@ export async function extrairDeLunasPaginas({ fileId, pdfDir, jsonDir }) {
     fileId: Number(fileId),
     download: true
   };
+
+  console.log("📥 Requisitando PDF na Lunas:", body);
 
   const resp = await fetch(LUNAS_API_URL, {
     method: "POST",
@@ -178,12 +221,5 @@ export async function extrairDeLunasPaginas({ fileId, pdfDir, jsonDir }) {
   await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
   console.log("✅ PDF salvo em", pdfPath);
 
-  // extrair texto
-  const texto = await pdfToText(pdfPath);
-  const parsed = await gptExtrairJSONPaginas(texto);
-
-  await fsp.writeFile(jsonPath, JSON.stringify(parsed, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-
-  return { fileId, ...parsed };
+  return extrairDeUploadPaginas({ fileId, pdfPath, jsonDir });
 }
