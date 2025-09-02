@@ -101,14 +101,13 @@ function parseMargensDoTexto(texto) {
       if (nums.length > 2) rcc = nums[2];
     }
 
-    if (!extrapoladaEncontrada && line.includes("MARGEM EXTRAPOLADA")) {
-      const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
-      if (n) {
-        extrapolada = n;
-        break; // para na primeira vez
-      }
-    }
+    if (/MARGEM\s+EXTRAPOLADA/i.test(line)) {
+    const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
+    if (n) {
+    extrapolada = n;
+    break; // ✅ para garantir que pega só da primeira tabela
   }
+}
 
   return {
     disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
