@@ -18,7 +18,8 @@ try {
 // ===================== Utils =====================
 function toNumber(v) {
   if (v == null) return 0;
-  if (typeof v === "number") return v;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+
   let s = v.toString().replace(/[R$\s%]/g, "").trim();
   if (s === "") return 0;
 
@@ -39,6 +40,20 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function formatBRNumber(n) {
+  return Number(n).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatBRTaxaPercent(nPercent) {
+  return Number(nPercent).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function parseBRDate(d) {
   if (!d || typeof d !== "string") return null;
   const [dd, mm, yyyy] = d.split("/");
@@ -46,17 +61,20 @@ function parseBRDate(d) {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
-function todayBR() {
+function diaFromExtrato(extrato) {
+  // usa o dia do próprio extrato; se não tiver, usa “hoje”
+  const d = (extrato && extrato.data_extrato) || null;
+  if (d) {
+    const dd = d.split("/")[0];
+    if (dd) return dd.padStart(2, "0");
+  }
   const x = new Date();
-  const dd = String(x.getDate()).padStart(2, "0");
-  const mm = String(x.getMonth() + 1).padStart(2, "0");
-  const yy = x.getFullYear();
-  return `${dd}/${mm}/${yy}`;
+  return String(x.getDate()).padStart(2, "0");
 }
 
 // Coeficiente 96x
 function getCoeficiente(tx, dia) {
-  const tabela = coeficientes?.[tx.toFixed(2)];
+  const tabela = coeficientes?.[Number(tx).toFixed(2)];
   if (!tabela) return null;
   return (
     tabela[dia] ??
@@ -75,56 +93,99 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
   return parcela * fator;
 }
 
-// ===================== Ajuste de Margem =====================
-function ajustarParcelasPorMargem(contratos, extrapolada) {
-  let contratosOrdenados = [...contratos].sort(
+// Resolver taxa mensal a partir de PV, PMT, n (Newton-Raphson)
+function solveRateFromPVPMTN(pmt, pv, n) {
+  if (!(pmt > 0 && pv > 0 && n > 0)) return 0;
+  // chute inicial razoável
+  let i = 0.02; // 2% a.m.
+  for (let k = 0; k < 50; k++) {
+    const denom = 1 - Math.pow(1 + i, -n);
+    if (denom <= 0) break;
+    const f = pmt - (pv * i) / denom;
+    // derivada
+    const dfdI = -pv * (
+      denom - i * (n * Math.pow(1 + i, -n - 1))
+    ) / (denom * denom);
+    if (Math.abs(dfdI) < 1e-10) break;
+    const step = f / dfdI;
+    i = i - step;
+    if (!isFinite(i) || i <= -0.999) { i = 0.001; } // guarda
+    if (Math.abs(step) < 1e-10) break;
+  }
+  if (!isFinite(i) || i <= 0) return 0;
+  return i * 100; // retorna em %
+}
+
+// ===================== Ajuste de Margem (extrapolada) =====================
+// Regra: se extrapolada > 0, reduzir esse valor da MAIOR parcela (apenas 1 contrato).
+function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
+  if (!(extrapoladaAbs > 0) || !Array.isArray(contratos) || contratos.length === 0) return { contratosAjustados: contratos, info: null };
+
+  const ordenados = [...contratos].sort(
     (a, b) => toNumber(b.valor_parcela) - toNumber(a.valor_parcela)
   );
-  let maior = contratosOrdenados[0];
-  if (!maior) return contratos;
 
-  // reduz a maior parcela pelo valor extrapolado
-  let novaParcela = Math.max(0, toNumber(maior.valor_parcela) - Math.abs(toNumber(extrapolada)));
-  maior.valor_parcela = novaParcela.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+  const maior = ordenados[0];
+  if (!maior) return { contratosAjustados: contratos, info: null };
+
+  const original = toNumber(maior.valor_parcela);
+  const nova = Math.max(0, original - extrapoladaAbs);
+
+  const ajustados = contratos.map(c => {
+    if (c.contrato === maior.contrato) {
+      return {
+        ...c,
+        __parcela_original__: formatBRNumber(original),
+        valor_parcela: formatBRNumber(nova) // parcela passa a ser a AJUSTADA
+      };
+    }
+    return c;
   });
 
-  return contratos.map(c => (c.contrato === maior.contrato ? maior : c));
+  return {
+    contratosAjustados: ajustados,
+    info: {
+      contrato: maior.contrato,
+      parcela_original: formatBRNumber(original),
+      parcela_ajustada: formatBRNumber(nova),
+      extrapolada_utilizada: formatBRNumber(extrapoladaAbs)
+    }
+  };
 }
 
 // ===================== Cálculo do contrato =====================
-function calcularParaContrato(c) {
+function calcularParaContrato(c, diaAverbacao) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
-  const parcelaAtual = toNumber(c.valor_parcela);
-  if (!(parcelaAtual >= 25)) return null;
+  const parcelaBR = c.valor_parcela;
+  const parcelaNum = toNumber(parcelaBR);
+  if (!(parcelaNum >= 25)) return null;
 
-  const totalParcelas = toNumber(c.qtde_parcelas) || toNumber(c.fim_desconto) || 0;
-  const dataContrato = c.data_contrato || c.data_inclusao || todayBR();
-  const dtContrato = parseBRDate(dataContrato);
-  const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
+  // Prazos (vêm do extrair já preenchidos)
+  const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
+  const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const taxaAtual = toNumber(c.taxa_juros_mensal);
-  if (!(taxaAtual > 0)) return null;
+  // taxa atual: calcular a partir de valor_liberado + parcela + prazo_total (pedido do cliente)
+  const pv = toNumber(c.valor_liberado);
+  const taxaCalcPercentMes = solveRateFromPVPMTN(parcelaNum, pv, totalParcelas); // em %
 
-  const prazoRestante = totalParcelas;
-  const saldoDevedor = pvFromParcela(parcelaAtual, taxaAtual, prazoRestante);
+  // saldo devedor com taxa calculada e prazo restante
+  const saldoDevedor = pvFromParcela(parcelaNum, taxaCalcPercentMes, prazoRestante);
 
   // ===== Simulação novo contrato (sempre 96x) =====
   const ordemTaxas = [1.85, 1.79, 1.66];
   let escolhido = null;
 
   for (const tx of ordemTaxas) {
-    const coefNovo = getCoeficiente(tx, dia);
+    const coefNovo = getCoeficiente(tx, diaAverbacao);
     if (!coefNovo) continue;
 
-    const valorEmprestimo = parcelaAtual / coefNovo;
+    const valorEmprestimo = parcelaNum / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
     if (Number.isFinite(troco) && troco >= 100) {
       escolhido = {
-        taxa_calculada: tx.toFixed(2),
+        taxaSelecionada: tx,
         coeficiente_usado: coefNovo,
         saldoDevedor,
         valorEmprestimo,
@@ -139,17 +200,25 @@ function calcularParaContrato(c) {
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: c.valor_parcela,
+    parcela_original: c.__parcela_original__ || null,
+    parcela: formatBRNumber(parcelaNum), // parcela usada na PV (já ajustada se houve extrapolada)
     prazo_total: totalParcelas,
-    parcelas_pagas: c.parcelas_pagas || 0,
+    parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     prazo_restante: prazoRestante,
-    taxa_atual: c.taxa_juros_mensal,
-    taxa_calculada: escolhido.taxa_calculada,
+
+    // taxa atual calculada (em % a.m. e a.a.)
+    taxa_atual: formatBRTaxaPercent(taxaCalcPercentMes),
+    taxa_atual_anual: formatBRTaxaPercent((Math.pow(1 + taxaCalcPercentMes / 100, 12) - 1) * 100),
+
+    // taxa adotada na simulação (1.85% | 1.79% | 1.66%)
+    taxa_calculada: formatBRTaxaPercent(escolhido.taxaSelecionada),
+
     coeficiente_usado: escolhido.coeficiente_usado,
-    saldo_devedor: escolhido.saldoDevedor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    valor_emprestimo: escolhido.valorEmprestimo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    troco: escolhido.troco.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    data_contrato: dataContrato
+    saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
+    valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
+    troco: formatBRNumber(escolhido.troco),
+
+    data_contrato: c.data_contrato || c.data_inclusao || null
   };
 }
 
@@ -172,17 +241,43 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       }
 
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-      let contratos = extrairEmprestimos(extrato);
+      let contratosAtivos = extrairEmprestimos(extrato);
 
-      // Ajusta se houver margem extrapolada positiva
-      if (toNumber(extrato?.margens?.extrapolada) > 0) {
-        contratos = ajustarParcelasPorMargem(contratos, extrato.margens.extrapolada);
+      // dia de averbação (usar dia do extrato, senão dia de hoje)
+      const diaAverbacao = diaFromExtrato(extrato);
+
+      // 1) Se houver margem extrapolada (valor POSITIVO exibido), ajustar a MAIOR parcela
+      const extrap = toNumber(extrato?.margens?.extrapolada);
+      let infoAjuste = null;
+
+      if (extrap > 0) {
+        const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosAtivos, extrap);
+        contratosAtivos = contratosAjustados;
+        infoAjuste = info;
       }
 
-      const calculados = contratos
-        .map(c => calcularParaContrato(c))
-        .filter(Boolean)
-        .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
+      // 2) Se houve ajuste, primeiro validar se o maior contrato ajustado libera troco >= 100
+      let calculados = [];
+      if (infoAjuste) {
+        const maiorAjustado = contratosAtivos.find(c => c.contrato === infoAjuste.contrato);
+        const prim = calcularParaContrato(maiorAjustado, diaAverbacao);
+        if (!prim) {
+          return res.json({ mensagem: "Cliente não tem contrato elegível" });
+        }
+        calculados.push(prim);
+
+        // Se passou, prosseguir normalmente com os demais (sem mexer neles)
+        for (const c of contratosAtivos) {
+          if (c.contrato === infoAjuste.contrato) continue;
+          const r = calcularParaContrato(c, diaAverbacao);
+          if (r) calculados.push(r);
+        }
+      } else {
+        // sem extrapolada, segue normal
+        calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao)).filter(Boolean);
+      }
+
+      calculados.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       if (calculados.length === 0) {
         return res.json({ mensagem: "Cliente não tem contrato elegível" });
@@ -203,7 +298,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
           parcelas: parcelas.join(", "),
           taxas_calculadas: taxas.join(", "),
           saldos_devedores: saldos.join(", "),
-          total_troco: totalTroco.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          total_troco: formatBRNumber(totalTroco),
           total_contratos_simulados: calculados.length
         }
       });
