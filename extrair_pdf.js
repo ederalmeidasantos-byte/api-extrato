@@ -10,7 +10,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// === Config Lunas ===
 const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
@@ -37,76 +36,85 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
-// === Limpeza de texto para reduzir tokens ===
-function limparTextoExtrato(texto) {
-  return texto
-    .replace(/\s+/g, " ") // espaços extras
-    .replace(/-{5,}/g, "") // linhas separadoras
-    .replace(/Página \d+ de \d+/gi, "") // numeração de páginas
-    .trim();
+function limparRespostaGPT(raw) {
+  if (!raw) return "{}";
+  raw = raw.trim();
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  }
+  return raw;
 }
 
-// === Prompts otimizados ===
+// Prompt benefício
 function promptClienteBeneficio(texto) {
   return `
-Você é um assistente que extrai apenas os **dados do cliente e do benefício** de um extrato do INSS.
-Responda SOMENTE com JSON válido.
+Extraia do extrato apenas os dados do cliente e benefício.
+Responda somente em JSON válido.
 
 {
-  "cliente": "Nome do titular",
+  "cliente": "Nome completo",
   "beneficio": {
-    "nb": "número do benefício",
+    "nb": "Número do benefício",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "conta corrente|cartao",
-    "banco_pagamento": "Banco ...",
-    "agencia": "877",
-    "conta": "0001278479",
-    "nome": "Nome da espécie",
-    "codigo": "Código da espécie"
+    "meio_pagamento": "conta corrente|cartão magnético",
+    "banco_pagamento": "Banco XYZ",
+    "agencia": "0000",
+    "conta": "000000",
+    "codigo": "código da espécie do benefício",
+    "nome": "nome da espécie do benefício"
   },
   "data_extrato": "DD/MM/AAAA"
 }
 
-Texto do extrato:
+Texto:
 ${texto}
 `;
 }
 
+// Prompt contratos
 function promptContratos(texto) {
   return `
-Você é um assistente que extrai apenas os **contratos de empréstimos ativos** de um extrato do INSS.
-Responda SOMENTE com JSON válido.
+Extraia todos os empréstimos consignados ativos do extrato.
+Responda apenas em JSON válido (array).
 
 [
   {
-    "contrato": "2666838921",
-    "banco": "Banco Itau Consignado S A",
+    "contrato": "123456",
+    "banco": "Banco X",
     "situacao": "Ativo",
     "valor_liberado": 1000.00,
-    "valor_parcela": 12.14,
+    "valor_parcela": 100.00,
     "qtde_parcelas": 96,
-    "data_inclusao": "09/04/2025",
-    "inicio_desconto": "05/2025",
-    "fim_desconto": "04/2033",
-    "data_contrato": "09/04/2025",
+    "data_inclusao": "DD/MM/AAAA",
+    "inicio_desconto": "MM/AAAA",
+    "fim_desconto": "MM/AAAA",
+    "data_contrato": "DD/MM/AAAA",
     "taxa_juros_mensal": 1.85,
     "taxa_juros_anual": 24.60
   }
 ]
 
-Texto do extrato:
+Texto:
 ${texto}
 `;
 }
 
-// === PDF to texto ===
 async function pdfToText(pdfPath) {
   const buffer = await fsp.readFile(pdfPath);
   const data = await pdfParse(buffer);
-  return limparTextoExtrato(data.text);
+  return data.text;
 }
 
-// === GPT extrair JSON ===
+function mesesEntre(inicioMMYYYY, referencia = new Date()) {
+  if (!inicioMMYYYY || !/^\d{2}\/\d{4}$/.test(inicioMMYYYY)) return 0;
+  const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
+  const a = new Date(yyyy, mm - 1, 1);
+  const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  return Math.max(0, meses);
+}
+
+// GPT extrair JSON
 async function gptExtrairJSON(texto) {
   try {
     // 1) cliente e benefício
@@ -120,9 +128,10 @@ async function gptExtrairJSON(texto) {
       ]
     });
 
-    let parsedBeneficio = JSON.parse(respBeneficio.choices[0]?.message?.content?.trim() || "{}");
+    let rawBeneficio = respBeneficio.choices[0]?.message?.content || "{}";
+    rawBeneficio = limparRespostaGPT(rawBeneficio);
+    let parsedBeneficio = JSON.parse(rawBeneficio);
 
-    // normalizar benefício
     if (parsedBeneficio?.beneficio) {
       parsedBeneficio.beneficio.nb = normalizarNB(parsedBeneficio.beneficio.nb);
       const preferencia = parsedBeneficio.beneficio.codigo || parsedBeneficio.beneficio.nome || "";
@@ -142,19 +151,47 @@ async function gptExtrairJSON(texto) {
       ]
     });
 
-    let contratos = JSON.parse(respContratos.choices[0]?.message?.content?.trim() || "[]");
+    let rawContratos = respContratos.choices[0]?.message?.content || "[]";
+    rawContratos = limparRespostaGPT(rawContratos);
+    let contratos = JSON.parse(rawContratos);
 
-    return {
-      ...parsedBeneficio,
-      contratos
-    };
+    if (Array.isArray(contratos)) {
+      contratos = contratos.map(c => {
+        let critica = c.critica ?? null;
+        let origem_taxa = "extrato";
+        const taxa = Number(c.taxa_juros_mensal);
+
+        if (!Number.isFinite(taxa)) {
+          origem_taxa = "calculado";
+        } else if (taxa < 1 || taxa > 3) {
+          critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente.";
+          delete c.taxa_juros_mensal;
+          delete c.taxa_juros_anual;
+          origem_taxa = "critica";
+        }
+
+        const total = Number(c.qtde_parcelas) || 0;
+        const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
+        const restante = Math.max(0, total - pagas);
+
+        return {
+          ...c,
+          parcelas_pagas: pagas,
+          prazo_restante: restante,
+          origem_taxa,
+          ...(critica ? { critica } : {})
+        };
+      });
+    }
+
+    return { ...parsedBeneficio, contratos };
   } catch (err) {
     console.error("❌ Erro parseando JSON do GPT:", err.message);
     return { error: "Falha ao interpretar extrato", detalhe: err.message };
   }
 }
 
-// === fluxo para upload local ===
+// upload local
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   try {
     console.log("🚀 Iniciando extração de upload:", fileId);
@@ -163,7 +200,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto limpo (primeiros 200 chars):", texto.slice(0, 200));
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0, 200));
 
     const json = await gptExtrairJSON(texto);
     console.log("🤖 JSON retornado pelo GPT:", json);
@@ -180,7 +217,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   }
 }
 
-// === fluxo para Lunas ===
+// fluxo LUNAS
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   try {
     console.log("🚀 Iniciando extração do fileId:", fileId);
@@ -209,6 +246,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     if (!resp.ok) {
       const t = await resp.text();
+      console.error("❌ Falha ao baixar da Lunas:", resp.status, t);
       throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
     }
 
@@ -217,7 +255,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     console.log("✅ PDF salvo em", pdfPath);
 
     const texto = await pdfToText(pdfPath);
-    console.log("📄 Texto limpo (primeiros 200 chars):", texto.slice(0, 200));
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0, 200));
 
     const json = await gptExtrairJSON(texto);
     console.log("🤖 JSON retornado pelo GPT:", json);

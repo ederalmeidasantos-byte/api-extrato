@@ -16,49 +16,53 @@ if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 
 const upload = multer({ dest: PDF_DIR });
 const app = express();
+const jsonParser = express.json({ limit: "10mb" });
 
-app.use(express.json({ limit: "10mb" }));
-
-// health check
+// health
 app.get("/", (req, res) => res.send("API rodando ✅"));
 
-// 🔹 rota única para extrair
-app.post("/extrair", upload.single("file"), async (req, res) => {
+// ========== ROTAS ==========
+
+// rota via LUNAS (render/atenderbem) 
+// aceita tanto /extrair/:fileId quanto /extrair com JSON no body
+app.post("/extrair/:fileId?", jsonParser, async (req, res) => {
   try {
-    let fileId = req.body.fileId || req.query.fileId || req.params.fileId;
-
-    if (req.file) {
-      // caso upload local
-      fileId = fileId || req.file.filename;
-      const out = await extrairDeUpload({
-        fileId,
-        pdfPath: req.file.path,
-        jsonDir: JSON_DIR
-      });
-      return res.json(out);
+    const fileId = req.params.fileId || req.body.fileId;
+    if (!fileId) {
+      return res.status(400).json({ error: "fileId é obrigatório (param ou body)" });
     }
 
-    if (fileId) {
-      // caso via Lunas (sem arquivo, só fileId)
-      const out = await extrairDeLunas({
-        fileId,
-        pdfDir: PDF_DIR,
-        jsonDir: JSON_DIR
-      });
-      return res.json(out);
-    }
-
-    return res.status(400).json({ error: "Envie um PDF (form-data: file) ou informe fileId" });
+    const out = await extrairDeLunas({ fileId, pdfDir: PDF_DIR, jsonDir: JSON_DIR });
+    res.json(out);
   } catch (err) {
-    console.error("❌ Erro no /extrair:", err);
+    console.error("❌ Erro em /extrair:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 🔹 calcular endpoint (usa JSON já salvo)
+// rota de upload local (form-data file=pdf)
+app.post("/extrair-upload", upload.single("file"), jsonParser, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Envie um PDF em form-data: file=<arquivo>" });
+
+    const fileId = req.body.fileId || req.file.filename;
+    const out = await extrairDeUpload({
+      fileId,
+      pdfPath: req.file.path,
+      jsonDir: JSON_DIR
+    });
+
+    res.json(out);
+  } catch (err) {
+    console.error("❌ Erro em /extrair-upload:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// calcular endpoint
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
-// 🔹 endpoint para ver JSON cru
+// rota para ver o JSON cru do extrato
 app.get("/extrato/:fileId/raw", (req, res) => {
   const { fileId } = req.params;
   const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
@@ -70,5 +74,6 @@ app.get("/extrato/:fileId/raw", (req, res) => {
   res.sendFile(jsonPath);
 });
 
+// start
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`API rodando na porta ${PORT}`));
