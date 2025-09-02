@@ -12,9 +12,7 @@ const openai = new OpenAI({
 });
 
 // === Lunas config ===
-const LUNAS_API_URL =
-  process.env.LUNAS_API_URL ||
-  "https://lunasdigital.atenderbem.com/int/downloadFile";
+const LUNAS_API_URL = process.env.LUNAS_API_URL || "https://lunasdigital.atenderbem.com/int/downloadFile";
 const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
 const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
 
@@ -40,6 +38,36 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
+// ===== Fallbacks diretos do texto do PDF =====
+function extrairNBDoTexto(texto) {
+  if (!texto) return "";
+  // procura por “NB”, “Número do Benefício”, etc., e também padrões 000.000.000-0
+  const reLista = [
+    /(?:N[úu]mero\s+do\s+benef[íi]cio|N[ºo]\s*do\s*benef[íi]cio|Benef[íi]cio|NB)[^\d]{0,30}(\d{10,11})/i,
+    /(\d{3}\.\d{3}\.\d{3}-\d)/g // 000.000.000-0
+  ];
+  for (const re of reLista) {
+    const m = re.exec(texto);
+    if (m && m[1]) return normalizarNB(m[1]);
+  }
+  // último recurso: primeiro bloco de 10-11 dígitos isolado
+  const mLivre = texto.match(/\b(\d{10,11})\b/);
+  return mLivre ? normalizarNB(mLivre[1]) : "";
+}
+
+function extrairEspecieDoTexto(texto) {
+  if (!texto) return { codigo: "", nome: "" };
+  // Exemplos de linhas: “Espécie 32 – Aposentadoria por invalidez…”
+  const re = /Esp[ée]cie\s*[:\-]?\s*(\d{1,3})\s*[–-]\s*([^\n\r]+)/i;
+  const m = re.exec(texto);
+  if (m) {
+    const codigo = m[1].padStart(2, "0");
+    const nome = (m[2] || "").trim();
+    return { codigo, nome };
+  }
+  return { codigo: "", nome: "" };
+}
+
 // prompt que força schema e múltiplos contratos ativos
 function buildPrompt(texto) {
   return `
@@ -53,19 +81,22 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Se não houver taxa de juros no extrato, calcule a taxa de juros mensal e anual e preencha.
 - Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
 - Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
+- O número do benefício (nb) deve ser retornado com **apenas dígitos**.
+- "beneficio.nome" deve conter o **nome da espécie** do benefício (ex.: "Aposentadoria por invalidez previdenciária").
+- "beneficio.codigo" deve conter o **código da espécie** (ex.: "32").
 
 Esquema esperado:
 {
   "cliente": "Nome",
   "beneficio": {
-    "nb": "604321543-1",
+    "nb": "6043215431",
     "bloqueio_beneficio": "SIM|NAO",
     "meio_pagamento": "conta corrente",
     "banco_pagamento": "Banco Bradesco S A",
     "agencia": "877",
     "conta": "0001278479",
-    "nome": "NOME DA ESPÉCIE (quando conseguir do extrato)",
-    "codigo": "CÓDIGO DA ESPÉCIE (quando conseguir do extrato)"
+    "nome": "NOME DA ESPÉCIE",
+    "codigo": "CÓDIGO DA ESPÉCIE (ex.: 32)"
   },
   "contratos": [
     {
@@ -103,9 +134,48 @@ function mesesEntre(inicioMMYYYY, referencia = new Date()) {
   const [mm, yyyy] = inicioMMYYYY.split("/").map(Number);
   const a = new Date(yyyy, mm - 1, 1);
   const b = new Date(referencia.getFullYear(), referencia.getMonth(), 1);
-  const meses =
-    (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
   return Math.max(0, meses);
+}
+
+function normalizarBeneficioComMapa(beneficioParcial, textoBruto) {
+  const out = { ...beneficioParcial };
+
+  // NB → só dígitos, com fallback do texto
+  out.nb = normalizarNB(out.nb) || extrairNBDoTexto(textoBruto);
+
+  // Tentar identificar espécie (nome + código) de forma robusta
+  // 1) Se tiver código, prioriza mapear por código
+  let preferenciaCodigo = (out.codigo ?? "").toString().trim();
+  let preferenciaNome = (out.nome ?? out.especie ?? out.tipo ?? "").toString().trim();
+
+  // fallback: tenta achar “Espécie” no texto
+  if (!preferenciaCodigo && !preferenciaNome) {
+    const { codigo, nome } = extrairEspecieDoTexto(textoBruto);
+    preferenciaCodigo = codigo || "";
+    preferenciaNome = nome || "";
+  }
+
+  // usa mapBeneficio para normalizar — ele deve aceitar código OU nome e retornar {codigo, nome}
+  let map = null;
+  if (preferenciaCodigo) {
+    map = mapBeneficio(preferenciaCodigo);
+  }
+  if ((!map || !map.codigo) && preferenciaNome) {
+    map = mapBeneficio(preferenciaNome);
+  }
+
+  // Se mapou, força: nome = nome da espécie; codigo = código da espécie
+  if (map && (map.codigo || map.nome)) {
+    out.codigo = map.codigo || out.codigo || "";
+    out.nome = map.nome || out.nome || "";
+  }
+
+  // garante tipos string
+  out.codigo = out.codigo ? String(out.codigo).padStart(2, "0") : "";
+  out.nome = out.nome || "";
+
+  return out;
 }
 
 async function gptExtrairJSON(texto) {
@@ -127,27 +197,17 @@ async function gptExtrairJSON(texto) {
 
     let parsed = JSON.parse(raw);
 
-    // === Normaliza BENEFÍCIO ===
+    // === Normaliza BENEFÍCIO (nome/código da espécie e NB) ===
     if (parsed?.beneficio) {
-      parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
-
-      const preferencia =
-        parsed.beneficio.codigo ||
-        parsed.beneficio.especie ||
-        parsed.beneficio.tipo ||
-        parsed.beneficio.nome ||
-        "";
-
-      const mapped = mapBeneficio(preferencia);
-      parsed.beneficio.codigo =
-        mapped?.codigo || parsed.beneficio.codigo || preferencia || "";
-      parsed.beneficio.nome =
-        mapped?.nome || parsed.beneficio.nome || preferencia || "";
+      parsed.beneficio = normalizarBeneficioComMapa(parsed.beneficio, texto);
+    } else {
+      // cria se não veio, usando só fallbacks do texto
+      parsed.beneficio = normalizarBeneficioComMapa({}, texto);
     }
 
     // === Normaliza CONTRATOS ===
     if (parsed?.contratos && Array.isArray(parsed.contratos)) {
-      parsed.contratos = parsed.contratos.map((c) => {
+      parsed.contratos = parsed.contratos.map(c => {
         let critica = c.critica ?? null;
         let origem_taxa = "extrato"; // default
         const taxa = Number(c.taxa_juros_mensal);
@@ -155,13 +215,13 @@ async function gptExtrairJSON(texto) {
         if (!Number.isFinite(taxa)) {
           origem_taxa = "calculado"; // não tinha taxa → calculada
         } else if (taxa < 1 || taxa > 3) {
-          critica =
-            "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente com contrato físico.";
+          critica = "Taxa fora do intervalo esperado (1% a 3%). Revisar manualmente com contrato físico.";
           delete c.taxa_juros_mensal;
           delete c.taxa_juros_anual;
           origem_taxa = "critica";
         }
 
+        // calcula parcelas pagas e prazo restante
         const total = Number(c.qtde_parcelas) || 0;
         const pagas = Math.min(total, mesesEntre(c.inicio_desconto));
         const restante = Math.max(0, total - pagas);
@@ -174,6 +234,8 @@ async function gptExtrairJSON(texto) {
           ...(critica ? { critica } : {})
         };
       });
+    } else {
+      parsed.contratos = [];
     }
 
     return parsed;
@@ -189,12 +251,19 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
     console.log("🚀 Iniciando extração de upload:", fileId);
 
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+    // 🔧 garante que a pasta existe
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
+
     const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
@@ -214,6 +283,8 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
     const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+    // 🔧 garante que a pasta existe
     await fsp.mkdir(jsonDir, { recursive: true });
 
     const body = {
@@ -223,6 +294,8 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
       download: true
     };
 
+    console.log("📥 Requisitando PDF na Lunas:", body);
+
     const resp = await fetch(LUNAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -231,16 +304,23 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
     if (!resp.ok) {
       const t = await resp.text();
+      console.error("❌ Falha ao baixar da Lunas:", resp.status, t);
       throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
     }
 
     const arrayBuffer = await resp.arrayBuffer();
     await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+    console.log("✅ PDF salvo em", pdfPath);
 
     const texto = await pdfToText(pdfPath);
+    console.log("📄 Texto extraído (primeiros 200 chars):", texto.slice(0,200));
+
     const json = await gptExtrairJSON(texto);
+    console.log("🤖 JSON retornado pelo GPT:", json);
 
     await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+    console.log("✅ JSON salvo em", jsonPath);
+
     agendarExclusao24h(pdfPath, jsonPath);
 
     return { fileId, ...json };
@@ -248,45 +328,4 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     console.error("💥 Erro em extrairDeLunas:", err);
     throw err;
   }
-}
-
-// === endpoint HTTP ===
-export function extrairEndpoint(JSON_DIR, PDF_DIR) {
-  return async (req, res) => {
-    try {
-      const fileId = req.params.fileId || req.body.fileId || req.query.fileId;
-      if (!fileId) {
-        return res.status(400).json({ error: "fileId obrigatório" });
-      }
-
-      const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
-      const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
-
-      let json;
-      if (fs.existsSync(jsonPath)) {
-        json = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
-      } else {
-        json = await extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR });
-      }
-
-      if (json?.beneficio) {
-        const preferencia =
-          json.beneficio.codigo ||
-          json.beneficio.nome ||
-          json.beneficio.tipo ||
-          json.beneficio.especie ||
-          "";
-        const mapped = mapBeneficio(preferencia);
-        json.beneficio.codigo =
-          mapped?.codigo || json.beneficio.codigo || preferencia || "";
-        json.beneficio.nome =
-          mapped?.nome || json.beneficio.nome || preferencia || "";
-      }
-
-      return res.json({ fileId, ...json });
-    } catch (err) {
-      console.error("❌ Erro no extrairEndpoint:", err);
-      res.status(500).json({ error: "Erro interno", detalhe: err.message });
-    }
-  };
 }
