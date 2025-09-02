@@ -83,16 +83,26 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS diretamente do TEXTO ========
-function parseMargensDoTexto(texto) {
+function stripAccents(str) {
+  if (!str) return "";
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[´`^~¨]/g, "");
+}
+
+// ======== PARSE MARGENS diretamente do TEXTO (robusto) ========
+function parseMargensDoTexto(page2Text = "") {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+  let disponivel = null, rmc = null, rcc = null, extrapolada = null;
 
-  let disponivel = null, rmc = null, rcc = null;
-  const linhas = texto.split(/\r?\n/);
-
+  const linhas = page2Text.split(/\r?\n/);
   for (const ln of linhas) {
-    const line = clean(ln.toUpperCase());
-    if (line.includes("MARGEM DISPONÍVEL")) {
+    const base = stripAccents(ln).toUpperCase();
+    const line = clean(base);
+
+    // MARGEM DISPONÍVEL*
+    if (line.includes("MARGEM DISPONIVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
       const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
       const rRcc = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
@@ -100,26 +110,25 @@ function parseMargensDoTexto(texto) {
       if (nums.length > 0 && disponivel === null) disponivel = nums[0];
       if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
       if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
-      break;
     }
-  }
 
-  let extrapolada = null;
-  for (const ln of linhas) {
-    const line = clean(ln.toUpperCase());
+    // MARGEM EXTRAPOLADA***
     if (line.includes("MARGEM EXTRAPOLADA")) {
-      const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
-      if (n) extrapolada = n;
-      break;
+      const matches = line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g);
+      if (matches && matches.length > 0) {
+        extrapolada = matches[matches.length - 1]; // pega o último número da linha
+      }
     }
   }
 
-  return {
+  const resp = {
     disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
     extrapolada: extrapolada ? formatBRNumber(toNumber(extrapolada)) : "0,00",
     rmc: rmc ? formatBRNumber(toNumber(rmc)) : "0,00",
     rcc: rcc ? formatBRNumber(toNumber(rcc)) : "0,00"
   };
+  console.log("📊 Margens (pág.2):", resp);
+  return resp;
 }
 
 // ================== Prompt ==================
@@ -127,48 +136,25 @@ function buildPrompt(texto) {
   return `
 Você é um assistente que extrai **dados de um extrato do INSS** e retorna **JSON válido**.
 
-⚠️ Regras por página:
-- **Página 1** → Dados do cliente e do benefício (nome, NB, bloqueio, banco de pagamento, agência, conta, nome e código do benefício).
-- **Página 2** → Margens NÃO devem ser lidas pelo GPT. Essas serão extraídas pelo código. Apenas ignore.
-- **Página 3 em diante** → Extrair todos os contratos "ATIVO". Ignore contratos RMC/RCC ou cancelados.
+⚠️ Estrutura das páginas:
+- Página 1: Dados do cliente e do benefício.
+- Página 2: Margens (Disponível, Extrapolada, RMC, RCC).
+- Página 3 em diante: Contratos ativos.
 
-⚠️ Formatação:
-- Retorne SOMENTE JSON válido.
+⚠️ Regras:
+- Retorne SOMENTE JSON.
+- Inclua todos os contratos "ATIVO".
+- Ignore cartões RMC/RCC e qualquer contrato não ativo.
 - Retorne números crus (sem formatação BR) nos contratos.
-- Campos de taxa, IOF, CET, etc. devem vir em formato numérico decimal (ex: 0.0238 para 2,38%).
-- Se não existir valor, retorne 0 ou null.
+- Não calcule margens; isso será feito por parsing determinístico.
 
 Esquema esperado:
 {
-  "cliente": "Nome completo",
-  "beneficio": {
-    "nb": "604321543-1",
-    "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "conta corrente",
-    "banco_pagamento": "Banco Bradesco S A",
-    "agencia": "877",
-    "conta": "0001278479",
-    "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
-    "codigoBeneficio": "32"
-  },
-  "margens": {},   // será sobrescrito pelo código
+  "cliente": "Nome",
+  "beneficio": { ... },
+  "margens": {},
   "contratos": [
-    {
-      "contrato": "...",
-      "banco": "...",
-      "situacao": "ATIVO",
-      "data_inclusao": "MM/AAAA",
-      "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 84,
-      "valor_parcela": 424.10,
-      "valor_liberado": 15529.56,
-      "iof": 0,
-      "cet_mensal": 0.023,
-      "cet_anual": 0.31,
-      "taxa_juros_mensal": 0.0238,
-      "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00
-    }
+    { "contrato": "...", "banco": "...", ... }
   ],
   "data_extrato": "DD/MM/AAAA"
 }
@@ -201,12 +187,14 @@ async function gptExtrairJSON(texto) {
 function posProcessar(parsed, texto) {
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
+
     const preferencia =
       parsed.beneficio.codigoBeneficio ||
       parsed.beneficio.nomeBeneficio ||
       parsed.beneficio.tipo ||
       parsed.beneficio.descricao ||
       "";
+
     const mapped = mapBeneficio(preferencia);
     parsed.beneficio.codigoBeneficio = mapped.codigo;
     parsed.beneficio.nomeBeneficio = mapped.nome;
@@ -294,6 +282,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   }
 
   const json = posProcessar(parsed, texto);
+
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
 
