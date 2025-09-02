@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-// ===================== Carrega coeficientes =====================
+// ===================== Carrega coeficientes (96x) =====================
 let coeficientes = {};
 try {
   const coefPath = path.join(process.cwd(), "coeficientes_96.json");
@@ -16,6 +16,7 @@ try {
 }
 
 // ===================== Utils =====================
+// Parser robusto (aceita "27.98", "27,98", "1.234,56")
 function toNumber(v) {
   if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
@@ -61,6 +62,7 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
+// Coeficiente 96x com fallback de dia
 function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[tx.toFixed(2)];
   if (!tabela) return null;
@@ -73,15 +75,25 @@ function getCoeficiente(tx, dia) {
   );
 }
 
+// PV de série uniforme: saldo = PMT * (1 - (1+i)^(-n)) / i
+function pvFromParcela(parcela, taxaPercentMes, n) {
+  const i = Number(taxaPercentMes) / 100;
+  if (!(i > 0) || !(n > 0)) return 0;
+  const fator = (1 - Math.pow(1 + i, -n)) / i;
+  return parcela * fator;
+}
+
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
   if (c.origem_taxa === "critica") return null;
 
+  // SEMPRE usar valor_parcela do extrato; se ausente, tenta "parcela"
   const parcelaAtual = Number.isFinite(Number(c.valor_parcela))
     ? Number(c.valor_parcela)
     : toNumber(c.parcela);
 
+  // Parcela mínima R$25,00
   if (!(parcelaAtual >= 25)) return null;
 
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10) || 0;
@@ -91,15 +103,15 @@ function calcularParaContrato(c) {
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
+  // Taxa ATUAL do contrato → apenas para SALDO DEVEDOR
   const taxaAtual = Number(c.taxa_juros_mensal);
-  if (!(taxaAtual > 0 && taxaAtual <= 3)) return null;
+  if (!Number.isFinite(taxaAtual) || taxaAtual <= 0) return null;
 
-  const coefSaldo = getCoeficiente(taxaAtual, dia);
-  if (!coefSaldo) return null;
+  // Saldo devedor com fórmula PV usando taxaAtual e prazoRestante
+  const saldoDevedor = pvFromParcela(parcelaAtual, taxaAtual, prazoRestante);
 
-  const saldoDevedor = parcelaAtual / coefSaldo;
-
-  // ordem fixa de simulação
+  // ===== Simulação novo contrato (sempre 96x) =====
+  // Ordem fixa: 1.85 → 1.79 → 1.66. Pega a primeira com troco >= 100.
   const ordemTaxas = [1.85, 1.79, 1.66];
   let escolhido = null;
 
@@ -111,8 +123,14 @@ function calcularParaContrato(c) {
     const troco = valorEmprestimo - saldoDevedor;
 
     if (Number.isFinite(troco) && troco >= 100) {
-      escolhido = { taxa_aplicada: tx, coeficiente_usado: coefNovo, saldoDevedor, valorEmprestimo, troco };
-      break;
+      escolhido = {
+        taxa_aplicada: tx,
+        coeficiente_usado: coefNovo,
+        saldoDevedor,
+        valorEmprestimo,
+        troco
+      };
+      break; // primeira taxa que passa
     }
   }
 
@@ -121,7 +139,7 @@ function calcularParaContrato(c) {
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRNumber(parcelaAtual),
+    parcela: formatBRNumber(parcelaAtual), // "10.000,00"
     prazo_total: totalParcelas,
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
@@ -147,11 +165,11 @@ function extrairEmprestimos(json) {
   return [];
 }
 
-// ===================== Endpoint =====================
+// ===================== Endpoint/Teste =====================
 export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
-  return (req, res) => {
+  return (_req, res) => {
     try {
-      const { fileId } = req.params;
+      const fileId = _req?.params?.fileId ?? "local";
       const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
       if (!fs.existsSync(jsonPath)) {
         return res.status(404).json({ error: "Extrato não encontrado (pode ter expirado)" });
@@ -162,16 +180,13 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const calculados = contratos
         .map((c) => calcularParaContrato(c))
-        .filter((r) => r)
+        .filter(Boolean)
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      const bancos = calculados.map((c) => {
-        const nomeOriginal = c.banco || "";
-        return bancosMap[nomeOriginal] || nomeOriginal;
-      });
-
+      // Resumo
+      const bancos = calculados.map((c) => bancosMap[c.banco || ""] || c.banco || "");
       const parcelas = calculados.map((c) => toNumber(c.parcela).toFixed(2));
-      const taxas = calculados.map((c) => c.taxa_aplicada.toFixed(2));
+      const taxas = calculados.map((c) => (c.taxa_aplicada ?? 0).toFixed(2));
       const saldos = calculados.map((c) => toNumber(c.saldo_devedor).toFixed(2));
       const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
 
@@ -194,3 +209,6 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
     }
   };
 }
+
+// Exporta helpers pro teste local (opcional)
+export const __internals = { toNumber, pvFromParcela, getCoeficiente, formatBRNumber };

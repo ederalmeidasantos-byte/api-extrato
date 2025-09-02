@@ -1,0 +1,22 @@
+function calcularParaContrato(c) {
+  console.log("🔎 Testando contrato:", c.contrato, "parcela:", c.valor_parcela, "taxa:", c.taxa_juros_mensal);
+
+  if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
+    console.log("❌ Ignorado: não ativo");
+    return null;
+  }
+  if (c.origem_taxa === "critica") {
+    console.log("❌ Ignorado: taxa crítica");
+    return null;
+  }
+
+  const parcelaAtual = Number.isFinite(Number(c.valor_parcela))
+    ? Number(c.valor_parcela)
+    : toNumber(c.parcela);
+
+  if (!(parcelaAtual >= 25)) {
+    console.log("❌ Ignorado: parcela < 25");
+    return null;
+  }
+  ...
+}
