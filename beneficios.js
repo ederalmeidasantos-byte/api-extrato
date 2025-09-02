@@ -67,7 +67,7 @@ const BENEFICIOS = {
   "85": "Pensão mensal vitalícia do seringueiro (Lei nº 7.986/89)",
   "86": "Pensão mensal vitalícia do dependente do seringueiro (Lei nº 7.986/89)",
   "87": "Amparo assistencial à pessoa com deficiência (LOAS)",
-  "88": "Amparo assistencial ao idoso (LOAS)",
+  "88": "BENEFICIO DE PRESTACAO CONTINUADA A PESSOA IDOSA",
 
   // Espécies Diversas
   "47": "Abono de permanência em serviço 25%",
