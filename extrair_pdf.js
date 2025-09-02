@@ -84,7 +84,7 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ======== PARSE MARGENS (pega extrapolada só da primeira tabela) ========
+// ======== PARSE MARGENS (corrigido extrapolada) ========
 function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
   let disponivel = null, rmc = null, rcc = null, extrapolada = null;
@@ -93,7 +93,6 @@ function parseMargensDoTexto(texto) {
   const linhas = texto.split(/\r?\n/);
   for (const ln of linhas) {
     const line = clean(ln.toUpperCase());
-    console.log("📄 Linha analisada:", line); // ✅ debug
 
     if (line.includes("MARGEM DISPONÍVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
@@ -102,14 +101,12 @@ function parseMargensDoTexto(texto) {
       if (nums.length > 2) rcc = nums[2];
     }
 
-    // aceita "MARGEM EXTRAPOLADA***", "MARGEM   EXTRAPOLADA" etc
     if (/MARGEM\s+EXTRAPOLADA/i.test(line) && !extrapoladaEncontrada) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) {
         extrapolada = n;
-        extrapoladaEncontrada = true; // ✅ marca que já achou
-        console.log("🔎 Linha com extrapolada:", line);
-        console.log("📌 Valor capturado:", extrapolada);
+        extrapoladaEncontrada = true;
+        console.log("📌 Margem extrapolada capturada:", extrapolada);
       }
     }
   }
@@ -220,12 +217,10 @@ function posProcessar(parsed, texto) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  // NB mínimo 10 dígitos
   let nb = normalizarNB(parsed.beneficio.nb || "");
   if (nb.length < 10) nb = "";
   parsed.beneficio.nb = nb;
 
-  // Nome do benefício fiel ao PDF
   let nomeOriginal = parsed.beneficio.nomeBeneficio || "";
   if (!nomeOriginal || nomeOriginal.trim() === "") {
     const regex = /BENEFICIO\s+DE\s+(.+?)\n/i;
@@ -236,15 +231,12 @@ function posProcessar(parsed, texto) {
   }
   parsed.beneficio.nomeBeneficio = nomeOriginal;
 
-  // Código benefício
   const mapped = mapBeneficio(nomeOriginal);
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
-  // Margens
   parsed.margens = parseMargensDoTexto(texto);
   console.log("✅ Margens extraídas:", parsed.margens);
 
-  // Contratos
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
@@ -262,7 +254,6 @@ function posProcessar(parsed, texto) {
         prazoRestante = prazoTotal - parcelasPagas;
       }
 
-      // Recalcular taxa se zerada
       let taxaMensal = toNumber(c.taxa_juros_mensal);
       let taxaAnual = toNumber(c.taxa_juros_anual);
       if (!taxaMensal) {
