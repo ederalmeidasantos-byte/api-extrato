@@ -16,7 +16,6 @@ try {
 }
 
 // ===================== Utils =====================
-// Parser robusto: entende "27.98", "27,98" e "1.234,56" sem distorcer valores
 function toNumber(v) {
   if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
@@ -28,7 +27,6 @@ function toNumber(v) {
   const hasComma = s.includes(",");
 
   if (hasDot && hasComma) {
-    // usa o último separador como decimal
     if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
       s = s.replace(/\./g, "").replace(",", ".");
     } else {
@@ -48,11 +46,13 @@ function parseBRDate(d) {
   const dt = new Date(+yyyy, +mm - 1, +dd);
   return isNaN(dt.getTime()) ? null : dt;
 }
+
 function formatBRNumber(n) {
   return Number.isFinite(n)
     ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "0,00";
 }
+
 function todayBR() {
   const x = new Date();
   const dd = String(x.getDate()).padStart(2, "0");
@@ -61,13 +61,12 @@ function todayBR() {
   return `${dd}/${mm}/${yy}`;
 }
 
-// Coeficiente com fallback de dia (tenta "DD", depois "01", depois primeira chave existente)
 function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[tx.toFixed(2)];
   if (!tabela) return null;
   return (
     tabela[dia] ??
-    tabela[String(+dia)] ?? // "01" -> "1" (se existir)
+    tabela[String(+dia)] ??
     tabela["01"] ??
     tabela["1"] ??
     (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
@@ -79,12 +78,10 @@ function calcularParaContrato(c) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
   if (c.origem_taxa === "critica") return null;
 
-  // usa SEMPRE valor_parcela do extrato; só cai pra "parcela" se não existir
   const parcelaAtual = Number.isFinite(Number(c.valor_parcela))
     ? Number(c.valor_parcela)
     : toNumber(c.parcela);
 
-  // regra: parcela mínima R$25,00
   if (!(parcelaAtual >= 25)) return null;
 
   const totalParcelas = parseInt(c.qtde_parcelas || c.parcelas || 0, 10) || 0;
@@ -94,19 +91,15 @@ function calcularParaContrato(c) {
   const dtContrato = parseBRDate(dataContrato);
   const dia = dtContrato ? String(dtContrato.getDate()).padStart(2, "0") : "01";
 
-  // taxa atual → usada para saldo devedor
   const taxaAtual = Number(c.taxa_juros_mensal);
   if (!(taxaAtual > 0 && taxaAtual <= 3)) return null;
 
-  // coeficiente para saldo (taxa atual do contrato)
   const coefSaldo = getCoeficiente(taxaAtual, dia);
   if (!coefSaldo) return null;
 
-  // saldo devedor calculado com a taxa ATUAL e prazo restante embutido no coeficiente (96x)
   const saldoDevedor = parcelaAtual / coefSaldo;
 
-  // ======= Regra SEQUENCIAL de taxa para NOVO empréstimo (sempre 96x) =======
-  // Ordem fixa: 1.85 → 1.79 → 1.66. Escolhe a PRIMEIRA cuja simulação gere troco >= 100.
+  // ordem fixa de simulação
   const ordemTaxas = [1.85, 1.79, 1.66];
   let escolhido = null;
 
@@ -118,24 +111,17 @@ function calcularParaContrato(c) {
     const troco = valorEmprestimo - saldoDevedor;
 
     if (Number.isFinite(troco) && troco >= 100) {
-      escolhido = {
-        taxa_aplicada: tx,
-        coeficiente_usado: coefNovo,
-        saldoDevedor,
-        valorEmprestimo,
-        troco
-      };
-      break; // pega a PRIMEIRA taxa que passa no mínimo
+      escolhido = { taxa_aplicada: tx, coeficiente_usado: coefNovo, saldoDevedor, valorEmprestimo, troco };
+      break;
     }
   }
 
-  // se nenhuma taxa gerou troco >= 100, não simula esse contrato
   if (!escolhido) return null;
 
   return {
     banco: c.banco,
     contrato: c.contrato,
-    parcela: formatBRNumber(parcelaAtual),     // "10.000,00"
+    parcela: formatBRNumber(parcelaAtual),
     prazo_total: totalParcelas,
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
@@ -162,7 +148,7 @@ function extrairEmprestimos(json) {
 }
 
 // ===================== Endpoint =====================
-export function calcularTrocoEndpoint(JSON_DIR) {
+export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
   return (req, res) => {
     try {
       const { fileId } = req.params;
@@ -175,25 +161,18 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       const contratos = extrairEmprestimos(extrato);
 
       const calculados = contratos
-        .map(c => calcularParaContrato(c))
-        .filter(r => r) // já aplicamos todas as regras dentro do cálculo
+        .map((c) => calcularParaContrato(c))
+        .filter((r) => r)
         .sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      // ==== resumo consolidado ====
-      const bancos = calculados.map(c => {
-        let b = (c.banco || "").toUpperCase();
-        if (b.includes("ITAÚ")) return "Itaú";
-        if (b.includes("C6")) return "C6";
-        if (b.includes("BRADESCO")) return "Bradesco";
-        if (b.includes("BRASIL")) return "Banco do Brasil";
-        if (b.includes("FACTA")) return "Facta";
-        if (b.includes("PINE")) return "Pine";
-        return c.banco; // se não tiver mapeado, retorna como está
+      const bancos = calculados.map((c) => {
+        const nomeOriginal = c.banco || "";
+        return bancosMap[nomeOriginal] || nomeOriginal;
       });
 
-      const parcelas = calculados.map(c => toNumber(c.parcela).toFixed(2));
-      const taxas = calculados.map(c => c.taxa_aplicada.toFixed(2));
-      const saldos = calculados.map(c => toNumber(c.saldo_devedor).toFixed(2));
+      const parcelas = calculados.map((c) => toNumber(c.parcela).toFixed(2));
+      const taxas = calculados.map((c) => c.taxa_aplicada.toFixed(2));
+      const saldos = calculados.map((c) => toNumber(c.saldo_devedor).toFixed(2));
       const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
 
       return res.json({
