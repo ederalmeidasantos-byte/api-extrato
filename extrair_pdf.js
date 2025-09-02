@@ -93,6 +93,7 @@ function parseMargensDoTexto(texto) {
   const linhas = texto.split(/\r?\n/);
   for (const ln of linhas) {
     const line = clean(ln.toUpperCase());
+    console.log("📄 Linha analisada:", line); // ✅ debug
 
     if (line.includes("MARGEM DISPONÍVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
@@ -101,17 +102,17 @@ function parseMargensDoTexto(texto) {
       if (nums.length > 2) rcc = nums[2];
     }
 
-if (/MARGEM\s+EXTRAPOLADA/i.test(line) && !extrapoladaEncontrada) {
-  const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
-  if (n) {
-    extrapolada = n;
-    extrapoladaEncontrada = true; // ✅ marca que já achou
-    console.log("🔎 Linha com extrapolada:", line); // 👈 debug aqui
-    console.log("📌 Valor capturado:", extrapolada);
+    // aceita "MARGEM EXTRAPOLADA***", "MARGEM   EXTRAPOLADA" etc
+    if (/MARGEM\s+EXTRAPOLADA/i.test(line) && !extrapoladaEncontrada) {
+      const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
+      if (n) {
+        extrapolada = n;
+        extrapoladaEncontrada = true; // ✅ marca que já achou
+        console.log("🔎 Linha com extrapolada:", line);
+        console.log("📌 Valor capturado:", extrapolada);
+      }
+    }
   }
-}
-
-}
 
   return {
     disponivel: disponivel ? formatBRNumber(toNumber(disponivel)) : "0,00",
@@ -241,7 +242,7 @@ function posProcessar(parsed, texto) {
 
   // Margens
   parsed.margens = parseMargensDoTexto(texto);
-  console.log("📄 Linha:", line);
+  console.log("✅ Margens extraídas:", parsed.margens);
 
   // Contratos
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
@@ -333,7 +334,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const json = posProcessar(parsed, texto);
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
-  console.log("✅ Margens extraídas:", parsed.margens);
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };
