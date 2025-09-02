@@ -88,24 +88,25 @@ function parseMargensDoTexto(texto) {
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
   const linhas = texto.split(/\r?\n/);
 
-  let disponivel = null, rmc = null, rcc = null, extrapolada = null;
+  let disponivel = null, rmc = null, rcc = null;
+  let extrapolada = null;
 
   for (const ln of linhas) {
     const line = clean(ln.toUpperCase());
 
-    // linha "MARGEM DISPONÍVEL*"
+    // 🔹 MARGEM DISPONÍVEL* — empréstimos, RMC, RCC
     if (line.includes("MARGEM DISPONÍVEL")) {
       const nums = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/g) || []);
       const rRmc = /RMC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
       const rRcc = /RCC[^0-9]*((\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2}))/i.exec(line);
 
-      if (nums.length > 0) disponivel = nums[0];
+      if (nums.length > 0 && disponivel === null) disponivel = nums[0];
       if (rRmc) rmc = rRmc[1]; else if (nums.length > 1) rmc = nums[1];
       if (rRcc) rcc = rRcc[1]; else if (nums.length > 2) rcc = nums[2];
     }
 
-    // linha "MARGEM EXTRAPOLADA***" (primeira tabela)
-    if (line.includes("MARGEM EXTRAPOLADA")) {
+    // 🔹 MARGEM EXTRAPOLADA*** (primeira tabela!)
+    if (line.startsWith("MARGEM EXTRAPOLADA")) {
       const n = (line.match(/(\d{1,3}(\.\d{3})*,\d{2}|\d+,\d{2})/) || [])[0];
       if (n) extrapolada = n;
     }
@@ -128,9 +129,27 @@ Você é um assistente que extrai **todos os empréstimos ativos** de um extrato
 - Retorne SOMENTE JSON.
 - Inclua todos os contratos "Ativo".
 - Ignore cartões RMC/RCC e qualquer contrato não ativo.
-- Retorne números crus (sem formatação BR) apenas dentro de contratos; eu formato depois.
-- "Nome do benefício" deve ser exatamente como aparece em azul no extrato.
-- "Margem extrapolada" deve vir da primeira tabela (VALORES DO BENEFÍCIO).
+- Retorne números **crus** (sem formatação BR) apenas dentro de contratos; eu formato depois.
+- Para o cabeçalho (cliente/benefício) preencha normalmente.
+- Não calcule margens; eu vou ler do texto depois.
+
+Esquema esperado:
+{
+  "cliente": "Nome",
+  "beneficio": {
+    "nb": "604321543-1",
+    "bloqueio_beneficio": "SIM|NAO",
+    "meio_pagamento": "conta corrente",
+    "banco_pagamento": "Banco Bradesco S A",
+    "agencia": "877",
+    "conta": "0001278479",
+    "nomeBeneficio": "BENEFICIO DE PRESTACAO CONTINUADA A PESSOA IDOSA",
+    "codigoBeneficio": "32"
+  },
+  "margens": {},
+  "contratos": [ ... ],
+  "data_extrato": "DD/MM/AAAA"
+}
 
 Texto do extrato:
 ${texto}
@@ -158,18 +177,27 @@ async function gptExtrairJSON(texto) {
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, texto) {
+  // 🔹 Benefício: mantém nome do extrato, só ajusta código pelo mapBeneficio
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb || "");
+    const nomeOriginal = parsed.beneficio.nomeBeneficio || "";
 
-    const nomeBruto = parsed.beneficio.nomeBeneficio || "";
-    const mapped = mapBeneficio(nomeBruto);
+    const preferencia =
+      parsed.beneficio.codigoBeneficio ||
+      nomeOriginal ||
+      parsed.beneficio.tipo ||
+      parsed.beneficio.descricao ||
+      "";
 
-    parsed.beneficio.nomeBeneficio = nomeBruto; // mantém como no extrato
-    parsed.beneficio.codigoBeneficio = mapped.codigo || parsed.beneficio.codigoBeneficio;
+    const mapped = mapBeneficio(preferencia);
+    parsed.beneficio.codigoBeneficio = mapped.codigo;
+    parsed.beneficio.nomeBeneficio = nomeOriginal; // mantém original em azul
   }
 
+  // 🔹 Margens: sobrescreve pelo parser determinístico
   parsed.margens = parseMargensDoTexto(texto);
 
+  // 🔹 Contratos: formatar
   if (Array.isArray(parsed?.contratos)) {
     const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
     parsed.contratos = parsed.contratos
@@ -217,19 +245,23 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
 
+  console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
   const texto = await pdfToText(pdfPath);
 
   let parsed;
   if (texto.length > 5000) {
+    console.log("✂️ Texto grande, fatiando...");
     const blocos = texto.match(/[\s\S]{1,4000}/g) || [];
     let contratos = [];
     for (let i = 0; i < blocos.length; i++) {
+      console.log(`🔎 Processando bloco ${i + 1}/${blocos.length}`);
       const parcial = await gptExtrairJSON(blocos[i]);
       contratos = contratos.concat(parcial.contratos || []);
       if (i === 0) parsed = parcial;
@@ -242,6 +274,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const json = posProcessar(parsed, texto);
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  console.log("✅ JSON salvo em", jsonPath);
 
   agendarExclusao24h(pdfPath, jsonPath);
 
@@ -253,9 +286,12 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
+
+  console.log("🚀 Iniciando extração do fileId:", fileId);
 
   if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
   if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
@@ -270,6 +306,8 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     download: true
   };
 
+  console.log("📥 Requisitando PDF na Lunas:", body);
+
   const resp = await fetch(LUNAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -283,6 +321,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
 
   const arrayBuffer = await resp.arrayBuffer();
   await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+  console.log("✅ PDF salvo em", pdfPath);
 
   return extrairDeUpload({ fileId, pdfPath, jsonDir });
 }
