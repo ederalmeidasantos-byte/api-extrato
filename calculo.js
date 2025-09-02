@@ -83,7 +83,8 @@ function ajustarParcelasPorMargem(contratos, extrapolada) {
   let maior = contratosOrdenados[0];
   if (!maior) return contratos;
 
-  let novaParcela = Math.max(0, toNumber(maior.valor_parcela) - toNumber(extrapolada));
+  // Como extrapolada é negativa, ajusta a maior parcela
+  let novaParcela = Math.max(0, toNumber(maior.valor_parcela) + toNumber(extrapolada));
   maior.valor_parcela = novaParcela.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -107,7 +108,7 @@ function calcularParaContrato(c) {
   const taxaAtual = toNumber(c.taxa_juros_mensal);
   if (!(taxaAtual > 0)) return null;
 
-  const prazoRestante = totalParcelas; // se não tiver cálculo refinado
+  const prazoRestante = totalParcelas; // TODO: pode refinar usando competência
   const saldoDevedor = pvFromParcela(parcelaAtual, taxaAtual, prazoRestante);
 
   // ===== Simulação novo contrato (sempre 96x) =====
@@ -173,8 +174,8 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       let contratos = extrairEmprestimos(extrato);
 
-      // Ajusta se houver margem extrapolada
-      if (toNumber(extrato?.margens?.extrapolada) > 0) {
+      // Ajusta se houver margem extrapolada negativa
+      if (toNumber(extrato?.margens?.extrapolada) < 0) {
         contratos = ajustarParcelasPorMargem(contratos, extrato.margens.extrapolada);
       }
 

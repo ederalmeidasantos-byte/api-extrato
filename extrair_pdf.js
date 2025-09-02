@@ -62,30 +62,25 @@ function formatBRNumber(n) {
 }
 
 function formatBRTaxa(n) {
-  return Number(n).toLocaleString("pt-BR", {
+  return Number(n * 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
 }
 
-// calcular taxa de juros aproximada
-function calcularTaxa(parcela, valorLiberado, prazo) {
-  if (!parcela || !valorLiberado || !prazo) return 0;
-  let taxa = 0.01; // chute inicial
-  let maxIter = 100;
-  let precisao = 1e-7;
+function diffMeses(inicio, fim) {
+  const [mi, ai] = inicio.split("/").map(Number);
+  const [mf, af] = fim.split("/").map(Number);
+  return (af - ai) * 12 + (mf - mi);
+}
 
-  for (let i = 0; i < maxIter; i++) {
-    let saldo = valorLiberado;
-    for (let m = 0; m < prazo; m++) {
-      saldo = saldo * (1 + taxa) - parcela;
-    }
-    if (Math.abs(saldo) < precisao) break;
-    taxa += saldo > 0 ? 0.0001 : -0.0001;
-    if (taxa < 0) taxa = 0.0001;
+function getCompetenciaAtual(dataExtrato) {
+  if (!dataExtrato) {
+    const hoje = new Date();
+    return `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
   }
-
-  return taxa;
+  const [dd, mm, yyyy] = dataExtrato.split("/");
+  return `${mm}/${yyyy}`;
 }
 
 // ================== Prompt ==================
@@ -117,8 +112,8 @@ Esquema esperado:
   "margens": {
     "disponivel": 123.45,
     "extrapolada": -76.20,
-    "rmc": 75.90,
-    "rcc": 75.90
+    "rmc": 0,
+    "rcc": 0
   },
   "contratos": [ ... ],
   "data_extrato": "DD/MM/AAAA"
@@ -138,10 +133,7 @@ async function gptExtrairJSON(texto) {
     temperature: 0,
     max_tokens: 1500,
     messages: [
-      {
-        role: "system",
-        content: "Responda sempre com JSON válido, sem texto extra."
-      },
+      { role: "system", content: "Responda sempre com JSON válido, sem texto extra." },
       { role: "user", content: buildPrompt(texto) }
     ]
   });
@@ -173,40 +165,45 @@ async function gptExtrairJSON(texto) {
 
   // Pós-processamento: contratos
   if (Array.isArray(parsed?.contratos)) {
+    const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
     parsed.contratos = parsed.contratos.map((c) => {
-      const parcela = toNumber(c.valor_parcela);
-      const liberado = toNumber(c.valor_liberado);
-      const prazo = toNumber(c.fim_desconto);
+      const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
+      let parcelasPagas = 0;
+      let prazoRestante = prazoTotal;
 
-      let taxa = toNumber(c.taxa_juros_mensal);
-      if (!taxa || taxa === 0) {
-        taxa = calcularTaxa(parcela, liberado, prazo);
+      if (c.competencia_inicio_desconto && prazoTotal > 0) {
+        parcelasPagas = diffMeses(c.competencia_inicio_desconto, competenciaAtual);
+        if (parcelasPagas < 0) parcelasPagas = 0;
+        if (parcelasPagas > prazoTotal) parcelasPagas = prazoTotal;
+        prazoRestante = prazoTotal - parcelasPagas;
       }
 
       return {
         ...c,
-        valor_parcela: formatBRNumber(parcela),
-        valor_liberado: formatBRNumber(liberado),
+        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
+        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        taxa_juros_mensal: formatBRTaxa(taxa),
-        taxa_juros_anual: formatBRTaxa(taxa * 12),
+        taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)),
+        taxa_juros_anual: formatBRTaxa(toNumber(c.taxa_juros_anual)),
         cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual))
+        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
+        prazo_total: prazoTotal,
+        parcelas_pagas: parcelasPagas,
+        prazo_restante: prazoRestante
       };
     });
   }
 
   // Pós-processamento: margens
   if (parsed?.margens) {
-    parsed.margens.disponivel = formatBRNumber(
-      toNumber(parsed.margens.disponivel)
-    );
-    parsed.margens.extrapolada = formatBRNumber(
-      toNumber(parsed.margens.extrapolada)
-    );
-    parsed.margens.rmc = formatBRNumber(toNumber(parsed.margens.rmc));
-    parsed.margens.rcc = formatBRNumber(toNumber(parsed.margens.rcc));
-  }
+  const m = parsed.margens;
+  const norm = (v) => formatBRNumber(toNumber(v));
+
+  m.disponivel   = norm(m.disponivel);
+  m.extrapolada  = norm(m.extrapolada);   // mantém positivo para exibição
+  m.rmc          = norm(m.rmc);
+  m.rcc          = norm(m.rcc);
+}
 
   return parsed;
 }
@@ -233,7 +230,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
   const texto = await pdfToText(pdfPath);
 
-  // Fatiamento automático
   let json;
   if (texto.length > 5000) {
     console.log("✂️ Texto grande, fatiando...");
@@ -243,7 +239,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
       console.log(`🔎 Processando bloco ${i + 1}/${blocos.length}`);
       const parcial = await gptExtrairJSON(blocos[i]);
       contratos = contratos.concat(parcial.contratos || []);
-      if (i === 0) json = parcial; // pega cabeçalho no primeiro bloco
+      if (i === 0) json = parcial;
     }
     json.contratos = contratos;
   } else {
