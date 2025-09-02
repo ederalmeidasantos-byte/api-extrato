@@ -54,13 +54,6 @@ function formatBRTaxaPercent(nPercent) {
   });
 }
 
-function parseBRDate(d) {
-  if (!d || typeof d !== "string") return null;
-  const [dd, mm, yyyy] = d.split("/");
-  const dt = new Date(+yyyy, +mm - 1, +dd);
-  return isNaN(dt.getTime()) ? null : dt;
-}
-
 function diaFromExtrato(extrato) {
   // usa o dia do próprio extrato; se não tiver, usa “hoje”
   const d = (extrato && extrato.data_extrato) || null;
@@ -91,29 +84,6 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
   if (!(i > 0) || !(n > 0)) return 0;
   const fator = (1 - Math.pow(1 + i, -n)) / i;
   return parcela * fator;
-}
-
-// Resolver taxa mensal a partir de PV, PMT, n (Newton-Raphson)
-function solveRateFromPVPMTN(pmt, pv, n) {
-  if (!(pmt > 0 && pv > 0 && n > 0)) return 0;
-  // chute inicial razoável
-  let i = 0.02; // 2% a.m.
-  for (let k = 0; k < 50; k++) {
-    const denom = 1 - Math.pow(1 + i, -n);
-    if (denom <= 0) break;
-    const f = pmt - (pv * i) / denom;
-    // derivada
-    const dfdI = -pv * (
-      denom - i * (n * Math.pow(1 + i, -n - 1))
-    ) / (denom * denom);
-    if (Math.abs(dfdI) < 1e-10) break;
-    const step = f / dfdI;
-    i = i - step;
-    if (!isFinite(i) || i <= -0.999) { i = 0.001; } // guarda
-    if (Math.abs(step) < 1e-10) break;
-  }
-  if (!isFinite(i) || i <= 0) return 0;
-  return i * 100; // retorna em %
 }
 
 // ===================== Ajuste de Margem (extrapolada) =====================
@@ -161,15 +131,13 @@ function calcularParaContrato(c, diaAverbacao) {
   const parcelaNum = toNumber(parcelaBR);
   if (!(parcelaNum >= 25)) return null;
 
-  // Prazos (vêm do extrair já preenchidos)
+  // Prazos (já vêm do extrair)
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  // taxa atual: calcular a partir de valor_liberado + parcela + prazo_total (pedido do cliente)
+  // usa diretamente taxa do extrair.js
+  const taxaCalcPercentMes = toNumber(c.taxa_juros_mensal);
   const pv = toNumber(c.valor_liberado);
-  const taxaCalcPercentMes = solveRateFromPVPMTN(parcelaNum, pv, totalParcelas); // em %
-
-  // saldo devedor com taxa calculada e prazo restante
   const saldoDevedor = pvFromParcela(parcelaNum, taxaCalcPercentMes, prazoRestante);
 
   // ===== Simulação novo contrato (sempre 96x) =====
@@ -201,12 +169,12 @@ function calcularParaContrato(c, diaAverbacao) {
     banco: c.banco,
     contrato: c.contrato,
     parcela_original: c.__parcela_original__ || null,
-    parcela: formatBRNumber(parcelaNum), // parcela usada na PV (já ajustada se houve extrapolada)
+    parcela: formatBRNumber(parcelaNum),
     prazo_total: totalParcelas,
     parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     prazo_restante: prazoRestante,
 
-    // taxa atual calculada (em % a.m. e a.a.)
+    // taxa atual já vinda do extrair
     taxa_atual: formatBRTaxaPercent(taxaCalcPercentMes),
     taxa_atual_anual: formatBRTaxaPercent((Math.pow(1 + taxaCalcPercentMes / 100, 12) - 1) * 100),
 
@@ -243,20 +211,19 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       let contratosAtivos = extrairEmprestimos(extrato);
 
-      // dia de averbação (usar dia do extrato, senão dia de hoje)
+      // dia de averbação
       const diaAverbacao = diaFromExtrato(extrato);
 
-      // 1) Se houver margem extrapolada (valor POSITIVO exibido), ajustar a MAIOR parcela
+      // ajuste de extrapolada
       const extrap = toNumber(extrato?.margens?.extrapolada);
       let infoAjuste = null;
-
       if (extrap > 0) {
         const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosAtivos, extrap);
         contratosAtivos = contratosAjustados;
         infoAjuste = info;
       }
 
-      // 2) Se houve ajuste, primeiro validar se o maior contrato ajustado libera troco >= 100
+      // cálculo
       let calculados = [];
       if (infoAjuste) {
         const maiorAjustado = contratosAtivos.find(c => c.contrato === infoAjuste.contrato);
@@ -265,15 +232,12 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
           return res.json({ mensagem: "Cliente não tem contrato elegível" });
         }
         calculados.push(prim);
-
-        // Se passou, prosseguir normalmente com os demais (sem mexer neles)
         for (const c of contratosAtivos) {
           if (c.contrato === infoAjuste.contrato) continue;
           const r = calcularParaContrato(c, diaAverbacao);
           if (r) calculados.push(r);
         }
       } else {
-        // sem extrapolada, segue normal
         calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao)).filter(Boolean);
       }
 
