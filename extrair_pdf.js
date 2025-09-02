@@ -35,21 +35,19 @@ function normalizarNB(nb) {
   return String(nb).replace(/\D/g, "");
 }
 
-// === cálculo da taxa de juros (Newton-Raphson) ===
 function calcularTaxaJurosMensal(valorParcela, valorFinanciado, numeroParcelas, maxIter = 100, tol = 1e-10) {
-  let i = 0.02; // chute inicial 2% ao mês
+  let i = 0.02;
   for (let k = 0; k < maxIter; k++) {
     const f = valorParcela - valorFinanciado * (i / (1 - Math.pow(1 + i, -numeroParcelas)));
     const fprime =
       -valorFinanciado *
       ((1 - Math.pow(1 + i, -numeroParcelas)) - i * numeroParcelas * Math.pow(1 + i, -numeroParcelas - 1)) /
       Math.pow(1 - Math.pow(1 + i, -numeroParcelas), 2);
-
     const newi = i - f / fprime;
     if (Math.abs(newi - i) < tol) return newi;
     i = newi;
   }
-  return i; // retorna taxa decimal (ex.: 0.0233 = 2,33%)
+  return i;
 }
 
 function buildPrompt(texto) {
@@ -57,13 +55,15 @@ function buildPrompt(texto) {
 Você é um assistente que extrai **todos os empréstimos ativos** de um extrato do INSS e retorna **JSON válido**.
 
 ⚠️ REGRAS IMPORTANTES:
-- Retorne SOMENTE JSON (sem comentários, sem texto extra).
-- Inclua todos os contratos "Ativo".
-- Ignore cartões RMC/RCC ou contratos não ativos.
-- Sempre incluir "valor_liberado" (quando existir no extrato).
-- Não calcule taxa de juros: apenas deixe nulo se não existir.
-- Campos numéricos devem vir como número com ponto decimal (ex.: 1.85).
-- Sempre incluir "data_contrato" (se não houver, use "data_inclusao").
+- Retorne SOMENTE JSON.
+- Inclua somente contratos "Ativo" (ignore suspensos, quitados, RMC e RCC).
+- Inclua no JSON as margens: emprestimo, rmc, rcc, disponivel, extrapolada.
+- Sempre incluir em cada contrato:
+  contrato, banco, situacao, data_inclusao, data_contrato,
+  competencia_inicio_desconto, competencia_fim_desconto,
+  qtde_parcelas, valor_parcela, valor_emprestado, valor_liberado,
+  iof, cet_mensal, cet_anual, taxa_juros_mensal, taxa_juros_anual, valor_pago.
+- Datas: DD/MM/AAAA. Números: ponto decimal.
 
 Esquema esperado:
 {
@@ -78,11 +78,18 @@ Esquema esperado:
     "nomeBeneficio": "Aposentadoria por invalidez previdenciária",
     "codigoBeneficio": "32"
   },
+  "margens": {
+    "emprestimo": 0.00,
+    "rmc": 0.00,
+    "rcc": 0.00,
+    "disponivel": 0.00,
+    "extrapolada": 0.00
+  },
   "contratos": [ ... ],
   "data_extrato": "DD/MM/AAAA"
 }
 
-Agora gere o JSON com **todos os contratos ativos** a partir do texto abaixo:
+Agora gere o JSON a partir do texto abaixo:
 
 ${texto}
 `;
@@ -108,26 +115,21 @@ async function gptExtrairJSON(texto) {
   if (raw.startsWith("```")) {
     raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   }
-
   let parsed = JSON.parse(raw);
 
-  // normalização do benefício
   if (parsed?.beneficio) {
     parsed.beneficio.nb = normalizarNB(parsed.beneficio.nb);
-
     const preferencia =
       parsed.beneficio.codigoBeneficio ||
       parsed.beneficio.nomeBeneficio ||
       parsed.beneficio.tipo ||
       parsed.beneficio.descricao ||
       "";
-
     const mapped = mapBeneficio(preferencia);
     parsed.beneficio.codigoBeneficio = mapped.codigo;
     parsed.beneficio.nomeBeneficio = mapped.nome;
   }
 
-  // normalização dos contratos → calcula taxa se não vier
   if (Array.isArray(parsed?.contratos)) {
     parsed.contratos = parsed.contratos.map((c) => {
       if (!c.taxa_juros_mensal && c.valor_parcela && c.valor_liberado && c.qtde_parcelas) {
@@ -138,10 +140,11 @@ async function gptExtrairJSON(texto) {
             c.taxa_juros_anual = +((Math.pow(1 + i, 12) - 1) * 100).toFixed(6);
             c.origem_taxa = "calculada";
           }
-        } catch (err) {
-          console.warn("⚠️ Falha ao calcular taxa de juros:", err.message);
+        } catch {
           c.origem_taxa = "critica";
         }
+      } else {
+        c.origem_taxa = "extrato";
       }
       return c;
     });
@@ -150,80 +153,38 @@ async function gptExtrairJSON(texto) {
   return parsed;
 }
 
-// === fluxo para upload local ===
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
-
-  console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
-
   const texto = await pdfToText(pdfPath);
   const json = await gptExtrairJSON(texto);
-
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-
   agendarExclusao24h(pdfPath, jsonPath);
-
   return { fileId, ...json };
 }
 
-// === fluxo para LUNAS ===
 export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
-
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
     return { fileId, ...cached };
   }
-
-  console.log("🚀 Iniciando extração do fileId:", fileId);
-
   if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
   if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
-
   const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
-
   await fsp.mkdir(jsonDir, { recursive: true });
-
-  const body = {
-    queueId: Number(LUNAS_QUEUE_ID),
-    apiKey: LUNAS_API_KEY,
-    fileId: Number(fileId),
-    download: true
-  };
-
-  console.log("📥 Requisitando PDF na Lunas:", body);
-
-  const resp = await fetch(LUNAS_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const t = await resp.text();
-    throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
-  }
-
+  const body = { queueId: Number(LUNAS_QUEUE_ID), apiKey: LUNAS_API_KEY, fileId: Number(fileId), download: true };
+  const resp = await fetch(LUNAS_API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!resp.ok) throw new Error(`Falha ao baixar da Lunas: ${resp.status}`);
   const arrayBuffer = await resp.arrayBuffer();
   await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
-  console.log("✅ PDF salvo em", pdfPath);
-
   const texto = await pdfToText(pdfPath);
   const json = await gptExtrairJSON(texto);
-
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-
   agendarExclusao24h(pdfPath, jsonPath);
-
   return { fileId, ...json };
 }
