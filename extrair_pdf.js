@@ -111,7 +111,7 @@ Esquema esperado:
   },
   "margens": {
     "disponivel": 123.45,
-    "extrapolada": -76.20,
+    "extrapolada": 76.20,
     "rmc": 0,
     "rcc": 0
   },
@@ -196,14 +196,14 @@ async function gptExtrairJSON(texto) {
 
   // Pós-processamento: margens
   if (parsed?.margens) {
-  const m = parsed.margens;
-  const norm = (v) => formatBRNumber(toNumber(v));
+    const m = parsed.margens;
+    const norm = (v) => formatBRNumber(toNumber(v));
 
-  m.disponivel   = norm(m.disponivel);
-  m.extrapolada  = norm(m.extrapolada);   // mantém positivo para exibição
-  m.rmc          = norm(m.rmc);
-  m.rcc          = norm(m.rcc);
-}
+    m.disponivel = norm(m.disponivel);
+    m.extrapolada = norm(m.extrapolada);
+    m.rmc = norm(m.rmc);
+    m.rcc = norm(m.rcc);
+  }
 
   return parsed;
 }

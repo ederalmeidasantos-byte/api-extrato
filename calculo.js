@@ -83,8 +83,8 @@ function ajustarParcelasPorMargem(contratos, extrapolada) {
   let maior = contratosOrdenados[0];
   if (!maior) return contratos;
 
-  // Como extrapolada é negativa, ajusta a maior parcela
-  let novaParcela = Math.max(0, toNumber(maior.valor_parcela) + toNumber(extrapolada));
+  // reduz a maior parcela pelo valor extrapolado
+  let novaParcela = Math.max(0, toNumber(maior.valor_parcela) - Math.abs(toNumber(extrapolada)));
   maior.valor_parcela = novaParcela.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -108,7 +108,7 @@ function calcularParaContrato(c) {
   const taxaAtual = toNumber(c.taxa_juros_mensal);
   if (!(taxaAtual > 0)) return null;
 
-  const prazoRestante = totalParcelas; // TODO: pode refinar usando competência
+  const prazoRestante = totalParcelas;
   const saldoDevedor = pvFromParcela(parcelaAtual, taxaAtual, prazoRestante);
 
   // ===== Simulação novo contrato (sempre 96x) =====
@@ -124,7 +124,7 @@ function calcularParaContrato(c) {
 
     if (Number.isFinite(troco) && troco >= 100) {
       escolhido = {
-        taxa_aplicada: tx.toFixed(2),
+        taxa_calculada: tx.toFixed(2),
         coeficiente_usado: coefNovo,
         saldoDevedor,
         valorEmprestimo,
@@ -144,7 +144,7 @@ function calcularParaContrato(c) {
     parcelas_pagas: c.parcelas_pagas || 0,
     prazo_restante: prazoRestante,
     taxa_atual: c.taxa_juros_mensal,
-    taxa_aplicada: escolhido.taxa_aplicada,
+    taxa_calculada: escolhido.taxa_calculada,
     coeficiente_usado: escolhido.coeficiente_usado,
     saldo_devedor: escolhido.saldoDevedor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     valor_emprestimo: escolhido.valorEmprestimo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -174,8 +174,8 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       let contratos = extrairEmprestimos(extrato);
 
-      // Ajusta se houver margem extrapolada negativa
-      if (toNumber(extrato?.margens?.extrapolada) < 0) {
+      // Ajusta se houver margem extrapolada positiva
+      if (toNumber(extrato?.margens?.extrapolada) > 0) {
         contratos = ajustarParcelasPorMargem(contratos, extrato.margens.extrapolada);
       }
 
@@ -190,7 +190,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const bancos = calculados.map(c => bancosMap[c.banco || ""] || c.banco || "");
       const parcelas = calculados.map(c => c.parcela);
-      const taxas = calculados.map(c => c.taxa_aplicada);
+      const taxas = calculados.map(c => c.taxa_calculada);
       const saldos = calculados.map(c => c.saldo_devedor);
       const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
 
