@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const LUNAS_API_URL =
@@ -56,14 +56,14 @@ function toNumber(v) {
 function formatBRNumber(n) {
   return Number(n).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 }
 
 function formatBRTaxa(nAsDecimal) {
   return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 }
 
@@ -82,62 +82,76 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ================== Prompt ==================
-function buildPrompt() {
-  return `
-Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
+// ================== GPT Call ==================
+async function gptExtrairJSON(fileId) {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    temperature: 0,
+    max_tokens: 4000,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Você é um assistente que extrai informações de extratos do INSS. Sempre responda com JSON válido e nada além disso.",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: `
+Extraia do PDF enviado os dados do cliente, do benefício, as margens e todos os contratos ativos.
+⚠️ Retorne apenas JSON válido no formato:
 
-⚠️ Regras:
-- Retorne SOMENTE JSON.
-- Inclua todos os contratos ativos (exceto RMC/RCC).
-- Valores dentro de contratos devem vir crus (sem formatação BR).
-- O nome do benefício deve vir exatamente como está no PDF.
-- Se não houver valores, use null ou 0.
-
-Esquema esperado:
 {
-  "cliente": "Nome exato",
+  "cliente": "Nome",
   "beneficio": {
-    "nb": "604321543-1",
+    "nb": "...",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "conta corrente",
-    "banco_pagamento": "Banco ...",
-    "agencia": "877",
-    "conta": "0001278479",
-    "nomeBeneficio": "Texto exato do PDF",
-    "codigoBeneficio": null
+    "meio_pagamento": "...",
+    "banco_pagamento": "...",
+    "agencia": "...",
+    "conta": "...",
+    "nomeBeneficio": "...",
+    "codigoBeneficio": "..."
   },
-  "margens": {},
-  "contratos": [],
+  "margens": {
+    "disponivel": "...",
+    "extrapolada": "...",
+    "rmc": "...",
+    "rcc": "..."
+  },
+  "contratos": [
+    {
+      "contrato": "...",
+      "banco": "...",
+      "situacao": "ATIVO",
+      "data_inclusao": "MM/AAAA",
+      "competencia_inicio_desconto": "MM/AAAA",
+      "qtde_parcelas": 0,
+      "valor_parcela": 0,
+      "valor_liberado": 0,
+      "iof": 0,
+      "cet_mensal": 0,
+      "cet_anual": 0,
+      "taxa_juros_mensal": 0,
+      "taxa_juros_anual": 0,
+      "valor_pago": 0
+    }
+  ],
   "data_extrato": "DD/MM/AAAA"
 }
-`;
-}
-
-// ================== GPT Call (Responses API + PDF) ==================
-async function gptExtrairJSON(pdfPath) {
-  const file = await openai.files.create({
-    file: fs.createReadStream(pdfPath),
-    purpose: "assistants"
+`,
+          },
+          { type: "input_file", file_id: fileId },
+        ],
+      },
+    ],
   });
 
-  const response = await openai.responses.create({
-    model: "gpt-4o-mini",
-    input: [
-      {
-        "role": "user",
-        "content": [
-          { "type": "input_text", "text": "Leia o PDF e extraia os contratos." },
-          { "type": "input_file", "file_id": fileId }
-        ]
-      }
-    ]
-  });
+  const raw =
+    completion.choices[0]?.message?.content?.[0]?.text?.trim() || "{}";
 
-  let raw = response.output[0]?.content?.[0]?.text?.trim() || "{}";
-  if (raw.startsWith("```")) {
-    raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  }
   return JSON.parse(raw);
 }
 
@@ -157,17 +171,26 @@ function posProcessar(parsed) {
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
-    .filter(c => (String(c.situacao || "").toUpperCase() === "ATIVO"))
+    .filter((c) => String(c.situacao || "").toUpperCase() === "ATIVO")
     .map((c) => {
       const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
       let prazoRestante = prazoTotal;
 
       if (c.competencia_inicio_desconto && prazoTotal > 0) {
-        parcelasPagas = diffMeses(c.competencia_inicio_desconto, competenciaAtual);
+        parcelasPagas = diffMeses(
+          c.competencia_inicio_desconto,
+          competenciaAtual
+        );
         if (parcelasPagas < 0) parcelasPagas = 0;
         if (parcelasPagas > prazoTotal) parcelasPagas = prazoTotal;
         prazoRestante = prazoTotal - parcelasPagas;
+      }
+
+      let taxaMensal = toNumber(c.taxa_juros_mensal);
+      let taxaAnual = toNumber(c.taxa_juros_anual);
+      if (!taxaAnual && taxaMensal) {
+        taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
       }
 
       return {
@@ -175,13 +198,13 @@ function posProcessar(parsed) {
         valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
         valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)),
-        taxa_juros_anual: formatBRTaxa(toNumber(c.taxa_juros_anual)),
-        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
+        taxa_juros_mensal: formatBRTaxa(taxaMensal),
+        taxa_juros_anual: formatBRTaxa(taxaAnual),
+        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal) || taxaMensal),
+        cet_anual: formatBRTaxa(toNumber(c.cet_anual) || taxaAnual),
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante
+        prazo_restante: prazoRestante,
       };
     });
 
@@ -201,10 +224,10 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
-  const parsed = await gptExtrairJSON(pdfPath);
+  const parsed = await gptExtrairJSON(fileId);
+
   const json = posProcessar(parsed);
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-
   console.log("✅ JSON salvo em", jsonPath);
   agendarExclusao24h(pdfPath, jsonPath);
 
@@ -233,7 +256,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
     queueId: Number(LUNAS_QUEUE_ID),
     apiKey: LUNAS_API_KEY,
     fileId: Number(fileId),
-    download: true
+    download: true,
   };
 
   console.log("📥 Requisitando PDF na Lunas:", body);
@@ -241,7 +264,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   const resp = await fetch(LUNAS_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
   if (!resp.ok) {
