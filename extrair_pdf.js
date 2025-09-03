@@ -1,6 +1,8 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
+import pkg from "pdf-parse-fixed";
+const pdfParse = pkg;
 import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
@@ -31,95 +33,36 @@ function agendarExclusao24h(...paths) {
   }, DAY);
 }
 
-function normalizarNB(nb) {
-  if (!nb) return "";
-  return String(nb).replace(/\D/g, "");
-}
+// ================== Prompt ==================
+function buildPrompt() {
+  return `
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS em PDF e retorna **JSON válido**.
 
-function toNumber(v) {
-  if (v == null) return 0;
-  if (typeof v === "number") return v;
-  let s = v.toString().replace(/[^\d.,-]/g, "").trim();
-  if (!s) return 0;
-  if (s.includes(",") && s.includes(".")) {
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
-      s = s.replace(/\./g, "").replace(",", ".");
-    } else {
-      s = s.replace(/,/g, "");
-    }
-  } else if (s.includes(",")) {
-    s = s.replace(",", ".");
-  }
-  return parseFloat(s) || 0;
-}
+⚠️ Regras:
+- Retorne SOMENTE JSON.
+- Inclua todos os contratos ativos (exceto RMC/RCC).
+- Valores dentro de contratos devem vir crus (sem formatação BR).
+- O nome do benefício deve vir exatamente como está no PDF.
+- Se não houver valores, use null ou 0.
 
-function formatBRNumber(n) {
-  return Number(n).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatBRTaxa(nAsDecimal) {
-  return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function diffMeses(inicioMMYYYY, fimMMYYYY) {
-  const [mi, ai] = (inicioMMYYYY || "01/1900").split("/").map(Number);
-  const [mf, af] = (fimMMYYYY || "01/1900").split("/").map(Number);
-  return (af - ai) * 12 + (mf - mi);
-}
-
-function getCompetenciaAtual(dataExtratoDDMMYYYY) {
-  if (!dataExtratoDDMMYYYY) {
-    const hoje = new Date();
-    return `${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
-  }
-  const [dd, mm, yyyy] = dataExtratoDDMMYYYY.split("/");
-  return `${mm}/${yyyy}`;
-}
-
-// ================== GPT Call ==================
-async function gptExtrairJSON(fileId) {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    temperature: 0,
-    max_tokens: 4000,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Você é um assistente que extrai informações de extratos do INSS. Sempre responda com JSON válido e nada além disso.",
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: `
-Extraia do PDF enviado os dados do cliente, do benefício, as margens e todos os contratos ativos.
-⚠️ Retorne apenas JSON válido no formato:
-
+Esquema esperado:
 {
-  "cliente": "Nome",
+  "cliente": "Nome exato",
   "beneficio": {
-    "nb": "...",
+    "nb": "604321543-1",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "...",
-    "banco_pagamento": "...",
-    "agencia": "...",
-    "conta": "...",
-    "nomeBeneficio": "...",
-    "codigoBeneficio": "..."
+    "meio_pagamento": "conta corrente",
+    "banco_pagamento": "Banco ...",
+    "agencia": "877",
+    "conta": "0001278479",
+    "nomeBeneficio": "Texto exato do PDF",
+    "codigoBeneficio": null
   },
   "margens": {
-    "disponivel": "...",
-    "extrapolada": "...",
-    "rmc": "...",
-    "rcc": "..."
+    "disponivel": "0,00",
+    "extrapolada": "0,00",
+    "rmc": "0,00",
+    "rcc": "0,00"
   },
   "contratos": [
     {
@@ -128,87 +71,55 @@ Extraia do PDF enviado os dados do cliente, do benefício, as margens e todos os
       "situacao": "ATIVO",
       "data_inclusao": "MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 0,
-      "valor_parcela": 0,
-      "valor_liberado": 0,
+      "qtde_parcelas": 84,
+      "valor_parcela": 424.10,
+      "valor_liberado": 15529.56,
       "iof": 0,
-      "cet_mensal": 0,
-      "cet_anual": 0,
-      "taxa_juros_mensal": 0,
-      "taxa_juros_anual": 0,
-      "valor_pago": 0
+      "cet_mensal": 0.023,
+      "cet_anual": 0.31,
+      "taxa_juros_mensal": 0.0238,
+      "taxa_juros_anual": 0.32,
+      "valor_pago": 5000.00
     }
   ],
   "data_extrato": "DD/MM/AAAA"
 }
-`,
-          },
-          { type: "input_file", file_id: fileId },
+`;
+}
+
+// ================== GPT Call ==================
+async function gptExtrairJSON(pdfPath) {
+  // 1) Upload do PDF para OpenAI
+  const uploaded = await openai.files.create({
+    file: fs.createReadStream(pdfPath),
+    purpose: "assistants",
+  });
+  console.log("📂 PDF enviado para OpenAI, file_id:", uploaded.id);
+
+  // 2) Chamar Responses API com o file_id
+  const response = await openai.responses.create({
+    model: "gpt-4.1-mini",
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: buildPrompt() },
+          { type: "file", file_id: uploaded.id },
         ],
       },
     ],
   });
 
-  const raw =
-    completion.choices[0]?.message?.content?.[0]?.text?.trim() || "{}";
-
+  // 3) Extrair JSON da resposta
+  const raw = response.output_text;
   return JSON.parse(raw);
 }
 
-// ================== Pós-processamento ==================
-function posProcessar(parsed) {
-  if (!parsed) parsed = {};
-  if (!parsed.beneficio) parsed.beneficio = {};
-
-  let nb = normalizarNB(parsed.beneficio.nb || "");
-  if (nb.length < 10) nb = "";
-  parsed.beneficio.nb = nb;
-
-  const mapped = mapBeneficio(parsed.beneficio.nomeBeneficio || "");
-  parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
-
-  if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
-  const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
-
-  parsed.contratos = parsed.contratos
-    .filter((c) => String(c.situacao || "").toUpperCase() === "ATIVO")
-    .map((c) => {
-      const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
-      let parcelasPagas = 0;
-      let prazoRestante = prazoTotal;
-
-      if (c.competencia_inicio_desconto && prazoTotal > 0) {
-        parcelasPagas = diffMeses(
-          c.competencia_inicio_desconto,
-          competenciaAtual
-        );
-        if (parcelasPagas < 0) parcelasPagas = 0;
-        if (parcelasPagas > prazoTotal) parcelasPagas = prazoTotal;
-        prazoRestante = prazoTotal - parcelasPagas;
-      }
-
-      let taxaMensal = toNumber(c.taxa_juros_mensal);
-      let taxaAnual = toNumber(c.taxa_juros_anual);
-      if (!taxaAnual && taxaMensal) {
-        taxaAnual = Math.pow(1 + taxaMensal, 12) - 1;
-      }
-
-      return {
-        ...c,
-        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
-        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
-        valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        taxa_juros_mensal: formatBRTaxa(taxaMensal),
-        taxa_juros_anual: formatBRTaxa(taxaAnual),
-        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal) || taxaMensal),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual) || taxaAnual),
-        prazo_total: prazoTotal,
-        parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante,
-      };
-    });
-
-  return parsed;
+// ================== PDF to Text (fallback) ==================
+async function pdfToText(pdfPath) {
+  const buffer = await fsp.readFile(pdfPath);
+  const data = await pdfParse(buffer);
+  return data.text || "";
 }
 
 // ================== Fluxo Upload ==================
@@ -224,14 +135,14 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
-  const parsed = await gptExtrairJSON(fileId);
+  // → aqui usamos o GPT direto com o PDF
+  const parsed = await gptExtrairJSON(pdfPath);
 
-  const json = posProcessar(parsed);
-  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
+  await fsp.writeFile(jsonPath, JSON.stringify(parsed, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
   agendarExclusao24h(pdfPath, jsonPath);
 
-  return { fileId, ...json };
+  return { fileId, ...parsed };
 }
 
 // ================== Fluxo Lunas ==================
@@ -250,7 +161,7 @@ export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
   if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
 
   const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
-  await fsp.mkdir(jsonDir, { recursive: true });
+  await fsp.mkdir(pdfDir, { recursive: true });
 
   const body = {
     queueId: Number(LUNAS_QUEUE_ID),
