@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // ================== Helpers ==================
@@ -47,6 +47,20 @@ function toNumber(v) {
   return parseFloat(s) || 0;
 }
 
+function formatBRNumber(n) {
+  return Number(n).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatBRTaxa(nAsDecimal) {
+  return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function diffMeses(inicioMMYYYY, fimMMYYYY) {
   const [mi, ai] = (inicioMMYYYY || "01/1900").split("/").map(Number);
   const [mf, af] = (fimMMYYYY || "01/1900").split("/").map(Number);
@@ -62,14 +76,40 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
+// ================== Cálculo de Taxa ==================
+function calcularTaxaJuros(valorParcela, valorLiberado, prazo) {
+  if (!valorParcela || !valorLiberado || !prazo) return 0;
+  const maxIter = 100;
+  const tol = 1e-8;
+  let i = 0.02; // chute inicial 2% a.m.
+
+  for (let k = 0; k < maxIter; k++) {
+    const vi = valorLiberado;
+    const vf = valorParcela * ((1 - Math.pow(1 + i, -prazo)) / i);
+    const f = vf - vi;
+    const fPrime = (valorParcela * (prazo * Math.pow(1 + i, -(prazo + 1)))) / (i * i);
+    const novoI = i - f / (fPrime || 1e-9);
+    if (Math.abs(novoI - i) < tol) return novoI;
+    i = novoI;
+  }
+  return i;
+}
+
 // ================== Prompt ==================
 function buildPrompt() {
   return `
 Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
 
-⚠️ Regras:
+⚠️ Regras importantes:
+- Leia apenas as seções do PDF chamadas **"EMPRÉSTIMOS BANCÁRIOS"**.
+- Em cada tabela, considere **todos os contratos ATIVOS**.
+- Ignore linhas ou contratos com status **"EXCLUÍDO"**, **"SUSPENSO"** ou similares.
+- Podem existir várias tabelas em diferentes páginas: **considere todas**, mas sempre apenas as da seção "EMPRÉSTIMOS BANCÁRIOS".
+- Cada parte do extrato costuma aparecer em páginas específicas:
+  - **Página 1**: Identificação do cliente e dados do benefício.
+  - **Página 2**: Informações de margens (margem consignável, disponível, extrapolada, RMC e RCC).
+  - **A partir da página 3**: Tabelas de contratos (empréstimos bancários).
 - Retorne SOMENTE JSON.
-- Inclua todos os contratos ativos (exceto RMC/RCC).
 - Valores dentro de contratos devem vir crus (sem formatação BR).
 - O nome do benefício deve vir exatamente como está no PDF.
 - Se não houver valores, use null ou 0.
@@ -87,7 +127,12 @@ Esquema esperado:
     "nomeBeneficio": "Texto exato do PDF",
     "codigoBeneficio": null
   },
-  "margens": {},
+  "margens": {
+    "margem_extrapolada": 0,
+    "margem_disponivel_empretimo": 0,
+    "margem_disponivel_rmc": 0,
+    "margem_disponivel_rcc": 0
+  },
   "contratos": [
     {
       "contrato": "...",
@@ -103,7 +148,8 @@ Esquema esperado:
       "cet_anual": 0.31,
       "taxa_juros_mensal": 0.0238,
       "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00
+      "valor_pago": 5000.00,
+      "status_taxa": null
     }
   ],
   "data_extrato": "DD/MM/AAAA"
@@ -111,45 +157,33 @@ Esquema esperado:
 `;
 }
 
-// ================== GPT Call com fallback ==================
+// ================== GPT Call ==================
 async function gptExtrairJSON(pdfPath) {
-  // Upload do PDF
+  console.log("📂 Fazendo upload para GPT:", pdfPath);
+
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
-    purpose: "assistants"
+    purpose: "assistants",
   });
 
-  async function tentarExtracao(model) {
-    console.log(`🤖 Usando modelo: ${model}`);
-    const response = await openai.responses.create({
-      model,
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: buildPrompt() },
-            { type: "input_file", file_id: uploaded.id }
-          ]
-        }
-      ]
-    });
-    return response.output_text;
-  }
+  console.log("✅ Upload concluído, file_id:", uploaded.id);
 
-  let raw;
-  try {
-    raw = await tentarExtracao("gpt-4.1-mini");
-  } catch (err) {
-    console.warn("⚠️ Falha no gpt-4.1-mini, tentando com gpt-4.1...", err.message);
-    raw = await tentarExtracao("gpt-4.1");
-  }
+  const response = await openai.responses.create({
+    model: "gpt-4.1-mini",
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_text", text: buildPrompt() },
+          { type: "input_file", file_id: uploaded.id },
+        ],
+      },
+    ],
+  });
 
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    console.error("❌ Erro ao parsear JSON retornado pelo GPT:", e.message);
-    throw new Error("GPT não retornou JSON válido");
-  }
+  const raw = response.output_text;
+  console.log("📥 Resposta bruta recebida do GPT");
+  return JSON.parse(raw);
 }
 
 // ================== Pós-processamento ==================
@@ -157,22 +191,18 @@ function posProcessar(parsed) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  // NB
   let nb = normalizarNB(parsed.beneficio.nb || "");
   if (nb.length < 10) nb = "";
   parsed.beneficio.nb = nb;
 
-  // Código de benefício
   const mapped = mapBeneficio(parsed.beneficio.nomeBeneficio || "");
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
-  // Contratos
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
-    .filter(c => String(c.situacao || "").toUpperCase() === "ATIVO")
-    .filter(c => !/RMC|RCC/i.test(c.contrato || "")) // remove RMC/RCC
+    .filter((c) => (String(c.situacao || "").toUpperCase() === "ATIVO"))
     .map((c) => {
       const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
@@ -185,18 +215,32 @@ function posProcessar(parsed) {
         prazoRestante = prazoTotal - parcelasPagas;
       }
 
+      // Recalcular taxa se necessário
+      if (!toNumber(c.taxa_juros_mensal)) {
+        try {
+          const i = calcularTaxaJuros(toNumber(c.valor_parcela), toNumber(c.valor_liberado), prazoTotal);
+          c.taxa_juros_mensal = formatBRTaxa(i);
+          c.taxa_juros_anual = formatBRTaxa(Math.pow(1 + i, 12) - 1);
+          c.status_taxa = "RECALCULADA";
+          console.log(`🔄 Taxa recalculada para contrato ${c.contrato}: ${c.taxa_juros_mensal}% ao mês`);
+        } catch (err) {
+          console.warn(`⚠️ Falha ao recalcular taxa do contrato ${c.contrato}:`, err.message);
+        }
+      } else {
+        c.taxa_juros_mensal = formatBRTaxa(toNumber(c.taxa_juros_mensal));
+        c.taxa_juros_anual = formatBRTaxa(toNumber(c.taxa_juros_anual));
+      }
+
       return {
         ...c,
-        valor_parcela: toNumber(c.valor_parcela),
-        valor_liberado: toNumber(c.valor_liberado),
-        valor_pago: toNumber(c.valor_pago),
-        taxa_juros_mensal: toNumber(c.taxa_juros_mensal),
-        taxa_juros_anual: toNumber(c.taxa_juros_anual),
-        cet_mensal: toNumber(c.cet_mensal),
-        cet_anual: toNumber(c.cet_anual),
+        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
+        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
+        valor_pago: formatBRNumber(toNumber(c.valor_pago)),
+        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
+        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante
+        prazo_restante: prazoRestante,
       };
     });
 
@@ -221,7 +265,6 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
-
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };
