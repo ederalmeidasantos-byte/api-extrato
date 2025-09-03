@@ -85,7 +85,7 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
 // ================== Prompt ==================
 function buildPrompt() {
   return `
-Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS (em PDF) e retorna **JSON válido**.
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS em PDF e retorna **JSON válido**.
 
 ⚠️ Regras:
 - Retorne SOMENTE JSON.
@@ -107,12 +107,7 @@ Esquema esperado:
     "nomeBeneficio": "Texto exato do PDF",
     "codigoBeneficio": null
   },
-  "margens": {
-    "disponivel": "",
-    "extrapolada": "",
-    "rmc": "",
-    "rcc": ""
-  },
+  "margens": {},
   "contratos": [
     {
       "contrato": "...",
@@ -132,21 +127,18 @@ Esquema esperado:
     }
   ],
   "data_extrato": "DD/MM/AAAA"
-}
-`;
+}`;
 }
 
-// ================== GPT Call com PDF direto ==================
-async function gptExtrairJSONdoPDF(pdfPath) {
-  // Faz upload do PDF
+// ================== GPT Extrator ==================
+async function gptExtrairJSON(pdfPath) {
   const file = await openai.files.create({
     file: fs.createReadStream(pdfPath),
     purpose: "assistants"
   });
 
-  // Pede pro GPT ler o PDF
   const completion = await openai.chat.completions.create({
-    model: "gpt-4.1", // ou gpt-4o se quiser mais rápido
+    model: "gpt-4o-mini",
     temperature: 0,
     max_tokens: 4000,
     messages: [
@@ -154,14 +146,14 @@ async function gptExtrairJSONdoPDF(pdfPath) {
       {
         role: "user",
         content: [
-          { type: "text", text: "Leia este PDF e extraia os dados" },
-          { type: "file", file_id } 
+          { type: "text", text: buildPrompt() },
+          { type: "file", file_id: file.id }
         ]
       }
     ]
   });
 
-  let raw = completion.choices[0]?.message?.content?.trim() || "{}";
+  let raw = completion.choices[0]?.message?.content?.[0]?.text || "{}";
   if (raw.startsWith("```")) {
     raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   }
@@ -177,8 +169,7 @@ function posProcessar(parsed) {
   if (nb.length < 10) nb = "";
   parsed.beneficio.nb = nb;
 
-  let nomeOriginal = parsed.beneficio.nomeBeneficio || "";
-  const mapped = mapBeneficio(nomeOriginal);
+  const mapped = mapBeneficio(parsed.beneficio.nomeBeneficio || "");
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
@@ -229,11 +220,12 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
-  const parsed = await gptExtrairJSONdoPDF(pdfPath);
+  const parsed = await gptExtrairJSON(pdfPath);
   const json = posProcessar(parsed);
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
+
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };
