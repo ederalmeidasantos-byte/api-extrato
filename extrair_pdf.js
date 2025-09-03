@@ -1,8 +1,6 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
-import pkg from "pdf-parse-fixed";
-const pdfParse = pkg;
 import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
@@ -47,20 +45,6 @@ function toNumber(v) {
     s = s.replace(",", ".");
   }
   return parseFloat(s) || 0;
-}
-
-function formatBRNumber(n) {
-  return Number(n).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function formatBRTaxa(nAsDecimal) {
-  return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
 }
 
 function diffMeses(inicioMMYYYY, fimMMYYYY) {
@@ -127,30 +111,45 @@ Esquema esperado:
 `;
 }
 
-// ================== GPT Call (Responses API) ==================
+// ================== GPT Call com fallback ==================
 async function gptExtrairJSON(pdfPath) {
-  // 1. Faz upload do PDF
+  // Upload do PDF
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
     purpose: "assistants"
   });
 
-  // 2. Chama o modelo pedindo extração
-  const response = await openai.responses.create({
-    model: "gpt-4.1-mini",
-    input: [
-      {
-        role: "user",
-        content: [
-          { type: "input_text", text: buildPrompt() },
-          { type: "input_file", file_id: uploaded.id }
-        ]
-      }
-    ]
-  });
+  async function tentarExtracao(model) {
+    console.log(`🤖 Usando modelo: ${model}`);
+    const response = await openai.responses.create({
+      model,
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: buildPrompt() },
+            { type: "input_file", file_id: uploaded.id }
+          ]
+        }
+      ]
+    });
+    return response.output_text;
+  }
 
-  const raw = response.output_text;
-  return JSON.parse(raw);
+  let raw;
+  try {
+    raw = await tentarExtracao("gpt-4.1-mini");
+  } catch (err) {
+    console.warn("⚠️ Falha no gpt-4.1-mini, tentando com gpt-4.1...", err.message);
+    raw = await tentarExtracao("gpt-4.1");
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("❌ Erro ao parsear JSON retornado pelo GPT:", e.message);
+    throw new Error("GPT não retornou JSON válido");
+  }
 }
 
 // ================== Pós-processamento ==================
@@ -158,18 +157,22 @@ function posProcessar(parsed) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
+  // NB
   let nb = normalizarNB(parsed.beneficio.nb || "");
   if (nb.length < 10) nb = "";
   parsed.beneficio.nb = nb;
 
+  // Código de benefício
   const mapped = mapBeneficio(parsed.beneficio.nomeBeneficio || "");
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
 
+  // Contratos
   if (!Array.isArray(parsed.contratos)) parsed.contratos = [];
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
-    .filter(c => (String(c.situacao || "").toUpperCase() === "ATIVO"))
+    .filter(c => String(c.situacao || "").toUpperCase() === "ATIVO")
+    .filter(c => !/RMC|RCC/i.test(c.contrato || "")) // remove RMC/RCC
     .map((c) => {
       const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
@@ -184,13 +187,13 @@ function posProcessar(parsed) {
 
       return {
         ...c,
-        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
-        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
-        valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        taxa_juros_mensal: formatBRTaxa(toNumber(c.taxa_juros_mensal)),
-        taxa_juros_anual: formatBRTaxa(toNumber(c.taxa_juros_anual)),
-        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
+        valor_parcela: toNumber(c.valor_parcela),
+        valor_liberado: toNumber(c.valor_liberado),
+        valor_pago: toNumber(c.valor_pago),
+        taxa_juros_mensal: toNumber(c.taxa_juros_mensal),
+        taxa_juros_anual: toNumber(c.taxa_juros_anual),
+        cet_mensal: toNumber(c.cet_mensal),
+        cet_anual: toNumber(c.cet_anual),
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
         prazo_restante: prazoRestante
@@ -218,6 +221,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
+
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };

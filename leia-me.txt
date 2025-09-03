@@ -1,0 +1,141 @@
+# 📑 API Extrato INSS
+
+API em **Node.js + OpenAI GPT** para processar **extratos de empréstimos consignados** do INSS a partir de PDFs.
+
+---
+
+## 🚀 Funcionalidades
+- Upload de **PDFs de extratos do INSS**.
+- Leitura de texto com **pdf-parse**.
+- Extração de contratos ativos e dados do benefício via **GPT**.
+- Cálculo de **saldo devedor, troco, taxa de juros**.
+- Armazenamento em JSON (cache).
+- Endpoints REST para consulta.
+
+---
+
+## ⚙️ Tecnologias
+- [Node.js](https://nodejs.org/) v22+
+- [Express](https://expressjs.com/)
+- [Multer](https://github.com/expressjs/multer) (upload)
+- [pdf-parse-fixed](https://www.npmjs.com/package/pdf-parse-fixed)
+- [OpenAI SDK](https://www.npmjs.com/package/openai)
+- [Git/GitHub](https://github.com/)
+- [Render](https://render.com/) (deploy)
+
+---
+
+## 📂 Estrutura
+.
+├── server.js # API principal (rotas express)
+├── extrair_pdf.js # Funções para ler PDF, chamar GPT e salvar JSON
+├── calculo.js # Regras de cálculo (saldo devedor, troco, taxa)
+├── beneficios.js # Mapeamento de benefícios
+├── extratos/ # PDFs recebidos
+├── jsonDir/ # JSONs processados
+├── coeficientes_96.json # Tabela usada nos cálculos
+└── package.json # Dependências
+
+yaml
+Copiar código
+
+---
+
+## 🔌 Endpoints
+
+### Extração
+- `POST /extrair` → baixa PDF da Lunas e processa
+- `POST /extrair/upload` → upload local de PDF
+- `POST /extrair_paginas` → processa página a página
+- `POST /extrair/upload_paginas` → upload com processamento por páginas
+
+### Consulta
+- `GET /extrair/:fileId` → busca JSON já processado
+- `GET /extrato/:fileId/raw` → retorna JSON cru
+- `GET /calcular/:fileId` → cálculo de troco
+
+---
+
+## 📦 Instalação
+
+```bash
+# clonar repositório
+git clone https://github.com/seu-usuario/api-extrato.git
+cd api-extrato
+
+# instalar dependências
+npm install
+
+# rodar local
+npm start
+🔑 Variáveis de Ambiente
+Crie um arquivo .env na raiz do projeto com:
+
+ini
+Copiar código
+OPENAI_API_KEY=chave-da-openai
+LUNAS_API_KEY=chave-da-lunas
+LUNAS_QUEUE_ID=25
+PORT=3000
+🌐 Deploy no Render
+Crie um novo Web Service.
+
+Conecte este repositório.
+
+Configure:
+
+Start Command: npm start
+
+Port: Render detecta via PORT.
+
+Adicione as variáveis de ambiente acima no painel do Render.
+
+Deploy automático a cada git push.
+
+🛠️ Git / GitHub
+bash
+Copiar código
+# adicionar arquivos
+git add .
+
+# criar commit
+git commit -m "feat: primeira versão da API extrato"
+
+# enviar para GitHub
+git push origin main
+✅ Exemplo de Uso
+Upload PDF
+bash
+Copiar código
+curl -X POST http://localhost:3000/extrair/upload \
+  -F "file=@extrato.pdf"
+Resposta
+json
+Copiar código
+{
+  "cliente": "JOÃO DA SILVA",
+  "beneficio": {
+    "nb": "604321543-1",
+    "nomeBeneficio": "APOSENTADORIA POR IDADE",
+    "codigoBeneficio": 41
+  },
+  "margens": {
+    "disponivel": "120,00",
+    "extrapolada": "0,00",
+    "rmc": "0,00",
+    "rcc": "0,00"
+  },
+  "contratos": [
+    {
+      "contrato": "238906021033",
+      "banco": "BANCO SANTANDER",
+      "situacao": "ATIVO",
+      "valor_parcela": "424,10",
+      "prazo_total": 84,
+      "parcelas_pagas": 37,
+      "taxa_juros_mensal": "2,38",
+      "taxa_juros_anual": "32,61"
+    }
+  ],
+  "data_extrato": "05/2022"
+}

@@ -8,9 +8,23 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^17.2.2",
     "express": "^4.21.1",
+    "fs": "^0.0.1-security",
     "multer": "^1.4.5-lts.1",
-    "openai": "^4.68.4",
-    "pdf-parse-fixed": "^1.1.1"
-  }
+    "openai": "^4.104.0",
+    "pdf-parse-fixed": "^1.1.1",
+    "pdfjs-dist": "^5.4.149"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ederalmeidasantos-byte/api-extrato.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ederalmeidasantos-byte/api-extrato/issues"
+  },
+  "homepage": "https://github.com/ederalmeidasantos-byte/api-extrato#readme"
 }
