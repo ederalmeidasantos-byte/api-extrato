@@ -8,6 +8,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+const LUNAS_API_URL =
+  process.env.LUNAS_API_URL ||
+  "https://lunasdigital.atenderbem.com/int/downloadFile";
+const LUNAS_API_KEY = process.env.LUNAS_API_KEY;
+const LUNAS_QUEUE_ID = process.env.LUNAS_QUEUE_ID;
+
 // ================== Helpers ==================
 function agendarExclusao24h(...paths) {
   const DAY = 24 * 60 * 60 * 1000;
@@ -102,24 +108,7 @@ Esquema esperado:
     "codigoBeneficio": null
   },
   "margens": {},
-  "contratos": [
-    {
-      "contrato": "...",
-      "banco": "...",
-      "situacao": "ATIVO",
-      "data_inclusao": "MM/AAAA",
-      "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 84,
-      "valor_parcela": 424.10,
-      "valor_liberado": 15529.56,
-      "iof": 0,
-      "cet_mensal": 0.023,
-      "cet_anual": 0.31,
-      "taxa_juros_mensal": 0.0238,
-      "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00
-    }
-  ],
+  "contratos": [],
   "data_extrato": "DD/MM/AAAA"
 }
 `;
@@ -153,7 +142,7 @@ async function gptExtrairJSON(pdfPath) {
 }
 
 // ================== Pós-processamento ==================
-function posProcessar(parsed, texto) {
+function posProcessar(parsed) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
@@ -213,11 +202,56 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   await fsp.mkdir(jsonDir, { recursive: true });
 
   const parsed = await gptExtrairJSON(pdfPath);
-  const json = posProcessar(parsed, ""); // não precisamos mais do texto, GPT já leu do PDF
+  const json = posProcessar(parsed);
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
 
   console.log("✅ JSON salvo em", jsonPath);
   agendarExclusao24h(pdfPath, jsonPath);
 
   return { fileId, ...json };
+}
+
+// ================== Fluxo Lunas ==================
+export async function extrairDeLunas({ fileId, pdfDir, jsonDir }) {
+  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+
+  if (fs.existsSync(jsonPath)) {
+    console.log("♻️ Usando JSON cacheado em", jsonPath);
+    const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
+    return { fileId, ...cached };
+  }
+
+  console.log("🚀 Iniciando extração do fileId:", fileId);
+
+  if (!LUNAS_API_KEY) throw new Error("LUNAS_API_KEY não configurada");
+  if (!LUNAS_QUEUE_ID) throw new Error("LUNAS_QUEUE_ID não configurada");
+
+  const pdfPath = path.join(pdfDir, `extrato_${fileId}.pdf`);
+  await fsp.mkdir(jsonDir, { recursive: true });
+
+  const body = {
+    queueId: Number(LUNAS_QUEUE_ID),
+    apiKey: LUNAS_API_KEY,
+    fileId: Number(fileId),
+    download: true
+  };
+
+  console.log("📥 Requisitando PDF na Lunas:", body);
+
+  const resp = await fetch(LUNAS_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+  }
+
+  const arrayBuffer = await resp.arrayBuffer();
+  await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
+  console.log("✅ PDF salvo em", pdfPath);
+
+  return extrairDeUpload({ fileId, pdfPath, jsonDir });
 }
