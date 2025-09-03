@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { extrairDeLunas, extrairDeUpload } from "./extrair_pdf.js";
+import { extrairDeUpload } from "./extrair_pdf.js";
 import { extrairDeLunasPaginas, extrairDeUploadPaginas } from "./extrair_pdf_paginas.js"; // ✅ novo
 import { calcularTrocoEndpoint } from "./calculo.js";
 
