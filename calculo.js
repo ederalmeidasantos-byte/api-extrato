@@ -101,6 +101,8 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   const original = toNumber(maior.valor_parcela);
   const nova = Math.max(0, original - extrapoladaAbs);
 
+  console.log(`⚖️ Ajustando margem extrapolada. Parcela maior (${maior.contrato}) de ${original} -> ${nova}`);
+
   const ajustados = contratos.map(c => {
     if (c.contrato === maior.contrato) {
       return {
@@ -138,10 +140,9 @@ function calcularParaContrato(c, diaAverbacao) {
     ? +c.prazo_restante
     : totalParcelas;
 
-  // saldo devedor: calcula com PARCELA ORIGINAL, TAXA ATUAL e PRAZO RESTANTE
-  const parcelaUsada = toNumber(c.__parcela_original__ || c.valor_parcela);
+  // saldo devedor com parcela AJUSTADA
   const taxaAtualMes = toNumber(c.taxa_juros_mensal);
-  const saldoDevedor = pvFromParcela(parcelaUsada, taxaAtualMes, prazoRestante);
+  const saldoDevedor = pvFromParcela(parcelaNum, taxaAtualMes, prazoRestante);
 
   // ===== Simulação novo contrato (96x) =====
   const ordemTaxas = [1.85, 1.79, 1.66];
@@ -153,6 +154,8 @@ function calcularParaContrato(c, diaAverbacao) {
 
     const valorEmprestimo = parcelaNum / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
+
+    console.log(`📊 Simulando contrato ${c.contrato} com taxa ${tx}%: Troco = ${troco}`);
 
     if (Number.isFinite(troco) && troco >= 100) {
       escolhido = {
@@ -218,7 +221,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const diaAverbacao = diaFromExtrato(extrato);
 
-      const extrap = toNumber(extrato?.margens?.extrapolada);
+      const extrap = toNumber(extrato?.margens?.margem_extrapolada);
       let infoAjuste = null;
 
       if (extrap > 0) {
@@ -231,10 +234,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       if (infoAjuste) {
         const maiorAjustado = contratosAtivos.find(c => c.contrato === infoAjuste.contrato);
         const prim = calcularParaContrato(maiorAjustado, diaAverbacao);
-        if (!prim) {
-          return res.json({ mensagem: "Cliente não tem contrato elegível" });
-        }
-        calculados.push(prim);
+        if (prim) calculados.push(prim);
 
         for (const c of contratosAtivos) {
           if (c.contrato === infoAjuste.contrato) continue;
