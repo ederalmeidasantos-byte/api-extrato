@@ -125,10 +125,10 @@ async function gptExtrairJSON(pdfPath) {
     model: "gpt-4o-mini",
     input: [
       {
-        role: "user",
-        content: [
-          { type: "file", file_id: file.id },
-          { type: "text", text: buildPrompt() }
+        "role": "user",
+        "content": [
+          { "type": "input_text", "text": "Leia o PDF e extraia os contratos." },
+          { "type": "input_file", "file_id": fileId }
         ]
       }
     ]
