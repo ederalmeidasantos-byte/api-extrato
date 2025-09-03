@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 // ================== Helpers ==================
@@ -50,14 +50,14 @@ function toNumber(v) {
 function formatBRNumber(n) {
   return Number(n).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
 }
 
-function formatBRTaxa(nAsDecimal) {
-  return Number(nAsDecimal * 100).toLocaleString("pt-BR", {
+function formatPercentBRFromDecimal(dec) {
+  return Number(dec * 100).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
 }
 
@@ -76,23 +76,59 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ================== Cálculo de Taxa ==================
-function calcularTaxaJuros(valorParcela, valorLiberado, prazo) {
-  if (!valorParcela || !valorLiberado || !prazo) return 0;
-  const maxIter = 100;
-  const tol = 1e-8;
-  let i = 0.02; // chute inicial 2% a.m.
+// ================== Taxa helpers ==================
+function calcTaxaMensalPorBissecao(valorLiberado, valorParcela, prazo) {
+  const PV = toNumber(valorLiberado);
+  const PMT = toNumber(valorParcela);
+  const n = parseInt(prazo || 0, 10);
 
-  for (let k = 0; k < maxIter; k++) {
-    const vi = valorLiberado;
-    const vf = valorParcela * ((1 - Math.pow(1 + i, -prazo)) / i);
-    const f = vf - vi;
-    const fPrime = (valorParcela * (prazo * Math.pow(1 + i, -(prazo + 1)))) / (i * i);
-    const novoI = i - f / (fPrime || 1e-9);
-    if (Math.abs(novoI - i) < tol) return novoI;
-    i = novoI;
+  if (!(PV > 0 && PMT > 0 && n > 0)) {
+    return { ok: false, r: 0, motivo: "entrada_invalida" };
   }
-  return i;
+  if (PMT <= PV / n + 1e-9) {
+    return { ok: false, r: 0, motivo: "pagamento_insuficiente" };
+  }
+
+  const f = (r) => {
+    if (r === 0) return PV - PMT * n;
+    return PV - PMT * (1 - Math.pow(1 + r, -n)) / r;
+  };
+
+  let lo = 0.0;
+  let hi = 0.5;
+  let flo = f(lo);
+  let fhi = f(hi);
+
+  let exp = 0;
+  while (flo * fhi > 0 && hi < 5 && exp < 20) {
+    hi *= 2;
+    fhi = f(hi);
+    exp++;
+  }
+  if (flo * fhi > 0) {
+    return { ok: false, r: 0, motivo: "nao_branqueado" };
+  }
+
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    const fm = f(mid);
+    if (Math.abs(fm) < 1e-12) {
+      return { ok: true, r: mid };
+    }
+    if (flo * fm <= 0) {
+      hi = mid;
+      fhi = fm;
+    } else {
+      lo = mid;
+      flo = fm;
+    }
+  }
+  return { ok: true, r: (lo + hi) / 2 };
+}
+
+function taxaAnualDeMensal(rMensal) {
+  if (!isFinite(rMensal) || rMensal <= 0) return 0;
+  return Math.pow(1 + rMensal, 12) - 1;
 }
 
 // ================== Prompt ==================
@@ -100,19 +136,15 @@ function buildPrompt() {
   return `
 Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
 
-⚠️ Regras importantes:
-- Leia apenas as seções do PDF chamadas **"EMPRÉSTIMOS BANCÁRIOS"**.
-- Em cada tabela, considere **todos os contratos ATIVOS**.
-- Ignore linhas ou contratos com status **"EXCLUÍDO"**, **"SUSPENSO"** ou similares.
-- Podem existir várias tabelas em diferentes páginas: **considere todas**, mas sempre apenas as da seção "EMPRÉSTIMOS BANCÁRIOS".
-- Cada parte do extrato costuma aparecer em páginas específicas:
-  - **Página 1**: Identificação do cliente e dados do benefício.
-  - **Página 2**: Informações de margens (margem consignável, disponível, extrapolada, RMC e RCC).
-  - **A partir da página 3**: Tabelas de contratos (empréstimos bancários).
+⚠️ Regras:
 - Retorne SOMENTE JSON.
+- Inclua todos os contratos ativos (exceto RMC/RCC).
 - Valores dentro de contratos devem vir crus (sem formatação BR).
 - O nome do benefício deve vir exatamente como está no PDF.
 - Se não houver valores, use null ou 0.
+- Os contratos estão sempre na seção "EMPRÉSTIMOS BANCÁRIOS".
+- Ignore contratos com status "EXCLUÍDO" ou "SUSPENSO".
+- Considere todas as tabelas de "EMPRÉSTIMOS BANCÁRIOS".
 
 Esquema esperado:
 {
@@ -148,8 +180,7 @@ Esquema esperado:
       "cet_anual": 0.31,
       "taxa_juros_mensal": 0.0238,
       "taxa_juros_anual": 0.32,
-      "valor_pago": 5000.00,
-      "status_taxa": null
+      "valor_pago": 5000.00
     }
   ],
   "data_extrato": "DD/MM/AAAA"
@@ -159,30 +190,49 @@ Esquema esperado:
 
 // ================== GPT Call ==================
 async function gptExtrairJSON(pdfPath) {
-  console.log("📂 Fazendo upload para GPT:", pdfPath);
+  console.log("🧠 [GPT] Iniciando leitura do PDF…");
+  console.log("📤 [GPT] Upload do PDF para OpenAI:", pdfPath);
 
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
-    purpose: "assistants",
+    purpose: "assistants"
   });
 
-  console.log("✅ Upload concluído, file_id:", uploaded.id);
+  console.log("📄 [GPT] Upload concluído. File ID:", uploaded.id);
+  console.log("🤖 [GPT] Solicitando extração...");
 
-  const response = await openai.responses.create({
-    model: "gpt-4.1-mini",
-    input: [
-      {
-        role: "user",
-        content: [
-          { type: "input_text", text: buildPrompt() },
-          { type: "input_file", file_id: uploaded.id },
-        ],
-      },
-    ],
-  });
+  let response;
+  try {
+    response = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: buildPrompt() },
+            { type: "input_file", file_id: uploaded.id }
+          ]
+        }
+      ]
+    });
+  } catch (err) {
+    console.warn("⚠️ Falha no gpt-4.1-mini, tentando fallback gpt-4o-mini");
+    response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: buildPrompt() },
+            { type: "input_file", file_id: uploaded.id }
+          ]
+        }
+      ]
+    });
+  }
 
+  console.log("✅ [GPT] Resposta recebida.");
   const raw = response.output_text;
-  console.log("📥 Resposta bruta recebida do GPT");
   return JSON.parse(raw);
 }
 
@@ -202,7 +252,7 @@ function posProcessar(parsed) {
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
-    .filter((c) => (String(c.situacao || "").toUpperCase() === "ATIVO"))
+    .filter(c => (String(c.situacao || "").toUpperCase() === "ATIVO"))
     .map((c) => {
       const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
@@ -215,34 +265,54 @@ function posProcessar(parsed) {
         prazoRestante = prazoTotal - parcelasPagas;
       }
 
-      // Recalcular taxa se necessário
-      if (!toNumber(c.taxa_juros_mensal)) {
-        try {
-          const i = calcularTaxaJuros(toNumber(c.valor_parcela), toNumber(c.valor_liberado), prazoTotal);
-          c.taxa_juros_mensal = formatBRTaxa(i);
-          c.taxa_juros_anual = formatBRTaxa(Math.pow(1 + i, 12) - 1);
-          c.status_taxa = "RECALCULADA";
-          console.log(`🔄 Taxa recalculada para contrato ${c.contrato}: ${c.taxa_juros_mensal}% ao mês`);
-        } catch (err) {
-          console.warn(`⚠️ Falha ao recalcular taxa do contrato ${c.contrato}:`, err.message);
+      const parcelaNum = toNumber(c.valor_parcela);
+      const liberadoNum = toNumber(c.valor_liberado);
+
+      let taxaMensalNum = toNumber(c.taxa_juros_mensal);
+      let statusTaxa = c.status_taxa || "INFORMADA";
+
+      if (!isFinite(taxaMensalNum) || taxaMensalNum <= 0 || taxaMensalNum >= 1) {
+        const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
+        if (out.ok) {
+          taxaMensalNum = out.r;
+          statusTaxa = "RECALCULADA";
+        } else {
+          taxaMensalNum = 0;
+          statusTaxa = "FALHA_CALCULO_TAXA";
+          console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
         }
-      } else {
-        c.taxa_juros_mensal = formatBRTaxa(toNumber(c.taxa_juros_mensal));
-        c.taxa_juros_anual = formatBRTaxa(toNumber(c.taxa_juros_anual));
       }
+
+      let cetMensalNum = toNumber(c.cet_mensal);
+      let cetAnualNum  = toNumber(c.cet_anual);
+      if (!(cetMensalNum >= 0 && cetMensalNum < 1)) cetMensalNum = 0;
+      if (!(cetAnualNum  >= 0 && cetAnualNum  < 5)) cetAnualNum  = 0;
+
+      const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
 
       return {
         ...c,
-        valor_parcela: formatBRNumber(toNumber(c.valor_parcela)),
-        valor_liberado: formatBRNumber(toNumber(c.valor_liberado)),
+        valor_parcela: formatBRNumber(parcelaNum),
+        valor_liberado: formatBRNumber(liberadoNum),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        cet_mensal: formatBRTaxa(toNumber(c.cet_mensal)),
-        cet_anual: formatBRTaxa(toNumber(c.cet_anual)),
+        iof: formatBRNumber(toNumber(c.iof)),
+        cet_mensal: formatPercentBRFromDecimal(cetMensalNum),
+        cet_anual:  formatPercentBRFromDecimal(cetAnualNum),
+        taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
+        taxa_juros_anual:  formatPercentBRFromDecimal(taxaAnualNum),
+        status_taxa: statusTaxa,
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante,
+        prazo_restante: prazoRestante
       };
     });
+
+  parsed.margens = {
+    margem_extrapolada: formatBRNumber(toNumber(parsed.margens?.margem_extrapolada)),
+    margem_disponivel_empretimo: formatBRNumber(toNumber(parsed.margens?.margem_disponivel_empretimo)),
+    margem_disponivel_rmc: formatBRNumber(toNumber(parsed.margens?.margem_disponivel_rmc)),
+    margem_disponivel_rcc: formatBRNumber(toNumber(parsed.margens?.margem_disponivel_rcc))
+  };
 
   return parsed;
 }
