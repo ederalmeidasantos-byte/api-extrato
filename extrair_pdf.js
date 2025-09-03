@@ -154,8 +154,8 @@ async function gptExtrairJSONdoPDF(pdfPath) {
       {
         role: "user",
         content: [
-          { type: "text", text: buildPrompt() },
-          { type: "file", file_id: file.id }
+          { type: "input_text", text: "Leia este PDF e extraia dados" },
+          { type: "input_file", file: { file_id: "file-abc123" } }
         ]
       }
     ]
