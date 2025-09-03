@@ -85,6 +85,34 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
   return parcela * fator;
 }
 
+// ===================== Estimar taxa de juros (fallback) =====================
+function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
+  const pv = toNumber(valorLiberado);
+  const n = toNumber(prazoTotal);
+  const pmt = toNumber(valorParcela);
+  if (!(pv > 0) || !(n > 0) || !(pmt > 0)) return 0;
+
+  // Newton-Raphson simplificado
+  let i = 0.02; // 2% a.m. chute inicial
+  for (let k = 0; k < 50; k++) {
+    const denom = i === 0 ? 1e-9 : i;
+    const f = pmt * (1 - Math.pow(1 + denom, -n)) / denom - pv;
+    if (Math.abs(f) < 1e-7) break;
+
+    // derivada numérica estável
+    const h = 1e-5;
+    const ip = denom + h;
+    const fp = pmt * (1 - Math.pow(1 + ip, -n)) / ip - pv;
+    const fPrime = (fp - f) / h;
+
+    if (!Number.isFinite(fPrime) || Math.abs(fPrime) < 1e-12) break;
+
+    i = i - f / fPrime;
+    if (!Number.isFinite(i) || i <= 0 || i > 1) i = 0.01;
+  }
+  return i * 100; // em % a.m.
+}
+
 // ===================== Ajuste de Margem (extrapolada) =====================
 function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   if (!(extrapoladaAbs > 0) || !Array.isArray(contratos) || contratos.length === 0) {
@@ -100,8 +128,6 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 
   const original = toNumber(maior.valor_parcela);
   const nova = Math.max(0, original - extrapoladaAbs);
-
-  console.log(`⚖️ Ajustando margem extrapolada. Parcela maior (${maior.contrato}) de ${original} -> ${nova}`);
 
   const ajustados = contratos.map(c => {
     if (c.contrato === maior.contrato) {
@@ -140,8 +166,24 @@ function calcularParaContrato(c, diaAverbacao) {
     ? +c.prazo_restante
     : totalParcelas;
 
-  // saldo devedor com parcela AJUSTADA
-  const taxaAtualMes = toNumber(c.taxa_juros_mensal);
+  // taxa vinda do GPT
+  let taxaAtualMes = toNumber(c.taxa_juros_mensal);
+  let statusTaxa = c.status_taxa || null;
+
+  // Se taxa inválida, tenta estimar com valor_pago/valor_liberado/parcela
+  if (!(taxaAtualMes > 0)) {
+    const estimada = estimarTaxaPorValorPago(c.valor_liberado, totalParcelas, parcelaNum);
+    if (estimada > 0) {
+      taxaAtualMes = estimada;
+      statusTaxa = "RECALCULADA_VALOR_PAGO";
+    } else {
+      statusTaxa = "FALHA_CALCULO_TAXA";
+      console.warn(`[IGNORADO] contrato ${c.contrato}: FALHA_CALCULO_TAXA`);
+      return null; // ignora
+    }
+  }
+
+  // saldo devedor com taxa atual válida
   const saldoDevedor = pvFromParcela(parcelaNum, taxaAtualMes, prazoRestante);
 
   // ===== Simulação novo contrato (96x) =====
@@ -154,8 +196,6 @@ function calcularParaContrato(c, diaAverbacao) {
 
     const valorEmprestimo = parcelaNum / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
-
-    console.log(`📊 Simulando contrato ${c.contrato} com taxa ${tx}%: Troco = ${troco}`);
 
     if (Number.isFinite(troco) && troco >= 100) {
       escolhido = {
@@ -180,15 +220,13 @@ function calcularParaContrato(c, diaAverbacao) {
     parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     prazo_restante: prazoRestante,
 
-    // taxas já extraídas
     taxa_atual: formatBRTaxaPercent(taxaAtualMes),
     taxa_atual_anual: formatBRTaxaPercent(
       (Math.pow(1 + taxaAtualMes / 100, 12) - 1) * 100
     ),
+    status_taxa: statusTaxa,
 
-    // taxa da simulação
     taxa_calculada: formatBRTaxaPercent(escolhido.taxaSelecionada),
-
     coeficiente_usado: escolhido.coeficiente_usado,
     saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
     valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
@@ -221,7 +259,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const diaAverbacao = diaFromExtrato(extrato);
 
-      const extrap = toNumber(extrato?.margens?.margem_extrapolada);
+      const extrap = toNumber(extrato?.margens?.extrapolada);
       let infoAjuste = null;
 
       if (extrap > 0) {
@@ -242,7 +280,9 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
           if (r) calculados.push(r);
         }
       } else {
-        calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao)).filter(Boolean);
+        calculados = contratosAtivos
+          .map(c => calcularParaContrato(c, diaAverbacao))
+          .filter(c => c && toNumber(c.troco) >= 100); // corte troco >= 100
       }
 
       calculados.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
