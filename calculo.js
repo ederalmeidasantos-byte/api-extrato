@@ -21,7 +21,7 @@ function toNumber(v) {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
 
   let s = v.toString().replace(/[R$\s%]/g, "").trim();
-  if (s === "") return 0;
+  if (s === "" || s === "∞" || s.toLowerCase() === "nan") return 0;
 
   const hasDot = s.includes(".");
   const hasComma = s.includes(",");
@@ -166,11 +166,11 @@ function calcularParaContrato(c, diaAverbacao) {
     ? +c.prazo_restante
     : totalParcelas;
 
-  // taxa vinda do GPT
+  // taxa vinda do GPT (ou recálculo)
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
 
-  // Se taxa inválida, tenta estimar com valor_pago/valor_liberado/parcela
+  // Se taxa inválida, tenta estimar com valor_liberado/prazo_total/valor_parcela
   if (!(taxaAtualMes > 0)) {
     const estimada = estimarTaxaPorValorPago(c.valor_liberado, totalParcelas, parcelaNum);
     if (estimada > 0) {
@@ -179,12 +179,13 @@ function calcularParaContrato(c, diaAverbacao) {
     } else {
       statusTaxa = "FALHA_CALCULO_TAXA";
       console.warn(`[IGNORADO] contrato ${c.contrato}: FALHA_CALCULO_TAXA`);
-      return null; // ignora
+      return null; // ignora contrato sem taxa válida
     }
   }
 
-  // saldo devedor com taxa atual válida
-  const saldoDevedor = pvFromParcela(parcelaNum, taxaAtualMes, prazoRestante);
+  // saldo devedor com PARCELA ORIGINAL (se houve ajuste de extrapolada)
+  const parcelaUsadaParaSaldo = toNumber(c.__parcela_original__ || c.valor_parcela);
+  const saldoDevedor = pvFromParcela(parcelaUsadaParaSaldo, taxaAtualMes, prazoRestante);
 
   // ===== Simulação novo contrato (96x) =====
   const ordemTaxas = [1.85, 1.79, 1.66];
@@ -194,6 +195,7 @@ function calcularParaContrato(c, diaAverbacao) {
     const coefNovo = getCoeficiente(tx, diaAverbacao);
     if (!coefNovo) continue;
 
+    // valor da nova operação usa a parcela ATUAL (que já pode estar ajustada pela extrapolada)
     const valorEmprestimo = parcelaNum / coefNovo;
     const troco = valorEmprestimo - saldoDevedor;
 
@@ -259,6 +261,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const diaAverbacao = diaFromExtrato(extrato);
 
+      // 🔻 Ajuste por margem extrapolada (reduz maior parcela)
       const extrap = toNumber(extrato?.margens?.extrapolada);
       let infoAjuste = null;
 
@@ -266,8 +269,10 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
         const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosAtivos, extrap);
         contratosAtivos = contratosAjustados;
         infoAjuste = info;
+        console.log("⚙️ Margem extrapolada aplicada:", info);
       }
 
+      // 🔎 Simulação
       let calculados = [];
       if (infoAjuste) {
         const maiorAjustado = contratosAtivos.find(c => c.contrato === infoAjuste.contrato);
@@ -282,7 +287,21 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
       } else {
         calculados = contratosAtivos
           .map(c => calcularParaContrato(c, diaAverbacao))
-          .filter(c => c && toNumber(c.troco) >= 100); // corte troco >= 100
+          .filter(Boolean);
+      }
+
+      // ✂️ Mantém apenas troco >= 100
+      calculados = calculados.filter(c => toNumber(c.troco) >= 100);
+
+      // 🚨 Regra especial para NB começando com 87 ou 88: saldo > 4000
+      const nb = String(extrato?.beneficio?.nb || "");
+      if (nb.startsWith("87") || nb.startsWith("88")) {
+        const antes = calculados.length;
+        calculados = calculados.filter(c => toNumber(c.saldo_devedor) > 4000);
+        const depois = calculados.length;
+        console.log(
+          `⚖️ Regra NB=${nb}: antes=${antes}, ignorados=${antes - depois}, mantidos=${depois} (saldo>4000)`
+        );
       }
 
       calculados.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
