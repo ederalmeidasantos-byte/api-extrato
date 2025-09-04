@@ -9,22 +9,6 @@ const openai = new OpenAI({
 });
 
 // ================== Helpers ==================
-function agendarExclusao24h(...paths) {
-  const DAY = 24 * 60 * 60 * 1000;
-  setTimeout(() => {
-    for (const p of paths) {
-      try {
-        if (p && fs.existsSync(p)) {
-          fs.unlinkSync(p);
-          console.log("🗑️ Removido após 24h:", p);
-        }
-      } catch (e) {
-        console.warn("Falha ao excluir", p, e.message);
-      }
-    }
-  }, DAY);
-}
-
 function normalizarNB(nb) {
   if (!nb) return "";
   return String(nb).replace(/\D/g, "");
@@ -322,9 +306,17 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath)) {
-    console.log("♻️ Usando JSON cacheado em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
-    return { fileId, ...cached };
+    const createdAt = new Date(cached.__cachedAt || 0);
+    const ageMs = Date.now() - createdAt.getTime();
+    const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+
+    if (ageMs < FOURTEEN_DAYS) {
+      console.log("♻️ Usando JSON cacheado em", jsonPath);
+      return { fileId, ...cached };
+    } else {
+      console.log("⌛ Cache expirado, recalculando:", jsonPath);
+    }
   }
 
   console.log("🚀 Iniciando extração de upload:", fileId);
@@ -333,9 +325,9 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const parsed = await gptExtrairJSON(pdfPath);
   const json = posProcessar(parsed);
 
-  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
-  console.log("✅ JSON salvo em", jsonPath);
-  agendarExclusao24h(pdfPath, jsonPath);
+  const toSave = { __cachedAt: new Date().toISOString(), ...json };
+  await fsp.writeFile(jsonPath, JSON.stringify(toSave, null, 2), "utf-8");
 
-  return { fileId, ...json };
+  console.log("✅ JSON salvo em", jsonPath);
+  return { fileId, ...toSave };
 }
