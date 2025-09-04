@@ -8,13 +8,14 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "dotenv": "^17.2.2",
+    "dotenv": "^16.4.5",
     "express": "^4.21.1",
-    "fs": "^0.0.1-security",
     "multer": "^1.4.5-lts.1",
     "openai": "^4.104.0",
+    "p-queue": "^8.1.0",
     "pdf-parse-fixed": "^1.1.1",
-    "pdfjs-dist": "^5.4.149"
+    "pdfjs-dist": "^5.4.149",
+    "node-fetch": "^3.3.2"
   },
   "repository": {
     "type": "git",
