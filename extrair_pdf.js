@@ -146,6 +146,23 @@ function taxaAnualDeMensal(rMensal) {
   return Math.pow(1 + rMensal, 12) - 1;
 }
 
+// 👉 NOVO: normalizar taxa
+function normalizarTaxa(taxa) {
+  let n = toNumber(taxa);
+  if (n === 0) return 0;
+
+  // Se veio como "164" mas deveria ser "1.64"
+  if (n > 20) {
+    n = n / 100;
+  }
+
+  // Se ainda for absurdo (> 6%), descarta
+  if (n <= 0 || n > 6) {
+    return null;
+  }
+  return n;
+}
+
 // ================== Prompt ==================
 function buildPrompt() {
   return `
@@ -292,11 +309,10 @@ function posProcessar(parsed) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
-      let taxaMensalNum = toNumber(c.taxa_juros_mensal);
+      let taxaMensalNum = normalizarTaxa(c.taxa_juros_mensal);
       let statusTaxa = c.status_taxa || "INFORMADA";
 
-      // 🚨 AJUSTE: evita taxas absurdas como 85% (deveria ser 0,85%)
-      if (!isFinite(taxaMensalNum) || taxaMensalNum <= 0 || taxaMensalNum >= 10) {
+      if (taxaMensalNum === null) {
         const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
         if (out.ok) {
           taxaMensalNum = out.r;
