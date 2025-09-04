@@ -4,11 +4,42 @@ import path from "path";
 import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+if (!process.env.OPENAI_API_KEY) {
+  console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
+  throw new Error("OPENAI_API_KEY ausente");
+}
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ================== Helpers ==================
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TTL_DIAS_PADRAO = 14;
+
+function agendarExclusaoDias(dias, ...paths) {
+  const wait = dias * DAY_MS;
+  setTimeout(() => {
+    for (const p of paths) {
+      try {
+        if (p && fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          console.log("🗑️ Removido após", dias, "dias:", p);
+        }
+      } catch (e) {
+        console.warn("Falha ao excluir", p, e.message);
+      }
+    }
+  }, wait);
+}
+
+function cacheValido(p, ttlMs) {
+  try {
+    const st = fs.statSync(p);
+    return Date.now() - st.mtimeMs <= (ttlMs ?? TTL_DIAS_PADRAO * DAY_MS);
+  } catch {
+    return false;
+  }
+}
+
 function normalizarNB(nb) {
   if (!nb) return "";
   return String(nb).replace(/\D/g, "");
@@ -217,7 +248,16 @@ async function gptExtrairJSON(pdfPath) {
 
   console.log("✅ [GPT] Resposta recebida.");
   const raw = response.output_text;
-  return JSON.parse(raw);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.error("❌ Erro ao parsear resposta do GPT:", err.message);
+    throw new Error("Resposta inválida do GPT");
+  }
+
+  return parsed;
 }
 
 // ================== Pós-processamento ==================
@@ -236,7 +276,7 @@ function posProcessar(parsed) {
   const competenciaAtual = getCompetenciaAtual(parsed.data_extrato);
 
   parsed.contratos = parsed.contratos
-    .filter(c => (String(c.situacao || "").toUpperCase() === "ATIVO"))
+    .filter((c) => (String(c.situacao || "").toUpperCase() === "ATIVO"))
     .map((c) => {
       const prazoTotal = parseInt(c.qtde_parcelas || 0, 10);
       let parcelasPagas = 0;
@@ -261,16 +301,16 @@ function posProcessar(parsed) {
           taxaMensalNum = out.r;
           statusTaxa = "RECALCULADA";
         } else {
-          taxaMensalNum = 0;
           statusTaxa = "FALHA_CALCULO_TAXA";
           console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
+          return null; // ignora contratos inválidos
         }
       }
 
       let cetMensalNum = toNumber(c.cet_mensal);
-      let cetAnualNum  = toNumber(c.cet_anual);
+      let cetAnualNum = toNumber(c.cet_anual);
       if (!(cetMensalNum >= 0 && cetMensalNum < 1)) cetMensalNum = 0;
-      if (!(cetAnualNum  >= 0 && cetAnualNum  < 5)) cetAnualNum  = 0;
+      if (!(cetAnualNum >= 0 && cetAnualNum < 5)) cetAnualNum = 0;
 
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
 
@@ -281,15 +321,16 @@ function posProcessar(parsed) {
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
         iof: formatBRNumber(toNumber(c.iof)),
         cet_mensal: formatPercentBRFromDecimal(cetMensalNum),
-        cet_anual:  formatPercentBRFromDecimal(cetAnualNum),
+        cet_anual: formatPercentBRFromDecimal(cetAnualNum),
         taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
-        taxa_juros_anual:  formatPercentBRFromDecimal(taxaAnualNum),
+        taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
         status_taxa: statusTaxa,
         prazo_total: prazoTotal,
         parcelas_pagas: parcelasPagas,
         prazo_restante: prazoRestante
       };
-    });
+    })
+    .filter(Boolean);
 
   parsed.margens = {
     margem_extrapolada: formatBRNumber(toNumber(parsed.margens?.margem_extrapolada)),
@@ -302,21 +343,14 @@ function posProcessar(parsed) {
 }
 
 // ================== Upload Flow ==================
-export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
+export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
-  if (fs.existsSync(jsonPath)) {
+  // cache válido até 14 dias
+  if (fs.existsSync(jsonPath) && cacheValido(jsonPath, ttlMs)) {
+    console.log("♻️ Usando JSON cacheado válido em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
-    const createdAt = new Date(cached.__cachedAt || 0);
-    const ageMs = Date.now() - createdAt.getTime();
-    const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
-
-    if (ageMs < FOURTEEN_DAYS) {
-      console.log("♻️ Usando JSON cacheado em", jsonPath);
-      return { fileId, ...cached };
-    } else {
-      console.log("⌛ Cache expirado, recalculando:", jsonPath);
-    }
+    return { fileId, ...cached };
   }
 
   console.log("🚀 Iniciando extração de upload:", fileId);
@@ -325,9 +359,11 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir }) {
   const parsed = await gptExtrairJSON(pdfPath);
   const json = posProcessar(parsed);
 
-  const toSave = { __cachedAt: new Date().toISOString(), ...json };
-  await fsp.writeFile(jsonPath, JSON.stringify(toSave, null, 2), "utf-8");
-
+  await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
-  return { fileId, ...toSave };
+
+  // remove PDF e JSON em 14 dias pra não acumular
+  agendarExclusaoDias(TTL_DIAS_PADRAO, pdfPath, jsonPath);
+
+  return { fileId, ...json };
 }
