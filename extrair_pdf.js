@@ -146,23 +146,6 @@ function taxaAnualDeMensal(rMensal) {
   return Math.pow(1 + rMensal, 12) - 1;
 }
 
-// 👉 NOVO: normalizar taxa
-function normalizarTaxa(taxa) {
-  let n = toNumber(taxa);
-  if (n === 0) return 0;
-
-  // Se veio como "164" mas deveria ser "1.64"
-  if (n > 20) {
-    n = n / 100;
-  }
-
-  // Se ainda for absurdo (> 6%), descarta
-  if (n <= 0 || n > 6) {
-    return null;
-  }
-  return n;
-}
-
 // ================== Prompt ==================
 function buildPrompt() {
   return `
@@ -177,6 +160,14 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - Os contratos estão sempre na seção "EMPRÉSTIMOS BANCÁRIOS".
 - Ignore contratos com status "EXCLUÍDO" ou "SUSPENSO".
 - Considere todas as tabelas de "EMPRÉSTIMOS BANCÁRIOS".
+
+⚠️ Muito importante sobre taxas:
+- **taxa_juros_mensal** deve vir em forma de fração decimal.  
+  Exemplo: 1,64% → 0.0164  
+- **taxa_juros_anual** também em fração decimal.  
+  Exemplo: 21,50% → 0.2150  
+- Não devolva em porcentagem, vírgula, nem número inteiro (ex.: 164 está errado).  
+- Use ponto como separador decimal.
 
 Esquema esperado:
 {
@@ -210,8 +201,8 @@ Esquema esperado:
       "iof": 0,
       "cet_mensal": 0.023,
       "cet_anual": 0.31,
-      "taxa_juros_mensal": 0.0238,
-      "taxa_juros_anual": 0.32,
+      "taxa_juros_mensal": 0.0185,
+      "taxa_juros_anual": 0.215,
       "valor_pago": 5000.00
     }
   ],
@@ -309,10 +300,11 @@ function posProcessar(parsed) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
-      let taxaMensalNum = normalizarTaxa(c.taxa_juros_mensal);
+      let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa = c.status_taxa || "INFORMADA";
 
-      if (taxaMensalNum === null) {
+      // Se não veio válido, recalcula
+      if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
         const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
         if (out.ok) {
           taxaMensalNum = out.r;
@@ -324,10 +316,9 @@ function posProcessar(parsed) {
         }
       }
 
-      // CET também passa por normalização
-      let cetMensalNum = normalizarTaxa(c.cet_mensal);
+      let cetMensalNum = toNumber(c.cet_mensal);
       let cetAnualNum = toNumber(c.cet_anual);
-      if (cetMensalNum === null) cetMensalNum = 0;
+      if (!(cetMensalNum >= 0 && cetMensalNum < 1)) cetMensalNum = 0;
       if (!(cetAnualNum >= 0 && cetAnualNum < 5)) cetAnualNum = 0;
 
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
