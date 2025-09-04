@@ -117,10 +117,10 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
     return { contratosAjustados: contratos, info: null };
   }
 
+  // Escolhe o contrato com maior parcela para reduzir
   const ordenados = [...contratos].sort(
     (a, b) => toNumber(b.valor_parcela) - toNumber(a.valor_parcela)
   );
-
   const maior = ordenados[0];
   if (!maior) return { contratosAjustados: contratos, info: null };
 
@@ -149,7 +149,7 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   };
 }
 
-// ===================== Cálculo do contrato =====================
+// ===================== Cálculo do contrato (ignora aqui se taxa não dá) =====================
 function calcularParaContrato(c, diaAverbacao) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
@@ -175,8 +175,8 @@ function calcularParaContrato(c, diaAverbacao) {
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
       statusTaxa = "FALHA_CALCULO_TAXA";
-      console.warn(`[IGNORADO] contrato ${c.contrato}: FALHA_CALCULO_TAXA`);
-      return null;
+      console.warn(`[IGNORADO NA SIMULAÇÃO] contrato ${c.contrato}: FALHA_CALCULO_TAXA`);
+      return null; // 👈 ignorar só aqui
     }
   }
 
@@ -256,9 +256,23 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const diaAverbacao = diaFromExtrato(extrato);
 
-      const extrap = toNumber(extrato?.margens?.extrapolada);
-      let infoAjuste = null;
+      // 🔧 Pega margem extrapolada tolerando variações de chave
+      const extrap = (() => {
+        const m = extrato?.margens || {};
+        const candidates = [
+          m.margem_extrapolada,
+          m.extrapolada,
+          extrato?.margem_extrapolada,
+          extrato?.resumo?.margem_extrapolada
+        ];
+        for (const v of candidates) {
+          const n = toNumber(v);
+          if (n > 0) return n;
+        }
+        return 0;
+      })();
 
+      let infoAjuste = null;
       if (extrap > 0) {
         const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosAtivos, extrap);
         contratosAtivos = contratosAjustados;
@@ -311,7 +325,8 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
           saldos_devedores: saldos.join(", "),
           total_troco: formatBRNumber(totalTroco),
           total_contratos_simulados: calculados.length
-        }
+        },
+        ajuste_margem: infoAjuste || null
       });
     } catch (err) {
       console.error("Erro /calcular", err);
