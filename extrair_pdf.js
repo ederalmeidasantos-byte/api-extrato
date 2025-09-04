@@ -295,9 +295,8 @@ function posProcessar(parsed) {
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa = c.status_taxa || "INFORMADA";
 
-      // 👉 NÃO removemos contratos aqui. Se a taxa não puder ser recalculada,
-      // marcamos FALHA_CALCULO_TAXA e seguimos com o contrato no JSON.
-      if (!isFinite(taxaMensalNum) || taxaMensalNum <= 0 || taxaMensalNum >= 1) {
+      // 🚨 AJUSTE: evita taxas absurdas como 85% (deveria ser 0,85%)
+      if (!isFinite(taxaMensalNum) || taxaMensalNum <= 0 || taxaMensalNum >= 10) {
         const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
         if (out.ok) {
           taxaMensalNum = out.r;
