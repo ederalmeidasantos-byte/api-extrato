@@ -5,7 +5,8 @@ import fsp from "fs/promises";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
 import { calcularTrocoEndpoint } from "./calculo.js";
-import { extrairDeUpload } from "./extrair_pdf.js"; // 🚀 fluxo GPT direto
+import { extrairDeUpload } from "./extrair_pdf.js"; 
+import PQueue from "p-queue"; // 🚀 fila de requisições
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,12 +19,16 @@ if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+// ================= Fila =================
+// Máx 2 PDFs sendo processados ao mesmo tempo, até 5 na fila
+const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
+
 // ================= HEALTH =================
 app.get("/", (req, res) => res.send("API rodando ✅"));
 
 // ================= ROTAS =================
 
-// Fluxo via Lunas (baixa e processa com GPT)
+// Fluxo via Lunas
 app.post("/extrair", async (req, res) => {
   try {
     const fileId = req.body.fileId || req.query.fileId;
@@ -36,7 +41,6 @@ app.post("/extrair", async (req, res) => {
     }
 
     console.log("🚀 Baixando PDF da Lunas:", fileId);
-
     const body = {
       queueId: Number(process.env.LUNAS_QUEUE_ID),
       apiKey: process.env.LUNAS_API_KEY,
@@ -60,7 +64,11 @@ app.post("/extrair", async (req, res) => {
     await fsp.writeFile(pdfPath, Buffer.from(arrayBuffer));
     console.log("✅ PDF salvo em", pdfPath);
 
-    const json = await extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR });
+    // 🚦 Enfileira a tarefa para não sobrecarregar GPT
+    const json = await queue.add(() =>
+      extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR })
+    );
+
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair:", err);
@@ -77,7 +85,10 @@ app.get("/extrair/:fileId", async (req, res) => {
       return res.status(404).json({ error: "PDF não encontrado" });
     }
 
-    const json = await extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR });
+    const json = await queue.add(() =>
+      extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR })
+    );
+
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair/:fileId:", err);
