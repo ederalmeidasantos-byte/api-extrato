@@ -324,9 +324,10 @@ function posProcessar(parsed) {
         }
       }
 
-      let cetMensalNum = toNumber(c.cet_mensal);
+      // CET também passa por normalização
+      let cetMensalNum = normalizarTaxa(c.cet_mensal);
       let cetAnualNum = toNumber(c.cet_anual);
-      if (!(cetMensalNum >= 0 && cetMensalNum < 1)) cetMensalNum = 0;
+      if (cetMensalNum === null) cetMensalNum = 0;
       if (!(cetAnualNum >= 0 && cetAnualNum < 5)) cetAnualNum = 0;
 
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
