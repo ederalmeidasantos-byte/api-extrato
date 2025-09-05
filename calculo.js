@@ -149,7 +149,7 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   };
 }
 
-// ===================== Cálculo do contrato (ignora aqui se taxa não dá) =====================
+// ===================== Cálculo do contrato =====================
 function calcularParaContrato(c, diaAverbacao) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
@@ -176,14 +176,15 @@ function calcularParaContrato(c, diaAverbacao) {
     } else {
       statusTaxa = "FALHA_CALCULO_TAXA";
       console.warn(`[IGNORADO NA SIMULAÇÃO] contrato ${c.contrato}: FALHA_CALCULO_TAXA`);
-      return null; // 👈 ignorar só aqui
+      return null;
     }
   }
 
-  // saldo devedor com parcela original
+  // saldo devedor com parcela original (prazo restante real)
   const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
-  // ===== Simulação novo contrato (96x) =====
+  // ===== Simulação novo contrato (fixo 96x) =====
+  const prazoSimulado = 96;
   const ordemTaxas = [1.85, 1.79, 1.66];
   let escolhido = null;
 
@@ -216,6 +217,7 @@ function calcularParaContrato(c, diaAverbacao) {
     prazo_total: totalParcelas,
     parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     prazo_restante: prazoRestante,
+    prazo_simulado: prazoSimulado, // 👈 agora sempre 96
 
     taxa_atual: formatBRTaxaPercent(taxaAtualMes),
     taxa_atual_anual: formatBRTaxaPercent(
@@ -241,7 +243,7 @@ function extrairEmprestimos(json) {
   return [];
 }
 
-// ===================== Endpoint/Teste =====================
+// ===================== Endpoint =====================
 export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
   return (_req, res) => {
     try {
@@ -256,7 +258,6 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
 
       const diaAverbacao = diaFromExtrato(extrato);
 
-      // 🔧 Pega margem extrapolada tolerando variações de chave
       const extrap = (() => {
         const m = extrato?.margens || {};
         const candidates = [
