@@ -302,7 +302,7 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
         return res.json({ mensagem: "Cliente não tem contrato elegível" });
       }
 
-      const bancosResumo = ordenados.map(c => c.bancoNovo);
+      const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco);
       const parcelas = ordenados.map(c => c.parcela);
       const parcelasOrig = ordenados.map(c => c.parcela_original);
       const taxas = ordenados.map(c => c.taxa_calculada);
