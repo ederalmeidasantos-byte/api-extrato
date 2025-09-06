@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import RoteiroBancos from "./RoteiroBancos.js"; // importe seu roteiro
 
 // ===================== Configurações =====================
 const TROCO_MINIMO = 100;
@@ -153,6 +154,23 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   };
 }
 
+// ===================== Aplica Roteiro Bancos =====================
+function aplicarRoteiro(c, banco) {
+  const roteiro = RoteiroBancos[banco];
+  if (!roteiro) return false;
+
+  const saldo = toNumber(c.saldo_devedor);
+  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
+
+  if (saldo < roteiro.saldoDevedorMinimo) return false;
+
+  // regra geral de parcelas pagas
+  const regraParcelas = Number(roteiro.regraGeral.split(" ")[0] || 0);
+  if (parcelasPagas < regraParcelas) return false;
+
+  return true;
+}
+
 // ===================== Cálculo do contrato =====================
 function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
@@ -191,6 +209,8 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
+    if (!aplicarRoteiro(c, banco)) continue;
+
     const ordemTaxas = [1.85, 1.79, 1.66];
     for (const tx of ordemTaxas) {
       const coefNovo = getCoeficiente(tx, diaAverbacao);
@@ -249,7 +269,7 @@ function extrairEmprestimos(json) {
 }
 
 // ===================== Endpoint =====================
-export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
+export function calcularTrocoEndpoint(JSON_DIR) {
   return (_req, res) => {
     try {
       const fileId = _req?.params?.fileId ?? "local";
@@ -320,7 +340,8 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
           taxas_calculadas: taxas.join(", "),
           saldos_devedores: saldos.join(", "),
           total_troco: formatBRNumber(totalTroco),
-          total_contratos_simulados: ordenados.length
+          total_contratos_simulados: ordenados.length,
+          bancos_novos: [...new Set(bancosResumo)].join(", ") // adiciona bancos novos distintos
         },
         ajuste_margem: infoAjuste || null
       });
