@@ -1,6 +1,11 @@
 import fs from "fs";
 import path from "path";
 
+// ===================== Configurações =====================
+const TROCO_MINIMO = 100;
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "FINTECH", "DIGIO"];
+const PRAZO_SIMULADO = 96;
+
 // ===================== Carrega coeficientes (96x) =====================
 let coeficientes = {};
 try {
@@ -64,7 +69,7 @@ function diaFromExtrato(extrato) {
   return String(x.getDate()).padStart(2, "0");
 }
 
-// Coeficiente 96x
+// ===================== Coeficiente 96x =====================
 function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[Number(tx).toFixed(2)];
   if (!tabela) return null;
@@ -77,7 +82,7 @@ function getCoeficiente(tx, dia) {
   );
 }
 
-// PV de série uniforme
+// ===================== PV série uniforme =====================
 function pvFromParcela(parcela, taxaPercentMes, n) {
   const i = Number(taxaPercentMes) / 100;
   if (!(i > 0) || !(n > 0)) return 0;
@@ -85,7 +90,7 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
   return parcela * fator;
 }
 
-// ===================== Estimar taxa de juros (fallback) =====================
+// ===================== Estimar taxa de juros =====================
 function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   const pv = toNumber(valorLiberado);
   const n = toNumber(prazoTotal);
@@ -111,13 +116,12 @@ function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   return i * 100;
 }
 
-// ===================== Ajuste de Margem (extrapolada) =====================
+// ===================== Ajuste de Margem Extrapolada =====================
 function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   if (!(extrapoladaAbs > 0) || !Array.isArray(contratos) || contratos.length === 0) {
     return { contratosAjustados: contratos, info: null };
   }
 
-  // Escolhe o contrato com maior parcela para reduzir
   const ordenados = [...contratos].sort(
     (a, b) => toNumber(b.valor_parcela) - toNumber(a.valor_parcela)
   );
@@ -150,7 +154,7 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 }
 
 // ===================== Cálculo do contrato =====================
-function calcularParaContrato(c, diaAverbacao) {
+function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) return null;
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
@@ -180,57 +184,58 @@ function calcularParaContrato(c, diaAverbacao) {
     }
   }
 
-  // saldo devedor com parcela original (prazo restante real)
   const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
-  // ===== Simulação novo contrato (fixo 96x) =====
-  const prazoSimulado = 96;
-  const ordemTaxas = [1.85, 1.79, 1.66];
+  // ===== Loop de bancos e taxas =====
   let escolhido = null;
+  const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
-  for (const tx of ordemTaxas) {
-    const coefNovo = getCoeficiente(tx, diaAverbacao);
-    if (!coefNovo) continue;
+  for (const banco of bancosParaTestar) {
+    const ordemTaxas = [1.85, 1.79, 1.66];
+    for (const tx of ordemTaxas) {
+      const coefNovo = getCoeficiente(tx, diaAverbacao);
+      if (!coefNovo) continue;
 
-    const valorEmprestimo = parcelaAjustada / coefNovo;
-    const troco = valorEmprestimo - saldoDevedor;
+      const valorEmprestimo = parcelaAjustada / coefNovo;
+      const troco = valorEmprestimo - saldoDevedor;
 
-    if (Number.isFinite(troco) && troco >= 100) {
-      escolhido = {
-        taxaSelecionada: tx,
-        coeficiente_usado: coefNovo,
-        saldoDevedor,
-        valorEmprestimo,
-        troco
-      };
-      break;
+      if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
+        escolhido = {
+          bancoNovo: banco,
+          taxaSelecionada: tx,
+          coeficiente_usado: coefNovo,
+          saldoDevedor,
+          valorEmprestimo,
+          troco
+        };
+        break;
+      }
     }
+    if (escolhido) break;
   }
 
   if (!escolhido) return null;
 
   return {
     banco: c.banco,
+    bancoNovo: escolhido.bancoNovo,
     contrato: c.contrato,
     parcela_original: formatBRNumber(parcelaOriginal),
     parcela: formatBRNumber(parcelaAjustada),
     prazo_total: totalParcelas,
     parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     prazo_restante: prazoRestante,
-    prazo_simulado: prazoSimulado, // 👈 agora sempre 96
-
+    prazo_simulado: PRAZO_SIMULADO,
     taxa_atual: formatBRTaxaPercent(taxaAtualMes),
     taxa_atual_anual: formatBRTaxaPercent(
       (Math.pow(1 + taxaAtualMes / 100, 12) - 1) * 100
     ),
     status_taxa: statusTaxa,
-
     taxa_calculada: formatBRTaxaPercent(escolhido.taxaSelecionada),
     coeficiente_usado: escolhido.coeficiente_usado,
     saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
     valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
     troco: formatBRNumber(escolhido.troco),
-
     data_contrato: c.data_contrato || c.data_inclusao || null
   };
 }
@@ -280,52 +285,42 @@ export function calcularTrocoEndpoint(JSON_DIR, bancosMap = {}) {
         infoAjuste = info;
       }
 
-      let calculados = [];
-      if (infoAjuste) {
-        const maiorAjustado = contratosAtivos.find(c => c.contrato === infoAjuste.contrato);
-        const prim = calcularParaContrato(maiorAjustado, diaAverbacao);
-        if (prim) calculados.push(prim);
+      // Calcula contratos
+      const calculados = contratosAtivos
+        .map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, extrap > 0))
+        .filter(c => c);
 
-        for (const c of contratosAtivos) {
-          if (c.contrato === infoAjuste.contrato) continue;
-          const r = calcularParaContrato(c, diaAverbacao);
-          if (r) calculados.push(r);
-        }
-      } else {
-        calculados = contratosAtivos
-          .map(c => calcularParaContrato(c, diaAverbacao))
-          .filter(c => c && toNumber(c.troco) >= 100);
-      }
-
-      // 🚨 Regra especial NB 87 / 88
+      // Regra especial NB 87 / 88
       const nb = String(extrato?.beneficio?.nb || "");
-      if (nb.startsWith("87") || nb.startsWith("88")) {
-        calculados = calculados.filter(c => toNumber(c.saldo_devedor) > 4000);
-      }
+      const filtradosNB = (nb.startsWith("87") || nb.startsWith("88"))
+        ? calculados.filter(c => toNumber(c.saldo_devedor) > 4000)
+        : calculados;
 
-      calculados.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
+      const ordenados = filtradosNB.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      if (calculados.length === 0) {
+      if (ordenados.length === 0) {
         return res.json({ mensagem: "Cliente não tem contrato elegível" });
       }
 
-      const bancos = calculados.map(c => bancosMap[c.banco || ""] || c.banco || "");
-      const parcelas = calculados.map(c => c.parcela);
-      const taxas = calculados.map(c => c.taxa_calculada);
-      const saldos = calculados.map(c => c.saldo_devedor);
-      const totalTroco = calculados.reduce((s, c) => s + toNumber(c.troco), 0);
+      const bancosResumo = ordenados.map(c => c.bancoNovo);
+      const parcelas = ordenados.map(c => c.parcela);
+      const parcelasOrig = ordenados.map(c => c.parcela_original);
+      const taxas = ordenados.map(c => c.taxa_calculada);
+      const saldos = ordenados.map(c => c.saldo_devedor);
+      const totalTroco = ordenados.reduce((s, c) => s + toNumber(c.troco), 0);
 
       return res.json({
         fileId,
         matricula: extrato?.beneficio?.nb || null,
-        contratos: calculados,
+        contratos: ordenados,
         resumo: {
-          bancos: bancos.join(", "),
+          bancos: bancosResumo.join(", "),
           parcelas: parcelas.join(", "),
+          parcelas_original: parcelasOrig.join(", "),
           taxas_calculadas: taxas.join(", "),
           saldos_devedores: saldos.join(", "),
           total_troco: formatBRNumber(totalTroco),
-          total_contratos_simulados: calculados.length
+          total_contratos_simulados: ordenados.length
         },
         ajuste_margem: infoAjuste || null
       });
