@@ -154,6 +154,11 @@ function aplicarRoteiro(c, banco) {
   const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   if (parcelasPagas < regraParcelas) return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
 
+  const bancoOrigem = String(c.banco || "").toUpperCase();
+  if (roteiro.naoPorta?.map(b => b.toUpperCase()).includes(bancoOrigem)) {
+    return { valido: false, motivo: `Banco de origem não permitido (${bancoOrigem})` };
+  }
+
   return { valido: true, motivo: null };
 }
 
@@ -211,6 +216,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     }
   }
 
+  // ===== ETAPA 3: Calcular saldo devedor =====
   const saldoDevedor = pvFromParcela(parcelaAjustada, taxaAtualMes, prazoRestante);
 
   let escolhido = null;

@@ -1,16 +1,16 @@
 const RoteiroBancos = {
   BRB: {
-    regraGeral: "12 parcelas pagas",
+    regraGeral: "0 parcelas pagas",
     excecoes: [
-      "Banco do Brasil",
-      "Caixa Econômica Federal",
-      "Santander (Contratos iniciados com 20, 30, 40)",
-      "Banco Alfa",
-      "Financeira Alfa",
-      "Sicoob",
-      "Itaú 341",
-      "Bradesco 237",
-      "NU CFI"
+      "Banco do Brasil - 1 paga",
+      "Caixa Econômica Federal - 1 paga",
+      "Santander (Contratos iniciados com 20, 30, 40) - 1 paga",
+      "Banco Alfa - 1 paga",
+      "Financeira Alfa - 1 paga",
+      "Sicoob - 1 paga",
+      "Itaú 341 - 1 paga",
+      "Bradesco 237 - 1 paga",
+      "NU CFI - 1 paga", "demais bancos - 12 pagas"
     ],
     naoPorta: ["BRB", "Picpay", "Agibank", "C6/C6 Consignado"],
     idade: "21 a 73 anos",
@@ -28,7 +28,7 @@ const RoteiroBancos = {
       "Inbursa - 19 pagas",
       "PAN - 37 pagas"
     ],
-    naoPorta: ["Daycoval", "Agibank", "Picpay"],
+    naoPorta: ["Daycoval", "Agibank", "Picpay", "C6"],
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
@@ -44,9 +44,9 @@ const RoteiroBancos = {
       "Agibank - 15 pagas",
       "Inbursa - 13 pagas",
       "PAN - 12 pagas",
-      "Bancos de rede - 6 pagas"
+      "demais bancos - 6 pagas"
     ],
-    naoPorta: ["C6", "Safra", "BNB", "Alfa"],
+    naoPorta: ["C6", "Safra", "BNB", "Alfa", "Daycoval"],
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
@@ -59,13 +59,12 @@ const RoteiroBancos = {
   FACTA: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
-      "INSS",
       "Daycoval - 24 pagas",
       "PAN - 16 pagas",
       "Agibank e Paraná - 15 pagas",
       "BMG, Santander, Olé e C6 Bank - 12 pagas"
     ],
-    naoPorta: ["Socicred", "Inbursa", "Zema", "Paulista", "Pine"],
+    naoPorta: ["Socicred", "Inbursa", "Zema", "Paulista", "Pine", "Facta"],
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
@@ -113,13 +112,17 @@ const RoteiroBancos = {
   PICPAY: {
     regraGeral: "12 parcelas pagas",
     excecoes: [
-      "INSS / SIAPE",
-      "Banco de rede - 0 pagas",
-      "Inbursa",
-      "Agibank",
-      "BRB"
+      "Banco do Brasil - 1 paga",
+      "Caixa Econômica Federal - 1 paga",
+      "Santander (Contratos iniciados com 20, 30, 40) - 1 paga",
+      "Banco Alfa - 1 paga",
+      "Financeira Alfa - 1 paga",
+      "Sicoob - 1 paga",
+      "Itaú 341 - 1 paga",
+      "Bradesco 237 - 1 paga",
+      "NU CFI - 1 paga", "demais bancos - 12 pagas"
     ],
-    naoPorta: [],
+    naoPorta: ["PICPAY", "AGIBANK", "BRB"],
     idade: "21 a 73 anos",
     especiesAceitas: {
       todas: true,
