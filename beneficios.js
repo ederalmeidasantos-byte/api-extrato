@@ -20,7 +20,7 @@ const BENEFICIOS = {
   "83": "Aposentadoria por invalidez (Ex-SASSE)",
 
   // Tempo de Contribuição
-  "42": "Aposentadoria por tempo de contribuição previdenciária",
+  "42": "APOSENTADORIA POR TEMPO DE CONTRIBUICAO",
   "43": "Aposentadoria por tempo de contribuição de ex-combatente",
   "44": "Aposentadoria por tempo de contribuição de aeronauta",
   "45": "Aposentadoria por tempo de contribuição de jornalista profissional",
