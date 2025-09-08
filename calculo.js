@@ -142,20 +142,17 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 }
 
 // ===================== Aplicar roteiro =====================
-function aplicarRoteiro(c, banco, saldoCalculado) {
+function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
+  const saldo = toNumber(c.saldo_devedor);
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
 
-  if (saldoCalculado < roteiro.saldoDevedorMinimo) {
-    return { valido: false, motivo: `Saldo devedor (${formatBRNumber(saldoCalculado)}) abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
-  }
+  if (saldo < roteiro.saldoDevedorMinimo) return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
 
   const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
-  if (parcelasPagas < regraParcelas) {
-    return { valido: false, motivo: `Parcelas pagas (${parcelasPagas}) abaixo do mínimo exigido (${regraParcelas}) - ${banco}` };
-  }
+  if (parcelasPagas < regraParcelas) return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
 
   return { valido: true, motivo: null };
 }
@@ -180,10 +177,12 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
   const especie = String(c.especie || "");
   const permite32 = especie === "32";
 
-  if (!(parcelaOriginal >= 25) && !permite32) {
+  // ===== ETAPA 1: Parcela mínima geral (25,00) =====
+  const PARCELA_MINIMA = 25;
+  if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
     return {
       contrato: c.contrato,
-      motivo: `etapa 1: não aceito a esp "${especie}"`,
+      motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
       prazo_total: totalParcelas,
@@ -191,6 +190,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     };
   }
 
+  // ===== ETAPAS seguintes: taxa, saldo, bancos, troco =====
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
 
@@ -213,13 +213,12 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
 
   const saldoDevedor = pvFromParcela(parcelaAjustada, taxaAtualMes, prazoRestante);
 
-  // ===== Loop de bancos e taxas =====
   let escolhido = null;
   let motivoBloqueio = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
-    const aplicacao = aplicarRoteiro(c, banco, saldoDevedor);
+    const aplicacao = aplicarRoteiro(c, banco);
     if (!aplicacao.valido && !permite32) {
       motivoBloqueio = aplicacao.motivo;
       continue;
@@ -307,6 +306,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       let contratosAtivos = extrairEmprestimos(extrato);
       const diaAverbacao = diaFromExtrato(extrato);
 
+      // Ajuste extrapolada
       const extrap = (() => {
         const m = extrato?.margens || {};
         const candidates = [m.margem_extrapolada, m.extrapolada, extrato?.margem_extrapolada, extrato?.resumo?.margem_extrapolada];
@@ -324,11 +324,14 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
+      // Calcula contratos
       const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, extrap > 0, extrap));
 
+      // Separar contratos válidos e inválidos
       const contratosValidos = calculados.filter(c => c && !c.motivo);
       const contratosInvalidos = calculados.filter(c => c && c.motivo);
 
+      // Ordenar contratos válidos
       const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco);
