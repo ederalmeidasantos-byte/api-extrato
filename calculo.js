@@ -177,7 +177,21 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
-  if (!(parcelaOriginal >= 25)) return { contrato: c.contrato, motivo: "Parcela menor que 25" };
+
+  // ===================== Ajuste Espécie 32 =====================
+  const especie = String(c.especie || "");
+  const permite32 = especie === "32";
+
+  if (!(parcelaOriginal >= 25) && !permite32) {
+    return {
+      contrato: c.contrato,
+      motivo: "Parcela menor que 25",
+      parcela: formatBRNumber(parcelaAjustada),
+      saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+      prazo_total: Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0),
+      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+    };
+  }
 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
@@ -192,7 +206,14 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
       statusTaxa = "FALHA_CALCULO_TAXA";
-      return { contrato: c.contrato, motivo: "Falha ao calcular taxa" };
+      return {
+        contrato: c.contrato,
+        motivo: "Falha ao calcular taxa",
+        parcela: formatBRNumber(parcelaAjustada),
+        saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+        prazo_total: totalParcelas,
+        parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+      };
     }
   }
 
@@ -204,7 +225,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
 
   for (const banco of bancosParaTestar) {
     const aplicacao = aplicarRoteiro(c, banco);
-    if (!aplicacao.valido) continue;
+    if (!aplicacao.valido && !permite32) continue;
 
     const ordemTaxas = [1.85, 1.79, 1.66];
     for (const tx of ordemTaxas) {
