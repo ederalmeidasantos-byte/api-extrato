@@ -106,78 +106,52 @@ function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   return i * 100;
 }
 
-// ===================== Ajuste de Margem Extrapolada =====================
-function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
-  if (!(extrapoladaAbs > 0) || !Array.isArray(contratos) || contratos.length === 0) {
-    return { contratosAjustados: contratos, info: null };
-  }
-
-  const ordenados = [...contratos].sort((a, b) => toNumber(b.valor_parcela) - toNumber(a.valor_parcela));
-  const maior = ordenados[0];
-  if (!maior) return { contratosAjustados: contratos, info: null };
-
-  const original = toNumber(maior.valor_parcela);
-  const nova = Math.max(0, original - extrapoladaAbs);
-
-  const ajustados = contratos.map(c => {
-    if (c.contrato === maior.contrato) {
-      return {
-        ...c,
-        __parcela_original__: formatBRNumber(original),
-        valor_parcela: formatBRNumber(nova)
-      };
-    }
-    return c;
-  });
-
-  return {
-    contratosAjustados: ajustados,
-    info: {
-      contrato: maior.contrato,
-      parcela_original: formatBRNumber(original),
-      parcela_ajustada: formatBRNumber(nova),
-      extrapolada_utilizada: formatBRNumber(extrapoladaAbs)
-    }
-  };
-}
-
-// ===================== Aplicar roteiro =====================
-function aplicarRoteiro(c, bancoDestino) {
+// ===================== Aplicar roteiro (agora por banco, com saldo calculado e parcela) =====================
+function aplicarRoteiro(c, bancoDestino, saldoDevedorCalculado, parcelaAjustada, parcelaOriginal) {
   const roteiro = RoteiroBancos[bancoDestino];
-  if (!roteiro) return { valido: false, motivo: `Banco destino ${bancoDestino} não encontrado no roteiro` };
+  if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
-  const saldo = toNumber(c.saldo_devedor);
-  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
-  const especie = String(c.especie || "");
-  const bancoOrigem = String(c.banco || "").toUpperCase();
-
-  // ===== Etapa 1: espécie aceita =====
+  // === 1) Espécie aceita?
+  const especie = String(c.especie || "").trim();
   if (roteiro.especiesAceitas) {
-    if (roteiro.especiesAceitas.excecao?.includes(especie)) {
-      return { valido: false, motivo: `Espécie ${especie} não aceita em ${bancoDestino}` };
+    // se houver lista de exceções -> bloqueia
+    if (Array.isArray(roteiro.especiesAceitas.exceto) && roteiro.especiesAceitas.exceto.includes(especie)) {
+      return { valido: false, motivo: `Espécie ${especie || "<n/a>"} não aceita em ${bancoDestino}` };
     }
-    // regrasEspeciais de idade ficaram comentadas
-    // if (roteiro.especiesAceitas.regrasEspeciais) { ... }
+    // regras especiais existem (ex: espécies X exigem idade) - por enquanto NÃO aplicamos idade (comentado)
+    // if (Array.isArray(roteiro.especiesAceitas.regrasEspeciais)) { ... }
+    // se houver algum cenário onde 'todas' === false e não está nas regras especiais, poderia bloquear,
+    // mas no roteiro atual geralmente 'todas: true' está presente.
   }
 
-  // ===== Etapa 2: saldo devedor mínimo =====
-  if (saldo < roteiro.saldoDevedorMinimo) {
-    return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${bancoDestino}` };
+  // === 2) Parcela mínima por banco (se existir)
+  if (Number.isFinite(roteiro.parcelaMinima) && roteiro.parcelaMinima > 0) {
+    if (parcelaAjustada < roteiro.parcelaMinima) {
+      return { valido: false, motivo: `Parcela (${formatBRNumber(parcelaAjustada)}) abaixo da mínima (${formatBRNumber(roteiro.parcelaMinima)}) - ${bancoDestino}` };
+    }
   }
 
-  // ===== Etapa 3: bancos que não porta / exceções =====
-  if (roteiro.naoPorta?.map(b => b.toUpperCase()).includes(bancoOrigem)) {
-    return { valido: false, motivo: `Banco origem ${bancoOrigem} não permitido em ${bancoDestino}` };
+  // === 3) Saldo devedor mínimo (usamos o saldo calculado - PV)
+  if (Number.isFinite(roteiro.saldoDevedorMinimo) && roteiro.saldoDevedorMinimo > 0) {
+    if (saldoDevedorCalculado < roteiro.saldoDevedorMinimo) {
+      return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${bancoDestino}` };
+    }
   }
 
-  // regra de parcelas
+  // === 4) Banco de origem não permitido (naoPorta)
+  const bancoOrigem = String(c.banco || "").toUpperCase();
+  if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.map(b => b.toUpperCase()).includes(bancoOrigem)) {
+    return { valido: false, motivo: `Banco de origem não permitido (${bancoOrigem}) em ${bancoDestino}` };
+  }
+
+  // === 5) Parcelas pagas (regra geral)
+  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
   const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   if (parcelasPagas < regraParcelas) {
     return { valido: false, motivo: `Parcelas pagas (${parcelasPagas}) abaixo da regra (${regraParcelas}) - ${bancoDestino}` };
   }
 
-  // ===== Etapa 4: taxas ficam validadas dentro do loop de cálculo =====
-  return { valido: true, motivo: null, taxas: roteiro.taxas };
+  return { valido: true, motivo: null };
 }
 
 // ===================== Calcular contrato =====================
@@ -189,7 +163,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
   let parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   let parcelaAjustada = toNumber(c.valor_parcela);
 
-  // ===== Aplicar margem extrapolada =====
+  // ===== Aplicar margem extrapolada (se houver) =====
   if (extrapolada && extrapoladaAbs > 0) {
     parcelaAjustada = Math.max(0, parcelaOriginal - extrapoladaAbs);
   }
@@ -197,22 +171,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const especie = String(c.especie || "");
-  const permite32 = especie === "32";
-
-  // ===== ETAPA 1: Parcela mínima geral (25,00) =====
-  const PARCELA_MINIMA = 25;
-  if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
-    return {
-      contrato: c.contrato,
-      motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
-      parcela: formatBRNumber(parcelaAjustada),
-      saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
-      prazo_total: totalParcelas,
-      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
-    };
-  }
-
+  // NOTE: a checagem de espécie e parcela mínima agora é feita por banco dentro do aplicarRoteiro.
   // ===== ETAPAS seguintes: taxa, saldo, bancos, troco =====
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
@@ -227,31 +186,37 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
         contrato: c.contrato,
         motivo: "etapa 4: falha ao calcular taxa",
         parcela: formatBRNumber(parcelaAjustada),
-        saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+        saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor || 0)),
         prazo_total: totalParcelas,
         parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
       };
     }
   }
 
-  // ===== ETAPA 3: Calcular saldo devedor =====
+  // ===== Calcular saldo devedor (PV) com a parcela utilizada na simulação =====
   const saldoDevedor = pvFromParcela(parcelaAjustada, taxaAtualMes, prazoRestante);
 
+  // ===== Loop por bancos e taxas permitidas (usando regras por banco) =====
   let escolhido = null;
   let motivoBloqueio = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
-    const aplicacao = aplicarRoteiro(c, banco);
-    if (!aplicacao.valido && !permite32) {
+    // aplicarRoteiro agora recebe saldoDevedor e parcelaAjustada para decidir
+    const aplicacao = aplicarRoteiro(c, banco, saldoDevedor, parcelaAjustada, parcelaOriginal);
+    if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
       continue;
     }
 
-    const taxasPermitidas = aplicacao.taxas || [];
+    const roteiro = RoteiroBancos[banco];
+    const taxasPermitidas = roteiro?.taxas || [];
     for (const tx of taxasPermitidas) {
       const coefNovo = getCoeficiente(tx, diaAverbacao);
-      if (!coefNovo) continue;
+      if (!coefNovo) {
+        motivoBloqueio = `Coeficiente não disponível para taxa ${tx} - banco ${banco}`;
+        continue;
+      }
 
       const valorEmprestimo = parcelaAjustada / coefNovo;
       const troco = valorEmprestimo - saldoDevedor;
@@ -354,7 +319,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       const contratosValidos = calculados.filter(c => c && !c.motivo);
       const contratosInvalidos = calculados.filter(c => c && c.motivo);
 
-      // Ordenar contratos válidos
+      // Ordenar contratos válidos por troco
       const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
       const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco);
