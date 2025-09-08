@@ -149,7 +149,7 @@ function aplicarRoteiro(c, banco) {
   const saldo = toNumber(c.saldo_devedor);
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
 
-  if (saldo < roteiro.saldoDevedorMinimo) return { valido: false, motivo: "Saldo devedor abaixo do mínimo" };
+  if (saldo < roteiro.saldoDevedorMinimo) return { valido: false, motivo:  `etapa 2/3: Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
 
   const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   if (parcelasPagas < regraParcelas) return { valido: false, motivo: "Parcelas pagas abaixo do mínimo" };
