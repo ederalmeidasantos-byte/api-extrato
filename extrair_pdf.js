@@ -168,6 +168,7 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
   Exemplo: 21,50% → 0.2150  
 - Não devolva em porcentagem, vírgula, nem número inteiro (ex.: 164 está errado).  
 - Use ponto como separador decimal.
+- competencia_inicio_desconto tome cuidado para não troco a coluna de INICIO com FIM.
 
 Esquema esperado:
 {
