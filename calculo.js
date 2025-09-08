@@ -164,7 +164,6 @@ function aplicarRoteiro(c, banco) {
 
   if (saldo < roteiro.saldoDevedorMinimo) return { valido: false, motivo: "Saldo devedor abaixo do mínimo" };
 
-  // regra geral de parcelas pagas
   const regraParcelas = Number(roteiro.regraGeral.split(" ")[0] || 0);
   if (parcelasPagas < regraParcelas) return { valido: false, motivo: "Parcelas pagas abaixo do mínimo" };
 
@@ -180,7 +179,8 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
   if (!(parcelaOriginal >= 25)) return { contrato: c.contrato, motivo: "Parcela menor que 25" };
 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
-  const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
+  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
+  const prazoRestante = totalParcelas - parcelasPagas;
 
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
@@ -198,7 +198,6 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
 
   const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
-  // ===== Loop de bancos e taxas =====
   let escolhido = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
@@ -238,7 +237,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
     parcela_original: formatBRNumber(parcelaOriginal),
     parcela: formatBRNumber(parcelaAjustada),
     prazo_total: totalParcelas,
-    parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
+    parcelas_pagas: parcelasPagas,
     prazo_restante: prazoRestante,
     prazo_simulado: PRAZO_SIMULADO,
     taxa_atual: formatBRTaxaPercent(taxaAtualMes),
@@ -274,7 +273,6 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       let contratosAtivos = extrairEmprestimos(extrato);
-
       const diaAverbacao = diaFromExtrato(extrato);
 
       const extrap = (() => {
@@ -299,14 +297,11 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
-      // Calcula contratos
       const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, extrap > 0));
 
-      // Separar contratos válidos e inválidos
       const contratosValidos = calculados.filter(c => c && !c.motivo);
       const contratosInvalidos = calculados.filter(c => c && c.motivo);
 
-      // Regra especial NB 87 / 88
       const nb = String(extrato?.beneficio?.nb || "");
       const filtradosNB = (nb.startsWith("87") || nb.startsWith("88"))
         ? contratosValidos.filter(c => toNumber(c.saldo_devedor) > 4000)
@@ -334,7 +329,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
           saldos_devedores: saldos.join(", "),
           total_troco: formatBRNumber(totalTroco),
           total_contratos_simulados: ordenados.length,
-          bancos_novos: [...new Set(bancosResumo)].join(", ") // adiciona bancos novos distintos
+          bancos_novos: [...new Set(bancosResumo)].join(", ")
         },
         ajuste_margem: infoAjuste || null
       });
