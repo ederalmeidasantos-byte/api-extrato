@@ -16,7 +16,7 @@ const RoteiroBancos = {
     idade: "21 a 73 anos",
     especiesAceitas: {
       todas: true,
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
     },
     taxas: [1.85, 1.79],
     saldoDevedorMinimo: 4000
@@ -32,7 +32,7 @@ const RoteiroBancos = {
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 45 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 45 }]
     },
     taxas: [1.85, 1.79, 1.66],
     saldoDevedorMinimo: 2000
@@ -51,7 +51,7 @@ const RoteiroBancos = {
     especiesAceitas: {
       todas: true,
       exceto: ["87", "88"],
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
     },
     taxas: [1.85, 1.79, 1.66],
     saldoDevedorMinimo: 500
@@ -69,7 +69,7 @@ const RoteiroBancos = {
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
     },
     taxas: [1.85],
     saldoDevedorMinimo: 0,
@@ -92,7 +92,7 @@ const RoteiroBancos = {
     idade: "21 a 72 anos",
     especiesAceitas: {
       todas: true,
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
     },
     taxas: [1.85, 1.79],
     saldoDevedorMinimo: 4000
@@ -105,7 +105,7 @@ const RoteiroBancos = {
     especiesAceitas: {
       todas: true,
       exceto: ["87", "88"],
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 60 }]
     },
     taxas: [1.85, 1.79, 1.66],
     saldoDevedorMinimo: 4000
@@ -123,7 +123,7 @@ const RoteiroBancos = {
     idade: "21 a 73 anos",
     especiesAceitas: {
       todas: true,
-      regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 45 }]
+      //regrasEspeciais: [{ especies: ["32", "92"], idadeMinima: 45 }]
     },
     taxas: [1.85],
     saldoDevedorMinimo: 4000
@@ -155,7 +155,7 @@ const RoteiroBancos = {
     especiesAceitas: {
       todas: true,
       exceto: ["87"],
-      regrasEspeciais: [{ especies: ["32"], idadeMinima: 60 }]
+      //regrasEspeciais: [{ especies: ["32"], idadeMinima: 60 }]
     },
     taxas: [1.85, 1.79],
     saldoDevedorMinimo: 8000
