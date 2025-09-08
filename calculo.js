@@ -179,13 +179,28 @@ function aplicarRoteiroModular(c, banco) {
 // ===================== Calcular contrato =====================
 function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
-    return { contrato: c?.contrato, motivo: "Contrato não ativo" };
+    return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
   }
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
-  const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas || 0);
+  const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
+
+  const especie = String(c.especie || "");
+  const permite32 = especie === "32";
+
+  // ===== Etapa 1: Espécie =====
+  if (!(parcelaOriginal >= 25) && !permite32) {
+    return {
+      contrato: c.contrato,
+      motivo: `etapa 1: não aceito a esp "${especie}"`,
+      parcela: formatBRNumber(parcelaAjustada),
+      saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+      prazo_total: totalParcelas,
+      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+    };
+  }
 
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
@@ -198,7 +213,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
     } else {
       return {
         contrato: c.contrato,
-        motivo: "Falha ao calcular taxa",
+        motivo: "etapa 4: falha ao calcular taxa",
         parcela: formatBRNumber(parcelaAjustada),
         saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
         prazo_total: totalParcelas,
@@ -207,16 +222,24 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
     }
   }
 
-  const saldoDevedor = pvFromParcela(parcelaAjustada, taxaAtualMes, prazoRestante);
+  const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
+  // ===== Loop de bancos e taxas =====
   let escolhido = null;
+  let motivoBloqueio = null; // guarda o motivo específico se nenhum banco passar
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
-    const aplicacao = aplicarRoteiroModular(c, banco);
-    if (!aplicacao.valido) continue;
+    const aplicacao = aplicarRoteiro(c, banco);
+    if (!aplicacao.valido && !permite32) {
+      motivoBloqueio = `etapa 2/3: ${aplicacao.motivo} (${banco})`;
+      continue;
+    }
 
-    for (const tx of RoteiroBancos[banco].taxas || []) {
+    // Etapa 4: Taxas permitidas
+    const roteiro = RoteiroBancos[banco];
+    const taxasPermitidas = roteiro?.taxas || [];
+    for (const tx of taxasPermitidas) {
       const coefNovo = getCoeficiente(tx, diaAverbacao);
       if (!coefNovo) continue;
 
@@ -233,15 +256,18 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
           troco
         };
         break;
+      } else {
+        motivoBloqueio = `etapa 4: troco menor que mínimo (${formatBRNumber(troco)}) - banco ${banco} taxa ${tx}`;
       }
     }
+
     if (escolhido) break;
   }
 
   if (!escolhido) {
     return {
       contrato: c.contrato,
-      motivo: "Nenhum banco/taxa elegível",
+      motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(saldoDevedor),
       prazo_total: totalParcelas,
@@ -271,6 +297,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada) {
     motivo: null
   };
 }
+
 
 // ===================== Extrator =====================
 function extrairEmprestimos(json) {
