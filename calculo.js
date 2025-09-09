@@ -167,7 +167,7 @@ function aplicarRoteiro(c, banco) {
 }
 
 // ===================== Calcular contrato =====================
-function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = false, extrapoladaAbs = 0) {
+function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
     return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
   }
@@ -194,7 +194,10 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     };
   }
 
-  let taxaAtualMes = toNumber(c.taxa_juros_mensal);
+  // ===== USAR SALDO DEVEDOR PRÉ-CALCULADO =====
+  const saldoDevedor = simulacoes[c.contrato]?.saldoDevedor ?? pvFromParcela(parcelaOriginal, toNumber(c.taxa_juros_mensal), prazoRestante);
+
+  let taxaAtualMes = simulacoes[c.contrato]?.taxaAtualMes ?? toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
 
   if (!(taxaAtualMes > 0)) {
@@ -207,15 +210,12 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
         contrato: c.contrato,
         motivo: "etapa 4: falha ao calcular taxa",
         parcela: formatBRNumber(parcelaAjustada),
-        saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+        saldo_devedor: formatBRNumber(saldoDevedor),
         prazo_total: totalParcelas,
         parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
       };
     }
   }
-
-  // ===== CALCULAR SALDO DEVEDOR (parcela original) =====
-  const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
   // ===== CALCULAR TROCO / VALOR LIBERADO (parcela ajustada) =====
   let escolhido = null;
@@ -223,7 +223,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
-    const aplicacao = aplicarRoteiro(c, banco);
+    const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
     if (!aplicacao.valido && !permite32) {
       motivoBloqueio = aplicacao.motivo;
       continue;
@@ -311,6 +311,24 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       let contratosAtivos = extrairEmprestimos(extrato);
       const diaAverbacao = diaFromExtrato(extrato);
 
+      // ===== PRÉ-CÁLCULO DE SALDO DEVEDOR PARA TODOS OS CONTRATOS =====
+      const simulacoes = {};
+      for (const c of contratosAtivos) {
+        const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
+        const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
+        const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
+
+        let taxaAtualMes = toNumber(c.taxa_juros_mensal);
+        if (!(taxaAtualMes > 0)) {
+          const estimada = estimarTaxaPorValorPago(c.valor_liberado, totalParcelas, parcelaOriginal);
+          if (estimada > 0) taxaAtualMes = estimada;
+        }
+
+        const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
+        c.saldo_devedor = saldoDevedor;
+        simulacoes[c.contrato] = { saldoDevedor, taxaAtualMes };
+      }
+
       // Ajuste extrapolada
       const extrap = (() => {
         const m = extrato?.margens || {};
@@ -330,7 +348,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       }
 
       // Calcula contratos
-      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, extrap > 0, extrap));
+      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, simulacoes, extrap > 0, extrap));
 
       // Separar contratos válidos e inválidos
       const contratosValidos = calculados.filter(c => c && !c.motivo);
