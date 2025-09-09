@@ -142,11 +142,11 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 }
 
 // ===================== Aplicar roteiro =====================
-function aplicarRoteiro(c, banco, saldoCalculado) {
+function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
-  const saldo = toNumber(saldoCalculado); // <- usar saldo já calculado
+  const saldo = toNumber(c.saldo_devedor);
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
 
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
@@ -172,12 +172,8 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
   }
 
-  let parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
-  let parcelaAjustada = toNumber(c.valor_parcela);
-
-  if (extrapolada && extrapoladaAbs > 0) {
-    parcelaAjustada = Math.max(0, parcelaOriginal - extrapoladaAbs);
-  }
+  const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
+  const parcelaAjustada = toNumber(c.valor_parcela);
 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
@@ -185,7 +181,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
   const especie = String(c.especie || "");
   const permite32 = especie === "32";
 
-  // ===== ETAPA 1: Parcela mínima geral (25,00) =====
+  // ===== ETAPA 1: Parcela mínima =====
   const PARCELA_MINIMA = 25;
   if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
     return {
@@ -198,9 +194,9 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     };
   }
 
-  // ===== ETAPA 2: Taxa =====
   let taxaAtualMes = toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
+
   if (!(taxaAtualMes > 0)) {
     const estimada = estimarTaxaPorValorPago(c.valor_liberado, totalParcelas, parcelaOriginal);
     if (estimada > 0) {
@@ -218,15 +214,16 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, extrapolada = f
     }
   }
 
-  // ===== ETAPA 3: Saldo devedor =====
-  const saldoDevedor = pvFromParcela(parcelaAjustada, taxaAtualMes, prazoRestante);
+  // ===== CALCULAR SALDO DEVEDOR (parcela original) =====
+  const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
 
+  // ===== CALCULAR TROCO / VALOR LIBERADO (parcela ajustada) =====
   let escolhido = null;
   let motivoBloqueio = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
   for (const banco of bancosParaTestar) {
-    const aplicacao = aplicarRoteiro(c, banco, saldoDevedor); // <-- saldo correto
+    const aplicacao = aplicarRoteiro(c, banco);
     if (!aplicacao.valido && !permite32) {
       motivoBloqueio = aplicacao.motivo;
       continue;
