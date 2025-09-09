@@ -95,7 +95,7 @@ const BENEFICIOS = {
 const DEFAULT_BY_GROUP = [
   { key: "aposentadoria por idade", codigo: "41" },
   { key: "aposentadoria por invalidez", codigo: "32" },
-  { key: "aposentadoria por tempo de contribuicao", codigo: "49" },
+  { key: "aposentadoria por tempo de contribuicao", codigo: "42" },
   { key: "pensao por morte", codigo: "21" },
   { key: "auxilio-doenca", codigo: "31" },
   { key: "auxilio acidente", codigo: "36" },
