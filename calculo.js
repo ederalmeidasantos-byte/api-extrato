@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import RoteiroBancos from "./RoteiroBancos.js"; // importe seu roteiro
+import RoteiroBancos from "./RoteiroBancos.js";
 
 // ===================== Configurações =====================
 const TROCO_MINIMO = 100;
@@ -30,14 +30,9 @@ function toNumber(v) {
   const hasDot = s.includes(".");
   const hasComma = s.includes(",");
   if (hasDot && hasComma) {
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
-      s = s.replace(/\./g, "").replace(",", ".");
-    } else {
-      s = s.replace(/,/g, "");
-    }
-  } else if (hasComma) {
-    s = s.replace(/\./g, "").replace(",", ".");
-  }
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+    else s = s.replace(/,/g, "");
+  } else if (hasComma) s = s.replace(/\./g, "").replace(",", ".");
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -158,10 +153,11 @@ function aplicarRoteiro(c, banco) {
     return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
   }
 
-if (Array.isArray(roteiro.naoPorta) &&
-    roteiro.naoPorta.map(b => String(b).toUpperCase()).includes(bancoOrigem)) {
-  return { valido: false, motivo: `Banco de origem não permitido (${bancoOrigem})` };
-}
+  // ✅ Corrigido: comparar com c.banco.codigo
+  if (Array.isArray(roteiro.naoPorta) &&
+      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
+    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
+  }
 
   return { valido: true, motivo: null };
 }
@@ -349,7 +345,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco);
+      const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco.nome);
       const parcelas = ordenados.map(c => c.parcela);
       const parcelasOrig = ordenados.map(c => c.parcela_original);
       const taxas = ordenados.map(c => c.taxa_calculada);
