@@ -94,7 +94,27 @@ const RoteiroBancos = {
     },
     taxas: [1.85, 1.79],
     saldoDevedorMinimo: 8000
-  }
+  },
+  C6: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "935", nome: "Facta", regra: "13 pagas" },
+      { codigo: "329", nome: "QI Sociedade de Crédito", regra: "13 pagas" },
+      { codigo: "012", nome: "Banco Inbursa", regra: "19 pagas" },
+      { codigo: "623", nome: "Banco PAN", regra: "37 pagas" },
+      { codigo: "000", nome: "Demais bancos", regra: "0 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "070", nome: "Picpay" },
+      { codigo: "707", nome: "Daycoval" },
+      { codigo: "121", nome: "Agibank" },
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true},
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 2000
+  },  
 };
 
 export default RoteiroBancos;
