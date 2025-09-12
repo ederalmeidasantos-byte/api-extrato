@@ -158,10 +158,10 @@ function aplicarRoteiro(c, banco) {
     return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
   }
 
-  const bancoOrigem = String(c.banco || "").toUpperCase();
-  if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.map(b => b.toUpperCase()).includes(bancoOrigem)) {
-    return { valido: false, motivo: `Banco de origem não permitido (${bancoOrigem})` };
-  }
+if (Array.isArray(roteiro.naoPorta) &&
+    roteiro.naoPorta.map(b => String(b).toUpperCase()).includes(bancoOrigem)) {
+  return { valido: false, motivo: `Banco de origem não permitido (${bancoOrigem})` };
+}
 
   return { valido: true, motivo: null };
 }
