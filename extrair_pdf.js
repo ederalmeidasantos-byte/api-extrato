@@ -359,27 +359,33 @@ function posProcessar(parsed, isContingencia) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
+      // ================== Taxa ==================
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
-      let statusTaxa = c.status_taxa || "INFORMADA";
+      let statusTaxa;
 
-      if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
-        const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
-        if (out.ok) {
-          taxaMensalNum = out.r;
-          statusTaxa = "RECALCULADA";
-        } else {
-          taxaMensalNum = 0;
-          statusTaxa = "FALHA_CALCULO_TAXA";
-          console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
-        }
+      if (isContingencia) {
+        // ✅ CONTINGÊNCIA: pega taxa da coluna sem recalcular
+        statusTaxa = "INFORMADA_CONTINGENCIA";
       } else {
-  // CONTINGÊNCIA
-  taxaMensalNum = toNumber(c.taxa_juros_mensal);
-  statusTaxa = "INFORMADA_CONTINGENCIA";
-  // IOF recebe mesma taxa
-  c.iof = taxaMensalNum;
-}
+        // ❌ INSS oficial: mantém lógica de recálculo
+        statusTaxa = c.status_taxa || "INFORMADA";
+        if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
+          const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
+          if (out.ok) {
+            taxaMensalNum = out.r;
+            statusTaxa = "RECALCULADA";
+          } else {
+            taxaMensalNum = 0;
+            statusTaxa = "FALHA_CALCULO_TAXA";
+            console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
+          }
+        }
+      }
+
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
+
+      // Em contingência, o IOF já vem correto, não precisa alterar
+      // Mas se quiser garantir: c.iof = taxaMensalNum;
 
       return {
         ...c,
