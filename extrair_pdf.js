@@ -198,8 +198,13 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - O nome do benefício deve vir exatamente como está no documento.
 - Se não houver valores, use null ou 0.
 - Não invente chaves diferentes, siga o esquema fielmente.
-- Na origem CONTINGENCIA todos tem a taxa_juros_mensal na coluna TAXA e na CET deixar igual a taxa ou em 0.
-- Na origem CONTINGENCIA o IOF é a taxa_juros_mensal.
+
+⚠️ Para extratos de CONTINGÊNCIA:
+- Use exatamente o valor da coluna TAXA como taxa_juros_mensal.
+- CET mensal e CET anual podem ser iguais à taxa ou 0.
+- IOF deve receber o valor da taxa_juros_mensal.
+- NÃO tente recalcular nenhuma taxa.
+
 IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua crases (\`\`\`), nem texto explicativo.
 `;
 
@@ -366,8 +371,13 @@ function posProcessar(parsed, isContingencia) {
           statusTaxa = "FALHA_CALCULO_TAXA";
           console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
         }
-      }
-
+      } else {
+  // CONTINGÊNCIA
+  taxaMensalNum = toNumber(c.taxa_juros_mensal);
+  statusTaxa = "INFORMADA_CONTINGENCIA";
+  // IOF recebe mesma taxa
+  c.iof = taxaMensalNum;
+}
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
 
       return {
