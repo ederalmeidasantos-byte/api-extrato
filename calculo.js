@@ -189,6 +189,11 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
 
   c.especie = String(c.especie || c.beneficio?.codigoBeneficio || "");
 
+  // ===================== REGRAS ESPECIAIS PARA ESPÉCIES 87 e 88 =====================
+  let bancosPermitidos = bancosPrioridade;
+  if (c.especie === "87") bancosPermitidos = ["BRB", "PICPAY", "C6"];
+  if (c.especie === "88") bancosPermitidos = ["FINANTO", "BRB", "PICPAY", "C6"];
+
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
 
@@ -196,7 +201,9 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
   const PARCELA_MINIMA = 25;
-  if (parcelaOriginal < PARCELA_MINIMA) {
+  const permite32 = c.especie === "32";
+
+  if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
     return {
       contrato: c.contrato,
       motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
@@ -229,28 +236,12 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     }
   }
 
-  // ===================== FILTRAGEM ESPECÍFICA POR ESPÉCIE =====================
-  let bancosFiltrados;
-  if (c.especie === "87") {
-    bancosFiltrados = ["BRB", "PICPAY", "C6"];
-  } else if (c.especie === "88") {
-    bancosFiltrados = ["FINANTO", "BRB", "PICPAY", "C6"];
-  } else {
-    bancosFiltrados = [...bancosPrioridade];
-  }
-
-  // Garantir que Daycoval entre na simulação normal
-  if (bancosPrioridade.includes("DAYCOVAL") && !bancosFiltrados.includes("DAYCOVAL")) {
-    bancosFiltrados.push("DAYCOVAL");
-  }
-
   let escolhido = null;
   let motivoBloqueio = null;
-  const bancosParaTestar = extrapolada ? ["BRB"] : bancosFiltrados;
 
-  for (const banco of bancosParaTestar) {
+  for (const banco of bancosPermitidos) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
-    if (!aplicacao.valido) {
+    if (!aplicacao.valido && !permite32) {
       motivoBloqueio = aplicacao.motivo;
       continue;
     }
