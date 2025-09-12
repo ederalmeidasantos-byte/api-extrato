@@ -138,19 +138,18 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 
 // ===================== Validação de espécie =====================
 function validarEspecie(c, roteiro) {
-  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || c.especie || "");
-
+  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || "");
   if (!roteiro.especiesAceitas) return true;
 
-  const { todas = true, exceto = [] } = roteiro.especiesAceitas;
+  const { todas, exceto } = roteiro.especiesAceitas;
 
-  // Bloqueia automaticamente as espécies na lista de exceção
-  if (exceto.includes(codigoBeneficio)) return false;
+  if (exceto && exceto.includes(codigoBeneficio)) {
+    return false; // bloqueia as espécies na lista de exceção
+  }
 
-  // Se todas = false e não estiver no exceto, bloqueia
-  if (!todas) return false;
+  if (!todas) return true;
 
-  return true; // caso contrário, permite
+  return true;
 }
 
 // ===================== Aplicar roteiro =====================
@@ -176,7 +175,7 @@ function aplicarRoteiro(c, banco) {
   }
 
   if (!validarEspecie(c, roteiro)) {
-    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio || c.especie}) - ${banco}` };
+    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio}) - ${banco}` };
   }
 
   return { valido: true, motivo: null };
@@ -191,17 +190,33 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
   // Define a espécie do contrato a partir do benefício
   c.especie = String(c.especie || c.beneficio?.codigoBeneficio || "");
 
+  // ===================== Regra fixa para espécies 87 e 88 =====================
+  let bancosFiltrados = bancosPrioridade;
+  if (c.especie === "87") {
+    bancosFiltrados = bancosPrioridade.filter(b => ["BRB", "PICPAY", "C6"].includes(b));
+  } else if (c.especie === "88") {
+    bancosFiltrados = bancosPrioridade.filter(b => ["FINANTO", "BRB", "PICPAY", "C6"].includes(b));
+  }
+
+  if (bancosFiltrados.length === 0) {
+    return {
+      contrato: c.contrato,
+      motivo: `espécie ${c.especie} não permite simulação em nenhum banco`,
+      parcela: formatBRNumber(toNumber(c.valor_parcela)),
+      saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+      prazo_total: Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0),
+      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+    };
+  }
+
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const especie = c.especie;
-  const permite32 = especie === "32";
-
   const PARCELA_MINIMA = 25;
-  if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
+  if (parcelaOriginal < PARCELA_MINIMA && c.especie !== "32") {
     return {
       contrato: c.contrato,
       motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
@@ -236,11 +251,11 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
 
   let escolhido = null;
   let motivoBloqueio = null;
-  const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
+  const bancosParaTestar = extrapolada ? ["BRB"] : bancosFiltrados;
 
   for (const banco of bancosParaTestar) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
-    if (!aplicacao.valido && !permite32) {
+    if (!aplicacao.valido && c.especie !== "32") {
       motivoBloqueio = aplicacao.motivo;
       continue;
     }
