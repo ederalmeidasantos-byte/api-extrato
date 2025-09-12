@@ -201,6 +201,7 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 
 ⚠️ Para extratos de CONTINGÊNCIA:
 - Use exatamente o valor da coluna TAXA como taxa_juros_mensal.
+- Use exatamente o valor mesmo valor do IOF para a TAXA como taxa_juros_mensal.
 - CET mensal e CET anual podem ser iguais à taxa ou 0.
 - IOF deve receber o valor da taxa_juros_mensal.
 - NÃO tente recalcular nenhuma taxa.
