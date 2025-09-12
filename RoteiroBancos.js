@@ -1,6 +1,6 @@
 const RoteiroBancos = {
   BRB: {
-    regraGeral: "0 parcelas pagas",
+    regraGeral: "12 parcelas pagas",
     excecoes: [
       { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
       { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
