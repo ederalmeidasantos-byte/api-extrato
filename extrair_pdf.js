@@ -198,8 +198,8 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - O nome do benefício deve vir exatamente como está no documento.
 - Se não houver valores, use null ou 0.
 - Não invente chaves diferentes, siga o esquema fielmente.
-- Na "Contigencia" todos tem a "taxa_juros_mensal" na coluna "TAXA" e na "CET" deixar igual a taxa ou em 0.
-- Na "Contigencia" o IOF é a taxa_juros_mensal.
+- Na origem CONTINGENCIA todos tem a taxa_juros_mensal na coluna TAXA e na CET deixar igual a taxa ou em 0.
+- Na origem CONTINGENCIA o IOF é a taxa_juros_mensal.
 IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua crases (\`\`\`), nem texto explicativo.
 `;
 
