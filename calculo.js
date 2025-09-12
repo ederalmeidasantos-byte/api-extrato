@@ -60,11 +60,7 @@ function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[Number(tx).toFixed(2)];
   if (!tabela) return null;
   return (
-    tabela[dia] ??
-    tabela[String(+dia)] ??
-    tabela["01"] ??
-    tabela["1"] ??
-    (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
+    tabela[dia] ?? tabela[String(+dia)] ?? tabela["01"] ?? tabela["1"] ?? (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
   );
 }
 
@@ -101,41 +97,6 @@ function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   return i * 100;
 }
 
-// ===================== Ajuste de Margem Extrapolada =====================
-function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
-  if (!(extrapoladaAbs > 0) || !Array.isArray(contratos) || contratos.length === 0) {
-    return { contratosAjustados: contratos, info: null };
-  }
-
-  const ordenados = [...contratos].sort((a, b) => toNumber(b.valor_parcela) - toNumber(a.valor_parcela));
-  const maior = ordenados[0];
-  if (!maior) return { contratosAjustados: contratos, info: null };
-
-  const original = toNumber(maior.valor_parcela);
-  const nova = Math.max(0, original - extrapoladaAbs);
-
-  const ajustados = contratos.map(c => {
-    if (c.contrato === maior.contrato) {
-      return {
-        ...c,
-        __parcela_original__: formatBRNumber(original),
-        valor_parcela: formatBRNumber(nova)
-      };
-    }
-    return c;
-  });
-
-  return {
-    contratosAjustados: ajustados,
-    info: {
-      contrato: maior.contrato,
-      parcela_original: formatBRNumber(original),
-      parcela_ajustada: formatBRNumber(nova),
-      extrapolada_utilizada: formatBRNumber(extrapoladaAbs)
-    }
-  };
-}
-
 // ===================== Aplicar roteiro =====================
 function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
@@ -148,12 +109,16 @@ function aplicarRoteiro(c, banco) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+  // regra de parcelas
+  let regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+  if (Array.isArray(roteiro.excecoes)) {
+    const excecao = roteiro.excecoes.find(e => String(e.codigo) === String(c.banco.codigo));
+    if (excecao) regraParcelas = Number(excecao.regra.split(" ")[0] || regraParcelas);
+  }
   if (parcelasPagas < regraParcelas) {
     return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
   }
 
-  // ✅ Corrigido: comparar com c.banco.codigo
   if (Array.isArray(roteiro.naoPorta) &&
       roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
     return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
@@ -211,6 +176,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     }
   }
 
+  // ✅ Percorrer todos os bancos possíveis até passar
   let escolhido = null;
   let motivoBloqueio = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
