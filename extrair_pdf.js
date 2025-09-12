@@ -323,18 +323,14 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
   return parsed;
 }
 
-// ================== Pós-processamento ==================
 function posProcessar(parsed, isContingencia) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  if (!parsed.origem) {
-    parsed.origem = isContingencia ? "CONTINGENCIA" : "INSS";
-  }
+  parsed.origem = parsed.origem || (isContingencia ? "CONTINGENCIA" : "INSS");
 
   let nb = normalizarNB(parsed.beneficio.nb || "");
-  if (nb.length < 10) nb = "";
-  parsed.beneficio.nb = nb;
+  parsed.beneficio.nb = nb.length >= 10 ? nb : "";
 
   const mapped = mapBeneficio(parsed.beneficio.nomeBeneficio || "");
   parsed.beneficio.codigoBeneficio = mapped?.codigo ?? null;
@@ -359,15 +355,31 @@ function posProcessar(parsed, isContingencia) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
-      // ================== Taxa ==================
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa;
 
       if (isContingencia) {
-        // ✅ CONTINGÊNCIA: pega taxa da coluna sem recalcular
+        // ================== CONTINGÊNCIA ==================
         statusTaxa = "INFORMADA_CONTINGENCIA";
+        // IOF já vem correto
+        // Formata taxa como número BR, sem multiplicar por 100
+        return {
+          ...c,
+          valor_parcela: formatBRNumber(parcelaNum),
+          valor_liberado: formatBRNumber(liberadoNum),
+          valor_pago: formatBRNumber(toNumber(c.valor_pago)),
+          iof: formatBRNumber(toNumber(c.iof)),
+          cet_mensal: formatBRNumber(taxaMensalNum),
+          cet_anual: formatBRNumber(taxaAnualDeMensal(taxaMensalNum)),
+          taxa_juros_mensal: formatBRNumber(taxaMensalNum),
+          taxa_juros_anual: formatBRNumber(taxaAnualDeMensal(taxaMensalNum)),
+          status_taxa: statusTaxa,
+          prazo_total: prazoTotal,
+          parcelas_pagas: parcelasPagas,
+          prazo_restante: prazoRestante
+        };
       } else {
-        // ❌ INSS oficial: mantém lógica de recálculo
+        // ================== INSS oficial ==================
         statusTaxa = c.status_taxa || "INFORMADA";
         if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
           const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
@@ -380,28 +392,25 @@ function posProcessar(parsed, isContingencia) {
             console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
           }
         }
+
+        const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
+
+        return {
+          ...c,
+          valor_parcela: formatBRNumber(parcelaNum),
+          valor_liberado: formatBRNumber(liberadoNum),
+          valor_pago: formatBRNumber(toNumber(c.valor_pago)),
+          iof: formatBRNumber(toNumber(c.iof)),
+          cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
+          cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
+          taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
+          taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
+          status_taxa: statusTaxa,
+          prazo_total: prazoTotal,
+          parcelas_pagas: parcelasPagas,
+          prazo_restante: prazoRestante
+        };
       }
-
-      const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
-
-      // Em contingência, o IOF já vem correto, não precisa alterar
-      // Mas se quiser garantir: c.iof = taxaMensalNum;
-
-      return {
-        ...c,
-        valor_parcela: formatBRNumber(parcelaNum),
-        valor_liberado: formatBRNumber(liberadoNum),
-        valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-        iof: formatBRNumber(toNumber(c.iof)),
-        cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
-        cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
-        taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
-        taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
-        status_taxa: statusTaxa,
-        prazo_total: prazoTotal,
-        parcelas_pagas: parcelasPagas,
-        prazo_restante: prazoRestante
-      };
     });
 
   parsed.margens = {
