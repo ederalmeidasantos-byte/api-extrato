@@ -149,7 +149,7 @@ function validarEspecie(c, roteiro) {
 
   if (!todas) return true;
 
-  return true;
+  return true; // caso contrário, permite
 }
 
 // ===================== Aplicar roteiro =====================
@@ -187,27 +187,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
   }
 
-  // Define a espécie do contrato a partir do benefício
   c.especie = String(c.especie || c.beneficio?.codigoBeneficio || "");
-
-  // ===================== Regra fixa para espécies 87 e 88 =====================
-  let bancosFiltrados = bancosPrioridade;
-  if (c.especie === "87") {
-    bancosFiltrados = bancosPrioridade.filter(b => ["BRB", "PICPAY", "C6"].includes(b));
-  } else if (c.especie === "88") {
-    bancosFiltrados = bancosPrioridade.filter(b => ["FINANTO", "BRB", "PICPAY", "C6"].includes(b));
-  }
-
-  if (bancosFiltrados.length === 0) {
-    return {
-      contrato: c.contrato,
-      motivo: `espécie ${c.especie} não permite simulação em nenhum banco`,
-      parcela: formatBRNumber(toNumber(c.valor_parcela)),
-      saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
-      prazo_total: Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0),
-      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
-    };
-  }
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
@@ -216,7 +196,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
   const PARCELA_MINIMA = 25;
-  if (parcelaOriginal < PARCELA_MINIMA && c.especie !== "32") {
+  if (parcelaOriginal < PARCELA_MINIMA) {
     return {
       contrato: c.contrato,
       motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
@@ -249,13 +229,28 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     }
   }
 
+  // ===================== FILTRAGEM ESPECÍFICA POR ESPÉCIE =====================
+  let bancosFiltrados;
+  if (c.especie === "87") {
+    bancosFiltrados = ["BRB", "PICPAY", "C6"];
+  } else if (c.especie === "88") {
+    bancosFiltrados = ["FINANTO", "BRB", "PICPAY", "C6"];
+  } else {
+    bancosFiltrados = [...bancosPrioridade];
+  }
+
+  // Garantir que Daycoval entre na simulação normal
+  if (bancosPrioridade.includes("DAYCOVAL") && !bancosFiltrados.includes("DAYCOVAL")) {
+    bancosFiltrados.push("DAYCOVAL");
+  }
+
   let escolhido = null;
   let motivoBloqueio = null;
   const bancosParaTestar = extrapolada ? ["BRB"] : bancosFiltrados;
 
   for (const banco of bancosParaTestar) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
-    if (!aplicacao.valido && c.especie !== "32") {
+    if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
       continue;
     }
