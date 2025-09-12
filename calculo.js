@@ -138,17 +138,17 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 
 // ===================== Validação de espécie =====================
 function validarEspecie(c, roteiro) {
-  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || "");
+  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || c.especie || "");
+
   if (!roteiro.especiesAceitas) return true;
 
-  const { todas, exceto } = roteiro.especiesAceitas;
+  const { todas = true, exceto = [] } = roteiro.especiesAceitas;
 
-  if (exceto && exceto.includes(codigoBeneficio)) {
-    return false; // bloqueia as espécies na lista de exceção
-  }
+  // Bloqueia automaticamente as espécies na lista de exceção
+  if (exceto.includes(codigoBeneficio)) return false;
 
-  // Se todas = false e não estiver no exceto, também bloqueia
-  if (!todas) return true;
+  // Se todas = false e não estiver no exceto, bloqueia
+  if (!todas) return false;
 
   return true; // caso contrário, permite
 }
@@ -176,7 +176,7 @@ function aplicarRoteiro(c, banco) {
   }
 
   if (!validarEspecie(c, roteiro)) {
-    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio}) - ${banco}` };
+    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio || c.especie}) - ${banco}` };
   }
 
   return { valido: true, motivo: null };
@@ -188,13 +188,16 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
   }
 
+  // Define a espécie do contrato a partir do benefício
+  c.especie = String(c.especie || c.beneficio?.codigoBeneficio || "");
+
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const especie = String(c.beneficio?.codigoBeneficio || "");
+  const especie = c.especie;
   const permite32 = especie === "32";
 
   const PARCELA_MINIMA = 25;
