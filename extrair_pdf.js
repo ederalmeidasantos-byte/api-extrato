@@ -156,6 +156,36 @@ function taxaAnualDeMensal(rMensal) {
   return Math.pow(1 + rMensal, 12) - 1;
 }
 
+// ================== Sanitização da resposta ==================
+function extractJsonFromText(raw) {
+  if (!raw || typeof raw !== "string") throw new Error("Resposta do GPT vazia ou não textual.");
+
+  let s = raw.replace(/^\uFEFF/, "").trim();
+
+  // 1) procura ```json ... ```
+  const fenced = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced && fenced[1]) return fenced[1].trim();
+
+  // 2) remove fences avulsos
+  s = s.replace(/```(?:json)?/ig, "").replace(/```/g, "").trim();
+
+  // 3) extrai primeiro objeto
+  const firstObj = s.indexOf("{");
+  const lastObj = s.lastIndexOf("}");
+  if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
+    return s.slice(firstObj, lastObj + 1).trim();
+  }
+
+  // 4) extrai array
+  const firstArr = s.indexOf("[");
+  const lastArr = s.lastIndexOf("]");
+  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+    return s.slice(firstArr, lastArr + 1).trim();
+  }
+
+  throw new Error("Não foi possível localizar um JSON válido na resposta do GPT.");
+}
+
 // ================== Prompt ==================
 function buildPrompt(isContingencia = false) {
   let base = `
@@ -168,6 +198,7 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - O nome do benefício deve vir exatamente como está no documento.
 - Se não houver valores, use null ou 0.
 - Não invente chaves diferentes, siga o esquema fielmente.
+IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua crases (\`\`\`), nem texto explicativo.
 `;
 
   if (isContingencia) {
@@ -273,10 +304,12 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
 
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    const jsonText = extractJsonFromText(raw);
+    parsed = JSON.parse(jsonText);
   } catch (err) {
     console.error("❌ Erro ao parsear resposta do GPT:", err.message);
-    throw new Error("Resposta inválida do GPT");
+    console.error(">>> Preview da resposta (1000 chars):\n", (raw || "").slice(0, 1000));
+    throw new Error("Resposta inválida do GPT: " + err.message);
   }
 
   return parsed;
@@ -287,7 +320,6 @@ function posProcessar(parsed, isContingencia) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
 
-  // garante que sempre tenha origem
   if (!parsed.origem) {
     parsed.origem = isContingencia ? "CONTINGENCIA" : "INSS";
   }
