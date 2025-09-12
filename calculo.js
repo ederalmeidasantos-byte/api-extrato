@@ -138,12 +138,19 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 
 // ===================== Validação de espécie =====================
 function validarEspecie(c, roteiro) {
-  const codigoBeneficio = c.beneficio?.codigoBeneficio;
-  if (!roteiro?.especiesAceitas) return true;
+  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || "");
+  if (!roteiro.especiesAceitas) return true;
 
   const { todas, exceto } = roteiro.especiesAceitas;
-  if (!todas && (!codigoBeneficio || exceto.includes(codigoBeneficio))) return false;
-  return true;
+
+  if (exceto && exceto.includes(codigoBeneficio)) {
+    return false; // bloqueia as espécies na lista de exceção
+  }
+
+  // Se todas = false e não estiver no exceto, também bloqueia
+  if (!todas) return true;
+
+  return true; // caso contrário, permite
 }
 
 // ===================== Aplicar roteiro =====================
