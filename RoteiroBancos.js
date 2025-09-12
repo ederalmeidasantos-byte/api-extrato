@@ -99,6 +99,7 @@ const RoteiroBancos = {
     regraGeral: "0 parcelas pagas",
     excecoes: [
       { codigo: "935", nome: "Facta", regra: "13 pagas" },
+      { codigo: "149", nome: "Facta", regra: "13 pagas" },  
       { codigo: "329", nome: "QI Sociedade de Crédito", regra: "13 pagas" },
       { codigo: "012", nome: "Banco Inbursa", regra: "19 pagas" },
       { codigo: "623", nome: "Banco PAN", regra: "37 pagas" },

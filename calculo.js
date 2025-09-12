@@ -137,20 +137,14 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 }
 
 // ===================== Validação de espécie =====================
-  if (roteiro.especiesAceitas) {
-    const { todas, exceto = [], permitidas = [] } = roteiro.especiesAceitas;
-    const codigoBeneficio = c.beneficio?.codigoBeneficio;
-    if (codigoBeneficio) {
-      if (todas && exceto.includes(codigoBeneficio)) {
-        return { valido: false, motivo: `Espécie do benefício (${codigoBeneficio}) não permitida - ${banco}` };
-      }
-      if (!todas && !permitidas.includes(codigoBeneficio)) {
-        return { valido: false, motivo: `Espécie do benefício (${codigoBeneficio}) não permitida - ${banco}` };
-      }
-    }
-  }
+function validarEspecie(c, roteiro) {
+  const codigoBeneficio = c.beneficio?.codigoBeneficio;
+  if (!roteiro?.especiesAceitas) return true;
 
-  return { valido: true, motivo: null };
+  const { todas, exceto } = roteiro.especiesAceitas;
+  if (!todas && (!codigoBeneficio || exceto.includes(codigoBeneficio))) return false;
+  return true;
+}
 
 // ===================== Aplicar roteiro =====================
 function aplicarRoteiro(c, banco) {
@@ -175,7 +169,7 @@ function aplicarRoteiro(c, banco) {
   }
 
   if (!validarEspecie(c, roteiro)) {
-    return { valido: false, motivo: `Espécie não permitida (${c.especie}) - ${banco}` };
+    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio}) - ${banco}` };
   }
 
   return { valido: true, motivo: null };
@@ -193,7 +187,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const especie = String(c.especie || "");
+  const especie = String(c.beneficio?.codigoBeneficio || "");
   const permite32 = especie === "32";
 
   const PARCELA_MINIMA = 25;
