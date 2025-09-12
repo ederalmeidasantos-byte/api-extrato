@@ -3,6 +3,7 @@ import fsp from "fs/promises";
 import path from "path";
 import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
+import { encontrarBanco } from "./bancos.js";
 
 if (!process.env.OPENAI_API_KEY) {
   console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
@@ -162,21 +163,17 @@ function extractJsonFromText(raw) {
 
   let s = raw.replace(/^\uFEFF/, "").trim();
 
-  // 1) procura ```json ... ```
   const fenced = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fenced && fenced[1]) return fenced[1].trim();
 
-  // 2) remove fences avulsos
   s = s.replace(/```(?:json)?/ig, "").replace(/```/g, "").trim();
 
-  // 3) extrai primeiro objeto
   const firstObj = s.indexOf("{");
   const lastObj = s.lastIndexOf("}");
   if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
     return s.slice(firstObj, lastObj + 1).trim();
   }
 
-  // 4) extrai array
   const firstArr = s.indexOf("[");
   const lastArr = s.lastIndexOf("]");
   if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
@@ -206,7 +203,7 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - IOF deve receber o valor da taxa_juros_mensal.
 - NÃO tente recalcular nenhuma taxa.
 
-IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua crases (\`\`\`), nem texto explicativo.
+IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua craces (\`\`\`), nem texto explicativo.
 `;
 
   if (isContingencia) {
@@ -355,16 +352,17 @@ function posProcessar(parsed, isContingencia) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
+      // ================== Banco como objeto ==================
+      const bancoObj = encontrarBanco(c.banco || c.banco_pagamento || "");
+
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa;
 
       if (isContingencia) {
-        // ================== CONTINGÊNCIA ==================
         statusTaxa = "INFORMADA_CONTINGENCIA";
-        // IOF já vem correto
-        // Formata taxa como número BR, sem multiplicar por 100
         return {
           ...c,
+          banco: bancoObj,
           valor_parcela: formatBRNumber(parcelaNum),
           valor_liberado: formatBRNumber(liberadoNum),
           valor_pago: formatBRNumber(toNumber(c.valor_pago)),
@@ -379,7 +377,6 @@ function posProcessar(parsed, isContingencia) {
           prazo_restante: prazoRestante
         };
       } else {
-        // ================== INSS oficial ==================
         statusTaxa = c.status_taxa || "INFORMADA";
         if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
           const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
@@ -389,7 +386,6 @@ function posProcessar(parsed, isContingencia) {
           } else {
             taxaMensalNum = 0;
             statusTaxa = "FALHA_CALCULO_TAXA";
-            console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
           }
         }
 
@@ -397,6 +393,7 @@ function posProcessar(parsed, isContingencia) {
 
         return {
           ...c,
+          banco: bancoObj,
           valor_parcela: formatBRNumber(parcelaNum),
           valor_liberado: formatBRNumber(liberadoNum),
           valor_pago: formatBRNumber(toNumber(c.valor_pago)),
