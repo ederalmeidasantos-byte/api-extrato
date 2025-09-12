@@ -91,16 +91,6 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
   return `${mm}/${yyyy}`;
 }
 
-// ================== Detectar contingência ==================
-function detectarContingencia(filePath) {
-  try {
-    const txt = fs.readFileSync(filePath, "utf-8");
-    return txt.includes("OffLine") || txt.includes("Demonstrativo de Empréstimos Consignados - OffLine");
-  } catch {
-    return false;
-  }
-}
-
 // ================== Taxa helpers ==================
 function calcTaxaMensalPorBissecao(valorLiberado, valorParcela, prazo) {
   const PV = toNumber(valorLiberado);
@@ -156,78 +146,41 @@ function taxaAnualDeMensal(rMensal) {
   return Math.pow(1 + rMensal, 12) - 1;
 }
 
-// ================== Sanitização da resposta ==================
-function extractJsonFromText(raw) {
-  if (!raw || typeof raw !== "string") throw new Error("Resposta do GPT vazia ou não textual.");
-
-  let s = raw.replace(/^\uFEFF/, "").trim();
-
-  // 1) procura ```json ... ```
-  const fenced = s.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (fenced && fenced[1]) return fenced[1].trim();
-
-  // 2) remove fences avulsos
-  s = s.replace(/```(?:json)?/ig, "").replace(/```/g, "").trim();
-
-  // 3) extrai primeiro objeto
-  const firstObj = s.indexOf("{");
-  const lastObj = s.lastIndexOf("}");
-  if (firstObj !== -1 && lastObj !== -1 && lastObj > firstObj) {
-    return s.slice(firstObj, lastObj + 1).trim();
-  }
-
-  // 4) extrai array
-  const firstArr = s.indexOf("[");
-  const lastArr = s.lastIndexOf("]");
-  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
-    return s.slice(firstArr, lastArr + 1).trim();
-  }
-
-  throw new Error("Não foi possível localizar um JSON válido na resposta do GPT.");
-}
-
 // ================== Prompt ==================
-function buildPrompt(isContingencia = false) {
-  let base = `
-Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato e retorna **JSON válido**.
+function buildPrompt() {
+  return `
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato do INSS e retorna **JSON válido**.
 
 ⚠️ Regras:
 - Retorne SOMENTE JSON.
 - Inclua todos os contratos ativos (exceto RMC/RCC).
 - Valores dentro de contratos devem vir crus (sem formatação BR).
-- O nome do benefício deve vir exatamente como está no documento.
+- O nome do benefício deve vir exatamente como está no PDF.
 - Se não houver valores, use null ou 0.
-- Não invente chaves diferentes, siga o esquema fielmente.
-- Na "Contigencia" todos tem a "taxa_juros_mensal" na coluna "TAXA" e na "CET" deixar igual a taxa ou em 0.
-- Na "Contigencia" o IOF é a taxa_juros_mensal.
-IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua crases (\`\`\`), nem texto explicativo.
-`;
+- Os contratos estão sempre na seção "EMPRÉSTIMOS BANCÁRIOS".
+- Ignore contratos com status "EXCLUÍDO" ou "SUSPENSO".
+- Considere todas as tabelas de "EMPRÉSTIMOS BANCÁRIOS".
 
-  if (isContingencia) {
-    base += `
-⚠️ Este extrato é de CONTINGÊNCIA (OffLine).
-Inclua no JSON: "origem": "CONTINGENCIA".
-`;
-  } else {
-    base += `
-⚠️ Este extrato é do INSS oficial.
-Inclua no JSON: "origem": "INSS".
-`;
-  }
+⚠️ Muito importante sobre taxas:
+- **taxa_juros_mensal** deve vir em forma de fração decimal.  
+  Exemplo: 1,64% → 0.0164  
+- **taxa_juros_anual** também em fração decimal.  
+  Exemplo: 21,50% → 0.2150  
+- Não devolva em porcentagem, vírgula, nem número inteiro (ex.: 164 está errado).  
+- Use ponto como separador decimal.
+- competencia_inicio_desconto tome cuidado para não troco a coluna de INICIO com FIM.
 
-  return base + `
 Esquema esperado:
 {
-  "origem": "INSS|CONTINGENCIA",
   "cliente": "Nome exato",
   "beneficio": {
-    "nb": "string",
+    "nb": "604321543-1",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "string",
-    "banco_pagamento": "string",
-    "agencia": "string",
-    "conta": "string",
-    "nomeBeneficio": "string",
+    "meio_pagamento": "conta corrente",
+    "banco_pagamento": "Banco ...",
+    "agencia": "877",
+    "conta": "0001278479",
+    "nomeBeneficio": "Texto exato do PDF",
     "codigoBeneficio": null
   },
   "margens": {
@@ -238,20 +191,20 @@ Esquema esperado:
   },
   "contratos": [
     {
-      "contrato": "string",
-      "banco": "string",
+      "contrato": "...",
+      "banco": "...",
       "situacao": "ATIVO",
-      "data_inclusao": "DD/MM/AAAA",
+      "data_inclusao": "MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
-      "qtde_parcelas": 0,
-      "valor_parcela": 0,
-      "valor_liberado": 0,
+      "qtde_parcelas": 84,
+      "valor_parcela": 424.10,
+      "valor_liberado": 15529.56,
       "iof": 0,
-      "cet_mensal": 0,
-      "cet_anual": 0,
-      "taxa_juros_mensal": 0,
-      "taxa_juros_anual": 0,
-      "valor_pago": 0
+      "cet_mensal": 0.023,
+      "cet_anual": 0.31,
+      "taxa_juros_mensal": 0.0185,
+      "taxa_juros_anual": 0.215,
+      "valor_pago": 5000.00
     }
   ],
   "data_extrato": "DD/MM/AAAA"
@@ -260,8 +213,9 @@ Esquema esperado:
 }
 
 // ================== GPT Call ==================
-async function gptExtrairJSON(pdfPath, isContingencia) {
-  console.log("🧠 [GPT] Iniciando leitura do arquivo…");
+async function gptExtrairJSON(pdfPath) {
+  console.log("🧠 [GPT] Iniciando leitura do PDF…");
+  console.log("📤 [GPT] Upload do PDF para OpenAI:", pdfPath);
 
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
@@ -279,7 +233,7 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
         {
           role: "user",
           content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
+            { type: "input_text", text: buildPrompt() },
             { type: "input_file", file_id: uploaded.id }
           ]
         }
@@ -293,7 +247,7 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
         {
           role: "user",
           content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
+            { type: "input_text", text: buildPrompt() },
             { type: "input_file", file_id: uploaded.id }
           ]
         }
@@ -306,25 +260,19 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
 
   let parsed;
   try {
-    const jsonText = extractJsonFromText(raw);
-    parsed = JSON.parse(jsonText);
+    parsed = JSON.parse(raw);
   } catch (err) {
     console.error("❌ Erro ao parsear resposta do GPT:", err.message);
-    console.error(">>> Preview da resposta (1000 chars):\n", (raw || "").slice(0, 1000));
-    throw new Error("Resposta inválida do GPT: " + err.message);
+    throw new Error("Resposta inválida do GPT");
   }
 
   return parsed;
 }
 
 // ================== Pós-processamento ==================
-function posProcessar(parsed, isContingencia) {
+function posProcessar(parsed) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
-
-  if (!parsed.origem) {
-    parsed.origem = isContingencia ? "CONTINGENCIA" : "INSS";
-  }
 
   let nb = normalizarNB(parsed.beneficio.nb || "");
   if (nb.length < 10) nb = "";
@@ -356,6 +304,7 @@ function posProcessar(parsed, isContingencia) {
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa = c.status_taxa || "INFORMADA";
 
+      // Se não veio válido, recalcula
       if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
         const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
         if (out.ok) {
@@ -368,6 +317,11 @@ function posProcessar(parsed, isContingencia) {
         }
       }
 
+      let cetMensalNum = toNumber(c.cet_mensal);
+      let cetAnualNum = toNumber(c.cet_anual);
+      if (!(cetMensalNum >= 0 && cetMensalNum < 1)) cetMensalNum = 0;
+      if (!(cetAnualNum >= 0 && cetAnualNum < 5)) cetAnualNum = 0;
+
       const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
 
       return {
@@ -376,8 +330,8 @@ function posProcessar(parsed, isContingencia) {
         valor_liberado: formatBRNumber(liberadoNum),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
         iof: formatBRNumber(toNumber(c.iof)),
-        cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
-        cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
+        cet_mensal: formatPercentBRFromDecimal(cetMensalNum),
+        cet_anual: formatPercentBRFromDecimal(cetAnualNum),
         taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
         taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
         status_taxa: statusTaxa,
@@ -401,6 +355,7 @@ function posProcessar(parsed, isContingencia) {
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
+  // cache válido até 14 dias
   if (fs.existsSync(jsonPath) && cacheValido(jsonPath, ttlMs)) {
     console.log("♻️ Usando JSON cacheado válido em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
@@ -410,13 +365,13 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   console.log("🚀 Iniciando extração de upload:", fileId);
   await fsp.mkdir(jsonDir, { recursive: true });
 
-  const isContingencia = detectarContingencia(pdfPath);
-  const parsed = await gptExtrairJSON(pdfPath, isContingencia);
-  const json = posProcessar(parsed, isContingencia);
+  const parsed = await gptExtrairJSON(pdfPath);
+  const json = posProcessar(parsed);
 
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
 
+  // remove PDF e JSON em 14 dias pra não acumular
   agendarExclusaoDias(TTL_DIAS_PADRAO, pdfPath, jsonPath);
 
   return { fileId, ...json };
