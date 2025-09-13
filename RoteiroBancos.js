@@ -80,7 +80,8 @@ const RoteiroBancos = {
       { codigo: "326", nome: "Parati – Crédito", regra: "12 pagas" },
       { codigo: "389", nome: "Banco Mercantil do Brasil", regra: "12 pagas" },
       { codigo: "121", nome: "Agibank", regra: "12 pagas" },
-      { codigo: "707", nome: "Daycoval", regra: "13 pagas" }
+      { codigo: "707", nome: "Daycoval", regra: "13 pagas" },
+      { codigo: "000", nome: "Demais bancos", regra: "3 pagas" }
     ],
     naoPorta: [
       { codigo: "012", nome: "Banco Inbursa" },

@@ -296,7 +296,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
         break; // banco válido encontrado
       } else {
         // Sobrescreve apenas a última taxa testada para esse banco
-        motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) menor (${TROCO_MINIMO}) - taxa ${tx}`;
+        motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) TX ${tx}`;
       }
     }
     if (escolhido) break;
