@@ -190,11 +190,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   }
 
   // ===================== Define espécie =====================
-  c.especie = String(
-    c.beneficio?.codigoBeneficio ||
-    c.cliente?.beneficio?.codigoBeneficio ||
-    ""
-  );
+  c.especie = String(extrato.beneficio?.codigoBeneficio || "");
 
   console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosPermitidosPorEspecie(c.especie).join(", ")}`);
 
