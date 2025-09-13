@@ -218,8 +218,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  // c.especie deve vir carregada por extrairEmprestimos (do extrato.beneficio.codigoBeneficio)
-  // se não veio, mantemos string vazia
   c.especie = String(c.especie || "");
 
   console.log(
@@ -276,14 +274,14 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   // ===================== Bancos de simulação =====================
   const bancosParaSimular = bancosPermitidosPorEspecie(c.especie);
   let escolhido = null;
-  let motivoBloqueio = null;
+  const motivosBloqueio = [];
 
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
 
     if (!aplicacao.valido) {
-      motivoBloqueio = aplicacao.motivo;
-      console.log(`[BLOQUEIO] Banco ${banco} não aplicável para contrato ${c.contrato}: ${motivoBloqueio}`);
+      motivosBloqueio.push({ banco, motivo: aplicacao.motivo });
+      console.log(`[BLOQUEIO] Banco ${banco} não aplicável para contrato ${c.contrato}: ${aplicacao.motivo}`);
       continue;
     }
 
@@ -305,24 +303,23 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco,
         };
-        console.log(
-          `[ESCOLHIDO] Contrato ${c.contrato} -> Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) - Troco: ${formatBRNumber(
-            troco
-          )} - Parcela paga: ${c.parcelas_pagas} - Banco origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`
-        );
+        console.log(`[ESCOLHIDO] Contrato ${c.contrato} -> Banco ${banco} - Troco: ${formatBRNumber(troco)}`);
         break;
       } else {
-        motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
+        motivosBloqueio.push({
+          banco,
+          motivo: `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - taxa ${tx}`,
+        });
       }
     }
     if (escolhido) break;
   }
 
   if (!escolhido) {
-    console.log(`[BLOQUEIO] Contrato ${c.contrato}: nenhum banco/taxa elegível - motivo final: ${motivoBloqueio}`);
+    const todosMotivos = motivosBloqueio.map(m => `${m.banco}: ${m.motivo}`).join(" | ");
     return {
       contrato: c.contrato,
-      motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
+      motivo: `Nenhum banco/taxa elegível - motivos: ${todosMotivos}`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(saldoDevedor),
       prazo_total: totalParcelas,
