@@ -220,13 +220,18 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
 
   // ===================== Bancos de simulação =====================
   const bancosParaSimular = bancosPermitidosPorEspecie(c.especie);
+  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosParaSimular.join(", ")}`);
+
   let escolhido = null;
   let motivoBloqueio = null;
 
   for (const banco of bancosParaSimular) {
+    console.log(`[TESTE BANCO] Contrato ${c.contrato} - Testando banco: ${banco}`);
+
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
+      console.log(`[BLOQUEIO] Contrato ${c.contrato} - Banco ${banco} bloqueado: ${motivoBloqueio}`);
       continue;
     }
 
@@ -234,10 +239,15 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
     const taxasPermitidas = roteiro?.taxas || [];
     for (const tx of taxasPermitidas) {
       const coefNovo = getCoeficiente(tx, diaAverbacao);
-      if (!coefNovo) continue;
+      if (!coefNovo) {
+        console.log(`[SKIP COEFICIENTE] Contrato ${c.contrato} - Banco ${banco} - Taxa ${tx} sem coeficiente`);
+        continue;
+      }
 
       const valorEmprestimo = parcelaAjustada / coefNovo;
       const troco = valorEmprestimo - saldoDevedor;
+
+      console.log(`[CALCULO] Contrato ${c.contrato} - Banco ${banco} - Taxa ${tx} - Coef: ${coefNovo} - Troco: ${formatBRNumber(troco)}`);
 
       if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
         escolhido = {
@@ -248,15 +258,19 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco
         };
+        console.log(`[ESCOLHIDO] Contrato ${c.contrato} - Banco: ${banco} - Troco: ${formatBRNumber(troco)}`);
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
+        console.log(`[BLOQUEIO TROCO] Contrato ${c.contrato} - ${motivoBloqueio}`);
       }
     }
+
     if (escolhido) break;
   }
 
   if (!escolhido) {
+    console.log(`[SEM ESCOLHA] Contrato ${c.contrato} - Motivo final: ${motivoBloqueio || "Nenhum banco/taxa elegível"}`);
     return {
       contrato: c.contrato,
       motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
