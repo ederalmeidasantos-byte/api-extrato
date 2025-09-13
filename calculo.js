@@ -167,15 +167,15 @@ function validarEspecieParaRoteiro(especie, roteiro) {
 // ===================== Validar contrato pelo roteiro =====================
 function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
-  if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
+  if (!roteiro) return { valido: false, motivo: "Banco não encontrado" };
 
   const saldo = toNumber(c.saldo_devedor);
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
-    return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
+    return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
   if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
-    return { valido: false, motivo: `Banco ${banco} não permitido para espécie ${c.especie}` };
+    return { valido: false, motivo: `Banco ${banco} não permitido esp ${c.especie}` };
   }
 
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
@@ -202,12 +202,12 @@ function aplicarRoteiro(c, banco) {
   if (parcelasPagas < regraParcelas) {
     return {
       valido: false,
-      motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
+      motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
     };
   }
 
   if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
-    return { valido: false, motivo: `Banco de origem não permitido (${c.banco?.nome || "N/A"})` };
+    return { valido: false, motivo: `Banco não permitido (${c.banco?.nome || "N/A"})` };
   }
 
   return { valido: true, motivo: null };
@@ -295,7 +295,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
       } else {
         motivosBloqueio.push({
           banco,
-          motivo: `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - taxa ${tx}`,
+          motivo: `Troco (${formatBRNumber(troco)}) menor (${TROCO_MINIMO}) - taxa ${tx}`,
         });
       }
     }
