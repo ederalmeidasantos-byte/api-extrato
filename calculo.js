@@ -263,13 +263,15 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   // ===================== Bancos de simulação =====================
   const bancosParaSimular = bancosPermitidosPorEspecie(c.especie);
   let escolhido = null;
-  const motivosBloqueio = [];
+
+  // Armazena apenas a última taxa por banco
+  const motivosBloqueio = {};
 
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
 
     if (!aplicacao.valido) {
-      motivosBloqueio.push({ banco, motivo: aplicacao.motivo });
+      motivosBloqueio[banco] = aplicacao.motivo;
       continue;
     }
 
@@ -291,19 +293,20 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco,
         };
-        break;
+        break; // banco válido encontrado
       } else {
-        motivosBloqueio.push({
-          banco,
-          motivo: `Troco (${formatBRNumber(troco)}) menor (${TROCO_MINIMO}) - taxa ${tx}`,
-        });
+        // Sobrescreve apenas a última taxa testada para esse banco
+        motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) menor (${TROCO_MINIMO}) - taxa ${tx}`;
       }
     }
     if (escolhido) break;
   }
 
+  // ===================== Contrato não elegível =====================
   if (!escolhido) {
-    const todosMotivos = motivosBloqueio.map(m => `${m.banco}: ${m.motivo}`).join(" | ");
+    const todosMotivos = Object.entries(motivosBloqueio)
+      .map(([banco, motivo]) => `${banco}: ${motivo}`)
+      .join(" | ");
     return {
       contrato: c.contrato,
       motivo: `Nenhum banco/taxa elegível - motivos: ${todosMotivos}`,
