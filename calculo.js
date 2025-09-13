@@ -143,12 +143,10 @@ function bancosPermitidosPorEspecie(especie) {
   return ORDEM_BANCOS;
 }
 
-// valida espécie com regras comuns (todas / exceto)
 function validarEspecieParaRoteiro(especie, roteiro) {
   if (!roteiro || !roteiro.especiesAceitas) return true;
 
   const ea = roteiro.especiesAceitas;
-  // caso padrão: todas = true, exceto = [..]
   if (ea.todas === true) {
     if (Array.isArray(ea.exceto) && ea.exceto.includes(String(especie))) {
       return false;
@@ -156,17 +154,13 @@ function validarEspecieParaRoteiro(especie, roteiro) {
     return true;
   }
 
-  // se "todas" é false -> tentar interpretar lista explícita (por segurança)
-  // suportar possibilidade: { todas: false, permitidas: ["32", ...] }
   if (ea.todas === false) {
     if (Array.isArray(ea.permitidas)) {
       return ea.permitidas.includes(String(especie));
     }
-    // se não há permitidas explicitadas, conservador: bloquear
     return false;
   }
 
-  // fallback permissivo
   return true;
 }
 
@@ -175,26 +169,34 @@ function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
-  // Saldo devedor
   const saldo = toNumber(c.saldo_devedor);
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  // Espécie
   if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
     return { valido: false, motivo: `Banco ${banco} não permitido para espécie ${c.especie}` };
   }
 
-  // Parcelas pagas considerando banco de origem (exceções no roteiro)
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
-  let regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+  let regraParcelas = null;
 
   if (Array.isArray(roteiro.excecoes)) {
     const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(c.banco?.codigo));
     if (excecao && typeof excecao.regra === "string") {
-      regraParcelas = Number(excecao.regra.split(" ")[0] || regraParcelas);
+      regraParcelas = Number(excecao.regra.split(" ")[0]);
     }
+  }
+
+  if (regraParcelas === null && Array.isArray(roteiro.excecoes)) {
+    const demais = roteiro.excecoes.find((e) => e.nome.toLowerCase().includes("demais bancos"));
+    if (demais && demais.regra) {
+      regraParcelas = Number(demais.regra.split(" ")[0]);
+    }
+  }
+
+  if (regraParcelas === null) {
+    regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   }
 
   if (parcelasPagas < regraParcelas) {
@@ -204,7 +206,6 @@ function aplicarRoteiro(c, banco) {
     };
   }
 
-  // Banco de origem não permitido (naoPorta)
   if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
     return { valido: false, motivo: `Banco de origem não permitido (${c.banco?.nome || "N/A"})` };
   }
@@ -215,41 +216,29 @@ function aplicarRoteiro(c, banco) {
 // ===================== Calcular contrato =====================
 function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
-    return { contrato: c?.contrato, motivo: "Contrato não ativo" };
+    return { contrato: c?.contrato, motivo: "Contrato não ativo", banco: c?.banco };
   }
 
   c.especie = String(c.especie || "");
 
-  console.log(
-    `[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie || "(vazia)"} - Bancos permitidos: ${bancosPermitidosPorEspecie(
-      c.especie
-    ).join(", ")} - Banco origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"}) - Parcelas pagas: ${c.parcelas_pagas}`
-  );
-
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
-
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0;
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const PARCELA_MINIMA = 25;
-  const permite32 = c.especie === "32";
-
-  if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
-    console.log(`[BLOQUEIO] Contrato ${c.contrato}: parcela abaixo da mínima (${formatBRNumber(parcelaOriginal)})`);
+  if (parcelaOriginal < 25 && c.especie !== "32") {
     return {
       contrato: c.contrato,
-      motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${PARCELA_MINIMA})`,
+      motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (25)`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
       prazo_total: totalParcelas,
       parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
+      banco: c.banco,
     };
   }
 
-  const saldoDevedor =
-    simulacoes[c.contrato]?.saldoDevedor ?? pvFromParcela(parcelaOriginal, toNumber(c.taxa_juros_mensal), prazoRestante);
-
+  const saldoDevedor = simulacoes[c.contrato]?.saldoDevedor ?? pvFromParcela(parcelaOriginal, toNumber(c.taxa_juros_mensal), prazoRestante);
   let taxaAtualMes = simulacoes[c.contrato]?.taxaAtualMes ?? toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
 
@@ -259,7 +248,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
       taxaAtualMes = estimada;
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
-      console.log(`[BLOQUEIO] Contrato ${c.contrato}: falha ao obter taxa`);
       return {
         contrato: c.contrato,
         motivo: "Falha ao calcular taxa",
@@ -267,6 +255,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
         saldo_devedor: formatBRNumber(saldoDevedor),
         prazo_total: totalParcelas,
         parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
+        banco: c.banco,
       };
     }
   }
@@ -281,7 +270,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
 
     if (!aplicacao.valido) {
       motivosBloqueio.push({ banco, motivo: aplicacao.motivo });
-      console.log(`[BLOQUEIO] Banco ${banco} não aplicável para contrato ${c.contrato}: ${aplicacao.motivo}`);
       continue;
     }
 
@@ -303,7 +291,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco,
         };
-        console.log(`[ESCOLHIDO] Contrato ${c.contrato} -> Banco ${banco} - Troco: ${formatBRNumber(troco)}`);
         break;
       } else {
         motivosBloqueio.push({
@@ -324,6 +311,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
       saldo_devedor: formatBRNumber(saldoDevedor),
       prazo_total: totalParcelas,
       parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
+      banco: c.banco,
     };
   }
 
@@ -353,7 +341,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
 // ===================== Extrator =====================
 function extrairEmprestimos(json) {
   if (Array.isArray(json.contratos)) {
-    // Atribui a espécie vinda do extrato.beneficio.codigoBeneficio a cada contrato
     const especieDoCliente = String(json?.beneficio?.codigoBeneficio || "");
     return json.contratos
       .filter((c) => (c.situacao || "").toLowerCase() === "ativo")
