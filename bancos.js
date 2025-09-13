@@ -18,14 +18,14 @@ export const bancos = [
   { codigo: "389", nome: "Banco Mercantil do Brasil" },
   { codigo: "422", nome: "Safra" },
   { codigo: "623", nome: "Banco PAN" },
-  { codigo: "626", nome: "C6 / C6 Consignado" },
+  { codigo: "626", nome: "C6 / C6 Consignado / BANCO C6 CONSIGNADO S A" },
   { codigo: "643", nome: "Banco Pine" },
   { codigo: "707", nome: "Daycoval" },
   { codigo: "752", nome: "BNP Paribas" },
   { codigo: "754", nome: "Sicoob" },
   { codigo: "905", nome: "Banco Alfa" },
   { codigo: "935", nome: "Facta" },
-  { codigo: "908", nome: "PARATICFI S A, PARATI CFI S A" },
+  { codigo: "908", nome: "PARATICFI S A / PARATI CFI S A" },
   { codigo: "029", nome: "Itau"}
 ];
 
