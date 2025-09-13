@@ -60,7 +60,11 @@ function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[Number(tx).toFixed(2)];
   if (!tabela) return null;
   return (
-    tabela[dia] ?? tabela[String(+dia)] ?? tabela["01"] ?? tabela["1"] ?? (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
+    tabela[dia] ??
+    tabela[String(+dia)] ??
+    tabela["01"] ??
+    tabela["1"] ??
+    (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
   );
 }
 
@@ -82,12 +86,12 @@ function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   let i = 0.02;
   for (let k = 0; k < 50; k++) {
     const denom = i === 0 ? 1e-9 : i;
-    const f = pmt * (1 - Math.pow(1 + denom, -n)) / denom - pv;
+    const f = (pmt * (1 - Math.pow(1 + denom, -n))) / denom - pv;
     if (Math.abs(f) < 1e-7) break;
 
     const h = 1e-5;
     const ip = denom + h;
-    const fp = pmt * (1 - Math.pow(1 + ip, -n)) / ip - pv;
+    const fp = (pmt * (1 - Math.pow(1 + ip, -n))) / ip - pv;
     const fPrime = (fp - f) / h;
 
     if (!Number.isFinite(fPrime) || Math.abs(fPrime) < 1e-12) break;
@@ -110,12 +114,12 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   const original = toNumber(maior.valor_parcela);
   const nova = Math.max(0, original - extrapoladaAbs);
 
-  const ajustados = contratos.map(c => {
+  const ajustados = contratos.map((c) => {
     if (c.contrato === maior.contrato) {
       return {
         ...c,
         __parcela_original__: formatBRNumber(original),
-        valor_parcela: formatBRNumber(nova)
+        valor_parcela: formatBRNumber(nova),
       };
     }
     return c;
@@ -127,8 +131,8 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
       contrato: maior.contrato,
       parcela_original: formatBRNumber(original),
       parcela_ajustada: formatBRNumber(nova),
-      extrapolada_utilizada: formatBRNumber(extrapoladaAbs)
-    }
+      extrapolada_utilizada: formatBRNumber(extrapoladaAbs),
+    },
   };
 }
 
@@ -139,45 +143,70 @@ function bancosPermitidosPorEspecie(especie) {
   return ORDEM_BANCOS;
 }
 
+// valida espécie com regras comuns (todas / exceto)
+function validarEspecieParaRoteiro(especie, roteiro) {
+  if (!roteiro || !roteiro.especiesAceitas) return true;
+
+  const ea = roteiro.especiesAceitas;
+  // caso padrão: todas = true, exceto = [..]
+  if (ea.todas === true) {
+    if (Array.isArray(ea.exceto) && ea.exceto.includes(String(especie))) {
+      return false;
+    }
+    return true;
+  }
+
+  // se "todas" é false -> tentar interpretar lista explícita (por segurança)
+  // suportar possibilidade: { todas: false, permitidas: ["32", ...] }
+  if (ea.todas === false) {
+    if (Array.isArray(ea.permitidas)) {
+      return ea.permitidas.includes(String(especie));
+    }
+    // se não há permitidas explicitadas, conservador: bloquear
+    return false;
+  }
+
+  // fallback permissivo
+  return true;
+}
+
 // ===================== Validar contrato pelo roteiro =====================
 function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
+  // Saldo devedor
   const saldo = toNumber(c.saldo_devedor);
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  // Valida espécie
-  if (roteiro.especiesAceitas) {
-    if (!roteiro.especiesAceitas.todas && !roteiro.especiesAceitas[c.especie]) {
-      return { valido: false, motivo: `Espécie ${c.especie} não aceita pelo banco ${banco}` };
-    }
+  // Espécie
+  if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
+    return { valido: false, motivo: `Banco ${banco} não permitido para espécie ${c.especie}` };
   }
 
-  // Parcelas pagas considerando banco de origem
+  // Parcelas pagas considerando banco de origem (exceções no roteiro)
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
   let regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
 
   if (Array.isArray(roteiro.excecoes)) {
-    const excecao = roteiro.excecoes.find(e => String(e.codigo) === String(c.banco.codigo));
-    if (excecao) {
-      regraParcelas = Number(excecao.regra.split(" ")[0]);
+    const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(c.banco?.codigo));
+    if (excecao && typeof excecao.regra === "string") {
+      regraParcelas = Number(excecao.regra.split(" ")[0] || regraParcelas);
     }
   }
 
   if (parcelasPagas < regraParcelas) {
     return {
       valido: false,
-      motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`
+      motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
     };
   }
 
-  // Banco de origem não permitido
-  if (Array.isArray(roteiro.naoPorta) &&
-      roteiro.naoPorta.some(b => String(b.codigo) === String(c.banco.codigo))) {
-    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
+  // Banco de origem não permitido (naoPorta)
+  if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
+    return { valido: false, motivo: `Banco de origem não permitido (${c.banco?.nome || "N/A"})` };
   }
 
   return { valido: true, motivo: null };
@@ -189,32 +218,39 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  // ===================== Define espécie =====================
-  c.especie = String(extrato.beneficio?.codigoBeneficio || "");
+  // c.especie deve vir carregada por extrairEmprestimos (do extrato.beneficio.codigoBeneficio)
+  // se não veio, mantemos string vazia
+  c.especie = String(c.especie || "");
 
-  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosPermitidosPorEspecie(c.especie).join(", ")}`);
+  console.log(
+    `[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie || "(vazia)"} - Bancos permitidos: ${bancosPermitidosPorEspecie(
+      c.especie
+    ).join(", ")} - Banco origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"}) - Parcelas pagas: ${c.parcelas_pagas}`
+  );
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
 
-  const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
+  const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0;
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
   const PARCELA_MINIMA = 25;
   const permite32 = c.especie === "32";
 
   if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
+    console.log(`[BLOQUEIO] Contrato ${c.contrato}: parcela abaixo da mínima (${formatBRNumber(parcelaOriginal)})`);
     return {
       contrato: c.contrato,
       motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${PARCELA_MINIMA})`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
       prazo_total: totalParcelas,
-      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     };
   }
 
-  const saldoDevedor = simulacoes[c.contrato]?.saldoDevedor ?? pvFromParcela(parcelaOriginal, toNumber(c.taxa_juros_mensal), prazoRestante);
+  const saldoDevedor =
+    simulacoes[c.contrato]?.saldoDevedor ?? pvFromParcela(parcelaOriginal, toNumber(c.taxa_juros_mensal), prazoRestante);
 
   let taxaAtualMes = simulacoes[c.contrato]?.taxaAtualMes ?? toNumber(c.taxa_juros_mensal);
   let statusTaxa = c.status_taxa || null;
@@ -225,13 +261,14 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
       taxaAtualMes = estimada;
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
+      console.log(`[BLOQUEIO] Contrato ${c.contrato}: falha ao obter taxa`);
       return {
         contrato: c.contrato,
         motivo: "Falha ao calcular taxa",
         parcela: formatBRNumber(parcelaAjustada),
         saldo_devedor: formatBRNumber(saldoDevedor),
         prazo_total: totalParcelas,
-        parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+        parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
       };
     }
   }
@@ -246,7 +283,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
 
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
-      console.log(`[BLOQUEIO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) não aplicável: ${motivoBloqueio}`);
+      console.log(`[BLOQUEIO] Banco ${banco} não aplicável para contrato ${c.contrato}: ${motivoBloqueio}`);
       continue;
     }
 
@@ -266,9 +303,13 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           coeficiente_usado: coefNovo,
           saldoDevedor,
           valorEmprestimo,
-          troco
+          troco,
         };
-        console.log(`[ESCOLHIDO] Banco ${banco} - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas} - Banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`);
+        console.log(
+          `[ESCOLHIDO] Contrato ${c.contrato} -> Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) - Troco: ${formatBRNumber(
+            troco
+          )} - Parcela paga: ${c.parcelas_pagas} - Banco origem: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`
+        );
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
@@ -278,13 +319,14 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   }
 
   if (!escolhido) {
+    console.log(`[BLOQUEIO] Contrato ${c.contrato}: nenhum banco/taxa elegível - motivo final: ${motivoBloqueio}`);
     return {
       contrato: c.contrato,
       motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(saldoDevedor),
       prazo_total: totalParcelas,
-      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0
+      parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
     };
   }
 
@@ -307,14 +349,21 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
     valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
     troco: formatBRNumber(escolhido.troco),
     data_contrato: c.data_contrato || c.data_inclusao || null,
-    motivo: null
+    motivo: null,
   };
 }
 
 // ===================== Extrator =====================
 function extrairEmprestimos(json) {
   if (Array.isArray(json.contratos)) {
-    return json.contratos.filter(c => (c.situacao || "").toLowerCase() === "ativo");
+    // Atribui a espécie vinda do extrato.beneficio.codigoBeneficio a cada contrato
+    const especieDoCliente = String(json?.beneficio?.codigoBeneficio || "");
+    return json.contratos
+      .filter((c) => (c.situacao || "").toLowerCase() === "ativo")
+      .map((c) => ({
+        ...c,
+        especie: String(c.especie || especieDoCliente || ""),
+      }));
   }
   return [];
 }
@@ -336,7 +385,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       const simulacoes = {};
       for (const c of contratosAtivos) {
         const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
-        const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
+        const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0;
         const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
         let taxaAtualMes = toNumber(c.taxa_juros_mensal);
@@ -352,7 +401,12 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       const extrap = (() => {
         const m = extrato?.margens || {};
-        const candidates = [m.margem_extrapolada, m.extrapolada, extrato?.margem_extrapolada, extrato?.resumo?.margem_extrapolada];
+        const candidates = [
+          m.margem_extrapolada,
+          m.extrapolada,
+          extrato?.margem_extrapolada,
+          extrato?.resumo?.margem_extrapolada,
+        ];
         for (const v of candidates) {
           const n = toNumber(v);
           if (n > 0) return n;
@@ -367,18 +421,20 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
-      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, simulacoes, extrap > 0, extrap));
+      const calculados = contratosAtivos.map((c) =>
+        calcularParaContrato(c, diaAverbacao, simulacoes, extrap > 0, extrap)
+      );
 
-      const contratosValidos = calculados.filter(c => c && !c.motivo);
-      const contratosInvalidos = calculados.filter(c => c && c.motivo);
+      const contratosValidos = calculados.filter((c) => c && !c.motivo);
+      const contratosInvalidos = calculados.filter((c) => c && c.motivo);
 
       const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 
-      const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco.nome);
-      const parcelas = ordenados.map(c => c.parcela);
-      const parcelasOrig = ordenados.map(c => c.parcela_original);
-      const taxas = ordenados.map(c => c.taxa_calculada);
-      const saldos = ordenados.map(c => c.saldo_devedor);
+      const bancosResumo = ordenados.map((c) => c.bancoNovo || c.banco?.nome);
+      const parcelas = ordenados.map((c) => c.parcela);
+      const parcelasOrig = ordenados.map((c) => c.parcela_original);
+      const taxas = ordenados.map((c) => c.taxa_calculada);
+      const saldos = ordenados.map((c) => c.saldo_devedor);
       const totalTroco = ordenados.reduce((s, c) => s + toNumber(c.troco), 0);
 
       return res.json({
@@ -394,13 +450,13 @@ export function calcularTrocoEndpoint(JSON_DIR) {
           saldos_devedores: saldos.join(", "),
           total_troco: formatBRNumber(totalTroco),
           total_contratos_simulados: ordenados.length,
-          bancos_novos: [...new Set(bancosResumo)].join(", ")
+          bancos_novos: [...new Set(bancosResumo)].join(", "),
         },
-        ajuste_margem: infoAjuste
+        ajuste_margem: infoAjuste || null,
       });
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Erro interno do servidor" });
+      console.error("Erro /calcular", err);
+      res.status(500).json({ error: "Erro interno no cálculo", detalhe: err.message });
     }
   };
 }
