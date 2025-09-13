@@ -193,29 +193,19 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - Inclua todos os contratos ativos (exceto RMC/RCC).
 - Valores dentro de contratos devem vir crus (sem formatação BR).
 - O nome do benefício deve vir exatamente como está no documento.
+- O campo "banco" deve conter **somente o CÓDIGO do banco** (ex: "237"), nunca o nome.
 - Se não houver valores, use null ou 0.
 - Não invente chaves diferentes, siga o esquema fielmente.
-
-⚠️ Para extratos de CONTINGÊNCIA:
-- Use exatamente o valor da coluna TAXA como taxa_juros_mensal.
-- Use exatamente o valor mesmo valor do IOF para a TAXA como taxa_juros_mensal.
-- CET mensal e CET anual podem ser iguais à taxa ou 0.
-- IOF deve receber o valor da taxa_juros_mensal.
-- NÃO tente recalcular nenhuma taxa.
-
-IMPORTANTE: RESPOSTA EM JSON PURO. NÃO use markdown, não inclua craces (\`\`\`), nem texto explicativo.
 `;
 
   if (isContingencia) {
     base += `
 ⚠️ Este extrato é de CONTINGÊNCIA (OffLine).
-Inclua no JSON: "origem": "CONTINGENCIA".
-`;
+Inclua no JSON: "origem": "CONTINGENCIA".`;
   } else {
     base += `
 ⚠️ Este extrato é do INSS oficial.
-Inclua no JSON: "origem": "INSS".
-`;
+Inclua no JSON: "origem": "INSS".`;
   }
 
   return base + `
@@ -242,7 +232,7 @@ Esquema esperado:
   "contratos": [
     {
       "contrato": "string",
-      "banco": "string",
+      "banco": "string", // <- Somente código
       "situacao": "ATIVO",
       "data_inclusao": "DD/MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
@@ -258,8 +248,7 @@ Esquema esperado:
     }
   ],
   "data_extrato": "DD/MM/AAAA"
-}
-`;
+}`;
 }
 
 // ================== GPT Call ==================
@@ -320,6 +309,7 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
   return parsed;
 }
 
+// ================== Pós-processamento ==================
 function posProcessar(parsed, isContingencia) {
   if (!parsed) parsed = {};
   if (!parsed.beneficio) parsed.beneficio = {};
@@ -352,8 +342,8 @@ function posProcessar(parsed, isContingencia) {
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
 
-      // ================== Banco como objeto ==================
-      const bancoObj = encontrarBanco(c.banco || c.banco_pagamento || "");
+      // ✅ Banco vira objeto {codigo, nome}
+      const bancoObj = encontrarBanco(String(c.banco || "").trim());
 
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa;
@@ -393,7 +383,7 @@ function posProcessar(parsed, isContingencia) {
 
         return {
           ...c,
-          banco: bancoObj,
+          banco: bancoObj, // <-- objeto {codigo, nome}
           valor_parcela: formatBRNumber(parcelaNum),
           valor_liberado: formatBRNumber(liberadoNum),
           valor_pago: formatBRNumber(toNumber(c.valor_pago)),
