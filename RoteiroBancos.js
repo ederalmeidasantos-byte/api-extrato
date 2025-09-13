@@ -16,7 +16,7 @@ const RoteiroBancos = {
       { codigo: "070", nome: "Picpay" },
       { codigo: "121", nome: "Agibank" },
       { codigo: "626", nome: "C6 / C6 Consignado" },
-      { codigo: "070", nome: "BRB" }
+      { codigo: "925", nome: "BRB" }
     ],
     idade: "21 a 73 anos",
     especiesAceitas: { todas: true },
@@ -137,7 +137,7 @@ const RoteiroBancos = {
       { codigo: "626", nome: "C6 / C6 Consignado" },
       { codigo: "149", nome: "FACTA" },
       { codigo: "012", nome: "INBURSA" },
-      { codigo: "070", nome: "BRB" },
+      { codigo: "925 ", nome: "BRB" },
       { codigo: "254", nome: "Paraná Banco" },
       { codigo: "935", nome: "Facta" }
     ],
@@ -150,7 +150,7 @@ const RoteiroBancos = {
     regraGeral: "0 parcelas pagas",
     excecoes: [
       { codigo: "643", nome: "Banco PAN", regra: "12 paga" },
-      { codigo: "070", nome: "Banco PAN", regra: "5 paga" },
+      { codigo: "925", nome: "Banco BRB", regra: "5 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
