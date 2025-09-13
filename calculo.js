@@ -136,40 +136,14 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
   };
 }
 
-// ===================== Validação de espécie =====================
-function validarEspecie(c, roteiro) {
-  const codigoBeneficio = String(c.beneficio?.codigoBeneficio || "");
-  if (!roteiro.especiesAceitas) return true;
-
-  const { todas, exceto } = roteiro.especiesAceitas;
-
-  if (exceto && exceto.includes(codigoBeneficio)) {
-    return false;
-  }
-
-  if (!todas) return true;
-
-  return true;
+// ===================== Validação de espécie e bancos =====================
+function bancosPermitidosPorEspecie(especie) {
+  if (especie === "87") return ["BRB", "PICPAY", "C6"];
+  if (especie === "88") return ["FINANTO", "BRB", "PICPAY", "C6"];
+  return ORDEM_BANCOS;
 }
 
-// ===================== Filtrar bancos por espécie =====================
-function filtrarBancosPorEspecie(c) {
-  const especie = c.beneficio?.codigoBeneficio;
-  let bancosPermitidos = ORDEM_BANCOS;
-
-  if (especie === "87") bancosPermitidos = ["BRB", "PICPAY", "C6"];
-  else if (especie === "88") bancosPermitidos = ["FINANTO", "BRB", "PICPAY", "C6"];
-
-  // Normaliza o nome do banco
-  const nomeBanco = c.banco.nome.replace(/^\d+\s*-\s*/, "").trim().toUpperCase();
-  if (!bancosPermitidos.includes(nomeBanco)) {
-    c.motivo = `Banco ${c.banco.nome} não permitido para espécie ${especie}`;
-    return false;
-  }
-  return true;
-}
-
-// ===================== Aplicar roteiro =====================
+// ===================== Validar contrato pelo roteiro =====================
 function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
@@ -191,23 +165,16 @@ function aplicarRoteiro(c, banco) {
     return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
   }
 
-  if (!validarEspecie(c, roteiro)) {
-    return { valido: false, motivo: `Espécie não permitida (${c.beneficio?.codigoBeneficio}) - ${banco}` };
-  }
-
   return { valido: true, motivo: null };
 }
 
 // ===================== Calcular contrato =====================
-function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
+function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
-    return { contrato: c?.contrato, motivo: "etapa 0: contrato não ativo" };
+    return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  // Filtrar bancos por espécie antes do fluxo
-  if (!filtrarBancosPorEspecie(c)) {
-    return { contrato: c.contrato, motivo: c.motivo };
-  }
+  c.especie = String(c.beneficio?.codigoBeneficio || "");
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
@@ -215,14 +182,13 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : (toNumber(c.qtde_parcelas) || 0);
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
-  const especie = String(c.beneficio?.codigoBeneficio || "");
-  const permite32 = especie === "32";
-
   const PARCELA_MINIMA = 25;
+  const permite32 = c.especie === "32";
+
   if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
     return {
       contrato: c.contrato,
-      motivo: `etapa 1: parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${formatBRNumber(PARCELA_MINIMA)})`,
+      motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${PARCELA_MINIMA})`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
       prazo_total: totalParcelas,
@@ -243,7 +209,7 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     } else {
       return {
         contrato: c.contrato,
-        motivo: "etapa 4: falha ao calcular taxa",
+        motivo: "Falha ao calcular taxa",
         parcela: formatBRNumber(parcelaAjustada),
         saldo_devedor: formatBRNumber(saldoDevedor),
         prazo_total: totalParcelas,
@@ -252,13 +218,14 @@ function calcularParaContrato(c, diaAverbacao, bancosPrioridade, simulacoes, ext
     }
   }
 
+  // ===================== Bancos de simulação =====================
+  const bancosParaSimular = bancosPermitidosPorEspecie(c.especie);
   let escolhido = null;
   let motivoBloqueio = null;
-  const bancosParaTestar = extrapolada ? ["BRB"] : bancosPrioridade;
 
-  for (const banco of bancosParaTestar) {
+  for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
-    if (!aplicacao.valido && !permite32) {
+    if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
       continue;
     }
@@ -379,30 +346,40 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
-      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, ORDEM_BANCOS, simulacoes));
+      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, simulacoes, extrap > 0, extrap));
 
-      const resposta = {
-        fileId: extrato.fileId || null,
-        matricula: extrato.beneficio?.nb || null,
-        contratos: calculados.filter(c => !c.motivo),
-        contratos_inativos: calculados.filter(c => c.motivo),
+      const contratosValidos = calculados.filter(c => c && !c.motivo);
+      const contratosInvalidos = calculados.filter(c => c && c.motivo);
+
+      const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
+
+      const bancosResumo = ordenados.map(c => c.bancoNovo || c.banco.nome);
+      const parcelas = ordenados.map(c => c.parcela);
+      const parcelasOrig = ordenados.map(c => c.parcela_original);
+      const taxas = ordenados.map(c => c.taxa_calculada);
+      const saldos = ordenados.map(c => c.saldo_devedor);
+      const totalTroco = ordenados.reduce((s, c) => s + toNumber(c.troco), 0);
+
+      return res.json({
+        fileId,
+        matricula: extrato?.beneficio?.nb || null,
+        contratos: ordenados,
+        contratos_inativos: contratosInvalidos,
         resumo: {
-          bancos: calculados.filter(c => !c.motivo).map(c => c.bancoNovo).join(", "),
-          parcelas: calculados.filter(c => !c.motivo).map(c => c.parcela).join(", "),
-          parcelas_original: calculados.filter(c => !c.motivo).map(c => c.parcela_original).join(", "),
-          taxas_calculadas: calculados.filter(c => !c.motivo).map(c => c.taxa_calculada).join(", "),
-          saldos_devedores: calculados.filter(c => !c.motivo).map(c => c.saldo_devedor).join(", "),
-          total_troco: calculados.filter(c => !c.motivo).reduce((a, c) => a + toNumber(c.troco), 0),
-          total_contratos_simulados: calculados.filter(c => !c.motivo).length,
-          bancos_novos: calculados.filter(c => !c.motivo).map(c => c.bancoNovo).join(", ")
+          bancos: bancosResumo.join(", "),
+          parcelas: parcelas.join(", "),
+          parcelas_original: parcelasOrig.join(", "),
+          taxas_calculadas: taxas.join(", "),
+          saldos_devedores: saldos.join(", "),
+          total_troco: formatBRNumber(totalTroco),
+          total_contratos_simulados: ordenados.length,
+          bancos_novos: [...new Set(bancosResumo)].join(", ")
         },
         ajuste_margem: infoAjuste
-      };
-
-      return res.status(200).json(resposta);
+      });
     } catch (err) {
-      console.error("Erro ao processar cálculo:", err);
-      return res.status(500).json({ error: err.message });
+      console.error(err);
+      return res.status(500).json({ error: "Erro interno do servidor" });
     }
   };
 }
