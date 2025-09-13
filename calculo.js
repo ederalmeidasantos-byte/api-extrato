@@ -60,11 +60,7 @@ function getCoeficiente(tx, dia) {
   const tabela = coeficientes?.[Number(tx).toFixed(2)];
   if (!tabela) return null;
   return (
-    tabela[dia] ??
-    tabela[String(+dia)] ??
-    tabela["01"] ??
-    tabela["1"] ??
-    (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
+    tabela[dia] ?? tabela[String(+dia)] ?? tabela["01"] ?? tabela["1"] ?? (Object.keys(tabela).length ? tabela[Object.keys(tabela)[0]] : null)
   );
 }
 
@@ -148,13 +144,12 @@ function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
-  // Saldo devedor
   const saldo = toNumber(c.saldo_devedor);
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  // Espécie
+  // Valida espécie
   if (roteiro.especiesAceitas) {
     if (!roteiro.especiesAceitas.todas && !roteiro.especiesAceitas[c.especie]) {
       return { valido: false, motivo: `Espécie ${c.especie} não aceita pelo banco ${banco}` };
@@ -194,7 +189,13 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  c.especie = String(c.beneficio?.codigoBeneficio || "");
+  // ===================== Define espécie =====================
+  c.especie = String(
+    c.beneficio?.codigoBeneficio ||
+    c.cliente?.beneficio?.codigoBeneficio ||
+    ""
+  );
+
   console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosPermitidosPorEspecie(c.especie).join(", ")}`);
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
