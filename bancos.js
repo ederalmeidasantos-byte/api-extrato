@@ -40,10 +40,11 @@ export const bancos = [
 export function encontrarBanco(valor) {
   if (!valor) return { codigo: null, nome: null };
 
-  const s = String(valor).trim();
+  let s = String(valor).trim();
 
-  // Caso seja código numérico
+  // Normalizar código para 3 dígitos
   if (/^\d+$/.test(s)) {
+    s = s.padStart(3, "0"); // 🔹 Agora "33" vira "033"
     const achado = bancos.find(b => b.codigo === s);
     return achado || { codigo: s, nome: null };
   }
