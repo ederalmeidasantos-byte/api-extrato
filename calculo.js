@@ -148,21 +148,40 @@ function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
   if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
 
+  // Saldo devedor
   const saldo = toNumber(c.saldo_devedor);
-  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
-
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  // Valida parcela paga considerando banco de origem
-  const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
-  if (parcelasPagas < regraParcelas) {
-    return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco.nome} (código ${c.banco.codigo})` };
+  // Espécie
+  if (roteiro.especiesAceitas) {
+    if (!roteiro.especiesAceitas.todas && !roteiro.especiesAceitas[c.especie]) {
+      return { valido: false, motivo: `Espécie ${c.especie} não aceita pelo banco ${banco}` };
+    }
   }
 
+  // Parcelas pagas considerando banco de origem
+  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
+  let regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+
+  if (Array.isArray(roteiro.excecoes)) {
+    const excecao = roteiro.excecoes.find(e => String(e.codigo) === String(c.banco.codigo));
+    if (excecao) {
+      regraParcelas = Number(excecao.regra.split(" ")[0]);
+    }
+  }
+
+  if (parcelasPagas < regraParcelas) {
+    return {
+      valido: false,
+      motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`
+    };
+  }
+
+  // Banco de origem não permitido
   if (Array.isArray(roteiro.naoPorta) &&
-      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
+      roteiro.naoPorta.some(b => String(b.codigo) === String(c.banco.codigo))) {
     return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
   }
 
@@ -176,7 +195,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   }
 
   c.especie = String(c.beneficio?.codigoBeneficio || "");
-
   console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosPermitidosPorEspecie(c.especie).join(", ")}`);
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
@@ -228,9 +246,10 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
 
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
+
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
-      console.log(`[BLOQUEIO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) não aplicável: ${aplicacao.motivo}`);
+      console.log(`[BLOQUEIO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) não aplicável: ${motivoBloqueio}`);
       continue;
     }
 
@@ -252,7 +271,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco
         };
-        console.log(`[ESCOLHIDO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas} - Banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`);
+        console.log(`[ESCOLHIDO] Banco ${banco} - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas} - Banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`);
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
