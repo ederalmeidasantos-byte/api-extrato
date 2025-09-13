@@ -54,7 +54,7 @@ const BENEFICIOS = {
   "05": "Aposentadoria por invalidez por acidente do trabalho do trabalhador rural",
   "10": "Auxílio-doença por acidente do trabalho do trabalhador rural",
   "91": "Auxílio-doença por acidente do trabalho",
-  "92": "Aposentadoria por invalidez por acidente do trabalho",
+  "92": "APOSENTADORIA INVALIDEZ - ACIDENTE DO TRABALHO",
   "93": "Pensão por morte por acidente do trabalho",
   "94": "Auxílio-acidente por acidente do trabalho",
   "95": "Auxílio-suplementar por acidente do trabalho",

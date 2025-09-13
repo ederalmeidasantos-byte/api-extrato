@@ -25,6 +25,7 @@ export const bancos = [
   { codigo: "754", nome: "Sicoob" },
   { codigo: "905", nome: "Banco Alfa" },
   { codigo: "935", nome: "Facta" },
+  { codigo: "908", nome: "PARATICFI S A" },
   { codigo: "029", nome: "Itau"}
 ];
 
