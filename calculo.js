@@ -151,31 +151,33 @@ function aplicarRoteiro(c, banco) {
   const saldo = toNumber(c.saldo_devedor);
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
 
-  // Banco de origem não permitido
-  if (Array.isArray(roteiro.naoPorta) &&
-      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
-    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
-  }
-
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
+  // Valida parcela paga considerando banco de origem
   const regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   if (parcelasPagas < regraParcelas) {
-    return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
+    return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - banco de origem: ${c.banco.nome} (código ${c.banco.codigo})` };
+  }
+
+  if (Array.isArray(roteiro.naoPorta) &&
+      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
+    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
   }
 
   return { valido: true, motivo: null };
 }
 
 // ===================== Calcular contrato =====================
-function calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
+function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  c.especie = String(especieCliente || "");
+  c.especie = String(c.beneficio?.codigoBeneficio || "");
+
+  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosPermitidosPorEspecie(c.especie).join(", ")}`);
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
@@ -224,13 +226,11 @@ function calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extra
   let escolhido = null;
   let motivoBloqueio = null;
 
-  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosParaSimular.join(", ")}`);
-
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
-      console.log(`[BLOQUEIO] Banco ${banco} não aplicável: ${motivoBloqueio}`);
+      console.log(`[BLOQUEIO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) não aplicável: ${aplicacao.motivo}`);
       continue;
     }
 
@@ -252,11 +252,10 @@ function calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extra
           valorEmprestimo,
           troco
         };
-        console.log(`[ESCOLHIDO] Banco ${banco} - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas}`);
+        console.log(`[ESCOLHIDO] Banco ${banco} (código ${RoteiroBancos[banco]?.codigo || "N/A"}) - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas} - Banco de origem: ${c.banco.nome} (código ${c.banco.codigo})`);
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
-        console.log(`[BLOQUEIO] Banco ${banco} taxa ${tx}: ${motivoBloqueio}`);
       }
     }
     if (escolhido) break;
@@ -352,8 +351,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
-      const especieCliente = extrato?.beneficio?.codigoBeneficio || "";
-      const calculados = contratosAtivos.map(c => calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extrap > 0, extrap));
+      const calculados = contratosAtivos.map(c => calcularParaContrato(c, diaAverbacao, simulacoes, extrap > 0, extrap));
 
       const contratosValidos = calculados.filter(c => c && !c.motivo);
       const contratosInvalidos = calculados.filter(c => c && c.motivo);
