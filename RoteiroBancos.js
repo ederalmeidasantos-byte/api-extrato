@@ -141,11 +141,34 @@ const RoteiroBancos = {
       { codigo: "254", nome: "Paraná Banco" },
       { codigo: "935", nome: "Facta" }
     ],
-    idade: "21 a 66 anos (prazo 96x) / 67 a 72 anos (prazo 96x)",
+    idade: "21 a 69",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
     saldoDevedorMinimo: 4000
   },
+  INBURSA: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "643", nome: "Banco PAN", regra: "12 paga" },
+      { codigo: "070", nome: "Banco PAN", regra: "5 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "149", nome: "FACTA" },
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "422", nome: "SAFRA" },
+      { codigo: "079", nome: "PICPAY" },
+      { codigo: "935", nome: "Facta" },
+      { codigo: "329", nome: "QI" },
+      { codigo: "752", nome: "BNP Paribas" },
+      { codigo: "025", nome: "Banco Alfa" }
+    ],
+    idade: "21 a 69 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.66],
+    saldoDevedorMinimo: 2500
+  },  
   
 };
 
