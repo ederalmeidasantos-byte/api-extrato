@@ -169,14 +169,13 @@ function aplicarRoteiro(c, banco) {
 }
 
 // ===================== Calcular contrato =====================
-function calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extrapolada = false, extrapoladaAbs = 0) {
+function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
+    console.log(`[CONTRATO INATIVO] ${c?.contrato}`);
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  // **CORREÇÃO AQUI**: espécie do cliente
-  c.especie = String(especieCliente || "");
-  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie}`);
+  c.especie = String(c.beneficio?.codigoBeneficio || "");
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
@@ -188,6 +187,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extra
   const permite32 = c.especie === "32";
 
   if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
+    console.log(`[PARCELA MINIMA] Contrato ${c.contrato} - Parcela: ${parcelaOriginal} < ${PARCELA_MINIMA}`);
     return {
       contrato: c.contrato,
       motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${PARCELA_MINIMA})`,
@@ -209,6 +209,7 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extra
       taxaAtualMes = estimada;
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
+      console.log(`[TAXA FALHA] Contrato ${c.contrato} - Não foi possível estimar taxa`);
       return {
         contrato: c.contrato,
         motivo: "Falha ao calcular taxa",
@@ -222,16 +223,17 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extra
 
   // ===================== Bancos de simulação =====================
   const bancosParaSimular = bancosPermitidosPorEspecie(c.especie);
-  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Bancos permitidos: ${bancosParaSimular.join(", ")}`);
-
   let escolhido = null;
   let motivoBloqueio = null;
 
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
+
+    // LOG das parcelas pagas e validação do banco
+    console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Banco testado: ${banco} - Parc. pagas: ${c.parcelas_pagas} - Motivo: ${aplicacao.motivo || "OK"}`);
+
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
-      console.log(`[BLOQUEIO] Contrato ${c.contrato} - Banco ${banco}: ${motivoBloqueio}`);
       continue;
     }
 
@@ -253,17 +255,18 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extra
           valorEmprestimo,
           troco
         };
-        console.log(`[APROVADO] Contrato ${c.contrato} - Banco ${banco} - Troco: ${formatBRNumber(troco)}`);
+        console.log(`[ESCOLHIDO] Contrato ${c.contrato} - Banco: ${banco} - Troco: ${formatBRNumber(troco)} - Taxa: ${tx}`);
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
-        console.log(`[BLOQUEIO] Contrato ${c.contrato} - Banco ${banco}: ${motivoBloqueio}`);
+        console.log(`[TROCO BLOQUEADO] Contrato ${c.contrato} - Banco: ${banco} - ${motivoBloqueio}`);
       }
     }
     if (escolhido) break;
   }
 
   if (!escolhido) {
+    console.log(`[NENHUM BANCO] Contrato ${c.contrato} - Motivo final: ${motivoBloqueio}`);
     return {
       contrato: c.contrato,
       motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
