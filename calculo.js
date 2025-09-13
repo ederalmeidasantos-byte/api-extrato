@@ -151,6 +151,12 @@ function aplicarRoteiro(c, banco) {
   const saldo = toNumber(c.saldo_devedor);
   const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
 
+  // Banco de origem não permitido
+  if (Array.isArray(roteiro.naoPorta) &&
+      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
+    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
+  }
+
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
     return { valido: false, motivo: `Saldo devedor abaixo do mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
@@ -160,22 +166,16 @@ function aplicarRoteiro(c, banco) {
     return { valido: false, motivo: `Parcelas pagas abaixo do mínimo (${regraParcelas}) - ${banco}` };
   }
 
-  if (Array.isArray(roteiro.naoPorta) &&
-      roteiro.naoPorta.some(b => String(b.codigo).toUpperCase() === String(c.banco.codigo).toUpperCase())) {
-    return { valido: false, motivo: `Banco de origem não permitido (${c.banco.nome})` };
-  }
-
   return { valido: true, motivo: null };
 }
 
 // ===================== Calcular contrato =====================
-function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
+function calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extrapolada = false, extrapoladaAbs = 0) {
   if (!c || (c.situacao && c.situacao.toLowerCase() !== "ativo")) {
-    console.log(`[CONTRATO INATIVO] ${c?.contrato}`);
     return { contrato: c?.contrato, motivo: "Contrato não ativo" };
   }
 
-  c.especie = String(c.beneficio?.codigoBeneficio || "");
+  c.especie = String(especieCliente || "");
 
   const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
   const parcelaAjustada = toNumber(c.valor_parcela);
@@ -187,7 +187,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   const permite32 = c.especie === "32";
 
   if (parcelaOriginal < PARCELA_MINIMA && !permite32) {
-    console.log(`[PARCELA MINIMA] Contrato ${c.contrato} - Parcela: ${parcelaOriginal} < ${PARCELA_MINIMA}`);
     return {
       contrato: c.contrato,
       motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (${PARCELA_MINIMA})`,
@@ -209,7 +208,6 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
       taxaAtualMes = estimada;
       statusTaxa = "RECALCULADA_VALOR_PAGO";
     } else {
-      console.log(`[TAXA FALHA] Contrato ${c.contrato} - Não foi possível estimar taxa`);
       return {
         contrato: c.contrato,
         motivo: "Falha ao calcular taxa",
@@ -226,14 +224,13 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   let escolhido = null;
   let motivoBloqueio = null;
 
+  console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Bancos permitidos: ${bancosParaSimular.join(", ")}`);
+
   for (const banco of bancosParaSimular) {
     const aplicacao = aplicarRoteiro({ ...c, saldo_devedor: saldoDevedor }, banco);
-
-    // LOG das parcelas pagas e validação do banco
-    console.log(`[SIMULAÇÃO] Contrato ${c.contrato} - Espécie: ${c.especie} - Banco testado: ${banco} - Parc. pagas: ${c.parcelas_pagas} - Motivo: ${aplicacao.motivo || "OK"}`);
-
     if (!aplicacao.valido) {
       motivoBloqueio = aplicacao.motivo;
+      console.log(`[BLOQUEIO] Banco ${banco} não aplicável: ${motivoBloqueio}`);
       continue;
     }
 
@@ -255,18 +252,17 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
           valorEmprestimo,
           troco
         };
-        console.log(`[ESCOLHIDO] Contrato ${c.contrato} - Banco: ${banco} - Troco: ${formatBRNumber(troco)} - Taxa: ${tx}`);
+        console.log(`[ESCOLHIDO] Banco ${banco} - Troco: ${formatBRNumber(troco)} - Parcela paga: ${c.parcelas_pagas}`);
         break;
       } else {
         motivoBloqueio = `Troco (${formatBRNumber(troco)}) menor que mínimo (${TROCO_MINIMO}) - banco ${banco} taxa ${tx}`;
-        console.log(`[TROCO BLOQUEADO] Contrato ${c.contrato} - Banco: ${banco} - ${motivoBloqueio}`);
+        console.log(`[BLOQUEIO] Banco ${banco} taxa ${tx}: ${motivoBloqueio}`);
       }
     }
     if (escolhido) break;
   }
 
   if (!escolhido) {
-    console.log(`[NENHUM BANCO] Contrato ${c.contrato} - Motivo final: ${motivoBloqueio}`);
     return {
       contrato: c.contrato,
       motivo: motivoBloqueio || "Nenhum banco/taxa elegível",
@@ -356,11 +352,8 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         infoAjuste = info;
       }
 
-      const especieCliente = String(extrato.beneficio?.codigoBeneficio || "");
-
-      const calculados = contratosAtivos.map(c =>
-        calcularParaContrato(c, diaAverbacao, simulacoes, especieCliente, extrap > 0, extrap)
-      );
+      const especieCliente = extrato?.beneficio?.codigoBeneficio || "";
+      const calculados = contratosAtivos.map(c => calcularParaContrato(c, especieCliente, diaAverbacao, simulacoes, extrap > 0, extrap));
 
       const contratosValidos = calculados.filter(c => c && !c.motivo);
       const contratosInvalidos = calculados.filter(c => c && c.motivo);
