@@ -4,7 +4,7 @@ import RoteiroBancos from "./RoteiroBancos.js";
 
 // ===================== Configurações =====================
 const TROCO_MINIMO = 100;
-const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO"];
 const PRAZO_SIMULADO = 96;
 
 // ===================== Carrega coeficientes (96x) =====================
@@ -375,7 +375,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       // e mantê-los em uma lista de inválidos para retornar ao cliente.
       // =====================
       const removidosPorParcela = [];
-      const contratosParaSimular = [];
+      let contratosParaSimular = [];
       for (const c of contratosAtivos) {
         const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
         if (parcelaOriginal < 25 && String(c.especie || "") !== "32") {
