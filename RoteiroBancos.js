@@ -192,6 +192,29 @@ FACTA: {
     taxas: [1.85],
     saldoDevedorMinimo: 500
   },
+PICPAY: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "033", nome: "Santander", detalhe: "Contratos iniciados com 20, 30, 40", regra: "1 paga" },
+      { codigo: "905", nome: "Banco Alfa", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "237", nome: "Bradesco", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "121", nome: "AGIBANK" },
+      { codigo: "925", nome: "BRB" }
+    ],
+    idade: "21 a 73 anos",
+    especiesAceitas: { todas: true },
+    taxas: [1.85],
+    saldoDevedorMinimo: 500
+  },
  
 };
 

@@ -138,8 +138,8 @@ function aplicarAjusteMargemExtrapolada(contratos, extrapoladaAbs) {
 
 // ===================== Validação de espécie e bancos =====================
 function bancosPermitidosPorEspecie(especie) {
-  if (especie === "87") return ["BRB", "PICPAY", "C6"];
-  if (especie === "88") return ["FINANTO", "BRB", "PICPAY", "C6"];
+  if (especie === "87") return ["BRB", "PICPAY", "C6", "FACTA"];
+  if (especie === "88") return ["FINANTO", "BRB", "PICPAY", "C6", "FACTA"];
   return ORDEM_BANCOS;
 }
 
