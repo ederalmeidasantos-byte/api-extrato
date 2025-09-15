@@ -29,7 +29,9 @@ export const bancos = [
   { codigo: "077", nome: "INTER" },
   { codigo: "330", nome: "BARI" },
   { codigo: "029", nome: "Itau consignado"},
-  { codigo: "925", nome: "BRB"}
+  { codigo: "925", nome: "BRB"},
+  { codigo: "081", nome: "PAGBANK"}
+
 
   
 ];
