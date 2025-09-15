@@ -4,7 +4,7 @@ import RoteiroBancos from "./RoteiroBancos.js";
 
 // ===================== Configurações =====================
 const TROCO_MINIMO = 100;
-const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO"];
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
 const PRAZO_SIMULADO = 96;
 
 // ===================== Carrega coeficientes (96x) =====================
@@ -226,10 +226,11 @@ function calcularParaContrato(c, diaAverbacao, simulacoes, extrapolada = false, 
   const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0;
   const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
 
+  // Reforço da validação: bloqueia definitivamente contratos com parcela original < 25 (exceto espécie 32)
   if (parcelaOriginal < 25 && c.especie !== "32") {
     return {
       contrato: c.contrato,
-      motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (25)`,
+      motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (25,00)`,
       parcela: formatBRNumber(parcelaAjustada),
       saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
       prazo_total: totalParcelas,
@@ -369,8 +370,34 @@ export function calcularTrocoEndpoint(JSON_DIR) {
       let contratosAtivos = extrairEmprestimos(extrato);
       const diaAverbacao = diaFromExtrato(extrato);
 
-      const simulacoes = {};
+      // =====================
+      // FILTRAGEM: remover contratos com parcelaOriginal < 25 (exceto espécie "32")
+      // e mantê-los em uma lista de inválidos para retornar ao cliente.
+      // =====================
+      const removidosPorParcela = [];
+      const contratosParaSimular = [];
       for (const c of contratosAtivos) {
+        const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
+        if (parcelaOriginal < 25 && String(c.especie || "") !== "32") {
+          removidosPorParcela.push({
+            contrato: c.contrato,
+            motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (25,00)`,
+            parcela: formatBRNumber(toNumber(c.valor_parcela)),
+            saldo_devedor: formatBRNumber(toNumber(c.saldo_devedor)),
+            prazo_total: Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0,
+            parcelas_pagas: Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0,
+            banco: c.banco,
+          });
+        } else {
+          contratosParaSimular.push(c);
+        }
+      }
+
+      // =====================
+      // Simulações (para contratos válidos apenas)
+      // =====================
+      const simulacoes = {};
+      for (const c of contratosParaSimular) {
         const parcelaOriginal = toNumber(c.__parcela_original__ || c.valor_parcela);
         const totalParcelas = Number.isFinite(+c.prazo_total) ? +c.prazo_total : toNumber(c.qtde_parcelas) || 0;
         const prazoRestante = Number.isFinite(+c.prazo_restante) ? +c.prazo_restante : totalParcelas;
@@ -386,6 +413,7 @@ export function calcularTrocoEndpoint(JSON_DIR) {
         simulacoes[c.contrato] = { saldoDevedor, taxaAtualMes };
       }
 
+      // ===================== Extrapo/ajuste =====================
       const extrap = (() => {
         const m = extrato?.margens || {};
         const candidates = [
@@ -403,17 +431,22 @@ export function calcularTrocoEndpoint(JSON_DIR) {
 
       let infoAjuste = null;
       if (extrap > 0) {
-        const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosAtivos, extrap);
-        contratosAtivos = contratosAjustados;
+        const { contratosAjustados, info } = aplicarAjusteMargemExtrapolada(contratosParaSimular, extrap);
+        // substituir apenas os contratos que vamos simular
+        contratosParaSimular = contratosAjustados; // OBS: sobrescreve a lista local para simulação
         infoAjuste = info;
       }
 
-      const calculados = contratosAtivos.map((c) =>
+      // ===================== Calcular para cada contrato válido (apenas contratosParaSimular) =====================
+      const calculados = contratosParaSimular.map((c) =>
         calcularParaContrato(c, diaAverbacao, simulacoes, extrap > 0, extrap)
       );
 
+      // contratos inválidos por parcela (removidos antes) + calculados com motivo
+      const calculadosInvalidos = calculados.filter((c) => c && c.motivo);
+      const contratosInvalidos = [...removidosPorParcela, ...calculadosInvalidos];
+
       const contratosValidos = calculados.filter((c) => c && !c.motivo);
-      const contratosInvalidos = calculados.filter((c) => c && c.motivo);
 
       const ordenados = contratosValidos.sort((a, b) => toNumber(b.troco) - toNumber(a.troco));
 

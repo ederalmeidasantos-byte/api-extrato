@@ -137,7 +137,7 @@ const RoteiroBancos = {
       { codigo: "626", nome: "C6 / C6 Consignado" },
       { codigo: "149", nome: "FACTA" },
       { codigo: "012", nome: "INBURSA" },
-      { codigo: "925 ", nome: "BRB" },
+      { codigo: "925", nome: "BRB" },
       { codigo: "254", nome: "Paraná Banco" },
       { codigo: "935", nome: "Facta" }
     ],
@@ -149,7 +149,7 @@ const RoteiroBancos = {
   INBURSA: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
-      { codigo: "643", nome: "Banco PAN", regra: "12 paga" },
+      { codigo: "623", nome: "Banco PAN", regra: "12 paga" },
       { codigo: "925", nome: "Banco BRB", regra: "5 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
@@ -168,8 +168,31 @@ const RoteiroBancos = {
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.66],
     saldoDevedorMinimo: 2500
-  },  
-  
+  },
+FACTA: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "707", nome: "Daycoval", regra: "24 paga" },
+      { codigo: "623", nome: "PAN", regra: "16 paga" },
+      { codigo: "121", nome: "AGIBANK", regra: "15 paga" },
+      { codigo: "254", nome: "Banco PARANA", regra: "15 paga" },
+      { codigo: "318", nome: "BMG", regra: "12 paga" },
+      { codigo: "033", nome: "OLE", regra: "12 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "643", nome: "PINE" },
+      { codigo: "935", nome: "FACTA" },
+      { codigo: "329", nome: "QI" },
+      { codigo: "626", nome: "C6" }
+    ],
+    idade: "21 a 73 anos",
+    especiesAceitas: { todas: true },
+    taxas: [1.85],
+    saldoDevedorMinimo: 500
+  },
+ 
 };
 
 export default RoteiroBancos;
