@@ -1,3 +1,5 @@
+// ================== extrair.js ==================
+
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
@@ -232,7 +234,7 @@ Esquema esperado:
   "contratos": [
     {
       "contrato": "string",
-      "banco": "string", // <- Somente código
+      "banco": "string",
       "situacao": "ATIVO",
       "data_inclusao": "DD/MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
@@ -341,13 +343,12 @@ function posProcessar(parsed, isContingencia) {
 
       const parcelaNum = toNumber(c.valor_parcela);
       const liberadoNum = toNumber(c.valor_liberado);
-
-      // ✅ Banco vira objeto {codigo, nome}
       const bancoObj = encontrarBanco(String(c.banco || "").trim());
 
       let taxaMensalNum = toNumber(c.taxa_juros_mensal);
       let statusTaxa;
 
+      // === CONTINGÊNCIA: não recalcula, só formata ===
       if (isContingencia) {
         statusTaxa = "INFORMADA_CONTINGENCIA";
         return {
@@ -366,38 +367,41 @@ function posProcessar(parsed, isContingencia) {
           parcelas_pagas: parcelasPagas,
           prazo_restante: prazoRestante
         };
-      } else {
-        statusTaxa = c.status_taxa || "INFORMADA";
-        if (!(taxaMensalNum > 0 && taxaMensalNum < 0.1)) {
-          const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
-          if (out.ok) {
-            taxaMensalNum = out.r;
-            statusTaxa = "RECALCULADA";
-          } else {
-            taxaMensalNum = 0;
-            statusTaxa = "FALHA_CALCULO_TAXA";
-          }
-        }
-
-        const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
-
-        return {
-          ...c,
-          banco: bancoObj, // <-- objeto {codigo, nome}
-          valor_parcela: formatBRNumber(parcelaNum),
-          valor_liberado: formatBRNumber(liberadoNum),
-          valor_pago: formatBRNumber(toNumber(c.valor_pago)),
-          iof: formatBRNumber(toNumber(c.iof)),
-          cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
-          cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
-          taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
-          taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
-          status_taxa: statusTaxa,
-          prazo_total: prazoTotal,
-          parcelas_pagas: parcelasPagas,
-          prazo_restante: prazoRestante
-        };
       }
+
+      // === INSS oficial: usa taxa do extrato se vier > 0, senão recalcula ===
+      statusTaxa = c.status_taxa || "INFORMADA_EXTRATO";
+
+      if (!(taxaMensalNum > 0)) {
+        const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
+        if (out.ok) {
+          taxaMensalNum = out.r;
+          statusTaxa = "RECALCULADA";
+        } else {
+          taxaMensalNum = 0;
+          statusTaxa = "FALHA_CALCULO_TAXA";
+          console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
+        }
+      }
+
+      const taxaAnualNum = taxaAnualDeMensal(taxaMensalNum);
+
+      return {
+        ...c,
+        banco: bancoObj,
+        valor_parcela: formatBRNumber(parcelaNum),
+        valor_liberado: formatBRNumber(liberadoNum),
+        valor_pago: formatBRNumber(toNumber(c.valor_pago)),
+        iof: formatBRNumber(toNumber(c.iof)),
+        cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
+        cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
+        taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
+        taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
+        status_taxa: statusTaxa,
+        prazo_total: prazoTotal,
+        parcelas_pagas: parcelasPagas,
+        prazo_restante: prazoRestante
+      };
     });
 
   parsed.margens = {
