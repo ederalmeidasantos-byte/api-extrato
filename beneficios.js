@@ -26,7 +26,7 @@ const BENEFICIOS = {
   "45": "Aposentadoria por tempo de contribuição de jornalista profissional",
   "46": "Aposentadoria por tempo de contribuição especial",
   "49": "Aposentadoria por tempo de contribuição ordinária",
-  "57": "Aposentadoria por tempo de contribuição de professor (Emenda Const.18/81)",
+  "57": "Aposentadoria por tempo de servico de professores",
   "72": "Apos. por tempo de contribuição de ex-combatente marítimo (Lei 1.756/52)",
   "82": "Aposentadoria por tempo de contribuição (Ex-SASSE)",
 
