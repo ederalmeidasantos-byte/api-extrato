@@ -4,7 +4,7 @@ import RoteiroBancos from "./RoteiroBancos.js";
 
 // ===================== Configurações =====================
 const TROCO_MINIMO = 100;
-const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO"];
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
 const PRAZO_SIMULADO = 96;
 
 // ===================== Carrega coeficientes (96x) =====================
