@@ -6,7 +6,7 @@ export const bancos = [
   { codigo: "025", nome: "Banco Alfa" },
   { codigo: "033", nome: "Santander" },
   { codigo: "041", nome: "Banrisul" },
-  { codigo: "070", nome: "Picpay" },
+  { codigo: "079", nome: "Picpay" },
   { codigo: "104", nome: "Caixa" },
   { codigo: "121", nome: "Agibank" },
   { codigo: "237", nome: "Bradesco" },
@@ -30,7 +30,8 @@ export const bancos = [
   { codigo: "330", nome: "BARI" },
   { codigo: "029", nome: "Itau consignado"},
   { codigo: "925", nome: "BRB"},
-  { codigo: "081", nome: "PAGBANK"}
+  { codigo: "081", nome: "PAGBANK"},
+  { codigo: "318", nome: "BMG"}
 
 
   

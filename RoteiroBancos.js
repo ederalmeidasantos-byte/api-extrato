@@ -213,7 +213,7 @@ PICPAY: {
     idade: "21 a 73 anos",
     especiesAceitas: { todas: true },
     taxas: [1.85],
-    saldoDevedorMinimo: 500
+    saldoDevedorMinimo: 4000
   },
  
 };
