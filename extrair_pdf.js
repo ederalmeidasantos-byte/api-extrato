@@ -196,6 +196,14 @@ Você é um assistente que extrai **somente os empréstimos consignados ativos**
 - O campo "banco" deve conter **somente o CÓDIGO do banco** (ex: "237"), nunca o nome.
 - Se não houver valores, use null ou 0.
 - Não invente chaves diferentes, siga o esquema fielmente.
+
+⚠️ Atenção especial às datas:
+- **DATA INCLUSÃO** → salvar em \`data_inclusao\` no formato DD/MM/YYYY.
+- **INÍCIO DE DESCONTO** (competência MM/YYYY) → salvar em \`competencia_inicio_desconto\`.
+- **PRIMEIRO DESCONTO** (DD/MM/YYYY) → salvar em \`primeiro_desconto\`.
+
+❌ NÃO confundir "DATA INCLUSÃO" com "INÍCIO DE DESCONTO".
+❌ NÃO usar a coluna errada.
 `;
 
   if (isContingencia) {
