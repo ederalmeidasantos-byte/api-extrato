@@ -31,7 +31,7 @@ const RoteiroBancos = {
       { codigo: "121", nome: "Agibank", regra: "15 pagas" },
       { codigo: "012", nome: "Banco Inbursa", regra: "13 pagas" },
       { codigo: "623", nome: "Banco PAN", regra: "12 pagas" },
-      { codigo: "000", nome: "Demais bancos", regra: "6 pagas" }
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
       { codigo: "626", nome: "C6 / C6 Consignado" },
