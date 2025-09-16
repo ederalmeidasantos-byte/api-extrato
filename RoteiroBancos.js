@@ -184,7 +184,7 @@ FACTA: {
       { codigo: "254", nome: "Banco PARANA", regra: "15 paga" },
       { codigo: "318", nome: "BMG", regra: "12 paga" },
       { codigo: "033", nome: "OLE", regra: "12 paga" },
-      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+      { codigo: "000", nome: "Demais bancos", regra: "3 pagas" }
     ],
     naoPorta: [
       { codigo: "012", nome: "INBURSA" },

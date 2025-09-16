@@ -348,21 +348,17 @@ function posProcessar(parsed, isContingencia) {
       // ✅ Banco vira objeto {codigo, nome}
       const bancoObj = encontrarBanco(String(c.banco || "").trim());
 
-      // --- TAXA: leio o valor bruto como veio no JSON do GPT
-      const taxaRawNum = toNumber(c.taxa_juros_mensal); // pode vir como "2.19" ou "0.0219" ou "36.68"
-      // normalizo internamente para decimal (ex: 2.19 -> 0.0219)
+      const taxaRawNum = toNumber(c.taxa_juros_mensal);
       const normalizedDecimal = taxaRawNum > 1 ? taxaRawNum / 100 : taxaRawNum;
-
-      let taxaMensalNum = normalizedDecimal; // decimal interno
+      let taxaMensalNum = normalizedDecimal;
       let statusTaxa;
 
-      // ===== CONTINGÊNCIA: não recalcula quando taxa veio no extrato =====
+      // ===== CONTINGÊNCIA =====
       if (isContingencia) {
         if (taxaRawNum > 0) {
-          // pegamos exatamente o valor da coluna TAXA para exibir (formato BR)
           statusTaxa = "INFORMADA_CONTINGENCIA";
-          const taxaAnualDecimal = taxaAnualDeMensal(taxaMensalNum); // calcula sobre decimal
-          const taxaAnualPercentFull = taxaAnualDecimal * 100; // para exibir como "4.152,11" por exemplo
+          const taxaAnualDecimal = taxaAnualDeMensal(taxaMensalNum);
+          const taxaAnualPercentFull = taxaAnualDecimal * 100;
 
           return {
             ...c,
@@ -371,12 +367,9 @@ function posProcessar(parsed, isContingencia) {
             valor_liberado: formatBRNumber(liberadoNum),
             valor_pago: formatBRNumber(toNumber(c.valor_pago)),
             iof: formatBRNumber(toNumber(c.iof)),
-            // CET exibido com o valor bruto da taxa (como o usuário pediu para contingência)
             cet_mensal: formatBRNumber(taxaRawNum),
             cet_anual: formatBRNumber(taxaAnualPercentFull),
-            // taxa mensal exibida exatamente como veio no extrato (valor bruto)
             taxa_juros_mensal: formatBRNumber(taxaRawNum),
-            // taxa anual exibida em percent full formatado em BR (ex: 4152,11 → "4.152,11")
             taxa_juros_anual: formatBRNumber(taxaAnualPercentFull),
             status_taxa: statusTaxa,
             prazo_total: prazoTotal,
@@ -384,16 +377,17 @@ function posProcessar(parsed, isContingencia) {
             prazo_restante: prazoRestante
           };
         } else {
-          // Se em contingência NÃO veio taxa (caso raro), tentamos recalcular como fallback
+          // ⚠️ contingência sem taxa → tenta recalcular
           statusTaxa = "NAO_INFORMADA_CONTINGENCIA";
           const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
           if (out.ok) {
             taxaMensalNum = out.r;
             statusTaxa = "RECALCULADA";
           } else {
-            taxaMensalNum = 0;
-            statusTaxa = "FALHA_CALCULO_TAXA";
-            console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
+            // 🟢 aplica taxa neutra de 1,45%
+            taxaMensalNum = 0.0145;
+            statusTaxa = "NEUTRA_ASSUMIDA";
+            console.warn("⚠️ Falha ao calcular taxa, usando taxa neutra 1,45% contrato:", c.contrato);
           }
 
           const taxaAnualDecimal = taxaAnualDeMensal(taxaMensalNum);
@@ -405,10 +399,10 @@ function posProcessar(parsed, isContingencia) {
             valor_liberado: formatBRNumber(liberadoNum),
             valor_pago: formatBRNumber(toNumber(c.valor_pago)),
             iof: formatBRNumber(toNumber(c.iof)),
-            cet_mensal: formatBRNumber(taxaMensalNum > 0 ? (taxaMensalNum * 100) : 0),
-            cet_anual: formatBRNumber(taxaAnualDecimal * 100),
-            taxa_juros_mensal: formatBRNumber(taxaMensalNum > 0 ? (taxaMensalNum * 100) : 0),
-            taxa_juros_anual: formatBRNumber(taxaAnualDecimal * 100),
+            cet_mensal: formatPercentBRFromDecimal(taxaMensalNum),
+            cet_anual: formatPercentBRFromDecimal(taxaAnualDecimal),
+            taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
+            taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualDecimal),
             status_taxa: statusTaxa,
             prazo_total: prazoTotal,
             parcelas_pagas: parcelasPagas,
@@ -417,20 +411,19 @@ function posProcessar(parsed, isContingencia) {
         }
       }
 
-      // ===== INSS oficial =====
-      // Se normalizedDecimal > 0, significa que a taxa veio no extrato (pode ter vindo como 2.19 ou 0.0219)
+      // ===== INSS =====
       if (taxaMensalNum > 0) {
         statusTaxa = "INFORMADA_EXTRATO";
       } else {
-        // recalcula somente se não houver taxa
         const out = calcTaxaMensalPorBissecao(liberadoNum, parcelaNum, prazoTotal);
         if (out.ok) {
           taxaMensalNum = out.r;
           statusTaxa = "RECALCULADA";
         } else {
-          taxaMensalNum = 0;
-          statusTaxa = "FALHA_CALCULO_TAXA";
-          console.warn("⚠️ Falha ao calcular taxa (motivo:", out.motivo, ") contrato:", c.contrato);
+          // 🟢 aplica taxa neutra de 1,45%
+          taxaMensalNum = 0.0145;
+          statusTaxa = "NEUTRA_ASSUMIDA";
+          console.warn("⚠️ Falha ao calcular taxa, usando taxa neutra 1,45% contrato:", c.contrato);
         }
       }
 
@@ -438,15 +431,13 @@ function posProcessar(parsed, isContingencia) {
 
       return {
         ...c,
-        banco: bancoObj, // <-- objeto {codigo, nome}
+        banco: bancoObj,
         valor_parcela: formatBRNumber(parcelaNum),
         valor_liberado: formatBRNumber(liberadoNum),
         valor_pago: formatBRNumber(toNumber(c.valor_pago)),
         iof: formatBRNumber(toNumber(c.iof)),
-        // CET normalmente vem em decimal ou percentual — mantive seu comportamento anterior (se precisar normalizo aqui também)
         cet_mensal: formatPercentBRFromDecimal(toNumber(c.cet_mensal)),
         cet_anual: formatPercentBRFromDecimal(toNumber(c.cet_anual)),
-        // taxa mensal/anual saem convertidas de decimal interno para percentual formato BR (ex: 0.0219 -> "2,19")
         taxa_juros_mensal: formatPercentBRFromDecimal(taxaMensalNum),
         taxa_juros_anual: formatPercentBRFromDecimal(taxaAnualNum),
         status_taxa: statusTaxa,
