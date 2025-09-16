@@ -151,6 +151,12 @@ const RoteiroBancos = {
     excecoes: [
       { codigo: "623", nome: "Banco PAN", regra: "12 paga" },
       { codigo: "925", nome: "Banco BRB", regra: "5 paga" },
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "237", nome: "Bradesco", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
