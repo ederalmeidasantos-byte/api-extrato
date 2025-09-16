@@ -13,7 +13,7 @@ const RoteiroBancos = {
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
-      { codigo: "070", nome: "Picpay" },
+      { codigo: "079", nome: "Picpay" },
       { codigo: "121", nome: "Agibank" },
       { codigo: "626", nome: "C6 / C6 Consignado" },
       { codigo: "925", nome: "BRB" }
@@ -89,7 +89,7 @@ const RoteiroBancos = {
       { codigo: "422", nome: "Safra" },
       { codigo: "752", nome: "BNP Paribas" },
       { codigo: "643", nome: "Banco Pine" },
-      { codigo: "070", nome: "Picpay" },
+      { codigo: "079", nome: "Picpay" },
       { codigo: "025", nome: "Banco Alfa" },
       { codigo: "935", nome: "Facta" },
       { codigo: "626", nome: "C6 / C6 Consignado" }
@@ -117,7 +117,7 @@ const RoteiroBancos = {
     ],
     naoPorta: [
       { codigo: "626", nome: "C6 / C6 Consignado" },
-      { codigo: "070", nome: "Picpay" },
+      { codigo: "079", nome: "Picpay" },
       { codigo: "707", nome: "Daycoval" },
       { codigo: "121", nome: "Agibank" },
     ],
