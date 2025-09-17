@@ -21,7 +21,8 @@ const RoteiroBancos = {
     idade: "21 a 73 anos",
     especiesAceitas: { todas: true },
     taxas: [1.85, 1.79],
-    saldoDevedorMinimo: 4000
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0
   },
 
   DAYCOVAL: {
@@ -31,6 +32,8 @@ const RoteiroBancos = {
       { codigo: "121", nome: "Agibank", regra: "15 pagas" },
       { codigo: "012", nome: "Banco Inbursa", regra: "13 pagas" },
       { codigo: "623", nome: "Banco PAN", regra: "12 pagas" },
+      { codigo: "389", nome: "MERCANTIL", regra: "6 pagas" },
+      { codigo: "754", nome: "SICOOB", regra: "6 pagas" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
@@ -43,7 +46,8 @@ const RoteiroBancos = {
     idade: "21 a 72 anos",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20    
   },
 
   DIGIO: {
@@ -67,7 +71,8 @@ const RoteiroBancos = {
     idade: "21 a 66 anos (prazo 96x) / 67 a 72 anos (prazo 96x)",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 4000
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0    
   },
 
   FINANTO: {
@@ -103,7 +108,8 @@ const RoteiroBancos = {
       ]
     },
     taxas: [1.85, 1.79],
-    saldoDevedorMinimo: 8000
+    saldoDevedorMinimo: 8000,
+    parcelaMinima: 0    
   },
   C6: {
     regraGeral: "0 parcelas pagas",
@@ -124,7 +130,8 @@ const RoteiroBancos = {
     idade: "21 a 72 anos",
     especiesAceitas: { todas: true},
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 2000
+    saldoDevedorMinimo: 2000,
+    parcelaMinima: 0    
   },
   FINTECH: {
     regraGeral: "2 parcelas pagas",
@@ -144,7 +151,8 @@ const RoteiroBancos = {
     idade: "21 a 69",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 4000
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0    
   },
   INBURSA: {
     regraGeral: "0 parcelas pagas",
@@ -173,7 +181,8 @@ const RoteiroBancos = {
     idade: "21 a 69 anos",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.66],
-    saldoDevedorMinimo: 2500
+    saldoDevedorMinimo: 2500,
+    parcelaMinima: 0
   },
 FACTA: {
     regraGeral: "0 parcelas pagas",
@@ -196,7 +205,9 @@ FACTA: {
     idade: "21 a 73 anos",
     especiesAceitas: { todas: true },
     taxas: [1.85],
-    saldoDevedorMinimo: 500
+    saldoDevedorMinimo: 0,
+    parcelaMinima: 50
+
   },
 PICPAY: {
     regraGeral: "0 parcelas pagas",
@@ -219,7 +230,8 @@ PICPAY: {
     idade: "21 a 73 anos",
     especiesAceitas: { todas: true },
     taxas: [1.85],
-    saldoDevedorMinimo: 4000
+    saldoDevedorMinimo: 0,
+    parcelaMinima: 50
   },
  
 };
