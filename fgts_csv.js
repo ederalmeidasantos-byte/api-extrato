@@ -18,9 +18,9 @@ const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
 
 // 🔹 Credenciais dinâmicas via .env
 const CREDENTIALS = [];
-for (let i = 1; process.env[`FGTS_LOGIN_${i}`]; i++) {
+for (let i = 1; process.env[`FGTS_USER_${i}`]; i++) {
   CREDENTIALS.push({
-    username: process.env[`FGTS_LOGIN_${i}`],
+    username: process.env[`FGTS_USER_${i}`],
     password: process.env[`FGTS_PASS_${i}`],
   });
 }
