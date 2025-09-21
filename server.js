@@ -134,18 +134,21 @@ app.get("/extrato/:fileId/raw", (req, res) => {
 
 // ====== FGTS Automação ======
 const upload = multer({ dest: UPLOADS_DIR });
-
-// Serve a página do painel
 app.get("/fgts", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Rota única: upload + start
 app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "Arquivo CSV não enviado!" });
+  }
+
   console.log("📂 Planilha FGTS recebida:", req.file.path);
 
   const child = spawn("node", ["fgts_csv.js"], {
-    cwd: __dirname
+    cwd: __dirname,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, CSV_FILE: req.file.path }
   });
 
   child.stdout.on("data", (data) => {
@@ -157,11 +160,13 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   child.stderr.on("data", (data) => {
     const msg = data.toString();
     console.error(msg);
-    io.emit("log", "❌ " + msg);
+    io.emit("log", `❌ ${msg}`);
   });
 
   child.on("close", (code) => {
-    io.emit("log", `✅ Processo FGTS finalizado (código ${code})`);
+    const finalMsg = `✅ Processo FGTS finalizado (código ${code})`;
+    console.log(finalMsg);
+    io.emit("log", finalMsg);
   });
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });

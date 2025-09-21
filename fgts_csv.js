@@ -25,6 +25,11 @@ for (let i = 1; process.env[`FGTS_LOGIN_${i}`]; i++) {
   });
 }
 
+if (!CREDENTIALS.length) {
+  console.error("❌ Nenhuma credencial FGTS configurada no .env");
+  process.exit(1);
+}
+
 let TOKEN = null;
 let credIndex = 0;
 
@@ -35,20 +40,27 @@ let pendentes = [];
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
+  if (!CREDENTIALS.length) return;
+
   if (forcedIndex !== null) {
     credIndex = forcedIndex % CREDENTIALS.length;
   } else {
     credIndex = (credIndex + 1) % CREDENTIALS.length;
   }
   TOKEN = null;
-  console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${CREDENTIALS[credIndex].username}`);
+  const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+  console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
+// 🔹 Autenticar
 async function authenticate() {
+  if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
+
   const cred = CREDENTIALS[credIndex];
   try {
-    console.log(`${LOG_PREFIX()} Tentando autenticar: ${cred.username}`);
+    console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
     const data = qs.stringify({
       grant_type: "password",
       username: cred.username,
@@ -65,23 +77,23 @@ async function authenticate() {
     TOKEN = res.data.access_token;
     console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${cred.username}: ${err.message}`);
+    const user = cred?.username || "sem usuário";
+    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
     switchCredential();
     await authenticate();
   }
 }
 
-// 🔹 Consulta Resultado
+// 🔹 Consultar Resultado
 async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
-      console.log(
-        `${LOG_PREFIX()} 🔄 [Linha ${linha}] Consultando resultado para CPF: ${cpf} | Credencial: ${CREDENTIALS[credIndex].username}`
-      );
+      const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+      console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Consultando CPF: ${cpf} | Credencial: ${user}`);
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
-      console.log(`${LOG_PREFIX()} 📄 [Linha ${linha}] Retorno da consulta CPF ${cpf}:`, JSON.stringify(res.data));
+      console.log(`${LOG_PREFIX()} 📄 [Linha ${linha}] Retorno CPF ${cpf}:`, JSON.stringify(res.data));
       return res.data;
     } catch (err) {
       const status = err.response?.status;
@@ -102,7 +114,8 @@ async function consultarResultado(cpf, linha) {
 async function enviarParaFila(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
-      console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Enviando CPF para fila: ${cpf}`);
+      const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+      console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] Enviando CPF para fila: ${cpf} | Credencial: ${user}`);
       const res = await axios.post(
         "https://bff.v8sistema.com/fgts/balance",
         { documentNumber: cpf, provider: PROVIDER },
@@ -124,7 +137,7 @@ async function enviarParaFila(cpf, linha) {
   return null;
 }
 
-// 🔹 Simular (sempre com 3º login se existir)
+// 🔹 Simular Saldo
 async function simularSaldo(cpf, balanceId, parcelas, linha) {
   if (!parcelas || parcelas.length === 0) return null;
 
@@ -146,7 +159,7 @@ async function simularSaldo(cpf, balanceId, parcelas, linha) {
     const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
       headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
     });
-    console.log(`${LOG_PREFIX()} ✅ [Linha ${linha}] Simulação realizada CPF ${cpf}:`, res.data);
+    console.log(`${LOG_PREFIX()} ✅ [Linha ${linha}] Simulação CPF ${cpf}:`, res.data);
     return res.data;
   } catch (err) {
     console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] Erro simulação CPF ${cpf}: ${err.message}`);
@@ -154,7 +167,7 @@ async function simularSaldo(cpf, balanceId, parcelas, linha) {
   }
 }
 
-// 🔹 Atualizar CRM (com login 3)
+// 🔹 Atualizar CRM
 async function atualizarCRM(id, valor, linha, cpf) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
@@ -169,7 +182,7 @@ async function atualizarCRM(id, valor, linha, cpf) {
   }
 }
 
-// 🔹 Disparo (com login 3)
+// 🔹 Disparar Fluxo
 async function disparaFluxo(id, linha, cpf) {
   try {
     await axios.post(
@@ -198,7 +211,10 @@ async function processarCPFs() {
     const telefone = (registro.TELEFONE || "").trim();
     const idOriginal = (registro.ID || "").trim();
 
-    if (!cpf) continue;
+    if (!cpf) {
+      console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF vazio. Pulando...`);
+      continue;
+    }
 
     let resultado = await consultarResultado(cpf, linha);
     await delay(DELAY_MS);
