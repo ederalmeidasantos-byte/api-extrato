@@ -135,17 +135,13 @@ app.get("/extrato/:fileId/raw", (req, res) => {
 // ====== FGTS Automação ======
 const upload = multer({ dest: UPLOADS_DIR });
 
-// Página do painel (serve o HTML)
+// Página do painel (serve index.html e socket.io client)
 app.use("/fgts", express.static(__dirname)); 
 
-// Upload da planilha
-app.post("/fgts/upload", upload.single("csvfile"), (req, res) => {
+// Upload + iniciar automação (1 botão só)
+app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   console.log("📂 Planilha FGTS recebida:", req.file.path);
-  res.send("Arquivo recebido com sucesso!");
-});
 
-// Iniciar automação
-app.get("/fgts/start", (req, res) => {
   const child = spawn("node", ["fgts_csv.js"], {
     cwd: __dirname
   });
@@ -166,7 +162,7 @@ app.get("/fgts/start", (req, res) => {
     io.emit("log", `✅ Processo FGTS finalizado (código ${code})`);
   });
 
-  res.send("🚀 Automação FGTS iniciada!");
+  res.send("🚀 Planilha recebida e automação FGTS iniciada!");
 });
 
 // ====== Start servidor com socket.io ======
