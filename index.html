@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Automação FGTS</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    #log { background: #111; color: #0f0; padding: 10px; height: 400px; overflow-y: scroll; white-space: pre-wrap; }
+    button { margin: 10px 0; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>🚀 Automação FGTS</h1>
+
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="csvfile" required>
+    <button type="submit">📂 Enviar Planilha</button>
+  </form>
+
+  <button onclick="startProcess()">▶ Iniciar Automação</button>
+
+  <h2>📜 Log:</h2>
+  <div id="log"></div>
+
+  <script>
+    const socket = io();
+    const logDiv = document.getElementById("log");
+
+    socket.on("log", (msg) => {
+      logDiv.textContent += msg + "\n";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    });
+
+    function startProcess() {
+      fetch("/start").then(r => r.text()).then(alert);
+    }
+  </script>
+</body>
+</html>
