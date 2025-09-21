@@ -9,7 +9,6 @@ import { calcularTrocoEndpoint } from "./calculo.js";
 import { extrairDeUpload } from "./extrair_pdf.js";
 import PQueue from "p-queue";
 
-// ====== NOVO ======
 import multer from "multer";
 import { spawn } from "child_process";
 import { Server } from "socket.io";
@@ -53,7 +52,7 @@ console.log("🔑 OPENAI_API_KEY presente?", !!process.env.OPENAI_API_KEY);
 console.log("🔑 LUNAS_API_URL:", process.env.LUNAS_API_URL);
 console.log("🔑 LUNAS_QUEUE_ID:", process.env.LUNAS_QUEUE_ID);
 
-// ====== Fluxo via Lunas (baixa e processa) ======
+// ====== Fluxo via Lunas ======
 app.post("/extrair", async (req, res) => {
   try {
     const fileId = req.body.fileId || req.query.fileId;
@@ -89,7 +88,6 @@ app.post("/extrair", async (req, res) => {
     await fsp.writeFile(pdfPath, buf);
     console.log("✅ PDF salvo em", pdfPath);
 
-    // processa com fila
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
@@ -101,7 +99,7 @@ app.post("/extrair", async (req, res) => {
   }
 });
 
-// ====== Fluxo direto (PDF já está no disco) ======
+// ====== Fluxo direto ======
 app.get("/extrair/:fileId", async (req, res) => {
   try {
     const fileId = req.params.fileId;
@@ -137,10 +135,8 @@ app.get("/extrato/:fileId/raw", (req, res) => {
 // ====== FGTS Automação ======
 const upload = multer({ dest: UPLOADS_DIR });
 
-// Página do painel
-app.get("/fgts", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+// Página do painel (serve o HTML)
+app.use("/fgts", express.static(__dirname)); 
 
 // Upload da planilha
 app.post("/fgts/upload", upload.single("csvfile"), (req, res) => {
@@ -150,23 +146,23 @@ app.post("/fgts/upload", upload.single("csvfile"), (req, res) => {
 
 // Iniciar automação
 app.get("/fgts/start", (req, res) => {
-  const process = spawn("node", ["fgts_csv.js"], {
+  const child = spawn("node", ["fgts_csv.js"], {
     cwd: __dirname
   });
 
-  process.stdout.on("data", (data) => {
+  child.stdout.on("data", (data) => {
     const msg = data.toString();
     console.log(msg);
     io.emit("log", msg);
   });
 
-  process.stderr.on("data", (data) => {
+  child.stderr.on("data", (data) => {
     const msg = data.toString();
     console.error(msg);
     io.emit("log", "❌ " + msg);
   });
 
-  process.on("close", (code) => {
+  child.on("close", (code) => {
     io.emit("log", `✅ Processo FGTS finalizado (código ${code})`);
   });
 
