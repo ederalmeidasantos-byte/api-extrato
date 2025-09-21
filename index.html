@@ -1,45 +1,44 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>FGTS Automação</title>
+  <meta charset="UTF-8" />
+  <title>Painel FGTS</title>
   <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #logs { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; background: #f9f9f9; white-space: pre-wrap; }
+    button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
+  </style>
 </head>
 <body>
-  <h1>🚀 Automação FGTS</h1>
-
-  <form id="uploadForm">
-    <input type="file" name="csvfile" id="csvfile" required />
-    <button type="submit">📂 Enviar Planilha e Iniciar</button>
+  <h2>📂 Upload e Automação FGTS</h2>
+  <form id="form">
+    <input type="file" id="csvfile" name="csvfile" accept=".csv" required />
+    <button type="button" id="runBtn">📂 Enviar e Iniciar</button>
   </form>
 
-  <h2>📜 Logs</h2>
-  <pre id="logs"></pre>
+  <h3>📜 Logs</h3>
+  <div id="logs"></div>
 
   <script>
+    const logs = document.getElementById('logs');
     const socket = io();
-    const logs = document.getElementById("logs");
 
-    // Recebe logs em tempo real
-    socket.on("log", (msg) => {
+    socket.on('log', msg => {
       logs.textContent += msg + "\n";
       logs.scrollTop = logs.scrollHeight;
     });
 
-    // Envio via AJAX
-    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const f = document.getElementById('csvfile').files[0];
+      if (!f) return alert('Escolha um arquivo CSV');
 
-      const formData = new FormData();
-      formData.append("csvfile", document.getElementById("csvfile").files[0]);
+      const fd = new FormData();
+      fd.append('csvfile', f);
 
-      const res = await fetch("/fgts/run", {
-        method: "POST",
-        body: formData
-      });
-
-      const data = await res.json();
-      logs.textContent += data.message + "\n";
+      const res = await fetch('/fgts/run', { method: 'POST', body: fd });
+      const json = await res.json();
+      logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + "\n";
     });
   </script>
 </body>
