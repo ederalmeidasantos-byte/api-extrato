@@ -6,22 +6,40 @@
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>FGTS Automação</h1>
-  <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/fgts/run">
-    <input type="file" name="csvfile" required />
+  <h1>🚀 Automação FGTS</h1>
+
+  <form id="uploadForm">
+    <input type="file" name="csvfile" id="csvfile" required />
     <button type="submit">📂 Enviar Planilha e Iniciar</button>
   </form>
 
-  <h2>Logs</h2>
+  <h2>📜 Logs</h2>
   <pre id="logs"></pre>
 
   <script>
     const socket = io();
     const logs = document.getElementById("logs");
 
+    // Recebe logs em tempo real
     socket.on("log", (msg) => {
       logs.textContent += msg + "\n";
       logs.scrollTop = logs.scrollHeight;
+    });
+
+    // Envio via AJAX
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append("csvfile", document.getElementById("csvfile").files[0]);
+
+      const res = await fetch("/fgts/run", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      logs.textContent += data.message + "\n";
     });
   </script>
 </body>
