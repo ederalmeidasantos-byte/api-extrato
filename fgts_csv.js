@@ -205,7 +205,6 @@ async function processarCPFs(cpfsReprocess = null) {
   let registros = [];
 
   if (cpfsReprocess && cpfsReprocess.length) {
-    // Monta array de objetos simulando CSV para reprocessar CPFs específicos
     registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
   } else {
     const csvContent = fs.readFileSync(CSV_FILE, "utf-8");
@@ -233,19 +232,16 @@ async function processarCPFs(cpfsReprocess = null) {
 
     const item = resultado.data[0];
 
-    // 🔴 Sem autorização
     if (item.statusInfo?.includes("não possui autorização")) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
       continue;
     }
 
-    // 🟡 Sem saldo → não pendente
     if (item.status !== "success" || item.amount <= 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
       continue;
     }
 
-    // 🟢 Sucesso → simulação com fallback
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
@@ -278,10 +274,13 @@ async function processarCPFs(cpfsReprocess = null) {
   }
 }
 
-// 🔹 Start
+// 🔹 Start automático (opcional)
 (async () => {
   await authenticate();
 
   const cpfsReprocess = process.env.CPFS_REPROCESS ? process.env.CPFS_REPROCESS.split(",") : null;
   await processarCPFs(cpfsReprocess);
 })();
+
+// 🔹 Exportações
+export { disparaFluxo, processarCPFs };
