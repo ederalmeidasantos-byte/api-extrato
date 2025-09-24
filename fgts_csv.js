@@ -9,7 +9,7 @@ dotenv.config();
 // 🔹 Configurações
 const CSV_FILE = process.env.CSV_FILE || "cpfs.csv";
 const PROVIDER = process.env.PROVIDER || "cartos";
-const DELAY_MS = 800;
+const DELAY_MS = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
