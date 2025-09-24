@@ -7,12 +7,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-const CSV_FILE = process.env.CSV_FILE || "cpfs.csv";
-const PROVIDER = process.env.PROVIDER || "cartos";
 const DELAY_MS = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
+const PROVIDER = process.env.PROVIDER || "cartos";
 
 // 🔹 Credenciais dinâmicas via .env
 const CREDENTIALS = [];
@@ -35,7 +34,7 @@ const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 🔹 Emitir resultado para server.js
-function emitirResultado(obj) {
+export function emitirResultado(obj) {
   console.log("RESULT:" + JSON.stringify(obj));
 }
 
@@ -54,7 +53,7 @@ function switchCredential(forcedIndex = null) {
 }
 
 // 🔹 Autenticar
-async function authenticate() {
+export async function authenticate() {
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
 
   const cred = CREDENTIALS[credIndex];
@@ -84,7 +83,7 @@ async function authenticate() {
 }
 
 // 🔹 Consultar Resultado
-async function consultarResultado(cpf, linha) {
+export async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
       const user = CREDENTIALS[credIndex]?.username || "sem usuário";
@@ -110,7 +109,7 @@ async function consultarResultado(cpf, linha) {
 }
 
 // 🔹 Enviar para fila
-async function enviarParaFila(cpf) {
+export async function enviarParaFila(cpf) {
   try {
     await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
@@ -123,8 +122,8 @@ async function enviarParaFila(cpf) {
   }
 }
 
-// 🔹 Simular Saldo com fallback de tabelas
-async function simularSaldo(cpf, balanceId, parcelas) {
+// 🔹 Simular saldo
+export async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
   const desiredInstallments = parcelas
@@ -173,7 +172,7 @@ async function simularSaldo(cpf, balanceId, parcelas) {
 }
 
 // 🔹 Atualizar CRM
-async function atualizarCRM(id, valor) {
+export async function atualizarCRM(id, valor) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
@@ -186,7 +185,7 @@ async function atualizarCRM(id, valor) {
 }
 
 // 🔹 Disparar Fluxo
-async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
+export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
     await axios.post(
       "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
@@ -201,14 +200,16 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
 }
 
 // 🔹 Processar CPFs
-async function processarCPFs(cpfsReprocess = null) {
+export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
   let registros = [];
 
   if (cpfsReprocess && cpfsReprocess.length) {
     registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
-  } else {
-    const csvContent = fs.readFileSync(CSV_FILE, "utf-8");
+  } else if (csvPath) {
+    const csvContent = fs.readFileSync(csvPath, "utf-8");
     registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+  } else {
+    throw new Error("Nenhum CSV fornecido para processar!");
   }
 
   console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
@@ -232,16 +233,19 @@ async function processarCPFs(cpfsReprocess = null) {
 
     const item = resultado.data[0];
 
+    // 🔴 Sem autorização
     if (item.statusInfo?.includes("não possui autorização")) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
       continue;
     }
 
+    // 🟡 Sem saldo
     if (item.status !== "success" || item.amount <= 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
       continue;
     }
 
+    // 🟢 Sucesso → simulação
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
@@ -273,14 +277,3 @@ async function processarCPFs(cpfsReprocess = null) {
     });
   }
 }
-
-// 🔹 Start automático (opcional)
-(async () => {
-  await authenticate();
-
-  const cpfsReprocess = process.env.CPFS_REPROCESS ? process.env.CPFS_REPROCESS.split(",") : null;
-  await processarCPFs(cpfsReprocess);
-})();
-
-// 🔹 Exportações
-export { disparaFluxo, processarCPFs };
