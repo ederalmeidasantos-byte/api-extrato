@@ -213,8 +213,16 @@ async function processarCPFs() {
     const item = resultado.data[0];
 
     // 🔴 Caso "sem autorização"
-    if (item.statusReason?.includes("não possui autorização")) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
+    if (
+      item.statusInfo?.toLowerCase().includes("não possui autorização") ||
+      item.statusReason?.toLowerCase().includes("não possui autorização")
+    ) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "no_auth",
+        message: "Instituição Fiduciária não possui autorização"
+      });
       continue;
     }
 
