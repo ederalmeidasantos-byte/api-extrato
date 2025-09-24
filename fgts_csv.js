@@ -128,14 +128,12 @@ async function enviarParaFila(cpf) {
 async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
-  // Filtra parcelas válidas
   const desiredInstallments = parcelas
     .filter((p) => p.amount > 0 && p.dueDate)
     .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
 
-  if (desiredInstallments.length === 0) return null;
+  if (!desiredInstallments.length) return null;
 
-  // Escolhe credencial segura
   const simIndex = CREDENTIALS[2] ? 2 : 0;
   switchCredential(simIndex);
   await authenticate();

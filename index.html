@@ -9,7 +9,7 @@
     h2, h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 250px; overflow-y: auto; background: #fff; white-space: pre-wrap; }
     ul { list-style: none; padding: 0; }
-    li { padding: 4px 8px; margin-bottom: 4px; border-radius: 4px; }
+    li { padding: 6px 10px; margin-bottom: 4px; border-radius: 4px; background: #eee; }
     .success { background: #d4edda; color: #155724; }
     .pending { background: #fff3cd; color: #856404; }
     .no_auth { background: #f8d7da; color: #721c24; }
@@ -46,10 +46,10 @@
     const listaPendentes = document.getElementById('listaPendentes');
     const listaSemAutorizacao = document.getElementById('listaSemAutorizacao');
 
-    const socket = io();
-
     const pendentes = [];
     const naoAutorizados = [];
+
+    const socket = io();
 
     socket.on('log', msg => {
       logs.textContent += msg + "\n";
@@ -58,7 +58,7 @@
 
     socket.on('result', data => {
       const li = document.createElement("li");
-      li.textContent = `${data.cpf} - ${data.message}`;
+      li.textContent = `CPF: ${data.cpf} | ID: ${data.id} | ${data.message}`;
 
       if (data.status === "success") {
         li.classList.add("success");
@@ -84,6 +84,7 @@
       const res = await fetch('/fgts/run', { method: 'POST', body: fd });
       const json = await res.json();
       logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + "\n";
+      logs.scrollTop = logs.scrollHeight;
     });
 
     async function reprocessarPendentes() {
