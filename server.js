@@ -8,40 +8,51 @@ import { fileURLToPath } from "url";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { extrairDeUpload } from "./extrair_pdf.js";
 import PQueue from "p-queue";
+
 import multer from "multer";
 import { spawn } from "child_process";
 import { Server } from "socket.io";
 import http from "http";
 
-// Ajuste para import.meta.url
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Pastas
+// pastas
 const PDF_DIR = path.join(__dirname, "extratos");
 const JSON_DIR = path.join(__dirname, "jsonDir");
 const UPLOADS_DIR = path.join(__dirname, "uploads"); // FGTS
-[PDF_DIR, JSON_DIR, UPLOADS_DIR].forEach(p => { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); });
+if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
+if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // TTL de cache (14 dias)
-const TTL_MS = 14 * 24 * 60 * 60 * 1000;
-const cacheValido = p => { try { return Date.now() - fs.statSync(p).mtimeMs <= TTL_MS } catch { return false } };
+const TTL_DIAS = 14;
+const TTL_MS = TTL_DIAS * 24 * 60 * 60 * 1000;
+
+function cacheValido(p) {
+  try {
+    const st = fs.statSync(p);
+    return Date.now() - st.mtimeMs <= TTL_MS;
+  } catch {
+    return false;
+  }
+}
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-// Fila
+// ====== Fila: até 2 jobs em paralelo, 2 por segundo ======
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 
-// Health check
+// ====== Health ======
 app.get("/", (req, res) => res.send("API rodando ✅"));
 
-// Logs iniciais
+// ====== Logs iniciais ======
 console.log("🔑 OPENAI_API_KEY presente?", !!process.env.OPENAI_API_KEY);
 console.log("🔑 LUNAS_API_URL:", process.env.LUNAS_API_URL);
 console.log("🔑 LUNAS_QUEUE_ID:", process.env.LUNAS_QUEUE_ID);
 
-// ====== Rotas Lunas ======
+// ====== Fluxo via Lunas ======
 app.post("/extrair", async (req, res) => {
   try {
     const fileId = req.body.fileId || req.query.fileId;
@@ -54,26 +65,33 @@ app.post("/extrair", async (req, res) => {
     }
 
     console.log("🚀 Baixando PDF da Lunas:", fileId);
+    const body = {
+      queueId: Number(process.env.LUNAS_QUEUE_ID),
+      apiKey: process.env.LUNAS_API_KEY,
+      fileId: Number(fileId),
+      download: true
+    };
+
     const resp = await fetch(process.env.LUNAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        queueId: Number(process.env.LUNAS_QUEUE_ID),
-        apiKey: process.env.LUNAS_API_KEY,
-        fileId: Number(fileId),
-        download: true
-      })
+      body: JSON.stringify(body)
     });
 
-    if (!resp.ok) throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${await resp.text()}`);
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
+    }
 
     const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
-    await fsp.writeFile(pdfPath, Buffer.from(await resp.arrayBuffer()));
+    const buf = Buffer.from(await resp.arrayBuffer());
+    await fsp.writeFile(pdfPath, buf);
     console.log("✅ PDF salvo em", pdfPath);
 
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
+
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair:", err);
@@ -81,15 +99,19 @@ app.post("/extrair", async (req, res) => {
   }
 });
 
+// ====== Fluxo direto ======
 app.get("/extrair/:fileId", async (req, res) => {
   try {
     const fileId = req.params.fileId;
     const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
-    if (!fs.existsSync(pdfPath)) return res.status(404).json({ error: "PDF não encontrado" });
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(404).json({ error: "PDF não encontrado" });
+    }
 
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
+
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair/:fileId:", err);
@@ -97,24 +119,32 @@ app.get("/extrair/:fileId", async (req, res) => {
   }
 });
 
-// Calcular troco
+// ====== Calcular troco ======
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
-// Raw JSON
+// ====== Raw JSON ======
 app.get("/extrato/:fileId/raw", (req, res) => {
-  const jsonPath = path.join(JSON_DIR, `extrato_${req.params.fileId}.json`);
-  if (!fs.existsSync(jsonPath)) return res.status(404).json({ error: "Extrato não encontrado" });
+  const { fileId } = req.params;
+  const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
+  if (!fs.existsSync(jsonPath)) {
+    return res.status(404).json({ error: "Extrato não encontrado" });
+  }
   res.sendFile(jsonPath);
 });
 
-// ====== FGTS ======
+// ====== FGTS Automação ======
 const upload = multer({ dest: UPLOADS_DIR });
-app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get("/fgts", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
+  if (!req.file) {
+    return res.status(400).json({ message: "Arquivo CSV não enviado!" });
+  }
 
   console.log("📂 Planilha FGTS recebida:", req.file.path);
+
   const child = spawn("node", ["fgts_csv.js"], {
     cwd: __dirname,
     stdio: ["ignore", "pipe", "pipe"],
@@ -126,12 +156,18 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
     console.log(msg);
     io.emit("log", msg);
 
-    msg.split("\n").forEach(line => {
+    // 🔹 Parse RESULT
+    const lines = msg.split("\n");
+    for (const line of lines) {
       if (line.startsWith("RESULT:")) {
-        try { io.emit("result", JSON.parse(line.replace("RESULT:", ""))) } 
-        catch (e) { console.error("❌ Erro parse RESULT:", e.message) }
+        try {
+          const resultObj = JSON.parse(line.replace("RESULT:", ""));
+          io.emit("result", resultObj);
+        } catch (e) {
+          console.error("❌ Erro ao parsear RESULT:", e.message);
+        }
       }
-    });
+    }
   });
 
   child.stderr.on("data", (data) => {
@@ -141,67 +177,15 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   });
 
   child.on("close", (code) => {
-    io.emit("log", `✅ Processo FGTS finalizado (código ${code})`);
+    const finalMsg = `✅ Processo FGTS finalizado (código ${code})`;
+    console.log(finalMsg);
+    io.emit("log", finalMsg);
   });
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
 
-// ====== Rotas FGTS adicionais ======
-import { disparaFluxo } from "./fgts.js"; // ajuste caminho se necessário
-
-// Reprocessar Pendentes
-app.post("/fgts/reprocessar", async (req, res) => {
-  const { cpfs } = req.body;
-  if (!cpfs || !Array.isArray(cpfs) || cpfs.length === 0) {
-    return res.status(400).json({ message: "CPFs inválidos ou vazios" });
-  }
-
-  io.emit("log", `[SERVER] Iniciando reprocessamento de ${cpfs.length} CPFs pendentes...`);
-  const resultados = [];
-
-  for (const cpf of cpfs) {
-    try {
-      // aqui você pode chamar a função real do fgts.js
-      const ok = true;
-      resultados.push({ cpf, sucesso: ok });
-      io.emit("log", ok ? `[SERVER] ✅ CPF ${cpf} reprocessado` : `[SERVER] ❌ Falha CPF ${cpf}`);
-    } catch (err) {
-      resultados.push({ cpf, sucesso: false });
-      io.emit("log", `[SERVER] ❌ Erro CPF ${cpf}: ${err.message}`);
-    }
-  }
-
-  io.emit("log", `[SERVER] Finalizado reprocessamento dos pendentes`);
-  res.json({ message: "Reprocessamento concluído", resultados });
-});
-
-// Mudar fase não autorizados
-app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
-  const { ids } = req.body;
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ message: "IDs inválidos ou vazios" });
-  }
-
-  io.emit("log", `[SERVER] Iniciando mudança de fase para ${ids.length} não autorizados...`);
-  const resultados = [];
-
-  for (const id of ids) {
-    try {
-      const ok = await disparaFluxo(id, 3);
-      resultados.push({ id, sucesso: ok });
-      io.emit("log", ok ? `[SERVER] ✅ ID ${id} atualizado para fase 3` : `[SERVER] ❌ Falha ID ${id}`);
-    } catch (err) {
-      resultados.push({ id, sucesso: false });
-      io.emit("log", `[SERVER] ❌ Erro ID ${id}: ${err.message}`);
-    }
-  }
-
-  io.emit("log", `[SERVER] Finalizado processamento dos não autorizados`);
-  res.json({ message: "Processo concluído", resultados });
-});
-
-// ====== Socket.io e servidor ======
+// ====== Start servidor com socket.io ======
 const server = http.createServer(app);
 const io = new Server(server);
 
