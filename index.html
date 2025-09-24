@@ -8,9 +8,22 @@
     body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
     h2, h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    .columns { display: flex; gap: 10px; margin-top: 10px; }
+    .column {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      max-height: 400px;
+    }
+    .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
+    .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
     th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
-    th { background-color: #007bff; color: #fff; }
+    th { background-color: #007bff; color: #fff; font-size: 12px; }
     tr.success { background-color: #d4edda; }
     tr.pending { background-color: #fff3cd; }
     tr.no_auth { background-color: #f8d7da; }
@@ -38,31 +51,39 @@
   <h3>📜 Logs</h3>
   <div id="logs"></div>
 
-  <h3>✅ Sucesso</h3>
-  <table id="tableSuccess">
-    <thead>
-      <tr><th>CPF</th><th>ID</th><th>Valor Liberado</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="columns">
+    <div class="column" id="colSuccess">
+      <h3>✅ Sucesso</h3>
+      <div class="list-container">
+        <table id="tableSuccess">
+          <thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
 
-  <h3>⏳ Pendentes</h3>
-  <table id="tablePending">
-    <thead>
-      <tr><th>CPF</th><th>ID</th><th>Valor Liberado</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <button class="btn-warning" onclick="reprocessarPendentes()">🔄 Reprocessar Pendentes</button>
+    <div class="column" id="colPending">
+      <h3>⏳ Pendentes</h3>
+      <div class="list-container">
+        <table id="tablePending">
+          <thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button class="btn-warning" onclick="reprocessarPendentes()">🔄 Reprocessar Pendentes</button>
+    </div>
 
-  <h3>🚫 Sem Autorização</h3>
-  <table id="tableNoAuth">
-    <thead>
-      <tr><th>CPF</th><th>ID</th><th>Valor Liberado</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <button class="btn-danger" onclick="mudarFaseNaoAutorizados()">📌 Mudar fase no CRM</button>
+    <div class="column" id="colNoAuth">
+      <h3>🚫 Sem Autorização</h3>
+      <div class="list-container">
+        <table id="tableNoAuth">
+          <thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button class="btn-danger" onclick="mudarFaseNaoAutorizados()">📌 Mudar fase no CRM</button>
+    </div>
+  </div>
 
   <script>
     const logs = document.getElementById('logs');
@@ -79,27 +100,23 @@
 
     const socket = io();
 
-    // Função para atualizar contadores
     function atualizarContadores() {
       countSuccess.textContent = totalSuccess;
       countPending.textContent = totalPending;
       countNoAuth.textContent = totalNoAuth;
     }
 
-    // Função para salvar no localStorage
     function salvarLocalStorage(data) {
       const stored = JSON.parse(localStorage.getItem('fgtsData') || '[]');
       stored.push(data);
       localStorage.setItem('fgtsData', JSON.stringify(stored));
     }
 
-    // Função para carregar do localStorage
     function carregarLocalStorage() {
       const stored = JSON.parse(localStorage.getItem('fgtsData') || '[]');
       stored.forEach(data => adicionarResultado(data, false));
     }
 
-    // Adiciona resultado na tabela e lista correspondente
     function adicionarResultado(data, salvar = true) {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${data.cpf}</td><td>${data.id}</td><td>${data.valorLiberado || '-'}</td>`;
@@ -170,7 +187,7 @@
       logs.scrollTop = logs.scrollHeight;
     }
 
-    // Carrega resultados salvos ao iniciar
+    // Carrega resultados salvos
     carregarLocalStorage();
   </script>
 </body>
