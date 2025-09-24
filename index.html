@@ -27,6 +27,7 @@
     tr.success { background-color: #d4edda; }
     tr.pending { background-color: #fff3cd; }
     tr.no_auth { background-color: #f8d7da; }
+    tr.ready_for_manual { background-color: #d1ecf1; }
     button { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; }
     .btn-primary { background: #007bff; color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
@@ -47,7 +48,8 @@
   <div id="counters">
     Sucesso: <span id="countSuccess">0</span> | 
     Pendentes: <span id="countPending">0</span> | 
-    Sem Autorização: <span id="countNoAuth">0</span>
+    Sem Autorização: <span id="countNoAuth">0</span> | 
+    Prontos CSV: <span id="countReadyCSV">0</span>
   </div>
 
   <h3>📜 Logs</h3>
@@ -85,6 +87,17 @@
       </div>
       <button class="btn-danger" id="btnMudarFaseNoAuth">📌 Mudar fase no CRM</button>
     </div>
+
+    <div class="column" id="colReadyCSV">
+      <h3>📥 Prontos para CSV</h3>
+      <div class="list-container">
+        <table id="tableReadyCSV">
+          <thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
+    </div>
   </div>
 
   <script>
@@ -92,13 +105,17 @@
     const tableSuccess = document.querySelector('#tableSuccess tbody');
     const tablePending = document.querySelector('#tablePending tbody');
     const tableNoAuth = document.querySelector('#tableNoAuth tbody');
+    const tableReadyCSV = document.querySelector('#tableReadyCSV tbody');
+
     const countSuccess = document.getElementById('countSuccess');
     const countPending = document.getElementById('countPending');
     const countNoAuth = document.getElementById('countNoAuth');
+    const countReadyCSV = document.getElementById('countReadyCSV');
 
     const pendentes = [];
     const naoAutorizados = [];
-    let totalSuccess = 0, totalPending = 0, totalNoAuth = 0;
+    const readyForCSV = [];
+    let totalSuccess = 0, totalPending = 0, totalNoAuth = 0, totalReadyCSV = 0;
 
     const socket = io();
 
@@ -106,6 +123,7 @@
       countSuccess.textContent = totalSuccess;
       countPending.textContent = totalPending;
       countNoAuth.textContent = totalNoAuth;
+      countReadyCSV.textContent = totalReadyCSV;
     }
 
     function salvarLocalStorage(data) {
@@ -120,18 +138,15 @@
     }
 
     function adicionarResultado(data, salvar = true) {
-      // 🔹 Remove de pendentes/noAuth se status mudou para success
       if (data.status === 'success') {
         const idxPend = pendentes.indexOf(data.cpf);
         if (idxPend !== -1) {
           pendentes.splice(idxPend, 1);
-          // remove da tabela
           document.querySelectorAll('#tablePending tbody tr').forEach(row => {
             if (row.cells[0].textContent === data.cpf) row.remove();
           });
           totalPending--;
         }
-
         const idxNoAuth = naoAutorizados.indexOf(data.id);
         if (idxNoAuth !== -1) {
           naoAutorizados.splice(idxNoAuth, 1);
@@ -140,29 +155,37 @@
           });
           totalNoAuth--;
         }
+        const idxReady = readyForCSV.findIndex(r => r.cpf === data.cpf);
+        if (idxReady !== -1) {
+          readyForCSV.splice(idxReady, 1);
+          document.querySelectorAll('#tableReadyCSV tbody tr').forEach(row => {
+            if (row.cells[0].textContent === data.cpf) row.remove();
+          });
+          totalReadyCSV--;
+        }
       }
 
       const tr = document.createElement('tr');
-
       let valorExibido = '-';
       if (data.status === 'success') valorExibido = data.valorLiberado || '-';
       else if (data.status === 'pending') valorExibido = data.motivo || 'Pendência não informada';
       else if (data.status === 'no_auth') valorExibido = data.valorLiberado || '-';
+      else if (data.status === 'ready_for_manual') valorExibido = data.valorLiberado || '-';
 
-      tr.innerHTML = `<td>${data.cpf}</td><td>${data.id}</td><td>${valorExibido}</td>`;
+      tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone || ''}</td><td>${valorExibido}</td>`;
       tr.className = data.status;
 
       if (data.status === 'success') {
-        tableSuccess.appendChild(tr);
-        totalSuccess++;
+        tableSuccess.appendChild(tr); totalSuccess++;
       } else if (data.status === 'pending') {
         if (!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
-        tablePending.appendChild(tr);
-        totalPending++;
+        tablePending.appendChild(tr); totalPending++;
       } else if (data.status === 'no_auth') {
         if (!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
-        tableNoAuth.appendChild(tr);
-        totalNoAuth++;
+        tableNoAuth.appendChild(tr); totalNoAuth++;
+      } else if (data.status === 'ready_for_manual') {
+        readyForCSV.push({ cpf: data.cpf, telefone: data.telefone, valor: data.valorLiberado || '' });
+        tableReadyCSV.appendChild(tr); totalReadyCSV++;
       }
 
       atualizarContadores();
@@ -181,10 +204,8 @@
     document.getElementById('runBtn').addEventListener('click', async () => {
       const f = document.getElementById('csvfile').files[0];
       if (!f) return alert('Escolha um arquivo CSV');
-
       const fd = new FormData();
       fd.append('csvfile', f);
-
       try {
         const res = await fetch('/fgts/run', { method: 'POST', body: fd });
         if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
@@ -237,18 +258,32 @@
             .addEventListener('click', reprocessarPendentes);
     document.getElementById('btnMudarFaseNoAuth')
             .addEventListener('click', mudarFaseNaoAutorizados);
+
+    document.getElementById('btnExportCSV').addEventListener('click', () => {
+      if (!readyForCSV.length) return alert("Nenhum CPF disponível para exportar");
+      const headers = ['CPF','Telefone','Valor'];
+      const csvRows = [headers.join(';')];
+      readyForCSV.forEach(r => csvRows.push([r.cpf,r.telefone,r.valor].join(';')));
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `cpfs_ready_${Date.now()}.csv`;
+      link.click();
+    });
+
     document.getElementById('btnLimpar')
             .addEventListener('click', () => {
               if (!confirm("Deseja limpar todas as listas e logs?")) return;
               tableSuccess.innerHTML = '';
               tablePending.innerHTML = '';
               tableNoAuth.innerHTML = '';
+              tableReadyCSV.innerHTML = '';
               logs.textContent = '';
               pendentes.length = 0;
               naoAutorizados.length = 0;
-              totalSuccess = 0;
-              totalPending = 0;
-              totalNoAuth = 0;
+              readyForCSV.length = 0;
+              totalSuccess = totalPending = totalNoAuth = totalReadyCSV = 0;
               atualizarContadores();
               localStorage.removeItem('fgtsData');
             });

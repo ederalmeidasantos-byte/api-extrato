@@ -8,7 +8,7 @@ dotenv.config();
 
 // 🔹 Configurações
 const PROVIDER = process.env.PROVIDER || "cartos";
-const DELAY_MS = 800;
+const DELAY_MS = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -219,6 +219,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const linha = index + 2;
     const cpf = (registro.CPF || "").trim();
     const idOriginal = (registro.ID || "").trim();
+    const telefone = (registro.TELEFONE || "").trim();
     if (!cpf) continue;
 
     let resultado = await consultarResultado(cpf, linha);
@@ -253,6 +254,22 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     const valorLiberado = parseFloat(sim.availableBalance || 0);
 
+    // 🔹 Se não tem ID, mas tem telefone, incluir na lista para CSV manual
+    if (!idOriginal && telefone) {
+      emitirResultado({
+        cpf,
+        id: idOriginal || "",
+        status: "ready_for_manual", // status especial para front
+        message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
+        valorLiberado,
+        telefone,
+        apiResponse: item
+      }, callback);
+
+      continue; // não atualizar CRM nem disparar fluxo
+    }
+
+    // 🔹 Atualizar CRM se ID existe
     if (!(await atualizarCRM(idOriginal, valorLiberado))) {
       emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" }, callback);
       continue;
@@ -260,6 +277,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     await delay(DELAY_MS);
 
+    // 🔹 Disparar fluxo
     if (!(await disparaFluxo(idOriginal))) {
       emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" }, callback);
       continue;
@@ -276,5 +294,5 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   }
 }
 
-// 🔹 Exporta funções no final
+// 🔹 Exporta funções
 export { processarCPFs, disparaFluxo, authenticate };
