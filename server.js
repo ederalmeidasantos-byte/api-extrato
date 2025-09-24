@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 // pastas
 const PDF_DIR = path.join(__dirname, "extratos");
 const JSON_DIR = path.join(__dirname, "jsonDir");
-const UPLOADS_DIR = path.join(__dirname, "uploads"); // FGTS
+const UPLOADS_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -39,9 +39,6 @@ function cacheValido(p) {
 }
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
 app.use(express.json({ limit: "10mb" }));
 
 // ====== Fila: até 2 jobs em paralelo, 2 por segundo ======
@@ -72,13 +69,13 @@ app.post("/extrair", async (req, res) => {
       queueId: Number(process.env.LUNAS_QUEUE_ID),
       apiKey: process.env.LUNAS_API_KEY,
       fileId: Number(fileId),
-      download: true,
+      download: true
     };
 
     const resp = await fetch(process.env.LUNAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body)
     });
 
     if (!resp.ok) {
@@ -150,7 +147,7 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   const child = spawn("node", ["fgts_csv.js"], {
     cwd: __dirname,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, CSV_FILE: req.file.path },
+    env: { ...process.env, CSV_FILE: req.file.path }
   });
 
   child.stdout.on("data", (data) => {
@@ -186,8 +183,7 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
 
-// ====== Rotas extras para botões ======
-// Reprocessar pendentes
+// ====== Reprocessar pendentes ======
 app.post("/fgts/reprocessar", async (req, res) => {
   const cpfs = req.body.cpfs || [];
   if (!cpfs.length) return res.status(400).json({ message: "Nenhum CPF fornecido" });
@@ -195,30 +191,20 @@ app.post("/fgts/reprocessar", async (req, res) => {
   console.log("🔄 Reprocessar pendentes:", cpfs);
   io.emit("log", `🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
 
-  for (const cpf of cpfs) {
+  (async () => {
     try {
-      const resultados = await processarCPFs([cpf]);
-      const item = resultados[0];
-
-      if (item) {
-        io.emit("log", `✅ Reprocessado CPF ${item.cpf}`);
-
-        if (item.saldoDisponivel && item.id) {
-          await disparaFluxo(item.id, 2);
-          io.emit("log", `📲 WhatsApp disparado para ID ${item.id} (CPF: ${item.cpf})`);
-        }
-
-        io.emit("remove", { cpf: item.cpf });
-      }
+      await processarCPFs(null, cpfs);
+      io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
     } catch (err) {
-      io.emit("log", `❌ Erro reprocessando CPF ${cpf}: ${err.message}`);
+      console.error("❌ Erro no reprocessamento:", err);
+      io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
     }
-  }
+  })();
 
   res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
 });
 
-// Mudar fase para não autorizados
+// ====== Mudar fase para não autorizados ======
 app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   const ids = req.body.ids || [];
   if (!ids.length) return res.status(400).json({ message: "Nenhum ID fornecido" });
@@ -233,6 +219,9 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
 });
 
 // ====== Start servidor com socket.io ======
+const server = http.createServer(app);
+const io = new Server(server);
+
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
 });
