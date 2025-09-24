@@ -194,7 +194,8 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
       { headers: { "Content-Type": "application/json" } }
     );
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo para ID ${id}:`, err.response?.data || err.message);
     return false;
   }
 }
@@ -231,9 +232,9 @@ async function processarCPFs() {
       continue;
     }
 
-    // 🟡 Sem saldo
+    // 🟡 Sem saldo → não pendente
     if (item.status !== "success" || item.amount <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Sem saldo disponível" });
+      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
       continue;
     }
 
@@ -241,8 +242,8 @@ async function processarCPFs() {
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
-    if (!sim) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro simulação / Sem saldo" });
+    if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
+      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" });
       continue;
     }
 
