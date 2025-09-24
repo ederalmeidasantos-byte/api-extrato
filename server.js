@@ -12,7 +12,7 @@ import multer from "multer";
 import { spawn } from "child_process";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo } from "./fgts_csv.js"; // <- exportar essas funções do fgts_csv.js
+import { processarCPFs, disparaFluxo } from "./fgts_csv.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +39,9 @@ function cacheValido(p) {
 }
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 app.use(express.json({ limit: "10mb" }));
 
 // ====== Fila: até 2 jobs em paralelo, 2 por segundo ======
@@ -69,13 +72,13 @@ app.post("/extrair", async (req, res) => {
       queueId: Number(process.env.LUNAS_QUEUE_ID),
       apiKey: process.env.LUNAS_API_KEY,
       fileId: Number(fileId),
-      download: true
+      download: true,
     };
 
     const resp = await fetch(process.env.LUNAS_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -147,7 +150,7 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   const child = spawn("node", ["fgts_csv.js"], {
     cwd: __dirname,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, CSV_FILE: req.file.path }
+    env: { ...process.env, CSV_FILE: req.file.path },
   });
 
   child.stdout.on("data", (data) => {
@@ -192,12 +195,25 @@ app.post("/fgts/reprocessar", async (req, res) => {
   console.log("🔄 Reprocessar pendentes:", cpfs);
   io.emit("log", `🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
 
-  processarCPFs(cpfs).then(() => {
-    io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
-  }).catch(err => {
-    console.error("❌ Erro no reprocessamento:", err);
-    io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
-  });
+  for (const cpf of cpfs) {
+    try {
+      const resultados = await processarCPFs([cpf]);
+      const item = resultados[0];
+
+      if (item) {
+        io.emit("log", `✅ Reprocessado CPF ${item.cpf}`);
+
+        if (item.saldoDisponivel && item.id) {
+          await disparaFluxo(item.id, 2);
+          io.emit("log", `📲 WhatsApp disparado para ID ${item.id} (CPF: ${item.cpf})`);
+        }
+
+        io.emit("remove", { cpf: item.cpf });
+      }
+    } catch (err) {
+      io.emit("log", `❌ Erro reprocessando CPF ${cpf}: ${err.message}`);
+    }
+  }
 
   res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
 });
@@ -217,9 +233,6 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
 });
 
 // ====== Start servidor com socket.io ======
-const server = http.createServer(app);
-const io = new Server(server);
-
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
 });
