@@ -1,6 +1,7 @@
 import fs from "fs";
 import axios from "axios";
 import { parse } from "csv-parse/sync";
+import { stringify } from "csv-stringify/sync";
 import qs from "qs";
 import dotenv from "dotenv";
 
@@ -31,17 +32,20 @@ if (!CREDENTIALS.length) {
 
 let TOKEN = null;
 let credIndex = 0;
+
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
+
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 🔹 Emitir resultado para o front via server.js
+// 🔹 Emite resultado para o server.js -> index.html
 function emitirResultado(obj) {
-  console.log(JSON.stringify({ type: "result", ...obj }));
+  console.log("RESULT:" + JSON.stringify(obj));
 }
 
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
   if (!CREDENTIALS.length) return;
+
   if (forcedIndex !== null) {
     credIndex = forcedIndex % CREDENTIALS.length;
   } else {
@@ -55,6 +59,7 @@ function switchCredential(forcedIndex = null) {
 // 🔹 Autenticar
 async function authenticate() {
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
+
   const cred = CREDENTIALS[credIndex];
   try {
     console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
@@ -81,7 +86,7 @@ async function authenticate() {
   }
 }
 
-// 🔹 Consultar Resultado
+// 🔹 Consultar Resultado com log completo
 async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
@@ -90,9 +95,14 @@ async function consultarResultado(cpf, linha) {
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
+
+      // Log completo do retorno da API
+      console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
+
       return res.data;
     } catch (err) {
       const status = err.response?.status;
+      console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
       if (status === 429 || err.message.includes("Limite de requisições")) {
         switchCredential();
         await authenticate();
@@ -123,6 +133,7 @@ async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
   const desiredInstallments = parcelas.map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
+
   const simIndex = CREDENTIALS[2] ? 2 : 0;
   switchCredential(simIndex);
   await authenticate();
@@ -159,11 +170,11 @@ async function atualizarCRM(id, valor) {
 }
 
 // 🔹 Disparar Fluxo
-async function disparaFluxo(id, destStageId = DEST_STAGE_ID) {
+async function disparaFluxo(id) {
   try {
     await axios.post(
       "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
-      { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, destStageId },
+      { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, destStageId: DEST_STAGE_ID },
       { headers: { "Content-Type": "application/json" } }
     );
     return true;
@@ -182,9 +193,12 @@ async function processarCPFs() {
   for (let [index, registro] of registros.entries()) {
     const linha = index + 2;
     const cpf = (registro.CPF || "").trim();
+    const telefone = (registro.TELEFONE || "").trim();
     const idOriginal = (registro.ID || "").trim();
 
-    if (!cpf) continue;
+    if (!cpf) {
+      continue;
+    }
 
     let resultado = await consultarResultado(cpf, linha);
     await delay(DELAY_MS);
@@ -198,19 +212,19 @@ async function processarCPFs() {
 
     const item = resultado.data[0];
 
-    // 🔴 Sem autorização
+    // 🔴 Caso "sem autorização"
     if (item.statusReason?.includes("não possui autorização")) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
       continue;
     }
 
-    // 🟡 Sem saldo
+    // 🟡 Caso sem saldo
     if (item.status !== "success" || item.amount <= 0) {
       emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Sem saldo disponível" });
       continue;
     }
 
-    // 🟢 Sucesso
+    // 🟢 Caso sucesso (saldo disponível)
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
     if (!sim) {
