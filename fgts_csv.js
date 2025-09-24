@@ -34,7 +34,7 @@ const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 🔹 Emitir resultado para front e logs
-export function emitirResultado(obj, callback = null) {
+function emitirResultado(obj, callback = null) {
   console.log("RESULT:" + JSON.stringify(obj));
   if (callback) callback(obj);
 }
@@ -53,7 +53,7 @@ function switchCredential(forcedIndex = null) {
 }
 
 // 🔹 Autenticar
-export async function authenticate() {
+async function authenticate() {
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
   const cred = CREDENTIALS[credIndex];
 
@@ -83,7 +83,7 @@ export async function authenticate() {
 }
 
 // 🔹 Consultar resultado
-export async function consultarResultado(cpf, linha) {
+async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
       const user = CREDENTIALS[credIndex]?.username || "sem usuário";
@@ -111,7 +111,7 @@ export async function consultarResultado(cpf, linha) {
 }
 
 // 🔹 Enviar para fila
-export async function enviarParaFila(cpf) {
+async function enviarParaFila(cpf) {
   try {
     await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
@@ -126,7 +126,7 @@ export async function enviarParaFila(cpf) {
 }
 
 // 🔹 Simular saldo
-export async function simularSaldo(cpf, balanceId, parcelas) {
+async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
   const desiredInstallments = parcelas
@@ -172,7 +172,7 @@ export async function simularSaldo(cpf, balanceId, parcelas) {
 }
 
 // 🔹 Atualizar CRM
-export async function atualizarCRM(id, valor) {
+async function atualizarCRM(id, valor) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
@@ -186,7 +186,7 @@ export async function atualizarCRM(id, valor) {
 }
 
 // 🔹 Disparar fluxo
-export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
+async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
     await axios.post(
       "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
@@ -201,7 +201,7 @@ export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
 }
 
 // 🔹 Processar CPFs
-export async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
+async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
   if (cpfsReprocess && cpfsReprocess.length) {
@@ -276,5 +276,5 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null, callba
   }
 }
 
-// 🔹 Exporta funções
+// 🔹 Exporta funções no final
 export { processarCPFs, disparaFluxo, authenticate };
