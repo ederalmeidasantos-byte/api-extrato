@@ -31,6 +31,7 @@
     .btn-primary { background: #007bff; color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
     .btn-danger { background: #dc3545; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
     #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
   </style>
 </head>
@@ -39,6 +40,7 @@
   <form id="form">
     <input type="file" id="csvfile" name="csvfile" accept=".csv" required />
     <button type="button" class="btn-primary" id="runBtn">📂 Enviar e Iniciar</button>
+    <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
   </form>
 
   <h3>📊 Contadores</h3>
@@ -118,17 +120,34 @@
     }
 
     function adicionarResultado(data, salvar = true) {
+      // 🔹 Remove de pendentes/noAuth se status mudou para success
+      if (data.status === 'success') {
+        const idxPend = pendentes.indexOf(data.cpf);
+        if (idxPend !== -1) {
+          pendentes.splice(idxPend, 1);
+          // remove da tabela
+          document.querySelectorAll('#tablePending tbody tr').forEach(row => {
+            if (row.cells[0].textContent === data.cpf) row.remove();
+          });
+          totalPending--;
+        }
+
+        const idxNoAuth = naoAutorizados.indexOf(data.id);
+        if (idxNoAuth !== -1) {
+          naoAutorizados.splice(idxNoAuth, 1);
+          document.querySelectorAll('#tableNoAuth tbody tr').forEach(row => {
+            if (row.cells[1].textContent === data.id) row.remove();
+          });
+          totalNoAuth--;
+        }
+      }
+
       const tr = document.createElement('tr');
 
-      // Define o valor exibido
       let valorExibido = '-';
-      if (data.status === 'success') {
-        valorExibido = data.valorLiberado || '-';
-      } else if (data.status === 'pending') {
-        valorExibido = data.motivo || 'Pendência não informada';
-      } else if (data.status === 'no_auth') {
-        valorExibido = data.valorLiberado || '-';
-      }
+      if (data.status === 'success') valorExibido = data.valorLiberado || '-';
+      else if (data.status === 'pending') valorExibido = data.motivo || 'Pendência não informada';
+      else if (data.status === 'no_auth') valorExibido = data.valorLiberado || '-';
 
       tr.innerHTML = `<td>${data.cpf}</td><td>${data.id}</td><td>${valorExibido}</td>`;
       tr.className = data.status;
@@ -137,12 +156,12 @@
         tableSuccess.appendChild(tr);
         totalSuccess++;
       } else if (data.status === 'pending') {
+        if (!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
         tablePending.appendChild(tr);
-        pendentes.push(data.cpf);
         totalPending++;
       } else if (data.status === 'no_auth') {
+        if (!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
         tableNoAuth.appendChild(tr);
-        naoAutorizados.push(data.id);
         totalNoAuth++;
       }
 
@@ -214,15 +233,26 @@
       }
     }
 
-    // Registra listeners dos botões após o DOM carregar
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('btnReprocessarPendentes')
-              .addEventListener('click', reprocessarPendentes);
-      document.getElementById('btnMudarFaseNoAuth')
-              .addEventListener('click', mudarFaseNaoAutorizados);
-    });
+    document.getElementById('btnReprocessarPendentes')
+            .addEventListener('click', reprocessarPendentes);
+    document.getElementById('btnMudarFaseNoAuth')
+            .addEventListener('click', mudarFaseNaoAutorizados);
+    document.getElementById('btnLimpar')
+            .addEventListener('click', () => {
+              if (!confirm("Deseja limpar todas as listas e logs?")) return;
+              tableSuccess.innerHTML = '';
+              tablePending.innerHTML = '';
+              tableNoAuth.innerHTML = '';
+              logs.textContent = '';
+              pendentes.length = 0;
+              naoAutorizados.length = 0;
+              totalSuccess = 0;
+              totalPending = 0;
+              totalNoAuth = 0;
+              atualizarContadores();
+              localStorage.removeItem('fgtsData');
+            });
 
-    // Carrega resultados salvos
     carregarLocalStorage();
   </script>
 </body>
