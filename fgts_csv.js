@@ -278,6 +278,3 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
     });
   }
 }
-
-// 🔹 fgts_csv.js exporta funções, execução ocorre via server.js
-export { processarCPFs, disparaFluxo };
