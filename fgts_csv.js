@@ -10,7 +10,6 @@ dotenv.config();
 const CSV_FILE = process.env.CSV_FILE || "cpfs.csv";
 const PROVIDER = process.env.PROVIDER || "cartos";
 const DELAY_MS = 800;
-const SIMULATION_FEES_ID = process.env.SIMULATION_FEES_ID;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -124,7 +123,7 @@ async function enviarParaFila(cpf) {
   }
 }
 
-// 🔹 Simular Saldo
+// 🔹 Simular Saldo com fallback de tabelas
 async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
@@ -132,33 +131,45 @@ async function simularSaldo(cpf, balanceId, parcelas) {
     .filter((p) => p.amount > 0 && p.dueDate)
     .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
 
-  if (!desiredInstallments.length) return null;
+  if (desiredInstallments.length === 0) return null;
 
-  const simIndex = CREDENTIALS[2] ? 2 : 0;
-  switchCredential(simIndex);
-  await authenticate();
+  const tabelas = [
+    "cb563029-ba93-4b53-8d53-4ac145087212",
+    "f6d779ed-52bf-42f2-9dbc-3125fe6491ba",
+  ];
 
-  const payload = {
-    simulationFeesId: SIMULATION_FEES_ID,
-    balanceId,
-    targetAmount: 0,
-    documentNumber: cpf,
-    desiredInstallments,
-    provider: PROVIDER,
-  };
+  for (const simId of tabelas) {
+    const simIndex = CREDENTIALS[2] ? 2 : 0;
+    switchCredential(simIndex);
+    await authenticate();
 
-  console.log(`${LOG_PREFIX()} 🔧 Payload simulação:`, JSON.stringify(payload));
+    const payload = {
+      simulationFeesId: simId,
+      balanceId,
+      targetAmount: 0,
+      documentNumber: cpf,
+      desiredInstallments,
+      provider: PROVIDER,
+    };
 
-  try {
-    const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
-      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-    });
-    console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
-    return res.data;
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro na simulação:`, err.response?.data || err.message);
-    return null;
+    console.log(`${LOG_PREFIX()} 🔧 Payload simulação:`, JSON.stringify(payload));
+
+    try {
+      const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
+        headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      });
+      console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
+
+      const available = parseFloat(res.data.availableBalance || 0);
+      if (available > 0) return res.data;
+
+      console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
+    } catch (err) {
+      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
+    }
   }
+
+  return null;
 }
 
 // 🔹 Atualizar CRM
@@ -226,12 +237,12 @@ async function processarCPFs() {
       continue;
     }
 
-    // 🟢 Sucesso → simulação
+    // 🟢 Sucesso → simulação com fallback
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
     if (!sim) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro simulação" });
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro simulação / Sem saldo" });
       continue;
     }
 
