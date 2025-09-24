@@ -98,11 +98,11 @@ export async function consultarResultado(cpf, linha) {
         switchCredential();
         await authenticate();
       } else {
-        return null;
+        return { error: err.message, apiResponse: err.response?.data || null };
       }
     }
   }
-  return null;
+  return { error: "Sem retorno após tentativas", apiResponse: null };
 }
 
 // 🔹 Enviar para fila
@@ -216,12 +216,40 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
 
     if (!cpf) continue;
 
-    let resultado = await consultarResultado(cpf, linha);
+    let resultado = null;
+    try {
+      resultado = await consultarResultado(cpf, linha);
+    } catch (err) {
+      console.error(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}:`, err.response?.data || err.message);
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        message: "Erro consulta / fila",
+        apiResponse: err.response?.data || err.message
+      });
+      await delay(DELAY_MS);
+      continue;
+    }
+
     await delay(DELAY_MS);
 
     if (!resultado || !resultado.data || resultado.data.length === 0) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        message: "Sem retorno da API",
+        apiResponse: resultado || "vazio"
+      });
+
       if (!(await enviarParaFila(cpf))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila" });
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "pending",
+          message: "Erro envio para fila",
+        });
       }
       continue;
     }
