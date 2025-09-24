@@ -41,7 +41,6 @@ export function emitirResultado(obj) {
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
   if (!CREDENTIALS.length) return;
-
   if (forcedIndex !== null) {
     credIndex = forcedIndex % CREDENTIALS.length;
   } else {
@@ -55,7 +54,6 @@ function switchCredential(forcedIndex = null) {
 // 🔹 Autenticar
 export async function authenticate() {
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
-
   const cred = CREDENTIALS[credIndex];
   try {
     console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
@@ -91,7 +89,6 @@ export async function consultarResultado(cpf, linha) {
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
-
       console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
       return res.data;
     } catch (err) {
@@ -158,10 +155,8 @@ export async function simularSaldo(cpf, balanceId, parcelas) {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
       console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
-
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return res.data;
-
       console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
     } catch (err) {
       console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
@@ -199,7 +194,7 @@ export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   }
 }
 
-// 🔹 Processar CPFs
+// 🔹 Processar CPFs (CSV ou reprocessamento)
 export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
   let registros = [];
 

@@ -8,12 +8,11 @@ import { fileURLToPath } from "url";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { extrairDeUpload } from "./extrair_pdf.js";
 import PQueue from "p-queue";
-
 import multer from "multer";
 import { spawn } from "child_process";
 import { Server } from "socket.io";
 import http from "http";
-import { disparaFluxo } from "./fgts_csv.js"; // <- Certifique-se de exportar esta função
+import { processarCPFs, disparaFluxo } from "./fgts_csv.js"; // <- exportar essas funções do fgts_csv.js
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -139,6 +138,7 @@ app.get("/fgts", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// Upload CSV
 app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
@@ -184,20 +184,32 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
 });
 
 // ====== Rotas extras para botões ======
+// Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
   const cpfs = req.body.cpfs || [];
   if (!cpfs.length) return res.status(400).json({ message: "Nenhum CPF fornecido" });
 
   console.log("🔄 Reprocessar pendentes:", cpfs);
-  // TODO: chamar função processarCPFs(cpfs)
+  io.emit("log", `🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
+
+  processarCPFs(cpfs).then(() => {
+    io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
+  }).catch(err => {
+    console.error("❌ Erro no reprocessamento:", err);
+    io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
+  });
+
   res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
 });
 
+// Mudar fase para não autorizados
 app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   const ids = req.body.ids || [];
   if (!ids.length) return res.status(400).json({ message: "Nenhum ID fornecido" });
 
   console.log("📌 Mudar fase no CRM para IDs:", ids);
+  io.emit("log", `📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
+
   for (const id of ids) {
     await disparaFluxo(id, 3); // muda fase para 3
   }
