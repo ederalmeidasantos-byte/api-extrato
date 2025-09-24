@@ -7,7 +7,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-const CSV_FILE = process.env.CSV_FILE || "cpfs.csv";
 const PROVIDER = process.env.PROVIDER || "cartos";
 const DELAY_MS = 800;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
@@ -35,14 +34,13 @@ const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 🔹 Emitir resultado para server.js
-function emitirResultado(obj) {
+export function emitirResultado(obj) {
   console.log("RESULT:" + JSON.stringify(obj));
 }
 
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
   if (!CREDENTIALS.length) return;
-
   if (forcedIndex !== null) {
     credIndex = forcedIndex % CREDENTIALS.length;
   } else {
@@ -54,10 +52,10 @@ function switchCredential(forcedIndex = null) {
 }
 
 // 🔹 Autenticar
-async function authenticate() {
+export async function authenticate() {
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
-
   const cred = CREDENTIALS[credIndex];
+
   try {
     console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
     const data = qs.stringify({
@@ -83,46 +81,36 @@ async function authenticate() {
   }
 }
 
-// 🔹 Consultar Resultado com apiResponse completo
-async function consultarResultado(cpf, linha) {
+// 🔹 Consultar Resultado
+export async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
       const user = CREDENTIALS[credIndex]?.username || "sem usuário";
       console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Consultando CPF: ${cpf} | Credencial: ${user}`);
-
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
-
       console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
       return res.data;
     } catch (err) {
       const status = err.response?.status;
-      const apiResponse = err.response?.data || err.message;
       console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
-
-      // Emite resultado mesmo em erro
-      emitirResultado({
-        cpf,
-        id: `reproc_${linha}`,
-        status: "pending",
-        message: status === 401 ? "Sem retorno da API" : "Erro consulta / fila",
-        apiResponse,
-      });
-
-      if (status === 429 || err.message.includes("Limite de requisições")) {
+      if (status === 401) {
+        console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
+        await authenticate();
+      } else if (status === 429 || err.message.includes("Limite de requisições")) {
         switchCredential();
         await authenticate();
       } else {
-        return null;
+        return { error: err.message, apiResponse: err.response?.data };
       }
     }
   }
-  return null;
+  return { error: "Sem retorno da API" };
 }
 
 // 🔹 Enviar para fila
-async function enviarParaFila(cpf) {
+export async function enviarParaFila(cpf) {
   try {
     await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
@@ -130,13 +118,14 @@ async function enviarParaFila(cpf) {
       { headers: { Authorization: `Bearer ${TOKEN}` } }
     );
     return true;
-  } catch {
+  } catch (err) {
+    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf}: ${err.message}`);
     return false;
   }
 }
 
-// 🔹 Simular Saldo com fallback de tabelas
-async function simularSaldo(cpf, balanceId, parcelas) {
+// 🔹 Simular Saldo
+export async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
   const desiredInstallments = parcelas
@@ -171,34 +160,32 @@ async function simularSaldo(cpf, balanceId, parcelas) {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
       console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
-
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return res.data;
-
       console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
     } catch (err) {
       console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
     }
   }
-
   return null;
 }
 
 // 🔹 Atualizar CRM
-async function atualizarCRM(id, valor) {
+export async function atualizarCRM(id, valor) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
       headers: { "Content-Type": "application/json" },
     });
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
     return false;
   }
 }
 
 // 🔹 Disparar Fluxo
-async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
+export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
     await axios.post(
       "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
@@ -207,15 +194,23 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
     );
     return true;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo para ID ${id}:`, err.response?.data || err.message);
+    console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo ID ${id}:`, err.response?.data || err.message);
     return false;
   }
 }
 
-// 🔹 Processar CPFs
-async function processarCPFs() {
-  const csvContent = fs.readFileSync(CSV_FILE, "utf-8");
-  const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+// 🔹 Processar CPFs (CSV path ou array de CPFs)
+export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
+  let registros = [];
+
+  if (cpfsReprocess && cpfsReprocess.length) {
+    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+  } else if (csvPath) {
+    const csvContent = fs.readFileSync(csvPath, "utf-8");
+    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+  } else {
+    throw new Error("Nenhum CSV fornecido para processar!");
+  }
 
   console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
 
@@ -223,7 +218,6 @@ async function processarCPFs() {
     const linha = index + 2;
     const cpf = (registro.CPF || "").trim();
     const idOriginal = (registro.ID || "").trim();
-
     if (!cpf) continue;
 
     let resultado = await consultarResultado(cpf, linha);
@@ -231,7 +225,7 @@ async function processarCPFs() {
 
     if (!resultado || !resultado.data || resultado.data.length === 0) {
       if (!(await enviarParaFila(cpf))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila" });
+        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila", apiResponse: resultado });
       }
       continue;
     }
@@ -244,13 +238,13 @@ async function processarCPFs() {
       continue;
     }
 
-    // 🟡 Sem saldo → não pendente
+    // 🟡 Sem saldo
     if (item.status !== "success" || item.amount <= 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
       continue;
     }
 
-    // 🟢 Sucesso → simulação com fallback
+    // 🟢 Sucesso → simulação
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
@@ -273,19 +267,22 @@ async function processarCPFs() {
       continue;
     }
 
+    // Resultado final
     emitirResultado({
       cpf,
       id: idOriginal,
       status: "success",
       message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
+      valorLiberado,
+      apiResponse: item
     });
   }
 }
 
-// 🔹 Start
-(async () => {
-  await authenticate();
-  await processarCPFs();
-})();
-
-export { processarCPFs, disparaFluxo };
+// 🔹 Start direto
+if (process.env.CSV_FILE) {
+  (async () => {
+    await authenticate();
+    await processarCPFs(process.env.CSV_FILE);
+  })();
+}
