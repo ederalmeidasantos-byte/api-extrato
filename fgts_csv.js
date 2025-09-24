@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
+const CSV_FILE = process.env.CSV_FILE || "cpfs.csv";
 const PROVIDER = process.env.PROVIDER || "cartos";
 const DELAY_MS = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
@@ -21,7 +22,11 @@ for (let i = 1; process.env[`FGTS_USER_${i}`]; i++) {
     password: process.env[`FGTS_PASS_${i}`],
   });
 }
-if (!CREDENTIALS.length) throw new Error("❌ Nenhuma credencial FGTS configurada no .env");
+
+if (!CREDENTIALS.length) {
+  console.error("❌ Nenhuma credencial FGTS configurada no .env");
+  process.exit(1);
+}
 
 let TOKEN = null;
 let credIndex = 0;
@@ -29,22 +34,29 @@ const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 🔹 Emitir resultado para server.js
+function emitirResultado(obj) {
+  console.log("RESULT:" + JSON.stringify(obj));
+}
+
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
   if (!CREDENTIALS.length) return;
-  credIndex = forcedIndex !== null ? forcedIndex % CREDENTIALS.length : (credIndex + 1) % CREDENTIALS.length;
-  TOKEN = null;
-  console.log(`${LOG_PREFIX()} 🔄 Alternando credencial: ${CREDENTIALS[credIndex]?.username || "sem usuário"}`);
-}
 
-// 🔹 Emitir resultado
-function emitirResultado(obj, io = null) {
-  console.log("RESULT:" + JSON.stringify(obj));
-  if (io) io.emit("result", obj);
+  if (forcedIndex !== null) {
+    credIndex = forcedIndex % CREDENTIALS.length;
+  } else {
+    credIndex = (credIndex + 1) % CREDENTIALS.length;
+  }
+  TOKEN = null;
+  const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+  console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
 // 🔹 Autenticar
-export async function authenticate() {
+async function authenticate() {
+  if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
+
   const cred = CREDENTIALS[credIndex];
   try {
     console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
@@ -56,13 +68,16 @@ export async function authenticate() {
       scope: "offline_access",
       client_id: "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn",
     });
+
     const res = await axios.post("https://auth.v8sistema.com/oauth/token", data, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
+
     TOKEN = res.data.access_token;
     console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${cred?.username}: ${err.message}`);
+    const user = cred?.username || "sem usuário";
+    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
     switchCredential();
     await authenticate();
   }
@@ -77,6 +92,7 @@ async function consultarResultado(cpf, linha) {
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
+
       console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
       return res.data;
     } catch (err) {
@@ -107,13 +123,15 @@ async function enviarParaFila(cpf) {
   }
 }
 
-// 🔹 Simular Saldo
+// 🔹 Simular Saldo com fallback de tabelas
 async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
-  const desiredInstallments = parcelas.filter((p) => p.amount > 0 && p.dueDate)
+
+  const desiredInstallments = parcelas
+    .filter((p) => p.amount > 0 && p.dueDate)
     .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
 
-  if (!desiredInstallments.length) return null;
+  if (desiredInstallments.length === 0) return null;
 
   const tabelas = [
     "cb563029-ba93-4b53-8d53-4ac145087212",
@@ -133,19 +151,24 @@ async function simularSaldo(cpf, balanceId, parcelas) {
       desiredInstallments,
       provider: PROVIDER,
     };
+
     console.log(`${LOG_PREFIX()} 🔧 Payload simulação:`, JSON.stringify(payload));
 
     try {
       const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
+      console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
+
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return res.data;
+
       console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
     } catch (err) {
       console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
     }
   }
+
   return null;
 }
 
@@ -163,7 +186,7 @@ async function atualizarCRM(id, valor) {
 }
 
 // 🔹 Disparar Fluxo
-export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
+async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
     await axios.post(
       "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
@@ -177,62 +200,88 @@ export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   }
 }
 
-// 🔹 Processar CPFs a partir de arquivo CSV
-export async function processarCPFs(filePath, io = null) {
-  const csvContent = fs.readFileSync(filePath, "utf-8");
-  const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+// 🔹 Processar CPFs
+async function processarCPFs(cpfsReprocess = null) {
+  let registros = [];
+
+  if (cpfsReprocess && cpfsReprocess.length) {
+    // Monta array de objetos simulando CSV para reprocessar CPFs específicos
+    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+  } else {
+    const csvContent = fs.readFileSync(CSV_FILE, "utf-8");
+    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+  }
 
   console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
-  await authenticate();
 
   for (let [index, registro] of registros.entries()) {
     const linha = index + 2;
     const cpf = (registro.CPF || "").trim();
     const idOriginal = (registro.ID || "").trim();
+
     if (!cpf) continue;
 
     let resultado = await consultarResultado(cpf, linha);
     await delay(DELAY_MS);
 
     if (!resultado || !resultado.data || resultado.data.length === 0) {
-      if (!(await enviarParaFila(cpf))) emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila" }, io);
+      if (!(await enviarParaFila(cpf))) {
+        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila" });
+      }
       continue;
     }
 
     const item = resultado.data[0];
 
+    // 🔴 Sem autorização
     if (item.statusInfo?.includes("não possui autorização")) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" }, io);
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
       continue;
     }
 
+    // 🟡 Sem saldo → não pendente
     if (item.status !== "success" || item.amount <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" }, io);
+      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
       continue;
     }
 
+    // 🟢 Sucesso → simulação com fallback
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
     if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" }, io);
+      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" });
       continue;
     }
 
     const valorLiberado = parseFloat(sim.availableBalance || 0);
 
     if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" }, io);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" });
       continue;
     }
 
     await delay(DELAY_MS);
 
     if (!(await disparaFluxo(idOriginal))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" }, io);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" });
       continue;
     }
 
-    emitirResultado({ cpf, id: idOriginal, status: "success", message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}` }, io);
+    emitirResultado({
+      cpf,
+      id: idOriginal,
+      status: "success",
+      message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
+      valorLiberado
+    });
   }
 }
+
+// 🔹 Start
+(async () => {
+  await authenticate();
+
+  const cpfsReprocess = process.env.CPFS_REPROCESS ? process.env.CPFS_REPROCESS.split(",") : null;
+  await processarCPFs(cpfsReprocess);
+})();
