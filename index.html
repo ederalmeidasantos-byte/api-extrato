@@ -17,6 +17,13 @@
     .btn-primary { background: #007bff; color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
     .btn-danger { background: #dc3545; color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background-color: #007bff; color: #fff; }
+    tr.success { background-color: #d4edda; }
+    tr.pending { background-color: #fff3cd; }
+    tr.no_auth { background-color: #f8d7da; }
+    #counters { margin-top: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -25,6 +32,13 @@
     <input type="file" id="csvfile" name="csvfile" accept=".csv" required />
     <button type="button" class="btn-primary" id="runBtn">📂 Enviar e Iniciar</button>
   </form>
+
+  <h3>📊 Contadores</h3>
+  <div id="counters">
+    Sucesso: <span id="countSuccess">0</span> | 
+    Pendentes: <span id="countPending">0</span> | 
+    Sem Autorização: <span id="countNoAuth">0</span>
+  </div>
 
   <h3>📜 Logs</h3>
   <div id="logs"></div>
@@ -40,14 +54,32 @@
   <ul id="listaSemAutorizacao"></ul>
   <button class="btn-danger" onclick="mudarFaseNaoAutorizados()">📌 Mudar fase no CRM</button>
 
+  <h3>📋 Tabela Completa</h3>
+  <table id="resultTable">
+    <thead>
+      <tr>
+        <th>CPF</th>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Valor Liberado</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
   <script>
     const logs = document.getElementById('logs');
     const listaSucesso = document.getElementById('listaSucesso');
     const listaPendentes = document.getElementById('listaPendentes');
     const listaSemAutorizacao = document.getElementById('listaSemAutorizacao');
+    const tbody = document.querySelector('#resultTable tbody');
+    const countSuccess = document.getElementById('countSuccess');
+    const countPending = document.getElementById('countPending');
+    const countNoAuth = document.getElementById('countNoAuth');
 
     const pendentes = [];
     const naoAutorizados = [];
+    let totalSuccess = 0, totalPending = 0, totalNoAuth = 0;
 
     const socket = io();
 
@@ -57,21 +89,40 @@
     });
 
     socket.on('result', data => {
+      // Atualiza listas separadas
       const li = document.createElement("li");
       li.textContent = `CPF: ${data.cpf} | ID: ${data.id} | ${data.message}`;
-
       if (data.status === "success") {
         li.classList.add("success");
         listaSucesso.appendChild(li);
+        totalSuccess++;
       } else if (data.status === "pending") {
         li.classList.add("pending");
         listaPendentes.appendChild(li);
         pendentes.push(data.cpf);
+        totalPending++;
       } else if (data.status === "no_auth") {
         li.classList.add("no_auth");
         listaSemAutorizacao.appendChild(li);
         naoAutorizados.push(data.id);
+        totalNoAuth++;
       }
+
+      // Atualiza contadores
+      countSuccess.textContent = totalSuccess;
+      countPending.textContent = totalPending;
+      countNoAuth.textContent = totalNoAuth;
+
+      // Atualiza tabela completa
+      const tr = document.createElement("tr");
+      tr.className = data.status;
+      tr.innerHTML = `
+        <td>${data.cpf}</td>
+        <td>${data.id}</td>
+        <td>${data.status}</td>
+        <td>${data.valorLiberado || '-'}</td>
+      `;
+      tbody.appendChild(tr);
     });
 
     document.getElementById('runBtn').addEventListener('click', async () => {
