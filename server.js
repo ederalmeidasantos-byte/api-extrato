@@ -37,6 +37,12 @@ const cacheValido = (p) => {
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+// ====== Start servidor com Socket.IO (antes de rotas que usam io) ======
+const server = http.createServer(app);
+const io = new Server(server);
+
+io.on("connection", (socket) => console.log("🔗 Cliente conectado para logs FGTS"));
+
 // Fila: até 2 jobs em paralelo, 2 por segundo
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 
@@ -136,7 +142,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   (async () => {
     try {
       await processarCPFs(req.file.path, null, (result) => {
-        // Emite cada resultado em tempo real
         io.emit("log", JSON.stringify(result));
         if (result) io.emit("result", result);
       });
@@ -196,12 +201,6 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
 
   res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
 });
-
-// ====== Start servidor com Socket.IO ======
-const server = http.createServer(app);
-const io = new Server(server);
-
-io.on("connection", (socket) => console.log("🔗 Cliente conectado para logs FGTS"));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));

@@ -33,9 +33,10 @@ const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 🔹 Emitir resultado para server.js
-export function emitirResultado(obj) {
+// 🔹 Emitir resultado para front e logs
+export function emitirResultado(obj, callback = null) {
   console.log("RESULT:" + JSON.stringify(obj));
+  if (callback) callback(obj);
 }
 
 // 🔹 Alternar credencial
@@ -81,7 +82,7 @@ export async function authenticate() {
   }
 }
 
-// 🔹 Consultar Resultado
+// 🔹 Consultar resultado
 export async function consultarResultado(cpf, linha) {
   for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
     try {
@@ -124,7 +125,7 @@ export async function enviarParaFila(cpf) {
   }
 }
 
-// 🔹 Simular Saldo
+// 🔹 Simular saldo
 export async function simularSaldo(cpf, balanceId, parcelas) {
   if (!parcelas || parcelas.length === 0) return null;
 
@@ -184,7 +185,7 @@ export async function atualizarCRM(id, valor) {
   }
 }
 
-// 🔹 Disparar Fluxo
+// 🔹 Disparar fluxo
 export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
     await axios.post(
@@ -199,8 +200,8 @@ export async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   }
 }
 
-// 🔹 Processar CPFs (CSV path ou array de CPFs)
-export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
+// 🔹 Processar CPFs
+export async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
   if (cpfsReprocess && cpfsReprocess.length) {
@@ -225,49 +226,45 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
 
     if (!resultado || !resultado.data || resultado.data.length === 0) {
       if (!(await enviarParaFila(cpf))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila", apiResponse: resultado });
+        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila", apiResponse: resultado }, callback);
       }
       continue;
     }
 
     const item = resultado.data[0];
 
-    // 🔴 Sem autorização
     if (item.statusInfo?.includes("não possui autorização")) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" });
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" }, callback);
       continue;
     }
 
-    // 🟡 Sem saldo
     if (item.status !== "success" || item.amount <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" });
+      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" }, callback);
       continue;
     }
 
-    // 🟢 Sucesso → simulação
     const sim = await simularSaldo(cpf, item.id, item.periods);
     await delay(DELAY_MS);
 
     if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" });
+      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" }, callback);
       continue;
     }
 
     const valorLiberado = parseFloat(sim.availableBalance || 0);
 
     if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" });
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" }, callback);
       continue;
     }
 
     await delay(DELAY_MS);
 
     if (!(await disparaFluxo(idOriginal))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" });
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" }, callback);
       continue;
     }
 
-    // Resultado final
     emitirResultado({
       cpf,
       id: idOriginal,
@@ -275,6 +272,9 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
       message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
       valorLiberado,
       apiResponse: item
-    });
+    }, callback);
   }
 }
+
+// 🔹 Exporta funções
+export { processarCPFs, disparaFluxo, authenticate };
