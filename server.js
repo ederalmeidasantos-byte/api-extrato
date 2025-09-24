@@ -133,18 +133,23 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   console.log("📂 Planilha FGTS recebida:", req.file.path);
   io.emit("log", `📂 Planilha FGTS recebida: ${req.file.path}`);
 
-  try {
-    await processarCPFs(req.file.path);
-    io.emit("log", "✅ Processamento FGTS finalizado!");
-    res.json({ message: "🚀 Planilha recebida e automação FGTS concluída!" });
-  } catch (err) {
-    console.error("❌ Erro no processamento FGTS:", err);
-    io.emit("log", `❌ Erro no processamento FGTS: ${err.message}`);
-    res.status(500).json({ message: err.message });
-  } finally {
-    // Limpa arquivo CSV
-    try { await fsp.unlink(req.file.path); } catch {}
-  }
+  (async () => {
+    try {
+      await processarCPFs(req.file.path, null, (result) => {
+        // Emite cada resultado em tempo real
+        io.emit("log", JSON.stringify(result));
+        if (result) io.emit("result", result);
+      });
+      io.emit("log", "✅ Processamento FGTS finalizado!");
+    } catch (err) {
+      console.error("❌ Erro no processamento FGTS:", err);
+      io.emit("log", `❌ Erro no processamento FGTS: ${err.message}`);
+    } finally {
+      try { await fsp.unlink(req.file.path); } catch {}
+    }
+  })();
+
+  res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
 
 // Reprocessar pendentes
@@ -155,15 +160,20 @@ app.post("/fgts/reprocessar", async (req, res) => {
   console.log("🔄 Reprocessar pendentes:", cpfs);
   io.emit("log", `🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
 
-  try {
-    await processarCPFs(null, cpfs);
-    io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
-    res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
-  } catch (err) {
-    console.error("❌ Erro no reprocessamento:", err);
-    io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
-    res.status(500).json({ message: err.message });
-  }
+  (async () => {
+    try {
+      await processarCPFs(null, cpfs, (result) => {
+        io.emit("log", JSON.stringify(result));
+        if (result) io.emit("result", result);
+      });
+      io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
+    } catch (err) {
+      console.error("❌ Erro no reprocessamento:", err);
+      io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
+    }
+  })();
+
+  res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
 });
 
 // Mudar fase para não autorizados
@@ -174,14 +184,17 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   console.log("📌 Mudar fase no CRM para IDs:", ids);
   io.emit("log", `📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
 
-  try {
-    for (const id of ids) await disparaFluxo(id, 3);
-    res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
-  } catch (err) {
-    console.error("❌ Erro ao mudar fase:", err);
-    io.emit("log", `❌ Erro ao mudar fase: ${err.message}`);
-    res.status(500).json({ message: err.message });
-  }
+  (async () => {
+    try {
+      for (const id of ids) await disparaFluxo(id, 3);
+      io.emit("log", `✅ Fase alterada para ${ids.length} registros`);
+    } catch (err) {
+      console.error("❌ Erro ao mudar fase:", err);
+      io.emit("log", `❌ Erro ao mudar fase: ${err.message}`);
+    }
+  })();
+
+  res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
 });
 
 // ====== Start servidor com Socket.IO ======

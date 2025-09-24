@@ -279,10 +279,5 @@ export async function processarCPFs(csvPath = null, cpfsReprocess = null) {
   }
 }
 
-// 🔹 Start direto
-if (process.env.CSV_FILE) {
-  (async () => {
-    await authenticate();
-    await processarCPFs(process.env.CSV_FILE);
-  })();
-}
+// 🔹 fgts_csv.js exporta funções, execução ocorre via server.js
+export { processarCPFs, disparaFluxo, authenticate };
