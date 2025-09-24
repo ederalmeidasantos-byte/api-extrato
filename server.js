@@ -155,6 +155,19 @@ app.post("/fgts/run", upload.single("csvfile"), (req, res) => {
     const msg = data.toString();
     console.log(msg);
     io.emit("log", msg);
+
+    // 🔹 Parse RESULT
+    const lines = msg.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("RESULT:")) {
+        try {
+          const resultObj = JSON.parse(line.replace("RESULT:", ""));
+          io.emit("result", resultObj);
+        } catch (e) {
+          console.error("❌ Erro ao parsear RESULT:", e.message);
+        }
+      }
+    }
   });
 
   child.stderr.on("data", (data) => {
