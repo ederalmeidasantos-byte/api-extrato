@@ -32,6 +32,7 @@ if (!CREDENTIALS.length) {
 let TOKEN = null;
 let credIndex = 0;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
+let ultimoProvider = null;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -98,12 +99,15 @@ async function consultarResultado(cpf, linha) {
     } catch (err) {
       const status = err.response?.status;
       console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
+
       if (status === 401) {
         console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
         await authenticate();
       } else if (status === 429 || err.message.includes("Limite de requisições")) {
+        console.log(`${LOG_PREFIX()} ⚠️ Limite de requisições, pendência registrada e troca de usuário`);
         switchCredential();
         await authenticate();
+        return { data: [], pending: true };
       } else {
         return { error: err.message, apiResponse: err.response?.data };
       }
@@ -114,6 +118,7 @@ async function consultarResultado(cpf, linha) {
 
 // 🔹 Enviar para fila com provider
 async function enviarParaFila(cpf, provider) {
+  ultimoProvider = provider;
   try {
     await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
@@ -227,22 +232,25 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let resultado = null;
     let providerUsed = null;
 
-    // Tenta enviar para fila e consultar com cada provider
+    // 🔹 Tenta enviar para fila e consultar cada provider
     for (const provider of PROVIDERS) {
       await authenticate();
       const enviado = await enviarParaFila(cpf, provider);
       providerUsed = provider;
+      await delay(DELAY_MS);
 
-      if (enviado) {
-        await delay(DELAY_MS);
-        resultado = await consultarResultado(cpf, linha);
-        await delay(DELAY_MS);
-        if (resultado?.data?.length > 0) break;
+      resultado = await consultarResultado(cpf, linha);
+      await delay(DELAY_MS);
+
+      if (resultado?.data?.length > 0) break;
+      if (resultado?.pending) {
+        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Limite de requisições excedido, tentar depois", provider: providerUsed }, callback);
+        break;
       }
     }
 
     if (!resultado || !resultado.data || resultado.data.length === 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
       continue;
     }
 
@@ -268,7 +276,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-    // 🔹 Se não tem ID, mas tem telefone, incluir na lista para CSV manual
+    // 🔹 Se não tem ID, mas tem telefone → para CSV manual
     if (!idOriginal && telefone) {
       emitirResultado({
         cpf,
