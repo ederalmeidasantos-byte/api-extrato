@@ -299,45 +299,25 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let resultado = null;
     let providerUsed = null;
 
-    for (const provider of PROVIDERS) {
-      providerUsed = provider;
+    // 🔹 Tentar Cartos primeiro
+    providerUsed = "cartos";
+    await authenticate();
+    let enviado = await enviarParaFila(cpf, providerUsed);
 
-      let loopRetry = true;
-      while (loopRetry) {
-        await authenticate();
-        const enviado = await enviarParaFila(cpf, provider);
-        if (!enviado) break;
+    if (enviado) {
+      await delay(DELAY_MS);
+      resultado = await consultarResultado(cpf, linha);
 
-        await delay(DELAY_MS);
-
-        resultado = await consultarResultado(cpf, linha);
-
-        if (resultado?.pending || resultado?.error?.includes("Limite de requisições")) {
-          console.log(`${LOG_PREFIX()} ⚠️ Rate limit ou pending, trocando login e aguardando...`);
-          switchCredential();
-          await authenticate(true);
-          await delay(DELAY_MS * 3);
-          continue;
-        }
-
-        loopRetry = false;
-
-        if (!resultado?.data || resultado.data.length === 0) break;
-
+      if (resultado?.data && resultado.data.length > 0) {
         const item = resultado.data[0];
-
-        if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
-          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} pendente no provider ${providerUsed}, tentando próximo...`);
-          break;
-        }
-
         if (item.status === "success" && item.amount > 0) {
+          // 🔹 Apenas Cartos faz simulação
           const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
           await delay(DELAY_MS);
 
           if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
             emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-            break;
+            continue; // Próximo CPF
           }
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
@@ -351,14 +331,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
           if (!(await atualizarCRM(idOriginal, valorLiberado))) {
             emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-            break;
+            continue;
           }
 
           await delay(DELAY_MS);
 
           if (!(await disparaFluxo(idOriginal))) {
             emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-            break;
+            continue;
           }
 
           emitirResultado({
@@ -371,6 +351,34 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
             apiResponse: item
           }, callback);
 
+          continue; // Próximo CPF
+        }
+      }
+    }
+
+    // 🔹 Se Cartos não autorizado ou erro, tenta BMS → QI
+    for (const fallbackProvider of ["bms", "qi"]) {
+      providerUsed = fallbackProvider;
+      await authenticate();
+      enviado = await enviarParaFila(cpf, providerUsed);
+
+      if (!enviado) continue;
+
+      await delay(DELAY_MS);
+      resultado = await consultarResultado(cpf, linha);
+
+      if (resultado?.data && resultado.data.length > 0) {
+        const item = resultado.data[0];
+        if (item.status === "success" && item.amount > 0) {
+          // ⚠️ Não simular nem atualizar oportunidade para BMS/QI
+          emitirResultado({
+            cpf,
+            id: idOriginal,
+            status: "pending",
+            message: `Sucesso no provider ${providerUsed}, mas sem simulação`,
+            provider: providerUsed,
+            apiResponse: item
+          }, callback);
           break;
         }
       }
@@ -381,6 +389,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     }
   }
 }
+
 
 // 🔹 Exporta funções
 export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade };
