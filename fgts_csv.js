@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-const DELAY_MS = 1500;
+const DELAY_MS = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -231,56 +231,52 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     let resultado = null;
     let providerUsed = null;
+    let reprocessOnlyID = false;
 
     // 🔹 Tenta enviar para fila e consultar cada provider
     for (const provider of PROVIDERS) {
       await authenticate();
-      const enviado = await enviarParaFila(cpf, provider);
+      await enviarParaFila(cpf, provider);
       providerUsed = provider;
       await delay(DELAY_MS);
 
       resultado = await consultarResultado(cpf, linha);
       await delay(DELAY_MS);
 
-      if (resultado?.data?.length > 0) break;
-      if (resultado?.pending) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Limite de requisições excedido, tentar depois", provider: providerUsed }, callback);
+      if (!resultado?.data || resultado.data.length === 0) continue;
+
+      const item = resultado.data[0];
+
+      // 🔹 Se não autorizado → tenta próximo provider
+      if (item.status === "error" && item.statusInfo?.includes("não possui autorização")) {
+        reprocessOnlyID = true;
+        continue;
+      }
+
+      // 🔹 Pending → mantém pendência
+      if (item.status === "pending") {
+        reprocessOnlyID = true;
         break;
       }
 
-      // Caso erro de saldo insuficiente
-      if (resultado?.apiResponse?.error?.includes("Saldo insuficiente") ||
-          resultado?.apiResponse?.error?.includes("parcelas menores")) {
-        emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível", provider: providerUsed }, callback);
+      // 🔹 Success com saldo → segue fluxo normal
+      if (item.status === "success" && item.amount > 0) {
+        reprocessOnlyID = false;
         break;
       }
     }
 
-    // --- Classificação final ---
+    if (reprocessOnlyID) {
+      emitirResultado({ id: idOriginal }, callback);
+      continue;
+    }
+
     if (!resultado || !resultado.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
       continue;
     }
 
     const item = resultado.data[0];
-
-    // 🔹 Autorização negada
-    if (item.statusInfo?.includes("não possui autorização")) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização", provider: providerUsed }, callback);
-      continue;
-    }
-
-    // 🔹 Pending ou Error => Fila FGTS
-    if (item.status === "pending" || item.status === "error") {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Consulta em processamento (fila FGTS)", provider: providerUsed }, callback);
-      continue;
-    }
-
-    // 🔹 Success mas sem saldo
-    if (item.status === "success" && item.amount <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível", provider: providerUsed }, callback);
-      continue;
-    }
 
     // 🔹 Success com saldo > 0 → segue fluxo normal
     if (item.status === "success" && item.amount > 0) {
@@ -334,15 +330,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       }, callback);
       continue;
     }
-
-    // 🔹 Caso inesperado
-    emitirResultado({
-      cpf,
-      id: idOriginal,
-      status: "error",
-      message: "⚠️ Retorno inesperado",
-      provider: providerUsed
-    }, callback);
   }
 }
 
