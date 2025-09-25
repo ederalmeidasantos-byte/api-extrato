@@ -50,27 +50,27 @@
   <div class="column" id="colSuccess">
     <h3>✅ Sucesso</h3>
     <div class="list-container">
-      <table id="tableSuccess"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead><tbody></tbody></table>
+      <table id="tableSuccess"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
   <div class="column" id="colPending">
     <h3>⏳ Pendentes</h3>
     <div class="list-container">
-      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead><tbody></tbody></table>
+      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
     <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
   </div>
   <div class="column" id="colNoAuth">
     <h3>🚫 Sem Autorização</h3>
     <div class="list-container">
-      <table id="tableNoAuth"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th></tr></thead><tbody></tbody></table>
+      <table id="tableNoAuth"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
     <button class="btn-danger" id="btnMudarFaseNoAuth">📌 Mudar fase no CRM</button>
   </div>
   <div class="column" id="colReadyCSV">
     <h3>📥 Prontos para CSV</h3>
     <div class="list-container">
-      <table id="tableReadyCSV"><thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th></tr></thead><tbody></tbody></table>
+      <table id="tableReadyCSV"><thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
     <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
   </div>
@@ -127,14 +127,14 @@ function adicionarResultado(data) {
   else if(data.status==='no_auth') valorExibido = data.valorLiberado || '-';
   else if(data.status==='ready_for_manual') valorExibido = data.valorLiberado || '-';
 
-  tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone || data.id || ''}</td><td>${valorExibido}</td>`;
+  tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone || data.id || ''}</td><td>${valorExibido}</td><td>${data.provider || '-'}</td>`;
   tr.className = data.status==='ready_for_manual'?'ready_for_manual':data.status;
 
   switch(data.status){
     case 'success': tables.success.appendChild(tr); totals.success++; break;
     case 'pending': if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf); tables.pending.appendChild(tr); totals.pending++; break;
     case 'no_auth': if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id); tables.no_auth.appendChild(tr); totals.noAuth++; break;
-    case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||''}); tables.ready.appendChild(tr); totals.ready++; break;
+    case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
   }
 
   atualizarContadores();
@@ -182,9 +182,9 @@ document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()
 
 document.getElementById('btnExportCSV').addEventListener('click', ()=>{
   if(!readyForCSV.length) return alert("Nenhum CPF disponível para exportar");
-  const headers = ['CPF','Telefone','Valor'];
+  const headers = ['CPF','Telefone','Valor','Provider'];
   const csvRows = [headers.join(';')];
-  readyForCSV.forEach(r=>csvRows.push([r.cpf,r.telefone,r.valor].join(';')));
+  readyForCSV.forEach(r=>csvRows.push([r.cpf,r.telefone,r.valor,r.provider].join(';')));
   const blob = new Blob([csvRows.join('\n')],{type:'text/csv;charset=utf-8;'});
   const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
   link.download = `cpfs_ready_${Date.now()}.csv`; link.click();
