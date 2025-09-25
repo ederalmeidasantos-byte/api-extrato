@@ -191,6 +191,31 @@ async function atualizarCRM(id, valor) {
   }
 }
 
+// 🔹 Criar oportunidade para CPFs sem ID
+async function criarOportunidade(cpf, telefone, valorLiberado) {
+  try {
+    const payload = {
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
+      fkPipeline: 1,
+      fkStage: 4,
+      responsableid: 0,
+      title: `Oportunidade ${cpf}`,
+      mainphone: telefone,
+      mainmail: cpf,
+      value: valorLiberado
+    };
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para ${cpf}:`, res.data);
+    return res.data?.id || null;
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, err.response?.data || err.message);
+    return null;
+  }
+}
+
 // 🔹 Disparar fluxo
 async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
@@ -224,7 +249,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   for (let [index, registro] of registros.entries()) {
     const linha = index + 2;
     const cpf = (registro.CPF || "").trim();
-    const idOriginal = (registro.ID || "").trim();
+    let idOriginal = (registro.ID || "").trim();
     const telefone = (registro.TELEFONE || "").trim();
     if (!cpf) continue;
 
@@ -262,10 +287,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
         const valorLiberado = parseFloat(sim.availableBalance || 0);
 
+        // 🔹 Se não há ID, cria oportunidade na API
         if (!idOriginal && telefone) {
+          const newId = await criarOportunidade(cpf, telefone, valorLiberado);
+          idOriginal = newId || "";
+
           emitirResultado({
             cpf,
-            id: idOriginal || "",
+            id: idOriginal,
             status: "ready_for_manual",
             message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
             valorLiberado,
