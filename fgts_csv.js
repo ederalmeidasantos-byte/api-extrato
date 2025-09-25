@@ -120,38 +120,20 @@ async function consultarResultado(cpf, linha) {
   }
 }
 
-// 🔹 Enviar para fila com provider (retry em caso de rate limit)
-async function enviarParaFila(cpf, provider, maxRetries = 3) {
+// 🔹 Enviar para fila com provider
+async function enviarParaFila(cpf, provider) {
   ultimoProvider = provider;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await axios.post(
-        "https://bff.v8sistema.com/fgts/balance",
-        { documentNumber: cpf, provider },
-        { headers: { Authorization: `Bearer ${TOKEN}` } }
-      );
-      return true; // sucesso
-    } catch (err) {
-      const message = err.response?.data?.message || err.message;
-      console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider} | Attempt ${attempt}:`, message);
-
-      // Rate limit
-      if (message.includes("Limite de requisições") || message.includes("Rate limit")) {
-        console.log(`${LOG_PREFIX()} ⚠️ Rate limit detectado, aguardando antes de tentar novamente...`);
-        switchCredential();
-        await authenticate(true);
-        await delay(DELAY_MS * 3);
-        continue; // tenta novamente
-      }
-
-      // outro erro, não tenta novamente
-      return false;
-    }
+  try {
+    await axios.post(
+      "https://bff.v8sistema.com/fgts/balance",
+      { documentNumber: cpf, provider },
+      { headers: { Authorization: `Bearer ${TOKEN}` } }
+    );
+    return true;
+  } catch (err) {
+    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, err.response?.data || err.message);
+    return false;
   }
-
-  console.log(`${LOG_PREFIX()} ❌ Excedeu tentativas de envio para fila CPF ${cpf} | Provider: ${provider}`);
-  return false;
 }
 
 // 🔹 Simular saldo
