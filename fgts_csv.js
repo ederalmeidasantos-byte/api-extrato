@@ -221,51 +221,6 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 }
 
 // 🔹 Criar oportunidade
-async function criarOportunidade(cpf, telefone, valorLiberado) {
-  try {
-    const payload = {
-      queueId: QUEUE_ID,
-      apiKey: API_CRM_KEY,
-      fkPipeline: 1,
-      fkStage: 4,
-      responsableid: 0,
-      title: `Oportunidade ${cpf}`,
-      mainphone: telefone,
-      mainmail: cpf,
-      value: valorLiberado
-    };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para ${cpf}:`, res.data);
-    return res.data?.id || null;
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, err.response?.data || err.message);
-    return null;
-  }
-}
-
-// 🔹 Disparar fluxo
-async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
-  try {
-    await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, destStageId: destStage }, { headers: { "Content-Type": "application/json" } });
-    return true;
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo ID ${id}:`, err.response?.data || err.message);
-    return false;
-  }
-}
-
-// 🔹 Atualizar CRM
-async function atualizarCRM(id, valor) {
-  try {
-    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
-    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    return true;
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
-    return false;
-  }
-}
-
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
@@ -297,26 +252,51 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     }
 
     let resultado = null;
-    let providerUsed = "cartos";
+    let providerUsed = null;
 
-    // 🔹 Cartos: consulta, simula e atualiza
+    // 🔹 Tentar Cartos primeiro
+    providerUsed = "cartos";
     await authenticate();
     let enviado = await enviarParaFila(cpf, providerUsed);
+
     if (enviado) {
       await delay(DELAY_MS);
       resultado = await consultarResultado(cpf, linha);
 
+      if (resultado?.error) {
+        // 🔹 Verifica se é “não autorizado”
+        if (
+          resultado.error.includes(
+            "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
+          )
+        ) {
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no Cartos, tentando fallback...`);
+          resultado = null; // Forçar fallback
+        } else if (
+          resultado.error.includes("Limite de requisições excedido") ||
+          resultado.error.includes("Limite de requisições")
+        ) {
+          console.log(`${LOG_PREFIX()} ⚠️ Rate limit Cartos, trocando credencial...`);
+          switchCredential();
+          await authenticate(true);
+          await delay(DELAY_MS * 3);
+          resultado = await consultarResultado(cpf, linha);
+        } else {
+          emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
+          continue; // Próximo CPF
+        }
+      }
+
       if (resultado?.data && resultado.data.length > 0) {
         const item = resultado.data[0];
-
         if (item.status === "success" && item.amount > 0) {
-          // 🔹 Simulação com srcor1
+          // 🔹 Apenas Cartos faz simulação
           const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
           await delay(DELAY_MS);
 
           if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
             emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-            continue;
+            continue; // Próximo CPF
           }
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
@@ -327,60 +307,67 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           }
 
           if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
-          await atualizarCRM(idOriginal, valorLiberado);
 
-          const fluxoOk = await disparaFluxo(idOriginal);
+          if (!(await atualizarCRM(idOriginal, valorLiberado))) {
+            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
+            continue;
+          }
+
+          await delay(DELAY_MS);
+
+          if (!(await disparaFluxo(idOriginal))) {
+            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
+            continue;
+          }
 
           emitirResultado({
             cpf,
             id: idOriginal,
             status: "success",
-            message: fluxoOk
-              ? `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`
-              : `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado} | ⚠️ Erro disparo`,
+            message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
             valorLiberado,
             provider: providerUsed,
-            apiResponse: item,
-            fluxoDisparo: fluxoOk
+            apiResponse: item
           }, callback);
 
           continue; // Próximo CPF
         }
+      }
+    }
 
-        // ⚠️ Cartos retornou não autorizado → tentar BMS/QI
-        if (item.status === "error" && item.statusInfo?.includes("não possui autorização")) {
-          console.log(`${LOG_PREFIX()} ⚠️ Cartos não autorizado, tentando BMS/QI...`);
+    // 🔹 Se Cartos não autorizado, tenta BMS → QI
+    if (!resultado) {
+      for (const fallbackProvider of ["bms", "qi"]) {
+        providerUsed = fallbackProvider;
+        await authenticate();
+        enviado = await enviarParaFila(cpf, providerUsed);
+
+        if (!enviado) continue;
+
+        await delay(DELAY_MS);
+        resultado = await consultarResultado(cpf, linha);
+
+        if (resultado?.data && resultado.data.length > 0) {
+          const item = resultado.data[0];
+          if (item.status === "success" && item.amount > 0) {
+            // ⚠️ Não simular nem atualizar oportunidade para BMS/QI
+            emitirResultado({
+              cpf,
+              id: idOriginal,
+              status: "success",
+              message: `Sucesso no provider ${providerUsed}, mas sem simulação`,
+              provider: providerUsed,
+              apiResponse: item
+            }, callback);
+            break; // Sai do fallback
+          }
+        } else if (resultado?.error) {
+          console.log(`${LOG_PREFIX()} ⚠️ Fallback provider ${providerUsed} retornou erro: ${resultado.error}`);
         }
       }
     }
 
-    // 🔹 BMS → QI fallback (somente enviar para fila, sem simulação)
-    for (const fallbackProvider of ["bms", "qi"]) {
-      providerUsed = fallbackProvider;
-      await authenticate();
-      enviado = await enviarParaFila(cpf, providerUsed);
-      if (!enviado) continue;
-
-      await delay(DELAY_MS);
-      resultado = await consultarResultado(cpf, linha);
-
-      if (resultado?.data && resultado.data.length > 0) {
-        const item = resultado.data[0];
-        if (item.status === "success") {
-          emitirResultado({
-            cpf,
-            id: idOriginal,
-            status: "pending",
-            message: `Sucesso no provider ${providerUsed}, mas sem simulação`,
-            provider: providerUsed,
-            apiResponse: item
-          }, callback);
-          break;
-        }
-      }
-    }
-
-    // 🔹 Nenhum provider autorizou
+    // 🔹 Nenhum provider autorizado
     if (!resultado?.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
