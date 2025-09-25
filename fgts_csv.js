@@ -94,7 +94,7 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado (erro completo + retry 429)
+// 🔹 Consultar resultado (erro completo + retry)
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -136,7 +136,7 @@ async function enviarParaFila(cpf, provider) {
       { documentNumber: cpf, provider },
       { headers: { Authorization: `Bearer ${TOKEN}` } }
     );
-    return true;
+    return { success: true };
   } catch (err) {
     const erroCompleto = {
       message: err.message,
@@ -144,7 +144,13 @@ async function enviarParaFila(cpf, provider) {
       data: err.response?.data,
     };
     console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
-    return false;
+
+    // 🔹 Se 429 → sinaliza pending
+    if (erroCompleto.status === 429 || (erroCompleto.data?.message?.includes("Limite de requisições"))) {
+      return { success: false, pending: true, errorDetails: erroCompleto };
+    }
+
+    return { success: false, pending: false, errorDetails: erroCompleto };
   }
 }
 
@@ -271,7 +277,6 @@ async function disparaFluxo(opportunityId) {
 async function atualizarCRM(opportunityId, valorLiberado) {
   if (!opportunityId) return false;
   try {
-    // Adicione lógica CRM real se precisar
     return true;
   } catch {
     return false;
@@ -301,80 +306,48 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (!cpf) continue;
 
     const planilha = consultarPlanilha(cpf, telefone);
-    if (planilha) {
-      idOriginal = planilha.id;
-      console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
-    } else {
-      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
-    }
+    if (planilha) idOriginal = planilha.id;
 
     let resultado = null;
     let providerUsed = null;
-    let todasCredenciaisExauridas = false;
+    let todos429 = true;
 
-    // 🔹 Loop por providers
-    for (const provider of ["cartos", "bms", "qi"]) {
+    for (const provider of PROVIDERS) {
       providerUsed = provider;
+      await authenticate();
+      const envio = await enviarParaFila(cpf, providerUsed);
 
-      let tentouTodosLogins = false;
-      let retry429Count = 0;
-
-      while (!tentouTodosLogins) {
-        await authenticate();
-        const enviado = await enviarParaFila(cpf, providerUsed);
-
-        if (!enviado) break; // Se não conseguiu enviar, tenta próximo provider
-
-        await delay(DELAY_MS);
+      if (envio.success) {
+        todos429 = false;
         resultado = await consultarResultado(cpf, linha);
-
-        // 🔹 Se resultado vier com erro
-        if (resultado?.error) {
-          // 🔹 Erro 429 (rate limit)
-          if (
-            resultado.error.includes("Limite de requisições") ||
-            resultado.error.includes("status code 429")
-          ) {
-            console.log(`${LOG_PREFIX()} ⚠️ Rate limit para CPF ${cpf} no provider ${providerUsed}, trocando login...`);
-            retry429Count++;
-            switchCredential();
-            await authenticate(true);
-            await delay(DELAY_MS * 3);
-
-            if (retry429Count >= CREDENTIALS.length) {
-              console.log(`${LOG_PREFIX()} ⚠️ Todos logins esgotados para CPF ${cpf} no provider ${providerUsed}`);
-              tentouTodosLogins = true;
-              resultado = null; // Seta para pending
-              todasCredenciaisExauridas = true;
-            }
-            continue; // Re-tenta com novo login
-          }
-
-          // 🔹 Erro não autorizado
-          else if (
-            resultado.error.includes(
-              "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
-            )
-          ) {
-            console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no provider ${providerUsed}`);
-            resultado = null; // Forçar fallback
-            break; // Vai para próximo provider
-          }
-
-          // 🔹 Outros erros
-          else {
-            emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
-            resultado = null;
-            break; // Sai do loop
-          }
-        } else {
-          // 🔹 Sucesso no provider
-          break;
-        }
+        break;
+      } else if (!envio.pending) {
+        todos429 = false;
+        break;
       }
+    }
 
-      // 🔹 Se conseguiu resultado válido, não precisa tentar outros providers
-      if (resultado?.data && resultado.data.length > 0) break;
+    // 🔹 Se todos deram 429 → pendente
+    if (todos429) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        message: "Limite de requisições excedido em todos os providers, reprocessar depois",
+        provider: providerUsed || ultimoProvider
+      }, callback);
+      continue;
+    }
+
+    // 🔹 Se não conseguiu por outros motivos → no_auth
+    if (!resultado || (resultado?.data?.length === 0 && !todos429)) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "no_auth",
+        message: "❌ Sem autorização em nenhum provider",
+        provider: providerUsed || ultimoProvider
+      }, callback);
     }
 
     // 🔹 Se Cartos teve sucesso e precisa simulação
@@ -397,14 +370,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }
 
         if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
-
         if (!(await atualizarCRM(idOriginal, valorLiberado))) {
           emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
           continue;
         }
-
         await delay(DELAY_MS);
-
         if (!(await disparaFluxo(idOriginal))) {
           emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
           continue;
@@ -419,26 +389,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           provider: providerUsed,
           apiResponse: item
         }, callback);
-
-        continue;
       }
-    }
-
-    // 🔹 Se todos logins deram 429 → pendente
-    if (todasCredenciaisExauridas) {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "pending",
-        message: "Limite de requisições excedido em todos os logins, reprocessar depois",
-        provider: providerUsed || ultimoProvider
-      }, callback);
-      continue;
-    }
-
-    // 🔹 Nenhum provider autorizado
-    if (!resultado?.data || resultado.data.length === 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
   }
 }
