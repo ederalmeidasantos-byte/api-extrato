@@ -31,8 +31,8 @@ if (!CREDENTIALS.length) {
 
 let TOKEN = null;
 let credIndex = 0;
-let ultimoProvider = null;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
+let ultimoProvider = null;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +40,7 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
-// 🔹 Emitir resultado
+// 🔹 Emitir resultado para front e logs
 function emitirResultado(obj, callback = null) {
   console.log("RESULT:" + JSON.stringify(obj));
   if (callback) callback(obj);
@@ -59,7 +59,7 @@ function switchCredential(forcedIndex = null) {
   console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
-// 🔹 Autenticar
+// 🔹 Autenticar (token universal)
 async function authenticate(force = false) {
   if (TOKEN && !force) return TOKEN;
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
@@ -136,7 +136,7 @@ async function enviarParaFila(cpf, provider) {
   }
 }
 
-// 🔹 Simular saldo
+// 🔹 Simular saldo (apenas Cartos)
 async function simularSaldo(cpf, balanceId, parcelas, provider) {
   if (!parcelas || parcelas.length === 0) return null;
 
@@ -152,7 +152,7 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
   ];
 
   for (const simId of tabelas) {
-    const simIndex = CREDENTIALS[2] ? 2 : 0;
+    const simIndex = CREDENTIALS[2] ? 2 : 0; // usar srcor1 para simulação
     switchCredential(simIndex);
     await authenticate(true);
 
@@ -226,26 +226,50 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
     const payload = {
       queueId: QUEUE_ID,
       apiKey: API_CRM_KEY,
-      fkPipeline: 1,
-      fkStage: DEST_STAGE_ID,
-      responsableid: 0,
-      title: `Oportunidade ${cpf}`,
-      mainphone: telefone,
-      mainmail: cpf,
-      value: valorLiberado
+      documentNumber: cpf,
+      telefone: telefone,
+      valorLiberado
     };
-
-    const res = await axios.post(
-      "https://lunasdigital.atenderbem.com/int/createOpportunity",
-      payload,
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para ${cpf}: ${res.data?.id}`);
-    return res.data?.id || null;
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
+    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para CPF ${cpf} | ID: ${res.data.id}`);
+    return res.data.id;
   } catch (err) {
     console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, err.response?.data || err.message);
     return null;
+  }
+}
+
+// 🔹 Dispara fluxo no CRM
+async function disparaFluxo(opportunityId) {
+  if (!opportunityId) return false;
+  try {
+    const payload = {
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
+      id: opportunityId,
+      destStageId: DEST_STAGE_ID
+    };
+    await axios.post(
+      "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    console.log(`${LOG_PREFIX()} ✅ Fluxo disparado para oportunidade ${opportunityId}`);
+    return true;
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao disparar fluxo para ${opportunityId}:`, err.response?.data || err.message);
+    return false;
+  }
+}
+
+// 🔹 Atualizar CRM
+async function atualizarCRM(opportunityId, valorLiberado) {
+  if (!opportunityId) return false;
+  try {
+    // Aqui você adiciona lógica de atualização específica no CRM se precisar
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -292,13 +316,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.error) {
+        // 🔹 Verifica se é “não autorizado”
         if (
           resultado.error.includes(
             "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
           )
         ) {
           console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no Cartos, tentando fallback...`);
-          resultado = null;
+          resultado = null; // Forçar fallback
         } else if (
           resultado.error.includes("Limite de requisições excedido") ||
           resultado.error.includes("Limite de requisições")
