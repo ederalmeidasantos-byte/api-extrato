@@ -40,9 +40,12 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
-// 🔹 Emitir resultado para front e logs
+// 🔹 Emitir resultado para front e logs (erro completo)
 function emitirResultado(obj, callback = null) {
-  console.log("RESULT:" + JSON.stringify(obj));
+  if (obj.apiResponse === undefined && obj.error) {
+    obj.apiResponse = obj.errorDetails || obj.error;
+  }
+  console.log("RESULT:" + JSON.stringify(obj, null, 2));
   if (callback) callback(obj);
 }
 
@@ -91,36 +94,40 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado (com retry 429)
+// 🔹 Consultar resultado (erro completo + retry)
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
     const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
       headers: { Authorization: `Bearer ${TOKEN}` },
     });
-    console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
+    console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
     return res.data;
   } catch (err) {
-    const status = err.response?.status;
-    console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
+    const erroCompleto = {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+    };
+    console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}:`, erroCompleto);
 
-    if (status === 401) {
+    if (erroCompleto.status === 401) {
       console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
       await authenticate(true);
       return consultarResultado(cpf, linha);
-    } else if (status === 429 || err.message.includes("Limite de requisições")) {
+    } else if (erroCompleto.status === 429 || err.message.includes("Limite de requisições")) {
       console.log(`${LOG_PREFIX()} ⚠️ Rate limit, aguardando mais tempo...`);
       await delay(DELAY_MS * 3);
       switchCredential();
       await authenticate(true);
-      return { data: [], pending: true };
+      return { data: [], pending: true, errorDetails: erroCompleto };
     } else {
-      return { error: err.message, apiResponse: err.response?.data };
+      return { error: err.message, errorDetails: erroCompleto };
     }
   }
 }
 
-// 🔹 Enviar para fila com provider
+// 🔹 Enviar para fila com provider (erro completo)
 async function enviarParaFila(cpf, provider) {
   ultimoProvider = provider;
   try {
@@ -131,7 +138,12 @@ async function enviarParaFila(cpf, provider) {
     );
     return true;
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, err.response?.data || err.message);
+    const erroCompleto = {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+    };
+    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
     return false;
   }
 }
@@ -152,7 +164,7 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
   ];
 
   for (const simId of tabelas) {
-    const simIndex = CREDENTIALS[2] ? 2 : 0; // usar srcor1 para simulação
+    const simIndex = CREDENTIALS[2] ? 2 : 0;
     switchCredential(simIndex);
     await authenticate(true);
 
@@ -176,7 +188,12 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
       if (available > 0) return { ...res.data, tabelaSimulada: simId === tabelas[0] ? "NORMAL" : "ACELERA" };
       console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
     } catch (err) {
-      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
+      const erroCompleto = {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      };
+      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, erroCompleto);
     }
   }
   return null;
@@ -215,7 +232,8 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
     console.log(`${LOG_PREFIX()} ✅ Oportunidade ${opportunityId} atualizada com tabela ${tabelaSimulada}`);
     return true;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro atualizar oportunidade ID ${opportunityId}:`, err.response?.data || err.message);
+    const erroCompleto = { message: err.message, data: err.response?.data };
+    console.error(`${LOG_PREFIX()} ❌ Erro atualizar oportunidade ID ${opportunityId}:`, erroCompleto);
     return false;
   }
 }
@@ -223,18 +241,13 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 // 🔹 Criar oportunidade
 async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
-    const payload = {
-      queueId: QUEUE_ID,
-      apiKey: API_CRM_KEY,
-      documentNumber: cpf,
-      telefone: telefone,
-      valorLiberado
-    };
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, documentNumber: cpf, telefone, valorLiberado };
     const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para CPF ${cpf} | ID: ${res.data.id}`);
     return res.data.id;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, err.response?.data || err.message);
+    const erroCompleto = { message: err.message, data: err.response?.data };
+    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, erroCompleto);
     return null;
   }
 }
@@ -243,30 +256,22 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
 async function disparaFluxo(opportunityId) {
   if (!opportunityId) return false;
   try {
-    const payload = {
-      queueId: QUEUE_ID,
-      apiKey: API_CRM_KEY,
-      id: opportunityId,
-      destStageId: DEST_STAGE_ID
-    };
-    await axios.post(
-      "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
-      payload,
-      { headers: { "Content-Type": "application/json" } }
-    );
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
+    await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
     console.log(`${LOG_PREFIX()} ✅ Fluxo disparado para oportunidade ${opportunityId}`);
     return true;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro ao disparar fluxo para ${opportunityId}:`, err.response?.data || err.message);
+    const erroCompleto = { message: err.message, data: err.response?.data };
+    console.error(`${LOG_PREFIX()} ❌ Erro ao disparar fluxo para ${opportunityId}:`, erroCompleto);
     return false;
   }
 }
 
-// 🔹 Atualizar CRM
+// 🔹 Atualizar CRM (placeholder)
 async function atualizarCRM(opportunityId, valorLiberado) {
   if (!opportunityId) return false;
   try {
-    // Aqui você adiciona lógica de atualização específica no CRM se precisar
+    // Adicione lógica CRM real se precisar
     return true;
   } catch {
     return false;
@@ -299,8 +304,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (planilha) {
       idOriginal = planilha.id;
       console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
-    } else {
-      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
     }
 
     let resultado = null;
@@ -316,25 +319,15 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.error) {
-        // 🔹 Verifica se é “não autorizado”
-        if (
-          resultado.error.includes(
-            "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
-          )
-        ) {
-          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no Cartos, tentando fallback...`);
+        if (resultado.error.includes("Não foi possível consultar o saldo no momento")) {
           resultado = null; // Forçar fallback
-        } else if (
-          resultado.error.includes("Limite de requisições excedido") ||
-          resultado.error.includes("Limite de requisições")
-        ) {
-          console.log(`${LOG_PREFIX()} ⚠️ Rate limit Cartos, trocando credencial...`);
+        } else if (resultado.error.includes("Limite de requisições")) {
           switchCredential();
           await authenticate(true);
           await delay(DELAY_MS * 3);
           resultado = await consultarResultado(cpf, linha);
         } else {
-          emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
+          emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed, errorDetails: resultado.errorDetails }, callback);
           continue;
         }
       }
@@ -386,15 +379,13 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       }
     }
 
-    // 🔹 Se Cartos não autorizado, tenta BMS → QI
+    // 🔹 Fallback BMS → QI
     if (!resultado) {
       for (const fallbackProvider of ["bms", "qi"]) {
         providerUsed = fallbackProvider;
         await authenticate();
         enviado = await enviarParaFila(cpf, providerUsed);
-
         if (!enviado) continue;
-
         await delay(DELAY_MS);
         resultado = await consultarResultado(cpf, linha);
 
@@ -412,7 +403,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
             break;
           }
         } else if (resultado?.error) {
-          console.log(`${LOG_PREFIX()} ⚠️ Fallback provider ${providerUsed} retornou erro: ${resultado.error}`);
+          console.log(`${LOG_PREFIX()} ⚠️ Fallback provider ${providerUsed} retornou erro:`, resultado.errorDetails || resultado.error);
         }
       }
     }
