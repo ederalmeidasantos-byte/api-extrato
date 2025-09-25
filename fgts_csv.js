@@ -280,6 +280,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const telefone = normalizePhone(registro.TELEFONE);
     if (!cpf) continue;
 
+    // 🔹 Busca na planilha primeiro
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) {
       idOriginal = planilha.id;
@@ -332,6 +333,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
 
+          // 🔹 Criar oportunidade apenas se não tiver ID da planilha
           if (!idOriginal && telefone) {
             const newId = await criarOportunidade(cpf, telefone, valorLiberado);
             idOriginal = newId || "";
