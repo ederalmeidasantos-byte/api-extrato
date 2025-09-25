@@ -278,7 +278,7 @@ async function atualizarCRM(opportunityId, valorLiberado) {
   }
 }
 
-// 🔹 Processar CPFs
+// 🔹 Processar CPFs com tratamento correto de 429 e pendentes
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -304,108 +304,136 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (planilha) {
       idOriginal = planilha.id;
       console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
+    } else {
+      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
     }
 
     let resultado = null;
     let providerUsed = null;
+    let todasCredenciaisExauridas = false;
 
-    // 🔹 Tentar Cartos primeiro
-    providerUsed = "cartos";
-    await authenticate();
-    let enviado = await enviarParaFila(cpf, providerUsed);
+    // 🔹 Loop por providers
+    for (const provider of ["cartos", "bms", "qi"]) {
+      providerUsed = provider;
 
-    if (enviado) {
-      await delay(DELAY_MS);
-      resultado = await consultarResultado(cpf, linha);
+      let tentouTodosLogins = false;
+      let retry429Count = 0;
 
-      if (resultado?.error) {
-        if (resultado.error.includes("Não foi possível consultar o saldo no momento")) {
-          resultado = null; // Forçar fallback
-        } else if (resultado.error.includes("Limite de requisições")) {
-          switchCredential();
-          await authenticate(true);
-          await delay(DELAY_MS * 3);
-          resultado = await consultarResultado(cpf, linha);
-        } else {
-          emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed, errorDetails: resultado.errorDetails }, callback);
-          continue;
-        }
-      }
-
-      if (resultado?.data && resultado.data.length > 0) {
-        const item = resultado.data[0];
-        if (item.status === "success" && item.amount > 0) {
-          const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
-          await delay(DELAY_MS);
-
-          if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-            emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-            continue;
-          }
-
-          const valorLiberado = parseFloat(sim.availableBalance || 0);
-
-          if (!idOriginal && telefone) {
-            const newId = await criarOportunidade(cpf, telefone, valorLiberado);
-            idOriginal = newId || "";
-          }
-
-          if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
-
-          if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-            continue;
-          }
-
-          await delay(DELAY_MS);
-
-          if (!(await disparaFluxo(idOriginal))) {
-            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-            continue;
-          }
-
-          emitirResultado({
-            cpf,
-            id: idOriginal,
-            status: "success",
-            message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
-            valorLiberado,
-            provider: providerUsed,
-            apiResponse: item
-          }, callback);
-
-          continue;
-        }
-      }
-    }
-
-    // 🔹 Fallback BMS → QI
-    if (!resultado) {
-      for (const fallbackProvider of ["bms", "qi"]) {
-        providerUsed = fallbackProvider;
+      while (!tentouTodosLogins) {
         await authenticate();
-        enviado = await enviarParaFila(cpf, providerUsed);
-        if (!enviado) continue;
+        const enviado = await enviarParaFila(cpf, providerUsed);
+
+        if (!enviado) break; // Se não conseguiu enviar, tenta próximo provider
+
         await delay(DELAY_MS);
         resultado = await consultarResultado(cpf, linha);
 
-        if (resultado?.data && resultado.data.length > 0) {
-          const item = resultado.data[0];
-          if (item.status === "success" && item.amount > 0) {
-            emitirResultado({
-              cpf,
-              id: idOriginal,
-              status: "success",
-              message: `Sucesso no provider ${providerUsed}, mas sem simulação`,
-              provider: providerUsed,
-              apiResponse: item
-            }, callback);
-            break;
+        // 🔹 Se resultado vier com erro
+        if (resultado?.error) {
+          // 🔹 Erro 429 (rate limit)
+          if (
+            resultado.error.includes("Limite de requisições") ||
+            resultado.error.includes("status code 429")
+          ) {
+            console.log(`${LOG_PREFIX()} ⚠️ Rate limit para CPF ${cpf} no provider ${providerUsed}, trocando login...`);
+            retry429Count++;
+            switchCredential();
+            await authenticate(true);
+            await delay(DELAY_MS * 3);
+
+            if (retry429Count >= CREDENTIALS.length) {
+              console.log(`${LOG_PREFIX()} ⚠️ Todos logins esgotados para CPF ${cpf} no provider ${providerUsed}`);
+              tentouTodosLogins = true;
+              resultado = null; // Seta para pending
+              todasCredenciaisExauridas = true;
+            }
+            continue; // Re-tenta com novo login
           }
-        } else if (resultado?.error) {
-          console.log(`${LOG_PREFIX()} ⚠️ Fallback provider ${providerUsed} retornou erro:`, resultado.errorDetails || resultado.error);
+
+          // 🔹 Erro não autorizado
+          else if (
+            resultado.error.includes(
+              "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
+            )
+          ) {
+            console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no provider ${providerUsed}`);
+            resultado = null; // Forçar fallback
+            break; // Vai para próximo provider
+          }
+
+          // 🔹 Outros erros
+          else {
+            emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
+            resultado = null;
+            break; // Sai do loop
+          }
+        } else {
+          // 🔹 Sucesso no provider
+          break;
         }
       }
+
+      // 🔹 Se conseguiu resultado válido, não precisa tentar outros providers
+      if (resultado?.data && resultado.data.length > 0) break;
+    }
+
+    // 🔹 Se Cartos teve sucesso e precisa simulação
+    if (resultado?.data && resultado.data.length > 0 && providerUsed === "cartos") {
+      const item = resultado.data[0];
+      if (item.status === "success" && item.amount > 0) {
+        const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
+        await delay(DELAY_MS);
+
+        if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
+          emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
+          continue;
+        }
+
+        const valorLiberado = parseFloat(sim.availableBalance || 0);
+
+        if (!idOriginal && telefone) {
+          const newId = await criarOportunidade(cpf, telefone, valorLiberado);
+          idOriginal = newId || "";
+        }
+
+        if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
+
+        if (!(await atualizarCRM(idOriginal, valorLiberado))) {
+          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
+          continue;
+        }
+
+        await delay(DELAY_MS);
+
+        if (!(await disparaFluxo(idOriginal))) {
+          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
+          continue;
+        }
+
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "success",
+          message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
+          valorLiberado,
+          provider: providerUsed,
+          apiResponse: item
+        }, callback);
+
+        continue;
+      }
+    }
+
+    // 🔹 Se todos logins deram 429 → pendente
+    if (todasCredenciaisExauridas) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        message: "Limite de requisições excedido em todos os logins, reprocessar depois",
+        provider: providerUsed || ultimoProvider
+      }, callback);
+      continue;
     }
 
     // 🔹 Nenhum provider autorizado
