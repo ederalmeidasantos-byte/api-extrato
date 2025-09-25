@@ -94,7 +94,7 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado (erro completo + retry)
+// 🔹 Consultar resultado (erro completo + retry 429)
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
