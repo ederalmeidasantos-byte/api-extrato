@@ -57,7 +57,7 @@ function switchCredential(forcedIndex = null) {
 
 // 🔹 Autenticar (token universal)
 async function authenticate(force = false) {
-  if (TOKEN && !force) return TOKEN; // usa token atual se válido
+  if (TOKEN && !force) return TOKEN; 
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
   const cred = CREDENTIALS[credIndex];
 
@@ -168,7 +168,7 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
       });
       console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
       const available = parseFloat(res.data.availableBalance || 0);
-      if (available > 0) return res.data;
+      if (available > 0) return { ...res.data, tabelaSimulada: simId === tabelas[0] ? "NORMAL" : "ACELERA" };
       console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
     } catch (err) {
       console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
@@ -187,6 +187,25 @@ async function atualizarCRM(id, valor) {
     return true;
   } catch (err) {
     console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
+    return false;
+  }
+}
+
+// 🔹 Atualizar oportunidade com tabela simulada
+async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
+  try {
+    const formsdata = {
+      f0a67ce0: tabelaSimulada, // NORMAL ou ACELERA
+      "80b68ec0": "cartos"
+    };
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log(`${LOG_PREFIX()} ✅ Oportunidade ${opportunityId} atualizada com tabela ${tabelaSimulada}`);
+    return true;
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro atualizar oportunidade ID ${opportunityId}:`, err.response?.data || err.message);
     return false;
   }
 }
@@ -292,6 +311,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           const newId = await criarOportunidade(cpf, telefone, valorLiberado);
           idOriginal = newId || "";
 
+          // 🔹 Atualiza oportunidade com tabela simulada
+          if (idOriginal) {
+            await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
+          }
+
           emitirResultado({
             cpf,
             id: idOriginal,
@@ -309,6 +333,9 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
           break;
         }
+
+        // 🔹 Atualiza oportunidade existente com tabela simulada
+        await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
 
         await delay(DELAY_MS);
 
@@ -338,4 +365,4 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 }
 
 // 🔹 Exporta funções
-export { processarCPFs, disparaFluxo, authenticate };
+export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade };
