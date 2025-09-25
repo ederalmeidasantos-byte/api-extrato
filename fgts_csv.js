@@ -188,13 +188,19 @@ function consultarPlanilha(cpf, telefone) {
   const phoneNorm = normalizePhone(telefone);
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+
   const encontrado = registros.find(r =>
     normalizeCPF(r['#c-98011220']) === cpfNorm ||
     normalizePhone(r['#phone']) === phoneNorm
   );
+
   if (encontrado) {
+    console.log(`${LOG_PREFIX()} ⚠️ Planilha encontrada para CPF ${cpfNorm} | ID: ${encontrado['#id']}`);
     return { id: encontrado['#id'], stageId: encontrado['#stageid'] };
+  } else {
+    console.log(`${LOG_PREFIX()} ❌ CPF ${cpfNorm} não encontrado na planilha`);
   }
+
   return null;
 }
 
@@ -280,11 +286,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const telefone = normalizePhone(registro.TELEFONE);
     if (!cpf) continue;
 
-    // 🔹 Busca na planilha primeiro
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) {
       idOriginal = planilha.id;
-      console.log(`${LOG_PREFIX()} ⚠️ Encontrado na planilha: ${cpf} | ID existente: ${idOriginal}`);
+      console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
+    } else {
+      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
     }
 
     let resultado = null;
@@ -333,7 +340,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-          // 🔹 Criar oportunidade apenas se não tiver ID da planilha
           if (!idOriginal && telefone) {
             const newId = await criarOportunidade(cpf, telefone, valorLiberado);
             idOriginal = newId || "";
