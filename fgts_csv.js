@@ -7,7 +7,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-const PROVIDER = process.env.PROVIDER || "cartos";
 const DELAY_MS = 1500;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
@@ -30,6 +29,7 @@ if (!CREDENTIALS.length) {
 let TOKEN = null;
 let credIndex = 0;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
+const PROVIDERS = ["cartos", "bms", "qi"]; // ordem desejada
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -82,58 +82,88 @@ async function authenticate() {
   }
 }
 
-// 🔹 Consultar resultado
-async function consultarResultado(cpf, linha) {
-  for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
-    try {
-      const user = CREDENTIALS[credIndex]?.username || "sem usuário";
-      console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Consultando CPF: ${cpf} | Credencial: ${user}`);
-      const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-      console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
-      return res.data;
-    } catch (err) {
-      const status = err.response?.status;
-      console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
-      if (status === 401) {
-        console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
-        await authenticate();
-      } else if (status === 429 || err.message.includes("Limite de requisições")) {
-        switchCredential();
-        await authenticate();
-      } else {
-        return { error: err.message, apiResponse: err.response?.data };
-      }
-    }
-  }
-  return { error: "Sem retorno da API" };
-}
-
-// 🔹 Enviar para fila
-async function enviarParaFila(cpf) {
+// 🔹 Enviar CPF para fila
+async function enviarParaFila(cpf, provider) {
   try {
     await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
-      { documentNumber: cpf, provider: PROVIDER },
+      { documentNumber: cpf, provider },
       { headers: { Authorization: `Bearer ${TOKEN}` } }
     );
+    console.log(`${LOG_PREFIX()} 📥 Enviado para fila | CPF: ${cpf} | Provider: ${provider}`);
     return true;
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf}: ${err.message}`);
+    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}: ${err.message}`);
     return false;
   }
 }
 
+// 🔹 Consultar resultado da última requisição na fila
+async function consultarResultado(cpf, linha) {
+  try {
+    const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+    console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Consultando CPF: ${cpf} | Credencial: ${user}`);
+    const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    return res.data;
+  } catch (err) {
+    return { error: err.message, apiResponse: err.response?.data };
+  }
+}
+
+// 🔹 Consultar saldo com fallback entre providers
+async function consultarComFallback(cpf, linha) {
+  for (const provider of PROVIDERS) {
+    let tentativasBMS = 0;
+    let enviado = await enviarParaFila(cpf, provider);
+    if (!enviado) continue;
+    await delay(DELAY_MS);
+
+    while (true) {
+      const resultado = await consultarResultado(cpf, linha);
+      await delay(DELAY_MS);
+
+      const item = resultado?.data?.[0];
+      const msg = item?.statusInfo || "";
+
+      if (!item) {
+        console.log(`${LOG_PREFIX()} ⚠️ Sem retorno no provider ${provider}`);
+        break; // tenta próximo provider
+      }
+
+      if (msg.includes("não possui autorização")) {
+        console.log(`${LOG_PREFIX()} ❌ Não autorizado no provider ${provider}`);
+        break; // tenta próximo provider
+      }
+
+      if (provider === "bms" && msg.includes("Erro ao consultar saldo, Tente novamente")) {
+        tentativasBMS++;
+        if (tentativasBMS < 3) {
+          console.log(`${LOG_PREFIX()} ⚠️ Erro comum no BMS, tentativa ${tentativasBMS}/3`);
+          await delay(DELAY_MS);
+          continue;
+        } else {
+          console.log(`${LOG_PREFIX()} ❌ BMS falhou 3x, tentando próximo provider`);
+          break;
+        }
+      }
+
+      return { resultado: item, provider };
+    }
+  }
+  return { resultado: null, provider: null };
+}
+
 // 🔹 Simular saldo
-async function simularSaldo(cpf, balanceId, parcelas) {
+async function simularSaldo(cpf, balanceId, parcelas, provider) {
   if (!parcelas || parcelas.length === 0) return null;
 
   const desiredInstallments = parcelas
     .filter((p) => p.amount > 0 && p.dueDate)
     .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
 
-  if (desiredInstallments.length === 0) return null;
+  if (!desiredInstallments.length) return null;
 
   const tabelas = [
     "cb563029-ba93-4b53-8d53-4ac145087212",
@@ -141,32 +171,23 @@ async function simularSaldo(cpf, balanceId, parcelas) {
   ];
 
   for (const simId of tabelas) {
-    const simIndex = CREDENTIALS[2] ? 2 : 0;
-    switchCredential(simIndex);
-    await authenticate();
-
+    await authenticate(); // garante token válido
     const payload = {
       simulationFeesId: simId,
       balanceId,
       targetAmount: 0,
       documentNumber: cpf,
       desiredInstallments,
-      provider: PROVIDER,
+      provider,
     };
-
-    console.log(`${LOG_PREFIX()} 🔧 Payload simulação:`, JSON.stringify(payload));
 
     try {
       const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
-      console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return res.data;
-      console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
-    } catch (err) {
-      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, err.response?.data || err.message);
-    }
+    } catch {}
   }
   return null;
 }
@@ -180,7 +201,6 @@ async function atualizarCRM(id, valor) {
     });
     return true;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
     return false;
   }
 }
@@ -195,7 +215,6 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
     );
     return true;
   } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo ID ${id}:`, err.response?.data || err.message);
     return false;
   }
 }
@@ -222,64 +241,52 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const telefone = (registro.TELEFONE || "").trim();
     if (!cpf) continue;
 
-    let resultado = await consultarResultado(cpf, linha);
+    const { resultado: item, provider } = await consultarComFallback(cpf, linha);
     await delay(DELAY_MS);
 
-    if (!resultado || !resultado.data || resultado.data.length === 0) {
-      if (!(await enviarParaFila(cpf))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro consulta / fila", apiResponse: resultado }, callback);
-      }
-      continue;
-    }
-
-    const item = resultado.data[0];
-
-    if (item.statusInfo?.includes("não possui autorização")) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "Instituição Fiduciária não possui autorização" }, callback);
+    if (!item) {
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider" }, callback);
       continue;
     }
 
     if (item.status !== "success" || item.amount <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível" }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "no_balance", message: "Sem saldo disponível", provider }, callback);
       continue;
     }
 
-    const sim = await simularSaldo(cpf, item.id, item.periods);
+    const sim = await simularSaldo(cpf, item.id, item.periods, provider);
     await delay(DELAY_MS);
 
     if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo" }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider }, callback);
       continue;
     }
 
     const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-    // 🔹 Se não tem ID, mas tem telefone, incluir na lista para CSV manual
     if (!idOriginal && telefone) {
       emitirResultado({
         cpf,
         id: idOriginal || "",
-        status: "ready_for_manual", // status especial para front
+        status: "ready_for_manual",
         message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
         valorLiberado,
         telefone,
-        apiResponse: item
+        apiResponse: item,
+        provider
       }, callback);
-
-      continue; // não atualizar CRM nem disparar fluxo
+      continue;
     }
 
-    // 🔹 Atualizar CRM se ID existe
     if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM" }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider }, callback);
       continue;
     }
 
     await delay(DELAY_MS);
 
-    // 🔹 Disparar fluxo
     if (!(await disparaFluxo(idOriginal))) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo" }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider }, callback);
       continue;
     }
 
@@ -289,10 +296,10 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       status: "success",
       message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
       valorLiberado,
-      apiResponse: item
+      apiResponse: item,
+      provider
     }, callback);
   }
 }
 
-// 🔹 Exporta funções
 export { processarCPFs, disparaFluxo, authenticate };
