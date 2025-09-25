@@ -105,7 +105,8 @@ async function consultarResultado(cpf, linha) {
       await authenticate(true);
       return consultarResultado(cpf, linha);
     } else if (status === 429 || err.message.includes("Limite de requisições")) {
-      console.log(`${LOG_PREFIX()} ⚠️ Limite de requisições, pendência registrada e troca de usuário`);
+      console.log(`${LOG_PREFIX()} ⚠️ Rate limit, aguardando mais tempo...`);
+      await delay(DELAY_MS * 3);
       switchCredential();
       await authenticate(true);
       return { data: [], pending: true };
@@ -179,9 +180,13 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
 
 // 🔹 Consultar planilha LISTA-FGTS.csv
 function consultarPlanilha(cpf, telefone) {
+  const limpar = (s) => (s || "").replace(/\D/g, "");
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-  const encontrado = registros.find(r => (r['#c-98011220'] || "").trim() === cpf || (r['#phone'] || "").trim() === telefone);
+  const encontrado = registros.find(r =>
+    limpar(r['#c-98011220']) === limpar(cpf) ||
+    limpar(r['#phone']) === limpar(telefone)
+  );
   if (encontrado) {
     return { id: encontrado['#id'], stageId: encontrado['#stageid'] };
   }
@@ -295,7 +300,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     for (const provider of PROVIDERS) {
       await authenticate();
-      await enviarParaFila(cpf, provider);
+      const enviado = await enviarParaFila(cpf, provider);
+      if (!enviado) {
+        console.log(`${LOG_PREFIX()} ⚠️ Falha envio fila, tentando próximo provider...`);
+        continue;
+      }
       providerUsed = provider;
       await delay(DELAY_MS);
 
@@ -306,10 +315,10 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       const item = resultado.data[0];
 
-      // 🔹 Pendentes ou não autorizados
+      // 🔹 Pendentes ou não autorizados → tenta próximo provider
       if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: item.statusInfo || "Consulta pendente", provider: providerUsed }, callback);
-        break;
+        console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} pendente no provider ${providerUsed}, tentando próximo...`);
+        continue;
       }
 
       // 🔹 Success com saldo
