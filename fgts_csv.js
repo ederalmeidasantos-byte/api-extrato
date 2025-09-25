@@ -55,8 +55,9 @@ function switchCredential(forcedIndex = null) {
   console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
-// 🔹 Autenticar
-async function authenticate() {
+// 🔹 Autenticar (token universal)
+async function authenticate(force = false) {
+  if (TOKEN && !force) return TOKEN; // usa token atual se válido
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
   const cred = CREDENTIALS[credIndex];
 
@@ -77,43 +78,41 @@ async function authenticate() {
 
     TOKEN = res.data.access_token;
     console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
+    return TOKEN;
   } catch (err) {
     const user = cred?.username || "sem usuário";
     console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
     switchCredential();
-    await authenticate();
+    return authenticate();
   }
 }
 
 // 🔹 Consultar resultado
 async function consultarResultado(cpf, linha) {
-  for (let attempt = 0; attempt < CREDENTIALS.length; attempt++) {
-    try {
-      const user = CREDENTIALS[credIndex]?.username || "sem usuário";
-      console.log(`${LOG_PREFIX()} 🔎 [Linha ${linha}] Consultando CPF: ${cpf} | Credencial: ${user}`);
-      const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-      console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
-      return res.data;
-    } catch (err) {
-      const status = err.response?.status;
-      console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
+  try {
+    await authenticate();
+    const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`);
+    return res.data;
+  } catch (err) {
+    const status = err.response?.status;
+    console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}: ${err.message} | Status: ${status}`);
 
-      if (status === 401) {
-        console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
-        await authenticate();
-      } else if (status === 429 || err.message.includes("Limite de requisições")) {
-        console.log(`${LOG_PREFIX()} ⚠️ Limite de requisições, pendência registrada e troca de usuário`);
-        switchCredential();
-        await authenticate();
-        return { data: [], pending: true };
-      } else {
-        return { error: err.message, apiResponse: err.response?.data };
-      }
+    if (status === 401) {
+      console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
+      await authenticate(true);
+      return consultarResultado(cpf, linha);
+    } else if (status === 429 || err.message.includes("Limite de requisições")) {
+      console.log(`${LOG_PREFIX()} ⚠️ Limite de requisições, pendência registrada e troca de usuário`);
+      switchCredential();
+      await authenticate(true);
+      return { data: [], pending: true };
+    } else {
+      return { error: err.message, apiResponse: err.response?.data };
     }
   }
-  return { error: "Sem retorno da API" };
 }
 
 // 🔹 Enviar para fila com provider
@@ -150,7 +149,7 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
   for (const simId of tabelas) {
     const simIndex = CREDENTIALS[2] ? 2 : 0;
     switchCredential(simIndex);
-    await authenticate();
+    await authenticate(true);
 
     const payload = {
       simulationFeesId: simId,
@@ -233,7 +232,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let providerUsed = null;
     let reprocessOnlyID = false;
 
-    // 🔹 Tenta enviar para fila e consultar cada provider
     for (const provider of PROVIDERS) {
       await authenticate();
       await enviarParaFila(cpf, provider);
@@ -247,19 +245,16 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       const item = resultado.data[0];
 
-      // 🔹 Se não autorizado → tenta próximo provider
       if (item.status === "error" && item.statusInfo?.includes("não possui autorização")) {
         reprocessOnlyID = true;
         continue;
       }
 
-      // 🔹 Pending → mantém pendência
       if (item.status === "pending") {
         reprocessOnlyID = true;
         break;
       }
 
-      // 🔹 Success com saldo → segue fluxo normal
       if (item.status === "success" && item.amount > 0) {
         reprocessOnlyID = false;
         break;
@@ -278,7 +273,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     const item = resultado.data[0];
 
-    // 🔹 Success com saldo > 0 → segue fluxo normal
     if (item.status === "success" && item.amount > 0) {
       const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
       await delay(DELAY_MS);
@@ -290,7 +284,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-      // 🔹 Se não tem ID, mas tem telefone → CSV manual
       if (!idOriginal && telefone) {
         emitirResultado({
           cpf,
@@ -305,7 +298,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         continue;
       }
 
-      // 🔹 Atualizar CRM
       if (!(await atualizarCRM(idOriginal, valorLiberado))) {
         emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
         continue;
@@ -313,7 +305,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       await delay(DELAY_MS);
 
-      // 🔹 Disparar fluxo
       if (!(await disparaFluxo(idOriginal))) {
         emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
         continue;
