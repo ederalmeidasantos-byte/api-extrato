@@ -82,18 +82,30 @@ async function authenticate() {
   }
 }
 
-// 🔹 Enviar CPF para fila
+// 🔹 Enviar CPF para fila com autenticação garantida
 async function enviarParaFila(cpf, provider) {
   try {
-    await axios.post(
+    // garante token válido antes de enviar
+    if (!TOKEN) await authenticate();
+
+    const res = await axios.post(
       "https://bff.v8sistema.com/fgts/balance",
       { documentNumber: cpf, provider },
       { headers: { Authorization: `Bearer ${TOKEN}` } }
     );
+
     console.log(`${LOG_PREFIX()} 📥 Enviado para fila | CPF: ${cpf} | Provider: ${provider}`);
     return true;
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}: ${err.message}`);
+    const status = err.response?.status;
+    const data = err.response?.data;
+    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}: Status ${status}, Data: ${JSON.stringify(data) || err.message}`);
+
+    // Se 401, força reautenticação
+    if (status === 401) {
+      await authenticate();
+    }
+
     return false;
   }
 }
