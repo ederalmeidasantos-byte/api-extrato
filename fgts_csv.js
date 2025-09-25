@@ -57,7 +57,7 @@ function switchCredential(forcedIndex = null) {
 
 // 🔹 Autenticar (token universal)
 async function authenticate(force = false) {
-  if (TOKEN && !force) return TOKEN; 
+  if (TOKEN && !force) return TOKEN;
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
   const cred = CREDENTIALS[credIndex];
 
@@ -177,18 +177,15 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
   return null;
 }
 
-// 🔹 Atualizar CRM
-async function atualizarCRM(id, valor) {
-  try {
-    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
-    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return true;
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
-    return false;
+// 🔹 Consultar planilha LISTA-FGTS.csv
+function consultarPlanilha(cpf, telefone) {
+  const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
+  const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+  const encontrado = registros.find(r => (r['#c-98011220'] || "").trim() === cpf || (r['#phone'] || "").trim() === telefone);
+  if (encontrado) {
+    return { id: encontrado['#id'], stageId: encontrado['#stageid'] };
   }
+  return null;
 }
 
 // 🔹 Atualizar oportunidade com tabela simulada
@@ -199,7 +196,7 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
       "80b68ec0": "cartos"
     };
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
+    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
       headers: { "Content-Type": "application/json" },
     });
     console.log(`${LOG_PREFIX()} ✅ Oportunidade ${opportunityId} atualizada com tabela ${tabelaSimulada}`);
@@ -210,7 +207,7 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
   }
 }
 
-// 🔹 Criar oportunidade para CPFs sem ID
+// 🔹 Criar oportunidade
 async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
     const payload = {
@@ -250,6 +247,20 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   }
 }
 
+// 🔹 Atualizar CRM
+async function atualizarCRM(id, valor) {
+  try {
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
+    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return true;
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
+    return false;
+  }
+}
+
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
@@ -272,6 +283,13 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const telefone = (registro.TELEFONE || "").trim();
     if (!cpf) continue;
 
+    // 🔹 Verifica se já existe na planilha LISTA-FGTS.csv
+    const planilha = consultarPlanilha(cpf, telefone);
+    if (planilha) {
+      idOriginal = planilha.id;
+      console.log(`${LOG_PREFIX()} ⚠️ Encontrado na planilha: ${cpf} | ID existente: ${idOriginal}`);
+    }
+
     let resultado = null;
     let providerUsed = null;
 
@@ -286,15 +304,15 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       if (!resultado?.data || resultado.data.length === 0) continue;
 
-      const item = resultado.data[0]; // sempre pega o primeiro item
+      const item = resultado.data[0];
 
-      // 🔹 Pendentes ou não autorizados caem no painel de pendentes
+      // 🔹 Pendentes ou não autorizados
       if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
         emitirResultado({ cpf, id: idOriginal, status: "pending", message: item.statusInfo || "Consulta pendente", provider: providerUsed }, callback);
         break;
       }
 
-      // 🔹 Success com saldo → segue fluxo normal
+      // 🔹 Success com saldo
       if (item.status === "success" && item.amount > 0) {
         const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
         await delay(DELAY_MS);
@@ -306,7 +324,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
         const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-        // 🔹 Se não há ID, cria oportunidade na API
+        // 🔹 Se não existe ID, cria oportunidade
         if (!idOriginal && telefone) {
           const newId = await criarOportunidade(cpf, telefone, valorLiberado);
           idOriginal = newId || "";
@@ -357,7 +375,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       }
     }
 
-    // 🔹 Caso não haja nenhum resultado → sem autorização
+    // 🔹 Caso sem resultado
     if (!resultado?.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
