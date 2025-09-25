@@ -297,27 +297,26 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     }
 
     let resultado = null;
-    let providerUsed = null;
+    let providerUsed = "cartos";
 
-    // 🔹 Tentar Cartos primeiro
-    providerUsed = "cartos";
+    // 🔹 Cartos: consulta, simula e atualiza
     await authenticate();
     let enviado = await enviarParaFila(cpf, providerUsed);
-
     if (enviado) {
       await delay(DELAY_MS);
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.data && resultado.data.length > 0) {
         const item = resultado.data[0];
+
         if (item.status === "success" && item.amount > 0) {
-          // 🔹 Apenas Cartos faz simulação
+          // 🔹 Simulação com srcor1
           const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
           await delay(DELAY_MS);
 
           if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
             emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-            continue; // Próximo CPF
+            continue;
           }
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
@@ -328,40 +327,38 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           }
 
           if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
+          await atualizarCRM(idOriginal, valorLiberado);
 
-          if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-            continue;
-          }
-
-          await delay(DELAY_MS);
-
-          if (!(await disparaFluxo(idOriginal))) {
-            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-            continue;
-          }
+          const fluxoOk = await disparaFluxo(idOriginal);
 
           emitirResultado({
             cpf,
             id: idOriginal,
             status: "success",
-            message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
+            message: fluxoOk
+              ? `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`
+              : `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado} | ⚠️ Erro disparo`,
             valorLiberado,
             provider: providerUsed,
-            apiResponse: item
+            apiResponse: item,
+            fluxoDisparo: fluxoOk
           }, callback);
 
           continue; // Próximo CPF
         }
+
+        // ⚠️ Cartos retornou não autorizado → tentar BMS/QI
+        if (item.status === "error" && item.statusInfo?.includes("não possui autorização")) {
+          console.log(`${LOG_PREFIX()} ⚠️ Cartos não autorizado, tentando BMS/QI...`);
+        }
       }
     }
 
-    // 🔹 Se Cartos não autorizado ou erro, tenta BMS → QI
+    // 🔹 BMS → QI fallback (somente enviar para fila, sem simulação)
     for (const fallbackProvider of ["bms", "qi"]) {
       providerUsed = fallbackProvider;
       await authenticate();
       enviado = await enviarParaFila(cpf, providerUsed);
-
       if (!enviado) continue;
 
       await delay(DELAY_MS);
@@ -369,8 +366,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       if (resultado?.data && resultado.data.length > 0) {
         const item = resultado.data[0];
-        if (item.status === "success" && item.amount > 0) {
-          // ⚠️ Não simular nem atualizar oportunidade para BMS/QI
+        if (item.status === "success") {
           emitirResultado({
             cpf,
             id: idOriginal,
@@ -384,12 +380,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       }
     }
 
+    // 🔹 Nenhum provider autorizou
     if (!resultado?.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
   }
 }
-
 
 // 🔹 Exporta funções
 export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade };
