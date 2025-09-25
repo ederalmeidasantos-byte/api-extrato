@@ -127,31 +127,42 @@ async function consultarResultado(cpf, linha) {
   }
 }
 
-// 🔹 Enviar para fila com provider (erro completo)
+// 🔹 Enviar para fila com provider (tratamento 429)
 async function enviarParaFila(cpf, provider) {
   ultimoProvider = provider;
-  try {
-    await axios.post(
-      "https://bff.v8sistema.com/fgts/balance",
-      { documentNumber: cpf, provider },
-      { headers: { Authorization: `Bearer ${TOKEN}` } }
-    );
-    return { success: true };
-  } catch (err) {
-    const erroCompleto = {
-      message: err.message,
-      status: err.response?.status,
-      data: err.response?.data,
-    };
-    console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
+  let retry429Count = 0;
 
-    // 🔹 Se 429 → sinaliza pending
-    if (erroCompleto.status === 429 || (erroCompleto.data?.message?.includes("Limite de requisições"))) {
-      return { success: false, pending: true, errorDetails: erroCompleto };
+  while (retry429Count < CREDENTIALS.length) {
+    await authenticate();
+    try {
+      await axios.post(
+        "https://bff.v8sistema.com/fgts/balance",
+        { documentNumber: cpf, provider },
+        { headers: { Authorization: `Bearer ${TOKEN}` } }
+      );
+      return true;
+    } catch (err) {
+      const erroCompleto = {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      };
+      console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
+
+      if (erroCompleto.status === 429 || (err.response?.data?.message || "").includes("Limite de requisições")) {
+        console.log(`${LOG_PREFIX()} ⚠️ Rate limit detectado, trocando login...`);
+        retry429Count++;
+        switchCredential();
+        await authenticate(true);
+        await delay(DELAY_MS * 3);
+        continue; // tenta novamente com novo login
+      }
+      return false; // outro erro, aborta
     }
-
-    return { success: false, pending: false, errorDetails: erroCompleto };
   }
+
+  console.log(`${LOG_PREFIX()} ⚠️ Todos logins esgotados para CPF ${cpf} no provider ${provider}`);
+  return "pending429"; // indica que todas credenciais deram 429
 }
 
 // 🔹 Simular saldo (apenas Cartos)
@@ -277,6 +288,7 @@ async function disparaFluxo(opportunityId) {
 async function atualizarCRM(opportunityId, valorLiberado) {
   if (!opportunityId) return false;
   try {
+    // Adicione lógica CRM real se precisar
     return true;
   } catch {
     return false;
@@ -306,90 +318,53 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (!cpf) continue;
 
     const planilha = consultarPlanilha(cpf, telefone);
-    if (planilha) idOriginal = planilha.id;
+    if (planilha) {
+      idOriginal = planilha.id;
+      console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
+    } else {
+      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
+    }
 
     let resultado = null;
     let providerUsed = null;
-    let todos429 = true;
+    let todasCredenciaisExauridas = false;
 
+    // 🔹 Loop por providers
     for (const provider of PROVIDERS) {
       providerUsed = provider;
-      await authenticate();
-      const envio = await enviarParaFila(cpf, providerUsed);
+      const filaResult = await enviarParaFila(cpf, providerUsed);
 
-      if (envio.success) {
-        todos429 = false;
-        resultado = await consultarResultado(cpf, linha);
-        break;
-      } else if (!envio.pending) {
-        todos429 = false;
-        break;
+      if (filaResult === "pending429") {
+        todasCredenciaisExauridas = true;
+        break; // tenta próximo provider ou vai para pending
+      }
+
+      if (!filaResult) continue; // outro erro, tentar próximo provider
+
+      await delay(DELAY_MS);
+      resultado = await consultarResultado(cpf, linha);
+
+      if (resultado?.error) {
+        emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
+        continue; // tenta próximo provider
+      } else if (resultado?.data && resultado.data.length > 0) {
+        break; // sucesso
       }
     }
 
-    // 🔹 Se todos deram 429 → pendente
-    if (todos429) {
+    if (todasCredenciaisExauridas) {
       emitirResultado({
         cpf,
         id: idOriginal,
         status: "pending",
-        message: "Limite de requisições excedido em todos os providers, reprocessar depois",
+        message: "Limite de requisições excedido em todos os logins, reprocessar depois",
         provider: providerUsed || ultimoProvider
       }, callback);
       continue;
     }
 
-    // 🔹 Se não conseguiu por outros motivos → no_auth
-    if (!resultado || (resultado?.data?.length === 0 && !todos429)) {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "no_auth",
-        message: "❌ Sem autorização em nenhum provider",
-        provider: providerUsed || ultimoProvider
-      }, callback);
-    }
-
-    // 🔹 Se Cartos teve sucesso e precisa simulação
-    if (resultado?.data && resultado.data.length > 0 && providerUsed === "cartos") {
-      const item = resultado.data[0];
-      if (item.status === "success" && item.amount > 0) {
-        const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
-        await delay(DELAY_MS);
-
-        if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-          emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-          continue;
-        }
-
-        const valorLiberado = parseFloat(sim.availableBalance || 0);
-
-        if (!idOriginal && telefone) {
-          const newId = await criarOportunidade(cpf, telefone, valorLiberado);
-          idOriginal = newId || "";
-        }
-
-        if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
-        if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-          continue;
-        }
-        await delay(DELAY_MS);
-        if (!(await disparaFluxo(idOriginal))) {
-          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-          continue;
-        }
-
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "success",
-          message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
-          valorLiberado,
-          provider: providerUsed,
-          apiResponse: item
-        }, callback);
-      }
+    if (!resultado?.data || resultado.data.length === 0) {
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
   }
 }
