@@ -36,6 +36,10 @@ let ultimoProvider = null;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 🔹 Normalização de CPF e telefone
+const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
+const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
+
 // 🔹 Emitir resultado para front e logs
 function emitirResultado(obj, callback = null) {
   console.log("RESULT:" + JSON.stringify(obj));
@@ -87,7 +91,7 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado
+// 🔹 Consultar resultado (com retry 429)
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -180,12 +184,13 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
 
 // 🔹 Consultar planilha LISTA-FGTS.csv
 function consultarPlanilha(cpf, telefone) {
-  const limpar = (s) => (s || "").replace(/\D/g, "");
+  const cpfNorm = normalizeCPF(cpf);
+  const phoneNorm = normalizePhone(telefone);
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
   const encontrado = registros.find(r =>
-    limpar(r['#c-98011220']) === limpar(cpf) ||
-    limpar(r['#phone']) === limpar(telefone)
+    normalizeCPF(r['#c-98011220']) === cpfNorm ||
+    normalizePhone(r['#phone']) === phoneNorm
   );
   if (encontrado) {
     return { id: encontrado['#id'], stageId: encontrado['#stageid'] };
@@ -196,14 +201,9 @@ function consultarPlanilha(cpf, telefone) {
 // 🔹 Atualizar oportunidade com tabela simulada
 async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
   try {
-    const formsdata = {
-      f0a67ce0: tabelaSimulada, // NORMAL ou ACELERA
-      "80b68ec0": "cartos"
-    };
+    const formsdata = { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" };
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
-    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
-      headers: { "Content-Type": "application/json" },
-    });
+    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     console.log(`${LOG_PREFIX()} ✅ Oportunidade ${opportunityId} atualizada com tabela ${tabelaSimulada}`);
     return true;
   } catch (err) {
@@ -226,9 +226,7 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
       mainmail: cpf,
       value: valorLiberado
     };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, {
-      headers: { "Content-Type": "application/json" },
-    });
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para ${cpf}:`, res.data);
     return res.data?.id || null;
   } catch (err) {
@@ -240,11 +238,7 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
 // 🔹 Disparar fluxo
 async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
   try {
-    await axios.post(
-      "https://lunasdigital.atenderbem.com/int/changeOpportunityStage",
-      { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, destStageId: destStage },
-      { headers: { "Content-Type": "application/json" } }
-    );
+    await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, destStageId: destStage }, { headers: { "Content-Type": "application/json" } });
     return true;
   } catch (err) {
     console.error(`${LOG_PREFIX()} ❌ Erro disparo fluxo ID ${id}:`, err.response?.data || err.message);
@@ -256,9 +250,7 @@ async function disparaFluxo(id, destStage = DEST_STAGE_ID) {
 async function atualizarCRM(id, valor) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id, value: valor };
-    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, {
-      headers: { "Content-Type": "application/json" },
-    });
+    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     return true;
   } catch (err) {
     console.error(`${LOG_PREFIX()} ❌ Erro atualizar CRM ID ${id}:`, err.response?.data || err.message);
@@ -283,12 +275,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
   for (let [index, registro] of registros.entries()) {
     const linha = index + 2;
-    const cpf = (registro.CPF || "").trim();
+    const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
-    const telefone = (registro.TELEFONE || "").trim();
+    const telefone = normalizePhone(registro.TELEFONE);
     if (!cpf) continue;
 
-    // 🔹 Verifica se já existe na planilha LISTA-FGTS.csv
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) {
       idOriginal = planilha.id;
@@ -299,92 +290,82 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let providerUsed = null;
 
     for (const provider of PROVIDERS) {
-      await authenticate();
-      const enviado = await enviarParaFila(cpf, provider);
-      if (!enviado) {
-        console.log(`${LOG_PREFIX()} ⚠️ Falha envio fila, tentando próximo provider...`);
-        continue;
-      }
       providerUsed = provider;
-      await delay(DELAY_MS);
 
-      resultado = await consultarResultado(cpf, linha);
-      await delay(DELAY_MS);
+      let loopRetry = true;
+      while (loopRetry) {
+        await authenticate();
+        const enviado = await enviarParaFila(cpf, provider);
+        if (!enviado) break;
 
-      if (!resultado?.data || resultado.data.length === 0) continue;
-
-      const item = resultado.data[0];
-
-      // 🔹 Pendentes ou não autorizados → tenta próximo provider
-      if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
-        console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} pendente no provider ${providerUsed}, tentando próximo...`);
-        continue;
-      }
-
-      // 🔹 Success com saldo
-      if (item.status === "success" && item.amount > 0) {
-        const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
         await delay(DELAY_MS);
 
-        if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-          emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
+        resultado = await consultarResultado(cpf, linha);
+
+        if (resultado?.pending || resultado?.error?.includes("Limite de requisições")) {
+          console.log(`${LOG_PREFIX()} ⚠️ Rate limit ou pending, trocando login e aguardando...`);
+          switchCredential();
+          await authenticate(true);
+          await delay(DELAY_MS * 3);
+          continue;
+        }
+
+        loopRetry = false;
+
+        if (!resultado?.data || resultado.data.length === 0) break;
+
+        const item = resultado.data[0];
+
+        if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} pendente no provider ${providerUsed}, tentando próximo...`);
           break;
         }
 
-        const valorLiberado = parseFloat(sim.availableBalance || 0);
+        if (item.status === "success" && item.amount > 0) {
+          const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
+          await delay(DELAY_MS);
 
-        // 🔹 Se não existe ID, cria oportunidade
-        if (!idOriginal && telefone) {
-          const newId = await criarOportunidade(cpf, telefone, valorLiberado);
-          idOriginal = newId || "";
+          if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
+            emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
+            break;
+          }
 
-          // 🔹 Atualiza oportunidade com tabela simulada
-          if (idOriginal) {
-            await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
+          const valorLiberado = parseFloat(sim.availableBalance || 0);
+
+          if (!idOriginal && telefone) {
+            const newId = await criarOportunidade(cpf, telefone, valorLiberado);
+            idOriginal = newId || "";
+          }
+
+          if (idOriginal) await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
+
+          if (!(await atualizarCRM(idOriginal, valorLiberado))) {
+            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
+            break;
+          }
+
+          await delay(DELAY_MS);
+
+          if (!(await disparaFluxo(idOriginal))) {
+            emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
+            break;
           }
 
           emitirResultado({
             cpf,
             id: idOriginal,
-            status: "ready_for_manual",
-            message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
+            status: "success",
+            message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
             valorLiberado,
-            telefone,
             provider: providerUsed,
             apiResponse: item
           }, callback);
+
           break;
         }
-
-        if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-          break;
-        }
-
-        // 🔹 Atualiza oportunidade existente com tabela simulada
-        await atualizarOportunidadeComTabela(idOriginal, sim.tabelaSimulada);
-
-        await delay(DELAY_MS);
-
-        if (!(await disparaFluxo(idOriginal))) {
-          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-          break;
-        }
-
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "success",
-          message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
-          valorLiberado,
-          provider: providerUsed,
-          apiResponse: item
-        }, callback);
-        break;
       }
     }
 
-    // 🔹 Caso sem resultado
     if (!resultado?.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
