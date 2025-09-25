@@ -27,23 +27,28 @@ const UPLOADS_DIR = path.join(__dirname, "uploads");
 // TTL cache
 const TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const cacheValido = (p) => {
-  try {
-    return Date.now() - fs.statSync(p).mtimeMs <= TTL_MS;
-  } catch {
-    return false;
-  }
+  try { return Date.now() - fs.statSync(p).mtimeMs <= TTL_MS; } 
+  catch { return false; }
 };
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-// ====== Start servidor com Socket.IO (antes de rotas que usam io) ======
+// ====== Socket.IO ======
 const server = http.createServer(app);
 const io = new Server(server);
 
-io.on("connection", (socket) => console.log("🔗 Cliente conectado para logs FGTS"));
+// Armazenamento em memória dos resultados
+let resultadosFGTS = [];
 
-// Fila: até 2 jobs em paralelo, 2 por segundo
+io.on("connection", (socket) => {
+  console.log("🔗 Cliente conectado para logs FGTS");
+
+  // Envia os resultados já processados
+  resultadosFGTS.forEach(r => socket.emit("result", r));
+});
+
+// Fila: até 2 jobs em paralelo
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 
 // Health
@@ -101,38 +106,10 @@ app.post("/extrair", async (req, res) => {
   }
 });
 
-// Fluxo direto
-app.get("/extrair/:fileId", async (req, res) => {
-  try {
-    const fileId = req.params.fileId;
-    const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
-    if (!fs.existsSync(pdfPath)) return res.status(404).json({ error: "PDF não encontrado" });
-
-    const json = await queue.add(() =>
-      extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
-    );
-    res.json(json);
-  } catch (err) {
-    console.error("❌ Erro em /extrair/:fileId:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Calcular troco
-app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
-
-// Raw JSON
-app.get("/extrato/:fileId/raw", (req, res) => {
-  const jsonPath = path.join(JSON_DIR, `extrato_${req.params.fileId}.json`);
-  if (!fs.existsSync(jsonPath)) return res.status(404).json({ error: "Extrato não encontrado" });
-  res.sendFile(jsonPath);
-});
-
 // ====== FGTS Automação ======
 const upload = multer({ dest: UPLOADS_DIR });
 app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-// Upload CSV + processamento direto
 app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
@@ -142,8 +119,10 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   (async () => {
     try {
       await processarCPFs(req.file.path, null, (result) => {
+        // Adiciona ao array em memória
+        if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
-        if (result) io.emit("result", result);
+        if(result) io.emit("result", result);
       });
       io.emit("log", "✅ Processamento FGTS finalizado!");
     } catch (err) {
@@ -168,8 +147,9 @@ app.post("/fgts/reprocessar", async (req, res) => {
   (async () => {
     try {
       await processarCPFs(null, cpfs, (result) => {
+        if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
-        if (result) io.emit("result", result);
+        if(result) io.emit("result", result);
       });
       io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
     } catch (err) {

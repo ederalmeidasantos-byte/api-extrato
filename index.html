@@ -94,6 +94,7 @@ const counts = {
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
 let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
 
+// Socket.IO
 const socket = io();
 
 // Atualiza contadores na interface
@@ -104,21 +105,8 @@ function atualizarContadores() {
   counts.ready.textContent = totals.ready;
 }
 
-// Salva cada resultado no localStorage
-function salvarLocalStorage(data) {
-  const stored = JSON.parse(localStorage.getItem('fgtsData') || '[]');
-  stored.push(data);
-  localStorage.setItem('fgtsData', JSON.stringify(stored));
-}
-
-// Carrega resultados do localStorage ao iniciar
-function carregarLocalStorage() {
-  const stored = JSON.parse(localStorage.getItem('fgtsData') || '[]');
-  stored.forEach(data => adicionarResultado(data, false));
-}
-
 // Adiciona ou atualiza resultado nas tabelas
-function adicionarResultado(data, salvar = true) {
+function adicionarResultado(data) {
   const removerDe = (arr, value, cellIndex, table) => {
     const i = arr.indexOf(value);
     if (i !== -1) arr.splice(i,1);
@@ -127,9 +115,7 @@ function adicionarResultado(data, salvar = true) {
 
   if(data.status==='success'){
     removerDe(pendentes, data.cpf, 0, tables.pending);
-    totals.pending -= pendentes.includes(data.cpf)?0:1;
     removerDe(naoAutorizados, data.id, 1, tables.no_auth);
-    totals.noAuth -= naoAutorizados.includes(data.id)?0:1;
     const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
     if(idxReady!==-1){readyForCSV.splice(idxReady,1); tables.ready.querySelectorAll('tr').forEach(row=>{if(row.cells[0].textContent===data.cpf) row.remove();}); totals.ready--; }
   }
@@ -152,10 +138,9 @@ function adicionarResultado(data, salvar = true) {
   }
 
   atualizarContadores();
-  if(salvar) salvarLocalStorage(data);
 }
 
-// Logs em tempo real
+// Receber logs e resultados do servidor
 socket.on('log', msg => { logs.textContent += msg+'\n'; logs.scrollTop = logs.scrollHeight; });
 socket.on('result', data => adicionarResultado(data));
 
@@ -209,10 +194,8 @@ document.getElementById('btnLimpar').addEventListener('click', ()=>{
   if(!confirm("Deseja limpar todas as listas e logs?")) return;
   Object.values(tables).forEach(t=>t.innerHTML='');
   logs.textContent=''; pendentes=[]; naoAutorizados=[]; readyForCSV=[]; totals={success:0,pending:0,noAuth:0,ready:0};
-  atualizarContadores(); localStorage.removeItem('fgtsData');
+  atualizarContadores();
 });
-
-carregarLocalStorage();
 </script>
 </body>
 </html>
