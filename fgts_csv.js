@@ -190,13 +190,15 @@ function consultarPlanilha(cpf, telefone) {
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
 
   const encontrado = registros.find(r =>
-    normalizeCPF(r['#c-98011220']) === cpfNorm ||
-    normalizePhone(r['#phone']) === phoneNorm
+    normalizeCPF(r['E-mail [#mail]']) === cpfNorm ||
+    normalizePhone(r['Telefone [#phone]']) === phoneNorm
   );
 
   if (encontrado) {
-    console.log(`${LOG_PREFIX()} ⚠️ Planilha encontrada para CPF ${cpfNorm} | ID: ${encontrado['#id']}`);
-    return { id: encontrado['#id'], stageId: encontrado['#stageid'] };
+    const idPlanilha = encontrado['ID [#id]']?.trim();
+    const stageIdPlanilha = encontrado['ID da Etapa [#stageid]']?.trim();
+    console.log(`${LOG_PREFIX()} ⚠️ Planilha encontrada para CPF ${cpfNorm} | ID: ${idPlanilha}`);
+    return { id: idPlanilha, stageId: stageIdPlanilha };
   } else {
     console.log(`${LOG_PREFIX()} ❌ CPF ${cpfNorm} não encontrado na planilha`);
   }
