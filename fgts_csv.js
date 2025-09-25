@@ -31,8 +31,8 @@ if (!CREDENTIALS.length) {
 
 let TOKEN = null;
 let credIndex = 0;
-const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 let ultimoProvider = null;
+const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +40,7 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
-// 🔹 Emitir resultado para front e logs
+// 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
   console.log("RESULT:" + JSON.stringify(obj));
   if (callback) callback(obj);
@@ -59,7 +59,7 @@ function switchCredential(forcedIndex = null) {
   console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
-// 🔹 Autenticar (token universal)
+// 🔹 Autenticar
 async function authenticate(force = false) {
   if (TOKEN && !force) return TOKEN;
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
@@ -221,6 +221,34 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 }
 
 // 🔹 Criar oportunidade
+async function criarOportunidade(cpf, telefone, valorLiberado) {
+  try {
+    const payload = {
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
+      fkPipeline: 1,
+      fkStage: DEST_STAGE_ID,
+      responsableid: 0,
+      title: `Oportunidade ${cpf}`,
+      mainphone: telefone,
+      mainmail: cpf,
+      value: valorLiberado
+    };
+
+    const res = await axios.post(
+      "https://lunasdigital.atenderbem.com/int/createOpportunity",
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para ${cpf}: ${res.data?.id}`);
+    return res.data?.id || null;
+  } catch (err) {
+    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, err.response?.data || err.message);
+    return null;
+  }
+}
+
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
@@ -264,14 +292,13 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.error) {
-        // 🔹 Verifica se é “não autorizado”
         if (
           resultado.error.includes(
             "Não foi possível consultar o saldo no momento! - Instituição Fiduciária não possui autorização do Trabalhador para Operação Fiduciária"
           )
         ) {
           console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não autorizado no Cartos, tentando fallback...`);
-          resultado = null; // Forçar fallback
+          resultado = null;
         } else if (
           resultado.error.includes("Limite de requisições excedido") ||
           resultado.error.includes("Limite de requisições")
@@ -283,20 +310,19 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           resultado = await consultarResultado(cpf, linha);
         } else {
           emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
-          continue; // Próximo CPF
+          continue;
         }
       }
 
       if (resultado?.data && resultado.data.length > 0) {
         const item = resultado.data[0];
         if (item.status === "success" && item.amount > 0) {
-          // 🔹 Apenas Cartos faz simulação
           const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
           await delay(DELAY_MS);
 
           if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
             emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-            continue; // Próximo CPF
+            continue;
           }
 
           const valorLiberado = parseFloat(sim.availableBalance || 0);
@@ -330,7 +356,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
             apiResponse: item
           }, callback);
 
-          continue; // Próximo CPF
+          continue;
         }
       }
     }
@@ -350,7 +376,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         if (resultado?.data && resultado.data.length > 0) {
           const item = resultado.data[0];
           if (item.status === "success" && item.amount > 0) {
-            // ⚠️ Não simular nem atualizar oportunidade para BMS/QI
             emitirResultado({
               cpf,
               id: idOriginal,
@@ -359,7 +384,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
               provider: providerUsed,
               apiResponse: item
             }, callback);
-            break; // Sai do fallback
+            break;
           }
         } else if (resultado?.error) {
           console.log(`${LOG_PREFIX()} ⚠️ Fallback provider ${providerUsed} retornou erro: ${resultado.error}`);
