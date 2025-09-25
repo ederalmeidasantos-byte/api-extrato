@@ -230,7 +230,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     let resultado = null;
     let providerUsed = null;
-    let reprocessOnlyID = false;
 
     for (const provider of PROVIDERS) {
       await authenticate();
@@ -243,83 +242,68 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       if (!resultado?.data || resultado.data.length === 0) continue;
 
-      const item = resultado.data[0];
+      const item = resultado.data[0]; // sempre pega o primeiro item
 
-      if (item.status === "error" && item.statusInfo?.includes("não possui autorização")) {
-        reprocessOnlyID = true;
-        continue;
-      }
-
-      if (item.status === "pending") {
-        reprocessOnlyID = true;
+      // 🔹 Pendentes ou não autorizados caem no painel de pendentes
+      if (item.status === "pending" || (item.status === "error" && item.statusInfo?.includes("não possui autorização"))) {
+        emitirResultado({ cpf, id: idOriginal, status: "pending", message: item.statusInfo || "Consulta pendente", provider: providerUsed }, callback);
         break;
       }
 
+      // 🔹 Success com saldo → segue fluxo normal
       if (item.status === "success" && item.amount > 0) {
-        reprocessOnlyID = false;
-        break;
-      }
-    }
+        const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
+        await delay(DELAY_MS);
 
-    if (reprocessOnlyID) {
-      emitirResultado({ id: idOriginal }, callback);
-      continue;
-    }
+        if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
+          emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
+          break;
+        }
 
-    if (!resultado || !resultado.data || resultado.data.length === 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
-      continue;
-    }
+        const valorLiberado = parseFloat(sim.availableBalance || 0);
 
-    const item = resultado.data[0];
+        if (!idOriginal && telefone) {
+          emitirResultado({
+            cpf,
+            id: idOriginal || "",
+            status: "ready_for_manual",
+            message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
+            valorLiberado,
+            telefone,
+            provider: providerUsed,
+            apiResponse: item
+          }, callback);
+          break;
+        }
 
-    if (item.status === "success" && item.amount > 0) {
-      const sim = await simularSaldo(cpf, item.id, item.periods, providerUsed);
-      await delay(DELAY_MS);
+        if (!(await atualizarCRM(idOriginal, valorLiberado))) {
+          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
+          break;
+        }
 
-      if (!sim || parseFloat(sim.availableBalance || 0) <= 0) {
-        emitirResultado({ cpf, id: idOriginal, status: "sim_failed", message: "Erro simulação / Sem saldo", provider: providerUsed }, callback);
-        continue;
-      }
+        await delay(DELAY_MS);
 
-      const valorLiberado = parseFloat(sim.availableBalance || 0);
+        if (!(await disparaFluxo(idOriginal))) {
+          emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
+          break;
+        }
 
-      if (!idOriginal && telefone) {
         emitirResultado({
           cpf,
-          id: idOriginal || "",
-          status: "ready_for_manual",
-          message: `Simulação finalizada | Saldo liberado: ${valorLiberado}`,
+          id: idOriginal,
+          status: "success",
+          message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
           valorLiberado,
-          telefone,
           provider: providerUsed,
           apiResponse: item
         }, callback);
-        continue;
+        break;
       }
+    }
 
-      if (!(await atualizarCRM(idOriginal, valorLiberado))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro CRM", provider: providerUsed }, callback);
-        continue;
-      }
-
-      await delay(DELAY_MS);
-
-      if (!(await disparaFluxo(idOriginal))) {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Erro disparo", provider: providerUsed }, callback);
-        continue;
-      }
-
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "success",
-        message: `Finalizado | Saldo: ${item.amount} | Liberado: ${valorLiberado}`,
-        valorLiberado,
-        provider: providerUsed,
-        apiResponse: item
-      }, callback);
-      continue;
+    // 🔹 Caso não haja nenhum resultado → sem autorização
+    if (!resultado?.data || resultado.data.length === 0) {
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
     }
   }
 }
