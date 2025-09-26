@@ -6,10 +6,10 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-    h2, h3 { margin-top: 20px; }
+    h2,h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
     .columns { display: flex; gap: 10px; margin-top: 10px; }
-    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 400px; }
+    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; }
     .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
     .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -32,12 +32,20 @@
   </style>
 </head>
 <body>
+
 <h2>📂 Upload e Automação FGTS</h2>
 <form id="form">
   <input type="file" id="csvfile" accept=".csv" required />
   <button type="button" class="btn-primary" id="runBtn">📂 Enviar e Iniciar</button>
   <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
 </form>
+
+<!-- Controle de Delay -->
+<div id="delayControl" style="margin-top:15px;">
+  ⏱️ Delay atual (ms): <span id="currentDelay">0</span>
+  <input type="number" id="inputDelay" min="0" placeholder="Novo delay (ms)" style="width:100px; margin-left:10px;" />
+  <button class="btn-primary" id="btnUpdateDelay">💾 Atualizar Delay</button>
+</div>
 
 <div id="controls">
   <button class="btn-secondary" id="btnPause">⏸️ Pausar</button>
@@ -105,7 +113,6 @@ const counts = {
 
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
 let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
-
 let totalToProcess = 0;
 let processedCount = 0;
 
@@ -127,7 +134,6 @@ function setProgress(pct, processed = null, total = null) {
 
 // Adiciona ou atualiza resultado nas tabelas
 function adicionarResultado(data) {
-  // se for progresso, tratar separado
   if (data && data.status === 'progress') {
     const pct = data.percentage || Math.round(((data.processed||processedCount) / (data.total||totalToProcess || 1)) * 100);
     processedCount = data.processed || processedCount;
@@ -143,7 +149,6 @@ function adicionarResultado(data) {
   };
 
   if(data.status==='success'){
-    removerDe(pendentes, data.cpf, 0, tables.pending);
     removerDe(naoAutorizados, data.id, 1, tables.no_auth);
     const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
     if(idxReady!==-1){
@@ -170,7 +175,6 @@ function adicionarResultado(data) {
     case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
   }
 
-  // incrementa processedCount e atualiza progress (se total conhecido)
   processedCount++;
   if (totalToProcess) {
     const pct = Math.round((processedCount / totalToProcess) * 100);
@@ -182,13 +186,10 @@ function adicionarResultado(data) {
 
 // Socket.IO
 const socket = io();
-
-// Receber logs e resultados do servidor
 socket.on('log', msg => { 
   logs.textContent += msg+'\n'; 
   logs.scrollTop = logs.scrollHeight;
 
-  // tenta extrair total da mensagem "Iniciando processamento de X CPFs"
   const m = msg.match(/Iniciando processamento de (\d+) CPFs/);
   if (m) {
     totalToProcess = parseInt(m[1], 10);
@@ -197,15 +198,6 @@ socket.on('log', msg => {
   }
 });
 socket.on('result', data => {
-  // se status progresso
-  if (data && data.status === 'progress') {
-    // atualiza barra sem inserir em tabelas
-    const pct = data.percentage || Math.round(((data.processed||processedCount) / (data.total||totalToProcess || 1)) * 100);
-    processedCount = data.processed || processedCount;
-    totalToProcess = data.total || totalToProcess;
-    setProgress(pct, processedCount, totalToProcess);
-    return;
-  }
   adicionarResultado(data);
 });
 
@@ -220,7 +212,6 @@ document.getElementById('runBtn').addEventListener('click', async ()=>{
     const json = await res.json();
     logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
     logs.scrollTop = logs.scrollHeight;
-    // se servidor retornar total no JSON
     if (json && json.total) {
       totalToProcess = json.total;
       processedCount = 0;
@@ -269,38 +260,39 @@ document.getElementById('btnLimpar').addEventListener('click', ()=>{
   atualizarContadores();
 });
 
-// Pausar / Retomar / Cancelar (aplicam ao servidor)
+// Pausar / Retomar / Cancelar
 document.getElementById('btnPause').addEventListener('click', async ()=>{
-  try {
-    const res = await fetch('/fgts/pause',{method:'POST'});
-    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    logs.textContent += '[CLIENT] Pausado\n';
-    logs.scrollTop = logs.scrollHeight;
-  } catch (err) {
-    alert("Falha ao pausar: " + err.message);
-  }
+  try { const res = await fetch('/fgts/pause',{method:'POST'}); if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Pausado\n'; logs.scrollTop = logs.scrollHeight;
+  } catch (err) { alert("Falha ao pausar: " + err.message); }
 });
 document.getElementById('btnResume').addEventListener('click', async ()=>{
-  try {
-    const res = await fetch('/fgts/resume',{method:'POST'});
-    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    logs.textContent += '[CLIENT] Retomado\n';
-    logs.scrollTop = logs.scrollHeight;
-  } catch (err) {
-    alert("Falha ao retomar: " + err.message);
-  }
+  try { const res = await fetch('/fgts/resume',{method:'POST'}); if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Retomado\n'; logs.scrollTop = logs.scrollHeight;
+  } catch (err) { alert("Falha ao retomar: " + err.message); }
 });
 document.getElementById('btnCancel').addEventListener('click', async ()=>{
   if(!confirm("Deseja cancelar o processo em execução?")) return;
+  try { const res = await fetch('/fgts/cancel',{method:'POST'}); if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Cancelado\n'; logs.scrollTop = logs.scrollHeight;
+  } catch (err) { alert("Falha ao cancelar: " + err.message); }
+});
+
+// Controle de Delay
+const currentDelayEl = document.getElementById('currentDelay');
+const inputDelayEl = document.getElementById('inputDelay');
+document.getElementById('btnUpdateDelay').addEventListener('click', async ()=>{
+  const novoDelay = parseInt(inputDelayEl.value,10);
+  if(isNaN(novoDelay)||novoDelay<0) return alert("Informe um valor válido para o delay (ms)");
   try {
-    const res = await fetch('/fgts/cancel',{method:'POST'});
-    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    logs.textContent += '[CLIENT] Cancelado\n';
+    const res = await fetch('/fgts/setDelay',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delay:novoDelay})});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    currentDelayEl.textContent = novoDelay;
+    logs.textContent += `[CLIENT] Delay atualizado para ${novoDelay} ms\n`;
     logs.scrollTop = logs.scrollHeight;
-  } catch (err) {
-    alert("Falha ao cancelar: " + err.message);
-  }
+  } catch(err){ alert("Falha ao atualizar delay: "+err.message); }
 });
 </script>
+
 </body>
 </html>

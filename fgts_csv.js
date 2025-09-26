@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-const DELAY_MS = 1000;
+let delayMs = 1000; // agora mutável
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -36,11 +36,18 @@ let ultimoProvider = null;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+export function setDelay(ms) {
+  if (ms && !isNaN(ms) && ms > 0) {
+    delayMs = ms;
+    console.log(`${LOG_PREFIX()} ⚡ Delay atualizado para ${delayMs}ms`);
+  }
+}
+
 // 🔹 Normalização de CPF e telefone
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
-// 🔹 Emitir resultado para front e logs (erro completo)
+// 🔹 Emitir resultado para front e logs
 function emitirResultado(obj, callback = null) {
   if (obj.apiResponse === undefined && obj.error) {
     obj.apiResponse = obj.errorDetails || obj.error;
@@ -94,7 +101,7 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado (erro completo + retry)
+// 🔹 Consultar resultado
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -117,7 +124,7 @@ async function consultarResultado(cpf, linha) {
       return consultarResultado(cpf, linha);
     } else if (erroCompleto.status === 429 || err.message.includes("Limite de requisições")) {
       console.log(`${LOG_PREFIX()} ⚠️ Rate limit, aguardando mais tempo...`);
-      await delay(DELAY_MS * 3);
+      await delay(delayMs * 3);
       switchCredential();
       await authenticate(true);
       return { data: [], pending: true, errorDetails: erroCompleto };
@@ -127,7 +134,7 @@ async function consultarResultado(cpf, linha) {
   }
 }
 
-// 🔹 Enviar para fila com provider (tratamento 429 + retry 500/timeout)
+// 🔹 Enviar para fila
 async function enviarParaFila(cpf, provider) {
   ultimoProvider = provider;
   let retryCount = 0;
@@ -155,12 +162,12 @@ async function enviarParaFila(cpf, provider) {
         retryCount++;
         switchCredential();
         await authenticate(true);
-        await delay(DELAY_MS * 3);
+        await delay(delayMs * 3);
         continue;
       } else if (erroCompleto.status === 500 || err.message.includes("timeout")) {
         retryCount++;
         console.log(`${LOG_PREFIX()} ⚠️ Tentativa ${retryCount} para CPF ${cpf} no provider ${provider} devido a erro 500/timeout`);
-        await delay(DELAY_MS * 2);
+        await delay(delayMs * 2);
         continue;
       }
       return false;
@@ -171,7 +178,7 @@ async function enviarParaFila(cpf, provider) {
   return "pending429";
 }
 
-// 🔹 Simular saldo (apenas Cartos)
+// 🔹 Simular saldo
 async function simularSaldo(cpf, balanceId, parcelas, provider) {
   if (!parcelas || parcelas.length === 0) return null;
 
@@ -265,8 +272,8 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
     const payload = {
-      queueId: 25,
-      apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
       fkPipeline: 1,
       fkStage: 4,
       responsableid: 0,
@@ -313,7 +320,7 @@ function atualizarCSVcomID(cpf, telefone, novoID) {
   }
 }
 
-// 🔹 Dispara fluxo no CRM (mesmo se erro -> considera sucesso)
+// 🔹 Dispara fluxo no CRM
 async function disparaFluxo(opportunityId) {
   if (!opportunityId) return false;
   try {
@@ -339,7 +346,7 @@ async function atualizarCRM(opportunityId, valorLiberado) {
   }
 }
 
-// 🔹 Processar CPFs com tratamento correto de 429, 500 e pendentes
+// 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -382,7 +389,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       if (!filaResult) continue;
 
-      await delay(DELAY_MS);
+      await delay(delayMs);
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.error) {
@@ -409,15 +416,20 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       continue;
     }
 
-    const saldo = resultado.data[0]?.amount || 0;
-    const parcelas = resultado.data[0]?.periods || [];
-    const balanceId = resultado.data[0]?.id || null;
+    const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
+    if (registrosValidos.length === 0) {
+      console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} descartado - sem adesão ao saque aniversário`);
+      continue;
+    }
+
+    const saldo = registrosValidos[0]?.amount || 0;
+    const parcelas = registrosValidos[0]?.periods || [];
+    const balanceId = registrosValidos[0]?.id || null;
 
     if (saldo > 0 && balanceId) {
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
 
       if (simulacao) {
-        // 🔹 Criar oportunidade apenas após simulação positiva
         if (!idOriginal) {
           idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
           if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
@@ -466,4 +478,4 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 }
 
 // 🔹 Exporta funções
-export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade };
+export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade, setDelay };

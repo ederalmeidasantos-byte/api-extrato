@@ -41,11 +41,17 @@ const io = new Server(server);
 // Armazenamento em memória dos resultados
 let resultadosFGTS = [];
 
+// Variável global de delay (ms) para processarCPFs
+let DELAY_MS = parseInt(process.env.DEFAULT_DELAY_MS || "1000", 10);
+
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
 
   // Envia os resultados já processados
   resultadosFGTS.forEach(r => socket.emit("result", r));
+
+  // Envia valor atual do delay
+  socket.emit("delayUpdate", DELAY_MS);
 });
 
 // Fila: até 2 jobs em paralelo
@@ -110,6 +116,7 @@ app.post("/extrair", async (req, res) => {
 const upload = multer({ dest: UPLOADS_DIR });
 app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
+// Inicia processamento CSV
 app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
@@ -119,11 +126,10 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   (async () => {
     try {
       await processarCPFs(req.file.path, null, (result) => {
-        // Adiciona ao array em memória
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
-      });
+      }, DELAY_MS); // <-- Passando delay atual
       io.emit("log", "✅ Processamento FGTS finalizado!");
     } catch (err) {
       console.error("❌ Erro no processamento FGTS:", err);
@@ -150,7 +156,7 @@ app.post("/fgts/reprocessar", async (req, res) => {
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
-      });
+      }, DELAY_MS); // <-- Passando delay atual
       io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
     } catch (err) {
       console.error("❌ Erro no reprocessamento:", err);
@@ -180,6 +186,18 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   })();
 
   res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
+});
+
+// Atualizar delay dinamicamente
+app.post("/fgts/delay", (req, res) => {
+  const novoDelay = parseInt(req.body.delayMs, 10);
+  if (isNaN(novoDelay) || novoDelay < 0) {
+    return res.status(400).json({ message: "Delay inválido" });
+  }
+  DELAY_MS = novoDelay;
+  io.emit("delayUpdate", DELAY_MS);
+  console.log(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
+  res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
 });
 
 const PORT = process.env.PORT || 3000;
