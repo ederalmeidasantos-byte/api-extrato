@@ -1,33 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Painel FGTS</title>
-<script src="/socket.io/socket.io.js"></script>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-  h2,h3 { margin-top: 20px; }
-  #logs { border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto; background:#fff; white-space:pre-wrap; font-size:12px; }
-  .columns { display:flex; gap:10px; margin-top:10px; }
-  .column { flex:1; background:#fff; border:1px solid #ccc; border-radius:4px; padding:10px; display:flex; flex-direction:column; max-height:400px; }
-  .column h3 { margin-top:0; margin-bottom:5px; font-size:14px; }
-  .list-container { flex:1; overflow-y:auto; border-top:1px solid #ccc; padding-top:5px; }
-  table { width:100%; border-collapse:collapse; font-size:12px; }
-  th, td { border:1px solid #ccc; padding:4px; text-align:center; }
-  th { background-color:#007bff; color:#fff; font-size:12px; }
-  tr.success { background-color:#d4edda; }
-  tr.pending { background-color:#fff3cd; }
-  tr.no_auth { background-color:#f8d7da; }
-  tr.ready_for_manual { background-color:#d1ecf1; }
-  button { padding:6px 12px; margin-top:5px; cursor:pointer; border:none; border-radius:4px; font-size:12px; }
-  .btn-primary { background:#007bff; color:#fff; }
-  .btn-warning { background:#ffc107; color:#000; }
-  .btn-danger { background:#dc3545; color:#fff; }
-  .btn-secondary { background:#6c757d; color:#fff; }
-  #counters { margin-top:10px; font-weight:bold; font-size:14px; }
-  #progressContainer { margin-top:10px; background:#e9ecef; border-radius:4px; height:20px; width:100%; }
-  #progressBar { height:100%; width:0%; background:#007bff; border-radius:4px; text-align:center; color:#fff; font-size:12px; line-height:20px; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Painel FGTS</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+    h2, h3 { margin-top: 20px; }
+    #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
+    .columns { display: flex; gap: 10px; margin-top: 10px; }
+    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 400px; }
+    .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
+    .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    th { background-color: #007bff; color: #fff; font-size: 12px; }
+    tr.success { background-color: #d4edda; }
+    tr.pending { background-color: #fff3cd; }
+    tr.no_auth { background-color: #f8d7da; }
+    tr.ready_for_manual { background-color: #d1ecf1; }
+    button { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; }
+    .btn-primary { background: #007bff; color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-danger { background: #dc3545; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
+  </style>
 </head>
 <body>
 <h2>📂 Upload e Automação FGTS</h2>
@@ -35,9 +33,6 @@
   <input type="file" id="csvfile" accept=".csv" required />
   <button type="button" class="btn-primary" id="runBtn">📂 Enviar e Iniciar</button>
   <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
-  <button type="button" class="btn-warning" id="btnPausar">⏸️ Pausar</button>
-  <button type="button" class="btn-primary" id="btnContinuar">▶️ Continuar</button>
-  <button type="button" class="btn-danger" id="btnCancelar">❌ Cancelar</button>
 </form>
 
 <h3>📊 Contadores</h3>
@@ -47,9 +42,6 @@
   Sem Autorização: <span id="countNoAuth">0</span> | 
   Prontos CSV: <span id="countReadyCSV">0</span>
 </div>
-
-<h3>📊 Progresso</h3>
-<div id="progressContainer"><div id="progressBar">0%</div></div>
 
 <h3>📜 Logs</h3>
 <div id="logs"></div>
@@ -64,7 +56,7 @@
   <div class="column" id="colPending">
     <h3>⏳ Pendentes</h3>
     <div class="list-container">
-      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor/Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
     <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
   </div>
@@ -98,75 +90,113 @@ const counts = {
   noAuth: document.getElementById('countNoAuth'),
   ready: document.getElementById('countReadyCSV')
 };
-const progressBar = document.getElementById('progressBar');
 
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
-let totals = { success:0, pending:0, noAuth:0, ready:0 };
-let paused = false, canceled = false, totalCPFs = 0, processedCPFs = 0;
+let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
 
+// Socket.IO
 const socket = io();
 
+// Atualiza contadores na interface
 function atualizarContadores() {
   counts.success.textContent = totals.success;
   counts.pending.textContent = totals.pending;
   counts.noAuth.textContent = totals.noAuth;
   counts.ready.textContent = totals.ready;
-  const perc = totalCPFs ? Math.round(processedCPFs/totalCPFs*100) : 0;
-  progressBar.style.width = perc+'%';
-  progressBar.textContent = perc+'%';
 }
 
-function adicionarResultado(data){
-  const removerDe = (arr,value,cellIndex,table) => {
-    const i = arr.indexOf(value);
-    if(i!==-1) arr.splice(i,1);
-    table.querySelectorAll('tr').forEach(r=>{if(r.cells[cellIndex].textContent===value) r.remove();});
+// Adiciona ou atualiza resultado nas tabelas
+function adicionarResultado(data) {
+  const removerDe = (arr, value, cellIndex, table) => {
+    const i = arr.findIndex(item => item.cpf===value || item.id===value);
+    if (i !== -1) arr.splice(i,1);
+    table.querySelectorAll('tr').forEach(row => { if(row.cells[cellIndex].textContent===value) row.remove(); });
   };
 
   if(data.status==='success'){
-    removerDe(pendentes,data.cpf,0,tables.pending);
-    removerDe(naoAutorizados,data.id,1,tables.no_auth);
+    removerDe(pendentes, data.cpf, 0, tables.pending);
+    removerDe(naoAutorizados, data.id, 1, tables.no_auth);
     const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
-    if(idxReady!==-1){readyForCSV.splice(idxReady,1); tables.ready.querySelectorAll('tr').forEach(r=>{if(r.cells[0].textContent===data.cpf) r.remove();}); totals.ready--;}
+    if(idxReady!==-1){readyForCSV.splice(idxReady,1); tables.ready.querySelectorAll('tr').forEach(row=>{if(row.cells[0].textContent===data.cpf) row.remove();}); totals.ready--; }
   }
 
   const tr = document.createElement('tr');
   let valorExibido = '-';
-  if(data.status==='success') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='pending') valorExibido=data.motivo||'Pendência não informada';
-  else if(data.status==='no_auth') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='ready_for_manual') valorExibido=data.valorLiberado||'-';
+  if(data.status==='success') valorExibido = data.valorLiberado || '-';
+  else if(data.status==='pending') valorExibido = data.motivo || 'Pendência não informada';
+  else if(data.status==='no_auth') valorExibido = data.valorLiberado || '-';
+  else if(data.status==='ready_for_manual') valorExibido = data.valorLiberado || '-';
 
-  tr.innerHTML=`<td>${data.cpf}</td><td>${data.telefone||data.id||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
-  tr.className=data.status==='ready_for_manual'?'ready_for_manual':data.status;
+  tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone || data.id || ''}</td><td>${valorExibido}</td><td>${data.provider || '-'}</td>`;
+  tr.className = data.status==='ready_for_manual'?'ready_for_manual':data.status;
 
   switch(data.status){
     case 'success': tables.success.appendChild(tr); totals.success++; break;
-    case 'pending': if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf); tables.pending.appendChild(tr); totals.pending++; break;
+    case 'pending': if(!pendentes.some(r=>r.cpf===data.cpf)) pendentes.push({cpf:data.cpf,motivo:valorExibido}); tables.pending.appendChild(tr); totals.pending++; break;
     case 'no_auth': if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id); tables.no_auth.appendChild(tr); totals.noAuth++; break;
     case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
   }
 
-  processedCPFs++;
   atualizarContadores();
 }
 
+// Receber logs e resultados do servidor
 socket.on('log', msg => { logs.textContent += msg+'\n'; logs.scrollTop = logs.scrollHeight; });
-socket.on('result', data => {
-  const checkPauseCancel = () => new Promise(resolve=>{
-    const interval = setInterval(()=>{
-      if(!paused) { clearInterval(interval); resolve(); }
-      if(canceled) { clearInterval(interval); resolve(); }
-    },200);
-  });
-  checkPauseCancel().then(()=>{if(!canceled) adicionarResultado(data);});
+socket.on('result', data => adicionarResultado(data));
+
+// Botões
+document.getElementById('runBtn').addEventListener('click', async ()=>{
+  const f = document.getElementById('csvfile').files[0];
+  if(!f) return alert('Escolha um arquivo CSV');
+  const fd = new FormData(); fd.append('csvfile', f);
+  try{
+    const res = await fetch('/fgts/run',{method:'POST',body:fd});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err);}
 });
 
-// Botões de controle
-document.getElementById('btnPausar').addEventListener('click', ()=>{ paused=true; logs.textContent += '[CLIENT] Processamento pausado\n'; });
-document.getElementById('btnContinuar').addEventListener('click', ()=>{ paused=false; logs.textContent += '[CLIENT] Processamento continuado\n'; });
-document.getElementById('btnCancelar').addEventListener('click', ()=>{ canceled=true; logs.textContent += '[CLIENT] Processamento cancelado\n'; });
+document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
+  if(!pendentes.length) return alert("Nenhum CPF pendente para reprocessar");
+  const cpfs = pendentes.map(r=>r.cpf);
+  try{
+    const res = await fetch('/fgts/reprocessar',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpfs})});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Falha ao reprocessar pendentes: "+err.message); console.error(err);}
+});
 
+document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()=>{
+  if(!naoAutorizados.length) return alert("Nenhum registro sem autorização");
+  try{
+    const res = await fetch('/fgts/mudarFaseNaoAutorizados',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:naoAutorizados})});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Falha ao mudar fase dos não autorizados: "+err.message); console.error(err);}
+});
+
+document.getElementById('btnExportCSV').addEventListener('click', ()=>{
+  if(!readyForCSV.length) return alert("Nenhum CPF disponível para exportar");
+  const headers = ['CPF','Telefone','Valor','Provider'];
+  const csvRows = [headers.join(';')];
+  readyForCSV.forEach(r=>csvRows.push([r.cpf,r.telefone,r.valor,r.provider].join(';')));
+  const blob = new Blob([csvRows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+  link.download = `cpfs_ready_${Date.now()}.csv`; link.click();
+});
+
+document.getElementById('btnLimpar').addEventListener('click', ()=>{
+  if(!confirm("Deseja limpar todas as listas e logs?")) return;
+  Object.values(tables).forEach(t=>t.innerHTML='');
+  logs.textContent=''; pendentes=[]; naoAutorizados=[]; readyForCSV=[]; totals={success:0,pending:0,noAuth:0,ready:0};
+  atualizarContadores();
+});
 </script>
 </body>
 </html>
