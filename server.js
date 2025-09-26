@@ -5,13 +5,12 @@ import fs from "fs";
 import fsp from "fs/promises";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
-import { calcularTrocoEndpoint } from "./calculo.js";
 import { extrairDeUpload } from "./extrair_pdf.js";
 import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo, setDelay } from "./fgts_csv.js"; // 🔹 setDelay importado
+import { processarCPFs, disparaFluxo, setDelay } from "./fgts_csv.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,28 +42,27 @@ let resultadosFGTS = [];
 
 // Variável global de delay (ms) para processarCPFs
 let DELAY_MS = parseInt(process.env.DEFAULT_DELAY_MS || "1000", 10);
-setDelay(DELAY_MS); // 🔹 inicializa delay no fgts_csv.js
+setDelay(DELAY_MS);
 
+// Variável de controle de pausa
+let fgtsPaused = false;
+
+// Fila PQueue
+const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
+
+// Conexão do Socket
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
 
-  // Envia os resultados já processados
+  // Envia resultados já processados
   resultadosFGTS.forEach(r => socket.emit("result", r));
 
-  // Envia valor atual do delay
+  // Envia delay atual
   socket.emit("delayUpdate", DELAY_MS);
 });
 
-// Fila: até 2 jobs em paralelo
-const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
-
-// Health
+// Health check
 app.get("/", (req, res) => res.send("API rodando ✅"));
-
-// Logs iniciais
-console.log("🔑 OPENAI_API_KEY presente?", !!process.env.OPENAI_API_KEY);
-console.log("🔑 LUNAS_API_URL:", process.env.LUNAS_API_URL);
-console.log("🔑 LUNAS_QUEUE_ID:", process.env.LUNAS_QUEUE_ID);
 
 // Fluxo via Lunas
 app.post("/extrair", async (req, res) => {
@@ -126,11 +124,14 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   (async () => {
     try {
-      await processarCPFs(req.file.path, null, (result) => {
+      await processarCPFs(req.file.path, null, async (result) => {
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000)); // aguarda retomada
+
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
-      }, DELAY_MS); // <-- Passando delay atual
+      }, DELAY_MS);
+
       io.emit("log", "✅ Processamento FGTS finalizado!");
     } catch (err) {
       console.error("❌ Erro no processamento FGTS:", err);
@@ -153,11 +154,14 @@ app.post("/fgts/reprocessar", async (req, res) => {
 
   (async () => {
     try {
-      await processarCPFs(null, cpfs, (result) => {
+      await processarCPFs(null, cpfs, async (result) => {
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
+
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
-      }, DELAY_MS); // <-- Passando delay atual
+      }, DELAY_MS);
+
       io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
     } catch (err) {
       console.error("❌ Erro no reprocessamento:", err);
@@ -189,34 +193,33 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
 });
 
-// Atualizar delay dinamicamente
-app.post("/fgts/delay", (req, res) => {
-  const novoDelay = parseInt(req.body.delayMs, 10);
-  if (isNaN(novoDelay) || novoDelay < 0) {
-    return res.status(400).json({ message: "Delay inválido" });
-  }
+// Atualizar delay dinamicamente (GET ou POST)
+app.all("/fgts/delay", (req, res) => {
+  const novoDelay = parseInt(req.body?.delayMs || req.query?.delayMs, 10);
+  if (isNaN(novoDelay) || novoDelay < 0) return res.status(400).json({ message: "Delay inválido" });
+
   DELAY_MS = novoDelay;
-  setDelay(DELAY_MS); // atualiza delay no fgts_csv.js
+  setDelay(DELAY_MS); // atualiza fgts_csv.js
   io.emit("delayUpdate", DELAY_MS);
   console.log(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
 });
 
-// ====== Pausar / Retomar processamento FGTS ======
+// Pausar / Retomar processamento FGTS
 app.post("/fgts/pause", (req, res) => {
-  queue.pause();
+  fgtsPaused = true;
   io.emit("log", "⏸️ Processamento FGTS pausado pelo usuário");
   console.log("⏸️ Processamento FGTS pausado");
   res.json({ message: "Processamento pausado" });
 });
 
 app.post("/fgts/resume", (req, res) => {
-  queue.start();
+  fgtsPaused = false;
   io.emit("log", "▶️ Processamento FGTS retomado pelo usuário");
   console.log("▶️ Processamento FGTS retomado");
   res.json({ message: "Processamento retomado" });
 });
 
-// ====== Servidor ======
+// Servidor
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));
