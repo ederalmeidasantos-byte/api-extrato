@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-let delayMs = 1000; // agora mutável
+let delayMs = 1000; // delay mutável
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -34,7 +34,12 @@ let credIndex = 0;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 let ultimoProvider = null;
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+// 🔹 Controle de pausa/retomada
+let paused = false;
+function setPause(value) {
+  paused = !!value;
+  console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
+}
 
 // 🔹 Função para atualizar delay
 function setDelay(ms) {
@@ -44,24 +49,19 @@ function setDelay(ms) {
   }
 }
 
-// 🔹 Controle de pausa/retomada
-let paused = false;
-function setPause(value) {
-  paused = !!value;
-  console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
-}
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// (opcional) permitir anexar um IO se quiser emitir localmente (não necessário se o server usa o callback)
+// 🔹 Anexar IO opcional
 let ioInstance = null;
 function attachIO(io) {
   ioInstance = io;
 }
 
-// 🔹 Normalização de CPF e telefone
+// 🔹 Normalização
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
-// 🔹 Emitir resultado para front e logs
+// 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
   if (obj.apiResponse === undefined && obj.error) {
     obj.apiResponse = obj.errorDetails || obj.error;
@@ -86,7 +86,7 @@ function switchCredential(forcedIndex = null) {
   console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
-// 🔹 Autenticar (token universal)
+// 🔹 Autenticação
 async function authenticate(force = false) {
   if (TOKEN && !force) return TOKEN;
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
@@ -111,14 +111,13 @@ async function authenticate(force = false) {
     console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
     return TOKEN;
   } catch (err) {
-    const user = cred?.username || "sem usuário";
-    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
+    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${cred.username}: ${err.message}`);
     switchCredential();
     return authenticate();
   }
 }
 
-// 🔹 Consultar resultado
+// 🔹 Consultar resultado FGTS
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -128,19 +127,13 @@ async function consultarResultado(cpf, linha) {
     console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
     return res.data;
   } catch (err) {
-    const erroCompleto = {
-      message: err.message,
-      status: err.response?.status,
-      data: err.response?.data,
-    };
+    const erroCompleto = { message: err.message, status: err.response?.status, data: err.response?.data };
     console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}:`, erroCompleto);
 
     if (erroCompleto.status === 401) {
-      console.log(`${LOG_PREFIX()} ⚠️ Token inválido, autenticando novamente...`);
       await authenticate(true);
       return consultarResultado(cpf, linha);
     } else if (erroCompleto.status === 429 || err.message.includes("Limite de requisições")) {
-      console.log(`${LOG_PREFIX()} ⚠️ Rate limit, aguardando mais tempo...`);
       await delay(delayMs * 3);
       switchCredential();
       await authenticate(true);
@@ -167,15 +160,8 @@ async function enviarParaFila(cpf, provider) {
       );
       return true;
     } catch (err) {
-      const erroCompleto = {
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-      };
-      console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
-
+      const erroCompleto = { message: err.message, status: err.response?.status, data: err.response?.data };
       if (erroCompleto.status === 429 || (err.response?.data?.message || "").includes("Limite de requisições")) {
-        console.log(`${LOG_PREFIX()} ⚠️ Rate limit detectado, trocando login...`);
         retryCount++;
         switchCredential();
         await authenticate(true);
@@ -183,7 +169,6 @@ async function enviarParaFila(cpf, provider) {
         continue;
       } else if (erroCompleto.status === 500 || err.message.includes("timeout")) {
         retryCount++;
-        console.log(`${LOG_PREFIX()} ⚠️ Tentativa ${retryCount} para CPF ${cpf} no provider ${provider} devido a erro 500/timeout`);
         await delay(delayMs * 2);
         continue;
       }
@@ -191,202 +176,92 @@ async function enviarParaFila(cpf, provider) {
     }
   }
 
-  console.log(`${LOG_PREFIX()} ⚠️ Todas tentativas esgotadas para CPF ${cpf} no provider ${provider}`);
   return "pending429";
 }
 
 // 🔹 Simular saldo
 async function simularSaldo(cpf, balanceId, parcelas, provider) {
   if (!parcelas || parcelas.length === 0) return null;
+  const desiredInstallments = parcelas.filter(p => p.amount > 0 && p.dueDate).map(p => ({ totalAmount: p.amount, dueDate: p.dueDate }));
+  if (!desiredInstallments.length) return null;
 
-  const desiredInstallments = parcelas
-    .filter((p) => p.amount > 0 && p.dueDate)
-    .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
-
-  if (desiredInstallments.length === 0) return null;
-
-  const tabelas = [
-    "cb563029-ba93-4b53-8d53-4ac145087212",
-    "f6d779ed-52bf-42f2-9dbc-3125fe6491ba",
-  ];
-
+  const tabelas = ["cb563029-ba93-4b53-8d53-4ac145087212", "f6d779ed-52bf-42f2-9dbc-3125fe6491ba"];
   for (const simId of tabelas) {
     const simIndex = CREDENTIALS[2] ? 2 : 0;
     switchCredential(simIndex);
     await authenticate(true);
 
-    const payload = {
-      simulationFeesId: simId,
-      balanceId,
-      targetAmount: 0,
-      documentNumber: cpf,
-      desiredInstallments,
-      provider,
-    };
-
-    console.log(`${LOG_PREFIX()} 🔧 Payload simulação:`, JSON.stringify(payload));
-
+    const payload = { simulationFeesId: simId, balanceId, targetAmount: 0, documentNumber: cpf, desiredInstallments, provider };
     try {
       const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
-      console.log(`${LOG_PREFIX()} 📦 Resultado completo simulação:`, JSON.stringify(res.data));
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return { ...res.data, tabelaSimulada: simId === tabelas[0] ? "NORMAL" : "ACELERA" };
-      console.log(`${LOG_PREFIX()} ⚠️ Saldo zero para simulação com tabela ${simId}`);
-    } catch (err) {
-      const erroCompleto = {
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-      };
-      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, erroCompleto);
-    }
+    } catch {}
   }
   return null;
 }
 
-// 🔹 Consultar planilha LISTA-FGTS.csv
+// 🔹 Consultar planilha CSV
 function consultarPlanilha(cpf, telefone) {
   const cpfNorm = normalizeCPF(cpf);
   const phoneNorm = normalizePhone(telefone);
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
 
-  const encontrado = registros.find(r =>
-    normalizeCPF(r['E-mail [#mail]']) === cpfNorm ||
-    normalizePhone(r['Telefone [#phone]']) === phoneNorm
-  );
-
-  if (encontrado) {
-    const idPlanilha = encontrado['ID [#id]']?.trim();
-    const stageIdPlanilha = encontrado['ID da Etapa [#stageid]']?.trim();
-    console.log(`${LOG_PREFIX()} ⚠️ Planilha encontrada para CPF ${cpfNorm} | ID: ${idPlanilha}`);
-    return { id: idPlanilha, stageId: stageIdPlanilha };
-  } else {
-    console.log(`${LOG_PREFIX()} ❌ CPF ${cpfNorm} não encontrado na planilha`);
-  }
-
+  const encontrado = registros.find(r => normalizeCPF(r['E-mail [#mail]']) === cpfNorm || normalizePhone(r['Telefone [#phone]']) === phoneNorm);
+  if (encontrado) return { id: encontrado['ID [#id]']?.trim(), stageId: encontrado['ID da Etapa [#stageid]']?.trim() };
   return null;
-}
-
-// 🔹 Atualizar oportunidade com tabela simulada
-async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
-  try {
-    const formsdata = { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" };
-    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
-    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    console.log(`${LOG_PREFIX()} ✅ Oportunidade ${opportunityId} atualizada com tabela ${tabelaSimulada}`);
-    return true;
-  } catch (err) {
-    const erroCompleto = { message: err.message, data: err.response?.data };
-    console.error(`${LOG_PREFIX()} ❌ Erro atualizar oportunidade ID ${opportunityId}:`, erroCompleto);
-    return false;
-  }
 }
 
 // 🔹 Criar oportunidade
 async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
-    const payload = {
-      queueId: QUEUE_ID,
-      apiKey: API_CRM_KEY,
-      fkPipeline: 1,
-      fkStage: 4,
-      responsableid: 0,
-      title: `Oportunidade CPF ${cpf}`,
-      mainphone: telefone || "",
-      mainmail: cpf || "",
-      value: valorLiberado || 0
-    };
-
-    const res = await axios.post(
-      "https://lunasdigital.atenderbem.com/int/createOpportunity",
-      payload,
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para CPF ${cpf} | ID: ${res.data.id}`);
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, fkPipeline: 1, fkStage: 4, responsableid: 0, title: `Oportunidade CPF ${cpf}`, mainphone: telefone || "", mainmail: cpf || "", value: valorLiberado || 0 };
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     return res.data.id;
-
-  } catch (err) {
-    const erroCompleto = { message: err.message, data: err.response?.data };
-    console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, erroCompleto);
-    return null;
-  }
+  } catch { return null; }
 }
 
-// 🔹 Atualiza CSV com novo ID
-function atualizarCSVcomID(cpf, telefone, novoID) {
+// 🔹 Atualizar oportunidade com tabela
+async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
   try {
-    const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
-    const registros = parse(csvContent, { columns: true, skip_empty_lines: false, delimiter: ";" });
-    const linha = registros.find(r =>
-      normalizeCPF(r['E-mail [#mail]']) === normalizeCPF(cpf) ||
-      normalizePhone(r['Telefone [#phone]']) === normalizePhone(telefone)
-    );
-    if (linha) {
-      linha['ID [#id]'] = novoID;
-      const headers = Object.keys(registros[0]).join(";");
-      const body = registros.map(r => Object.values(r).join(";")).join("\n");
-      fs.writeFileSync("LISTA-FGTS.csv", headers + "\n" + body, "utf-8");
-      console.log(`${LOG_PREFIX()} ✅ Lista atualizada com novo ID ${novoID} para CPF ${cpf}`);
-    }
-  } catch (err) {
-    console.error(`${LOG_PREFIX()} ❌ Erro ao atualizar CSV com ID para CPF ${cpf}:`, err.message);
-  }
+    const formsdata = { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" };
+    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
+    await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
+    return true;
+  } catch { return false; }
 }
 
-// 🔹 Dispara fluxo no CRM
+// 🔹 Atualizar CSV com novo ID
+function atualizarCSVcomID(cpf, telefone, novoID) {
+  const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
+  const registros = parse(csvContent, { columns: true, skip_empty_lines: false, delimiter: ";" });
+  const linha = registros.find(r => normalizeCPF(r['E-mail [#mail]']) === normalizeCPF(cpf) || normalizePhone(r['Telefone [#phone]']) === normalizePhone(telefone));
+  if (linha) { linha['ID [#id]'] = novoID; fs.writeFileSync("LISTA-FGTS.csv", Object.keys(registros[0]).join(";") + "\n" + registros.map(r => Object.values(r).join(";")).join("\n"), "utf-8"); }
+}
+
+// 🔹 Disparar fluxo
 async function disparaFluxo(opportunityId) {
   if (!opportunityId) return false;
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
     await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
-    console.log(`${LOG_PREFIX()} ✅ Fluxo disparado para oportunidade ${opportunityId}`);
     return true;
-  } catch (err) {
-    const erroCompleto = { message: err.message, data: err.response?.data };
-    console.error(`${LOG_PREFIX()} ❌ Erro ao disparar fluxo para ${opportunityId}:`, erroCompleto);
-    return "erroDisparo";
-  }
+  } catch { return "erroDisparo"; }
 }
 
-// 🔹 Atualizar CRM (placeholder)
-async function atualizarCRM(opportunityId, valorLiberado) {
-  if (!opportunityId) return false;
-  try {
-    console.log(`${LOG_PREFIX()} ✅ CRM atualizado para oportunidade ${opportunityId} com valor ${valorLiberado}`);
-    return true;
-  } catch {
-    return false;
-  }
-}
+// 🔹 Atualizar CRM placeholder
+async function atualizarCRM(opportunityId, valorLiberado) { return true; }
 
-// 🔹 Processar CPFs (ALTERADA: consulta resultado antes de enviar para fila)
+// 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
-  let registros = [];
-
-  if (cpfsReprocess && cpfsReprocess.length) {
-    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
-  } else if (csvPath) {
-    const csvContent = fs.readFileSync(csvPath, "utf-8");
-    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-  } else {
-    throw new Error("Nenhum CSV fornecido para processar!");
-  }
-
-  console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
+  let registros = cpfsReprocess && cpfsReprocess.length ? cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` })) : csvPath ? parse(fs.readFileSync(csvPath, "utf-8"), { columns: true, skip_empty_lines: true, delimiter: ";" }) : [];
+  if (!registros.length) throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
   let processed = 0;
-  const emitProgress = () => {
-    const percentage = Math.round((processed / total) * 100);
-    if (callback) { try { callback({ status: "progress", processed, total, percentage }); } catch {} }
-    if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage }); } catch {} }
-  };
-
-  emitProgress();
 
   for (let [index, registro] of registros.entries()) {
     while (paused) await delay(500);
@@ -395,152 +270,69 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
-
-    if (!cpf) { processed++; emitProgress(); continue; }
+    if (!cpf) { processed++; continue; }
 
     const planilha = consultarPlanilha(cpf, telefone);
-    if (planilha) {
-      idOriginal = planilha.id;
+    if (planilha) idOriginal = planilha.id;
 
-      if (planilha.stageId && ["4","5","6"].includes(planilha.stageId)) {
-        emitirResultado({
-          cpf, id: idOriginal, status: "success",
-          message: "Resultado já existente na planilha, não reenviado para fila",
-          provider: "planilha"
-        }, callback);
-        processed++; emitProgress();
-        continue;
-      }
-    }
-
-    // 🔹 PRIMEIRO CONSULTA O RESULTADO
-    let resultado = await consultarResultado(cpf, linha);
+    let resultado = null;
     let providerUsed = null;
     let todasCredenciaisExauridas = false;
 
-    // 🔹 SE NÃO RETORNOU, AÍ SIM ENVIA PARA FILA
-    if (!resultado || !resultado.data || resultado.data.length === 0 || resultado.pending) {
-      for (const provider of PROVIDERS) {
-        providerUsed = provider;
-        const filaResult = await enviarParaFila(cpf, providerUsed);
+    for (const provider of PROVIDERS) {
+      providerUsed = provider;
+      const filaResult = await enviarParaFila(cpf, providerUsed);
+      if (filaResult === "pending429") { todasCredenciaisExauridas = true; break; }
+      if (!filaResult) continue;
 
-        if (filaResult === "pending429") {
-          todasCredenciaisExauridas = true;
-          break;
-        }
-        if (!filaResult) continue;
-
-        await delay(delayMs);
-        resultado = await consultarResultado(cpf, linha);
-        if (resultado?.data?.length) break;
-      }
+      await delay(delayMs);
+      resultado = await consultarResultado(cpf, linha);
+      if (resultado?.error) { emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback); continue; }
+      else if (resultado?.data && resultado.data.length > 0) break;
     }
 
-    if (todasCredenciaisExauridas) {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Todas credenciais esgotadas (429)", provider: providerUsed }, callback);
-      processed++; emitProgress();
-      continue;
-    }
+    if (todasCredenciaisExauridas) { emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Limite de requisições excedido", provider: providerUsed || ultimoProvider }, callback); processed++; continue; }
+    if (!resultado?.data || resultado.data.length === 0) { emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização", provider: providerUsed || ultimoProvider }, callback); processed++; continue; }
 
-    if (!resultado || !resultado.data || resultado.data.length === 0) {
-emitirResultado({
-      cpf,
-      id: idOriginal,
-      status: "error",
-      message: "CPF não retornou saldo",
-      provider: providerUsed
-    }, callback);
+    const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
+    if (registrosValidos.length === 0) { processed++; continue; }
 
-    processed++;
-    if (callback) {
-      try { callback({ status: "progress", processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
-    }
-    if (ioInstance) {
-      try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
-    }
-    continue;
-  }
+    const saldo = registrosValidos[0]?.amount || 0;
+    const parcelas = registrosValidos[0]?.periods || [];
+    const balanceId = registrosValidos[0]?.id || null;
 
-  const dados = resultado.data[0];
-  const saldoDisponivel = parseFloat(dados.availableBalance || 0);
+    if (saldo > 0 && balanceId) {
+      const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
+      if (simulacao) {
+        if (!idOriginal) { idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance); if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal); }
+        await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
+        await atualizarCRM(idOriginal, simulacao.availableBalance);
+        const fluxo = await disparaFluxo(idOriginal);
 
-  if (saldoDisponivel > 0) {
-    const simulacao = await simularSaldo(cpf, dados.id, dados.installments || [], providerUsed);
-
-    if (simulacao && parseFloat(simulacao.availableBalance || 0) > 0) {
-      let opportunityId = idOriginal;
-
-      if (!opportunityId) {
-        opportunityId = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
-        if (opportunityId) atualizarCSVcomID(cpf, telefone, opportunityId);
-      }
-
-      if (opportunityId) {
-        await atualizarOportunidadeComTabela(opportunityId, simulacao.tabelaSimulada || "N/A");
-        const disparo = await disparaFluxo(opportunityId);
-        if (disparo === "erroDisparo") {
-          emitirResultado({
-            cpf,
-            id: opportunityId,
-            saldo: simulacao.availableBalance,
-            status: "error",
-            message: "Erro ao disparar fluxo",
-            provider: providerUsed,
-            apiResponse: resultado
-          }, callback);
-        } else {
-          await atualizarCRM(opportunityId, simulacao.availableBalance);
-          emitirResultado({
-            cpf,
-            id: opportunityId,
-            saldo: simulacao.availableBalance,
-            status: "success",
-            message: "Saldo liberado",
-            provider: providerUsed,
-            apiResponse: resultado
-          }, callback);
-        }
+        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)", provider: providerUsed }, callback);
+      } else {
+        emitirResultado({ cpf, id: idOriginal, status: "pending", valorLiberado: 0, message: "Sem saldo disponível após simulação", provider: providerUsed }, callback);
       }
     } else {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        saldo: 0,
-        status: "error",
-        message: "Simulação não retornou saldo",
-        provider: providerUsed,
-        apiResponse: resultado
-      }, callback);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", valorLiberado: 0, message: "Saldo zero", provider: providerUsed }, callback);
     }
-  } else {
-    emitirResultado({
-      cpf,
-      id: idOriginal,
-      saldo: 0,
-      status: "error",
-      message: "Saldo insuficiente",
-      provider: providerUsed,
-      apiResponse: resultado
-    }, callback);
-  }
 
-  processed++;
-  if (callback) {
-    try { callback({ status: "progress", processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
-  }
-  if (ioInstance) {
-    try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
+    processed++;
+    if (callback) callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) });
+    if (ioInstance) ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) });
+
+    await delay(delayMs);
   }
 }
 
-console.log(`${LOG_PREFIX()} ✅ Processamento concluído de ${total} CPFs`);
-return { total };
-}
-
-// 🔹 Exporta funções
+// 🔹 Exportações
 export {
   processarCPFs,
+  disparaFluxo,
+  authenticate,
+  atualizarOportunidadeComTabela,
+  criarOportunidade,
   setDelay,
   setPause,
-  attachIO,
+  attachIO
 };
