@@ -11,7 +11,7 @@ import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo } from "./fgts_csv.js";
+import { processarCPFs, disparaFluxo, setDelay } from "./fgts_csv.js"; // 🔹 setDelay importado
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +43,7 @@ let resultadosFGTS = [];
 
 // Variável global de delay (ms) para processarCPFs
 let DELAY_MS = parseInt(process.env.DEFAULT_DELAY_MS || "1000", 10);
+setDelay(DELAY_MS); // 🔹 inicializa delay no fgts_csv.js
 
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
