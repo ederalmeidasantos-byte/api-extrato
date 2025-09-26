@@ -440,28 +440,21 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         await atualizarCRM(idOriginal, simulacao.availableBalance);
         const fluxo = await disparaFluxo(idOriginal);
 
-        if (fluxo === true) {
-          emitirResultado({
-            cpf,
-            id: idOriginal,
-            status: "success",
-            message: `Simulação finalizada | Saldo liberado: ${simulacao.availableBalance}`,
-            provider: providerUsed
-          }, callback);
-        } else {
-          emitirResultado({
-            cpf,
-            id: idOriginal,
-            status: "success",
-            message: "Erro disparo (tratado como sucesso)",
-            provider: providerUsed
-          }, callback);
-        }
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "success",
+          valorLiberado: simulacao.availableBalance,
+          message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
+          provider: providerUsed
+        }, callback);
+
       } else {
         emitirResultado({
           cpf,
           id: idOriginal,
           status: "pending",
+          valorLiberado: 0,
           message: "Sem saldo disponível após simulação",
           provider: providerUsed
         }, callback);
@@ -471,6 +464,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         cpf,
         id: idOriginal,
         status: "pending",
+        valorLiberado: 0,
         message: "Saldo zero",
         provider: providerUsed
       }, callback);
