@@ -36,7 +36,8 @@ let ultimoProvider = null;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function setDelay(ms) {
+// 🔹 Função para atualizar delay
+function setDelay(ms) {
   if (ms && !isNaN(ms) && ms > 0) {
     delayMs = ms;
     console.log(`${LOG_PREFIX()} ⚡ Delay atualizado para ${delayMs}ms`);
