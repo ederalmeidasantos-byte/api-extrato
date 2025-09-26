@@ -44,6 +44,19 @@ function setDelay(ms) {
   }
 }
 
+// 🔹 Controle de pausa/retomada
+let paused = false;
+function setPause(value) {
+  paused = !!value;
+  console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
+}
+
+// (opcional) permitir anexar um IO se quiser emitir localmente (não necessário se o server usa o callback)
+let ioInstance = null;
+function attachIO(io) {
+  ioInstance = io;
+}
+
 // 🔹 Normalização de CPF e telefone
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
@@ -55,6 +68,10 @@ function emitirResultado(obj, callback = null) {
   }
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
   if (callback) callback(obj);
+  // também emitir via ioInstance caso esteja anexado (opcional)
+  if (ioInstance) {
+    try { ioInstance.emit("result", obj); } catch {}
+  }
 }
 
 // 🔹 Alternar credencial
@@ -362,12 +379,36 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
   console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
 
+  // envia progresso inicial via callback para front (servidor encaminha)
+  const total = registros.length;
+  let processed = 0;
+  if (callback) {
+    try { callback({ status: "progress", processed, total, percentage: 0 }); } catch {}
+  }
+  // também emitir via ioInstance se anexado (opcional)
+  if (ioInstance) {
+    try { ioInstance.emit("progress", { processed, total, percentage: 0 }); } catch {}
+  }
+
   for (let [index, registro] of registros.entries()) {
+    // respeitar pausa global
+    while (paused) {
+      await delay(500);
+    }
+
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
-    if (!cpf) continue;
+    if (!cpf) {
+      // atualiza progresso mesmo que pule
+      processed++;
+      if (callback) {
+        try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
+      }
+      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
+      continue;
+    }
 
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) {
@@ -409,17 +450,27 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         message: "Limite de requisições excedido em todos os logins, reprocessar depois",
         provider: providerUsed || ultimoProvider
       }, callback);
+      // atualizar progresso
+      processed++;
+      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
+      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
       continue;
     }
 
     if (!resultado?.data || resultado.data.length === 0) {
       emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
+      processed++;
+      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
+      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
       continue;
     }
 
     const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
     if (registrosValidos.length === 0) {
       console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} descartado - sem adesão ao saque aniversário`);
+      processed++;
+      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
+      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
       continue;
     }
 
@@ -469,8 +520,29 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         provider: providerUsed
       }, callback);
     }
+
+    // atualizar progresso
+    processed++;
+    if (callback) {
+      try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
+    }
+    if (ioInstance) {
+      try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
+    }
+
+    // respeita delay entre CPFs
+    await delay(delayMs);
   }
 }
 
 // 🔹 Exporta funções
-export { processarCPFs, disparaFluxo, authenticate, atualizarOportunidadeComTabela, criarOportunidade, setDelay };
+export {
+  processarCPFs,
+  disparaFluxo,
+  authenticate,
+  atualizarOportunidadeComTabela,
+  criarOportunidade,
+  setDelay,
+  setPause,
+  attachIO
+};

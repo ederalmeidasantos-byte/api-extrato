@@ -122,11 +122,21 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   (async () => {
     try {
+      const totalCpfs = (await fsp.readFile(req.file.path, "utf-8"))
+        .split("\n").filter(l => l.trim()).length;
+      let processados = 0;
+
       await processarCPFs(req.file.path, null, async (result) => {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
-        if(result) resultadosFGTS.push(result);
-        io.emit("log", JSON.stringify(result));
-        if(result) io.emit("result", result);
+
+        if (result) {
+          resultadosFGTS.push(result);
+          io.emit("log", JSON.stringify(result));
+          io.emit("result", result);
+
+          processados++;
+          io.emit("progress", { done: processados, total: totalCpfs });
+        }
       }, DELAY_MS);
 
       io.emit("log", "✅ Processamento FGTS finalizado!");
@@ -151,11 +161,20 @@ app.post("/fgts/reprocessar", async (req, res) => {
 
   (async () => {
     try {
+      const totalCpfs = cpfs.length;
+      let processados = 0;
+
       await processarCPFs(null, cpfs, async (result) => {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
-        if(result) resultadosFGTS.push(result);
-        io.emit("log", JSON.stringify(result));
-        if(result) io.emit("result", result);
+
+        if (result) {
+          resultadosFGTS.push(result);
+          io.emit("log", JSON.stringify(result));
+          io.emit("result", result);
+
+          processados++;
+          io.emit("progress", { done: processados, total: totalCpfs });
+        }
       }, DELAY_MS);
 
       io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
