@@ -25,6 +25,10 @@
     .btn-danger { background: #dc3545; color: #fff; }
     .btn-secondary { background: #6c757d; color: #fff; }
     #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
+    #controls { margin-top: 10px; display:flex; gap:8px; align-items:center; }
+    #progressWrap { margin-top: 10px; width:100%; background:#eee; border-radius:6px; height:20px; overflow:hidden; border:1px solid #ccc; }
+    #progressBar { height:100%; width:0%; background:#28a745; transition: width 300ms ease; }
+    #progressText { margin-left:8px; font-size:13px; }
   </style>
 </head>
 <body>
@@ -34,6 +38,14 @@
   <button type="button" class="btn-primary" id="runBtn">📂 Enviar e Iniciar</button>
   <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
 </form>
+
+<div id="controls">
+  <button class="btn-secondary" id="btnPause">⏸️ Pausar</button>
+  <button class="btn-primary" id="btnResume">▶️ Retomar</button>
+  <button class="btn-danger" id="btnCancel">✖️ Cancelar</button>
+  <div id="progressText">0%</div>
+</div>
+<div id="progressWrap"><div id="progressBar"></div></div>
 
 <h3>📊 Contadores</h3>
 <div id="counters">
@@ -56,7 +68,7 @@
   <div class="column" id="colPending">
     <h3>⏳ Pendentes</h3>
     <div class="list-container">
-      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor/Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table>
+      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
     <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
   </div>
@@ -94,10 +106,13 @@ const counts = {
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
 let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
 
-// Socket.IO
-const socket = io();
+let totalToProcess = 0;
+let processedCount = 0;
 
-// Atualiza contadores na interface
+// Progress UI
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+
 function atualizarContadores() {
   counts.success.textContent = totals.success;
   counts.pending.textContent = totals.pending;
@@ -105,10 +120,24 @@ function atualizarContadores() {
   counts.ready.textContent = totals.ready;
 }
 
+function setProgress(pct, processed = null, total = null) {
+  progressBar.style.width = `${pct}%`;
+  progressText.textContent = `${pct}% (${processed||processedCount}/${total||totalToProcess})`;
+}
+
 // Adiciona ou atualiza resultado nas tabelas
 function adicionarResultado(data) {
+  // se for progresso, tratar separado
+  if (data && data.status === 'progress') {
+    const pct = data.percentage || Math.round(((data.processed||processedCount) / (data.total||totalToProcess || 1)) * 100);
+    processedCount = data.processed || processedCount;
+    totalToProcess = data.total || totalToProcess;
+    setProgress(pct, processedCount, totalToProcess);
+    return;
+  }
+
   const removerDe = (arr, value, cellIndex, table) => {
-    const i = arr.findIndex(item => item.cpf===value || item.id===value);
+    const i = arr.indexOf(value);
     if (i !== -1) arr.splice(i,1);
     table.querySelectorAll('tr').forEach(row => { if(row.cells[cellIndex].textContent===value) row.remove(); });
   };
@@ -117,7 +146,11 @@ function adicionarResultado(data) {
     removerDe(pendentes, data.cpf, 0, tables.pending);
     removerDe(naoAutorizados, data.id, 1, tables.no_auth);
     const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
-    if(idxReady!==-1){readyForCSV.splice(idxReady,1); tables.ready.querySelectorAll('tr').forEach(row=>{if(row.cells[0].textContent===data.cpf) row.remove();}); totals.ready--; }
+    if(idxReady!==-1){
+      readyForCSV.splice(idxReady,1);
+      tables.ready.querySelectorAll('tr').forEach(row=>{if(row.cells[0].textContent===data.cpf) row.remove();});
+      totals.ready--; 
+    }
   }
 
   const tr = document.createElement('tr');
@@ -132,17 +165,49 @@ function adicionarResultado(data) {
 
   switch(data.status){
     case 'success': tables.success.appendChild(tr); totals.success++; break;
-    case 'pending': if(!pendentes.some(r=>r.cpf===data.cpf)) pendentes.push({cpf:data.cpf,motivo:valorExibido}); tables.pending.appendChild(tr); totals.pending++; break;
+    case 'pending': if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf); tables.pending.appendChild(tr); totals.pending++; break;
     case 'no_auth': if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id); tables.no_auth.appendChild(tr); totals.noAuth++; break;
     case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
+  }
+
+  // incrementa processedCount e atualiza progress (se total conhecido)
+  processedCount++;
+  if (totalToProcess) {
+    const pct = Math.round((processedCount / totalToProcess) * 100);
+    setProgress(pct, processedCount, totalToProcess);
   }
 
   atualizarContadores();
 }
 
+// Socket.IO
+const socket = io();
+
 // Receber logs e resultados do servidor
-socket.on('log', msg => { logs.textContent += msg+'\n'; logs.scrollTop = logs.scrollHeight; });
-socket.on('result', data => adicionarResultado(data));
+socket.on('log', msg => { 
+  logs.textContent += msg+'\n'; 
+  logs.scrollTop = logs.scrollHeight;
+
+  // tenta extrair total da mensagem "Iniciando processamento de X CPFs"
+  const m = msg.match(/Iniciando processamento de (\d+) CPFs/);
+  if (m) {
+    totalToProcess = parseInt(m[1], 10);
+    processedCount = 0;
+    setProgress(0, 0, totalToProcess);
+  }
+});
+socket.on('result', data => {
+  // se status progresso
+  if (data && data.status === 'progress') {
+    // atualiza barra sem inserir em tabelas
+    const pct = data.percentage || Math.round(((data.processed||processedCount) / (data.total||totalToProcess || 1)) * 100);
+    processedCount = data.processed || processedCount;
+    totalToProcess = data.total || totalToProcess;
+    setProgress(pct, processedCount, totalToProcess);
+    return;
+  }
+  adicionarResultado(data);
+});
 
 // Botões
 document.getElementById('runBtn').addEventListener('click', async ()=>{
@@ -155,14 +220,19 @@ document.getElementById('runBtn').addEventListener('click', async ()=>{
     const json = await res.json();
     logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
     logs.scrollTop = logs.scrollHeight;
+    // se servidor retornar total no JSON
+    if (json && json.total) {
+      totalToProcess = json.total;
+      processedCount = 0;
+      setProgress(0, 0, totalToProcess);
+    }
   }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err);}
 });
 
 document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
   if(!pendentes.length) return alert("Nenhum CPF pendente para reprocessar");
-  const cpfs = pendentes.map(r=>r.cpf);
   try{
-    const res = await fetch('/fgts/reprocessar',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpfs})});
+    const res = await fetch('/fgts/reprocessar',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpfs:pendentes})});
     if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     const json = await res.json();
     logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json))+'\n';
@@ -195,7 +265,41 @@ document.getElementById('btnLimpar').addEventListener('click', ()=>{
   if(!confirm("Deseja limpar todas as listas e logs?")) return;
   Object.values(tables).forEach(t=>t.innerHTML='');
   logs.textContent=''; pendentes=[]; naoAutorizados=[]; readyForCSV=[]; totals={success:0,pending:0,noAuth:0,ready:0};
+  totalToProcess = 0; processedCount = 0; setProgress(0,0,0);
   atualizarContadores();
+});
+
+// Pausar / Retomar / Cancelar (aplicam ao servidor)
+document.getElementById('btnPause').addEventListener('click', async ()=>{
+  try {
+    const res = await fetch('/fgts/pause',{method:'POST'});
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Pausado\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch (err) {
+    alert("Falha ao pausar: " + err.message);
+  }
+});
+document.getElementById('btnResume').addEventListener('click', async ()=>{
+  try {
+    const res = await fetch('/fgts/resume',{method:'POST'});
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Retomado\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch (err) {
+    alert("Falha ao retomar: " + err.message);
+  }
+});
+document.getElementById('btnCancel').addEventListener('click', async ()=>{
+  if(!confirm("Deseja cancelar o processo em execução?")) return;
+  try {
+    const res = await fetch('/fgts/cancel',{method:'POST'});
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    logs.textContent += '[CLIENT] Cancelado\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch (err) {
+    alert("Falha ao cancelar: " + err.message);
+  }
 });
 </script>
 </body>
