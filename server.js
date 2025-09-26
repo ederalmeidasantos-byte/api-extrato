@@ -196,10 +196,27 @@ app.post("/fgts/delay", (req, res) => {
     return res.status(400).json({ message: "Delay inválido" });
   }
   DELAY_MS = novoDelay;
+  setDelay(DELAY_MS); // atualiza delay no fgts_csv.js
   io.emit("delayUpdate", DELAY_MS);
   console.log(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
 });
 
+// ====== Pausar / Retomar processamento FGTS ======
+app.post("/fgts/pause", (req, res) => {
+  queue.pause();
+  io.emit("log", "⏸️ Processamento FGTS pausado pelo usuário");
+  console.log("⏸️ Processamento FGTS pausado");
+  res.json({ message: "Processamento pausado" });
+});
+
+app.post("/fgts/resume", (req, res) => {
+  queue.start();
+  io.emit("log", "▶️ Processamento FGTS retomado pelo usuário");
+  console.log("▶️ Processamento FGTS retomado");
+  res.json({ message: "Processamento retomado" });
+});
+
+// ====== Servidor ======
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));
