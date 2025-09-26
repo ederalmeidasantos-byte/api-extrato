@@ -286,7 +286,7 @@ document.getElementById('btnUpdateDelay').addEventListener('click', async ()=>{
   if(isNaN(novoDelay)||novoDelay<0) return alert("Informe um valor válido para o delay (ms)");
   try {
     // ⚡ Aqui foi corrigido para a rota correta e o parâmetro certo
-    const res = await fetch('/fgts/delay',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delayMs:novoDelay})});
+    const res = await fetch('/fgts/delay',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delay:novoDelay})});
     if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     currentDelayEl.textContent = novoDelay;
     logs.textContent += `[CLIENT] Delay atualizado para ${novoDelay} ms\n`;
