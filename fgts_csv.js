@@ -263,9 +263,24 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 
 // 🔹 Criar oportunidade
 async function criarOportunidade(cpf, telefone, valorLiberado) {
+  if (!cpf || !telefone) return null;
+
   try {
-    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, documentNumber: cpf, telefone, valorLiberado };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
+    const payload = {
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
+      mainphone: telefone,
+      title: `Oportunidade ${cpf}`,
+      mainmail: cpf,
+      value: valorLiberado
+    };
+
+    const res = await axios.post(
+      "https://lunasdigital.atenderbem.com/int/createOpportunity",
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+
     console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para CPF ${cpf} | ID: ${res.data.id}`);
     return res.data.id;
   } catch (err) {
@@ -274,6 +289,7 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
     return null;
   }
 }
+
 
 // 🔹 Atualiza CSV com novo ID
 function atualizarCSVcomID(cpf, telefone, novoID) {
