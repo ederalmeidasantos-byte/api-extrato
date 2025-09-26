@@ -11,6 +11,7 @@ import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
 import { processarCPFs, disparaFluxo, setDelay } from "./fgts_csv.js";
+import { calcularTrocoEndpoint } from "./calculo.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,10 +55,7 @@ const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
 
-  // Envia resultados já processados
   resultadosFGTS.forEach(r => socket.emit("result", r));
-
-  // Envia delay atual
   socket.emit("delayUpdate", DELAY_MS);
 });
 
@@ -125,8 +123,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   (async () => {
     try {
       await processarCPFs(req.file.path, null, async (result) => {
-        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000)); // aguarda retomada
-
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
@@ -156,7 +153,6 @@ app.post("/fgts/reprocessar", async (req, res) => {
     try {
       await processarCPFs(null, cpfs, async (result) => {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
-
         if(result) resultadosFGTS.push(result);
         io.emit("log", JSON.stringify(result));
         if(result) io.emit("result", result);
@@ -199,7 +195,7 @@ app.all("/fgts/delay", (req, res) => {
   if (isNaN(novoDelay) || novoDelay < 0) return res.status(400).json({ message: "Delay inválido" });
 
   DELAY_MS = novoDelay;
-  setDelay(DELAY_MS); // atualiza fgts_csv.js
+  setDelay(DELAY_MS);
   io.emit("delayUpdate", DELAY_MS);
   console.log(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
@@ -219,6 +215,9 @@ app.post("/fgts/resume", (req, res) => {
   console.log("▶️ Processamento FGTS retomado");
   res.json({ message: "Processamento retomado" });
 });
+
+// 👉 Nova rota de cálculo
+app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 // Servidor
 const PORT = process.env.PORT || 3000;
