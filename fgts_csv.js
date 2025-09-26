@@ -263,16 +263,17 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 
 // 🔹 Criar oportunidade
 async function criarOportunidade(cpf, telefone, valorLiberado) {
-  if (!cpf || !telefone) return null;
-
   try {
     const payload = {
-      queueId: QUEUE_ID,
-      apiKey: API_CRM_KEY,
-      mainphone: telefone,
-      title: `Oportunidade ${cpf}`,
-      mainmail: cpf,
-      value: valorLiberado
+      queueId: 25, // Fixo ou pode vir de .env
+      apiKey: "cd4d0509169d4e2ea9177ac66c1c9376", // Fixo ou de .env
+      fkPipeline: 1,
+      fkStage: 4,
+      responsableid: 0,
+      title: `Oportunidade CPF ${cpf}`, // título com CPF
+      mainphone: telefone || "", // telefone do cliente
+      mainmail: cpf || "", // email ou CPF do cliente
+      value: valorLiberado || 0
     };
 
     const res = await axios.post(
@@ -283,12 +284,14 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
 
     console.log(`${LOG_PREFIX()} ✅ Oportunidade criada para CPF ${cpf} | ID: ${res.data.id}`);
     return res.data.id;
+
   } catch (err) {
     const erroCompleto = { message: err.message, data: err.response?.data };
     console.error(`${LOG_PREFIX()} ❌ Erro criar oportunidade CPF ${cpf}:`, erroCompleto);
     return null;
   }
 }
+
 
 
 // 🔹 Atualiza CSV com novo ID
