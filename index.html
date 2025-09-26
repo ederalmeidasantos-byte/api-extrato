@@ -278,14 +278,15 @@ document.getElementById('btnCancel').addEventListener('click', async ()=>{
   } catch (err) { alert("Falha ao cancelar: " + err.message); }
 });
 
-// Controle de Delay
+// Controle de Delay - Corrigido para a rota /fgts/delay
 const currentDelayEl = document.getElementById('currentDelay');
 const inputDelayEl = document.getElementById('inputDelay');
 document.getElementById('btnUpdateDelay').addEventListener('click', async ()=>{
   const novoDelay = parseInt(inputDelayEl.value,10);
   if(isNaN(novoDelay)||novoDelay<0) return alert("Informe um valor válido para o delay (ms)");
   try {
-    const res = await fetch('/fgts/setDelay',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delay:novoDelay})});
+    // ⚡ Aqui foi corrigido para a rota correta e o parâmetro certo
+    const res = await fetch('/fgts/delay',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({delayMs:novoDelay})});
     if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     currentDelayEl.textContent = novoDelay;
     logs.textContent += `[CLIENT] Delay atualizado para ${novoDelay} ms\n`;
@@ -293,6 +294,5 @@ document.getElementById('btnUpdateDelay').addEventListener('click', async ()=>{
   } catch(err){ alert("Falha ao atualizar delay: "+err.message); }
 });
 </script>
-
 </body>
 </html>

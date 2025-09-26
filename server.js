@@ -54,7 +54,6 @@ const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 // Conexão do Socket
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
-
   resultadosFGTS.forEach(r => socket.emit("result", r));
   socket.emit("delayUpdate", DELAY_MS);
 });
@@ -127,7 +126,8 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       let processados = 0;
 
       await processarCPFs(req.file.path, null, async (result) => {
-        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
+        // Aguarda se estiver pausado
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
         if (result) {
           resultadosFGTS.push(result);
@@ -165,7 +165,7 @@ app.post("/fgts/reprocessar", async (req, res) => {
       let processados = 0;
 
       await processarCPFs(null, cpfs, async (result) => {
-        while (fgtsPaused) await new Promise(r => setTimeout(r, 1000));
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
         if (result) {
           resultadosFGTS.push(result);
@@ -208,9 +208,9 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
 });
 
-// Atualizar delay dinamicamente (GET ou POST)
-app.all("/fgts/delay", (req, res) => {
-  const novoDelay = parseInt(req.body?.delayMs || req.query?.delayMs, 10);
+// Atualizar delay dinamicamente
+app.post("/fgts/delay", (req, res) => {
+  const novoDelay = parseInt(req.body?.delay, 10);
   if (isNaN(novoDelay) || novoDelay < 0) return res.status(400).json({ message: "Delay inválido" });
 
   DELAY_MS = novoDelay;
@@ -235,7 +235,7 @@ app.post("/fgts/resume", (req, res) => {
   res.json({ message: "Processamento retomado" });
 });
 
-// 👉 Nova rota de cálculo
+// Nova rota de cálculo
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 // Servidor
