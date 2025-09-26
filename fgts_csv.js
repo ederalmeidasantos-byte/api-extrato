@@ -68,7 +68,6 @@ function emitirResultado(obj, callback = null) {
   }
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
   if (callback) callback(obj);
-  // também emitir via ioInstance caso esteja anexado (opcional)
   if (ioInstance) {
     try { ioInstance.emit("result", obj); } catch {}
   }
@@ -364,7 +363,7 @@ async function atualizarCRM(opportunityId, valorLiberado) {
   }
 }
 
-// 🔹 Processar CPFs
+// 🔹 Processar CPFs (ALTERADA: consulta resultado antes de enviar para fila)
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -379,170 +378,169 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
   console.log(`${LOG_PREFIX()} Iniciando processamento de ${registros.length} CPFs`);
 
-  // envia progresso inicial via callback para front (servidor encaminha)
   const total = registros.length;
   let processed = 0;
-  if (callback) {
-    try { callback({ status: "progress", processed, total, percentage: 0 }); } catch {}
-  }
-  // também emitir via ioInstance se anexado (opcional)
-  if (ioInstance) {
-    try { ioInstance.emit("progress", { processed, total, percentage: 0 }); } catch {}
-  }
+  const emitProgress = () => {
+    const percentage = Math.round((processed / total) * 100);
+    if (callback) { try { callback({ status: "progress", processed, total, percentage }); } catch {} }
+    if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage }); } catch {} }
+  };
+
+  emitProgress();
 
   for (let [index, registro] of registros.entries()) {
-    // respeitar pausa global
-    while (paused) {
-      await delay(500);
-    }
+    while (paused) await delay(500);
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
-    if (!cpf) {
-      // atualiza progresso mesmo que pule
-      processed++;
-      if (callback) {
-        try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
-      }
-      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      continue;
-    }
+
+    if (!cpf) { processed++; emitProgress(); continue; }
 
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) {
       idOriginal = planilha.id;
-      console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
+
+      if (planilha.stageId && ["4","5","6"].includes(planilha.stageId)) {
+        emitirResultado({
+          cpf, id: idOriginal, status: "success",
+          message: "Resultado já existente na planilha, não reenviado para fila",
+          provider: "planilha"
+        }, callback);
+        processed++; emitProgress();
+        continue;
+      }
     }
 
-    let resultado = null;
+    // 🔹 PRIMEIRO CONSULTA O RESULTADO
+    let resultado = await consultarResultado(cpf, linha);
     let providerUsed = null;
     let todasCredenciaisExauridas = false;
 
-    for (const provider of PROVIDERS) {
-      providerUsed = provider;
-      const filaResult = await enviarParaFila(cpf, providerUsed);
+    // 🔹 SE NÃO RETORNOU, AÍ SIM ENVIA PARA FILA
+    if (!resultado || !resultado.data || resultado.data.length === 0 || resultado.pending) {
+      for (const provider of PROVIDERS) {
+        providerUsed = provider;
+        const filaResult = await enviarParaFila(cpf, providerUsed);
 
-      if (filaResult === "pending429") {
-        todasCredenciaisExauridas = true;
-        break;
-      }
+        if (filaResult === "pending429") {
+          todasCredenciaisExauridas = true;
+          break;
+        }
+        if (!filaResult) continue;
 
-      if (!filaResult) continue;
-
-      await delay(delayMs);
-      resultado = await consultarResultado(cpf, linha);
-
-      if (resultado?.error) {
-        emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback);
-        continue;
-      } else if (resultado?.data && resultado.data.length > 0) {
-        break;
+        await delay(delayMs);
+        resultado = await consultarResultado(cpf, linha);
+        if (resultado?.data?.length) break;
       }
     }
 
     if (todasCredenciaisExauridas) {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "pending",
-        message: "Limite de requisições excedido em todos os logins, reprocessar depois",
-        provider: providerUsed || ultimoProvider
-      }, callback);
-      // atualizar progresso
-      processed++;
-      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
+      emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Todas credenciais esgotadas (429)", provider: providerUsed }, callback);
+      processed++; emitProgress();
       continue;
     }
 
-    if (!resultado?.data || resultado.data.length === 0) {
-      emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização em nenhum provider", provider: providerUsed || ultimoProvider }, callback);
-      processed++;
-      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      continue;
+    if (!resultado || !resultado.data || resultado.data.length === 0) {
+emitirResultado({
+      cpf,
+      id: idOriginal,
+      status: "error",
+      message: "CPF não retornou saldo",
+      provider: providerUsed
+    }, callback);
+
+    processed++;
+    if (callback) {
+      try { callback({ status: "progress", processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
     }
-
-    const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
-    if (registrosValidos.length === 0) {
-      console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} descartado - sem adesão ao saque aniversário`);
-      processed++;
-      if (callback) { try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      if (ioInstance) { try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {} }
-      continue;
+    if (ioInstance) {
+      try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
     }
+    continue;
+  }
 
-    const saldo = registrosValidos[0]?.amount || 0;
-    const parcelas = registrosValidos[0]?.periods || [];
-    const balanceId = registrosValidos[0]?.id || null;
+  const dados = resultado.data[0];
+  const saldoDisponivel = parseFloat(dados.availableBalance || 0);
 
-    if (saldo > 0 && balanceId) {
-      const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
+  if (saldoDisponivel > 0) {
+    const simulacao = await simularSaldo(cpf, dados.id, dados.installments || [], providerUsed);
 
-      if (simulacao) {
-        if (!idOriginal) {
-          idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
-          if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
+    if (simulacao && parseFloat(simulacao.availableBalance || 0) > 0) {
+      let opportunityId = idOriginal;
+
+      if (!opportunityId) {
+        opportunityId = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
+        if (opportunityId) atualizarCSVcomID(cpf, telefone, opportunityId);
+      }
+
+      if (opportunityId) {
+        await atualizarOportunidadeComTabela(opportunityId, simulacao.tabelaSimulada || "N/A");
+        const disparo = await disparaFluxo(opportunityId);
+        if (disparo === "erroDisparo") {
+          emitirResultado({
+            cpf,
+            id: opportunityId,
+            saldo: simulacao.availableBalance,
+            status: "error",
+            message: "Erro ao disparar fluxo",
+            provider: providerUsed,
+            apiResponse: resultado
+          }, callback);
+        } else {
+          await atualizarCRM(opportunityId, simulacao.availableBalance);
+          emitirResultado({
+            cpf,
+            id: opportunityId,
+            saldo: simulacao.availableBalance,
+            status: "success",
+            message: "Saldo liberado",
+            provider: providerUsed,
+            apiResponse: resultado
+          }, callback);
         }
-
-        await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
-        await atualizarCRM(idOriginal, simulacao.availableBalance);
-        const fluxo = await disparaFluxo(idOriginal);
-
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "success",
-          valorLiberado: simulacao.availableBalance,
-          message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
-          provider: providerUsed
-        }, callback);
-
-      } else {
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "pending",
-          valorLiberado: 0,
-          message: "Sem saldo disponível após simulação",
-          provider: providerUsed
-        }, callback);
       }
     } else {
       emitirResultado({
         cpf,
         id: idOriginal,
-        status: "pending",
-        valorLiberado: 0,
-        message: "Saldo zero",
-        provider: providerUsed
+        saldo: 0,
+        status: "error",
+        message: "Simulação não retornou saldo",
+        provider: providerUsed,
+        apiResponse: resultado
       }, callback);
     }
-
-    // atualizar progresso
-    processed++;
-    if (callback) {
-      try { callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
-    }
-    if (ioInstance) {
-      try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) }); } catch {}
-    }
-
-    // respeita delay entre CPFs
-    await delay(delayMs);
+  } else {
+    emitirResultado({
+      cpf,
+      id: idOriginal,
+      saldo: 0,
+      status: "error",
+      message: "Saldo insuficiente",
+      provider: providerUsed,
+      apiResponse: resultado
+    }, callback);
   }
+
+  processed++;
+  if (callback) {
+    try { callback({ status: "progress", processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
+  }
+  if (ioInstance) {
+    try { ioInstance.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) }); } catch {}
+  }
+}
+
+console.log(`${LOG_PREFIX()} ✅ Processamento concluído de ${total} CPFs`);
+return { total };
 }
 
 // 🔹 Exporta funções
 export {
   processarCPFs,
-  disparaFluxo,
-  authenticate,
-  atualizarOportunidadeComTabela,
-  criarOportunidade,
   setDelay,
   setPause,
-  attachIO
+  attachIO,
 };
