@@ -265,14 +265,14 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
 async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
     const payload = {
-      queueId: 25, // Fixo ou pode vir de .env
-      apiKey: "cd4d0509169d4e2ea9177ac66c1c9376", // Fixo ou de .env
+      queueId: 25,
+      apiKey: "cd4d0509169d4e2ea9177ac66c1c9376",
       fkPipeline: 1,
       fkStage: 4,
       responsableid: 0,
-      title: `Oportunidade CPF ${cpf}`, // título com CPF
-      mainphone: telefone || "", // telefone do cliente
-      mainmail: cpf || "", // email ou CPF do cliente
+      title: `Oportunidade CPF ${cpf}`,
+      mainphone: telefone || "",
+      mainmail: cpf || "",
       value: valorLiberado || 0
     };
 
@@ -291,8 +291,6 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
     return null;
   }
 }
-
-
 
 // 🔹 Atualiza CSV com novo ID
 function atualizarCSVcomID(cpf, telefone, novoID) {
@@ -367,11 +365,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (planilha) {
       idOriginal = planilha.id;
       console.log(`${LOG_PREFIX()} ⚠️ Usando ID da planilha para CPF ${cpf}: ${idOriginal}`);
-    } else {
-      console.log(`${LOG_PREFIX()} ❌ Nenhum ID encontrado na planilha para CPF ${cpf}`);
-      // 🔹 Criar oportunidade e atualizar CSV
-      idOriginal = await criarOportunidade(cpf, telefone, 0);
-      if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
     }
 
     let resultado = null;
@@ -424,6 +417,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
 
       if (simulacao) {
+        // 🔹 Criar oportunidade apenas após simulação positiva
+        if (!idOriginal) {
+          idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
+          if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
+        }
+
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         await atualizarCRM(idOriginal, simulacao.availableBalance);
         const fluxo = await disparaFluxo(idOriginal);
