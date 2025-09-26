@@ -7,15 +7,15 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // 🔹 Configurações
-let delayMs = 1000; // delay mutável
+let delayMs = 1000;
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
 
-// 🔹 Providers na ordem
+// 🔹 Providers
 const PROVIDERS = ["cartos", "bms", "qi"];
 
-// 🔹 Credenciais dinâmicas via .env
+// 🔹 Credenciais
 const CREDENTIALS = [];
 for (let i = 1; process.env[`FGTS_USER_${i}`]; i++) {
   CREDENTIALS.push({
@@ -23,7 +23,6 @@ for (let i = 1; process.env[`FGTS_USER_${i}`]; i++) {
     password: process.env[`FGTS_PASS_${i}`],
   });
 }
-
 if (!CREDENTIALS.length) {
   console.error("❌ Nenhuma credencial FGTS configurada no .env");
   process.exit(1);
@@ -34,14 +33,10 @@ let credIndex = 0;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 let ultimoProvider = null;
 
-// 🔹 Controle de pausa/retomada
+// 🔹 Delay e pausa
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 let paused = false;
-function setPause(value) {
-  paused = !!value;
-  console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
-}
 
-// 🔹 Função para atualizar delay
 function setDelay(ms) {
   if (ms && !isNaN(ms) && ms > 0) {
     delayMs = ms;
@@ -49,9 +44,12 @@ function setDelay(ms) {
   }
 }
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+function setPause(value) {
+  paused = !!value;
+  console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
+}
 
-// 🔹 Anexar IO opcional
+// 🔹 IO opcional
 let ioInstance = null;
 function attachIO(io) {
   ioInstance = io;
@@ -63,10 +61,13 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
 // 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
-  if (obj.apiResponse === undefined && obj.error) {
-    obj.apiResponse = obj.errorDetails || obj.error;
+  // incluir apiResponse sempre que existir
+  if (!obj.apiResponse && obj.resultadoCompleto) {
+    obj.apiResponse = obj.resultadoCompleto;
   }
+
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
+
   if (callback) callback(obj);
   if (ioInstance) {
     try { ioInstance.emit("result", obj); } catch {}
@@ -86,7 +87,7 @@ function switchCredential(forcedIndex = null) {
   console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
 }
 
-// 🔹 Autenticação
+// 🔹 Autenticar
 async function authenticate(force = false) {
   if (TOKEN && !force) return TOKEN;
   if (!CREDENTIALS.length) throw new Error("Nenhuma credencial disponível!");
@@ -111,13 +112,14 @@ async function authenticate(force = false) {
     console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
     return TOKEN;
   } catch (err) {
-    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${cred.username}: ${err.message}`);
+    const user = cred?.username || "sem usuário";
+    console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
     switchCredential();
     return authenticate();
   }
 }
 
-// 🔹 Consultar resultado FGTS
+// 🔹 Consultar resultado
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -127,7 +129,11 @@ async function consultarResultado(cpf, linha) {
     console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
     return res.data;
   } catch (err) {
-    const erroCompleto = { message: err.message, status: err.response?.status, data: err.response?.data };
+    const erroCompleto = {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+    };
     console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}:`, erroCompleto);
 
     if (erroCompleto.status === 401) {
@@ -160,7 +166,13 @@ async function enviarParaFila(cpf, provider) {
       );
       return true;
     } catch (err) {
-      const erroCompleto = { message: err.message, status: err.response?.status, data: err.response?.data };
+      const erroCompleto = {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      };
+      console.log(`${LOG_PREFIX()} ❌ Erro enviar para fila CPF ${cpf} | Provider: ${provider}:`, erroCompleto);
+
       if (erroCompleto.status === 429 || (err.response?.data?.message || "").includes("Limite de requisições")) {
         retryCount++;
         switchCredential();
@@ -182,64 +194,115 @@ async function enviarParaFila(cpf, provider) {
 // 🔹 Simular saldo
 async function simularSaldo(cpf, balanceId, parcelas, provider) {
   if (!parcelas || parcelas.length === 0) return null;
-  const desiredInstallments = parcelas.filter(p => p.amount > 0 && p.dueDate).map(p => ({ totalAmount: p.amount, dueDate: p.dueDate }));
-  if (!desiredInstallments.length) return null;
 
-  const tabelas = ["cb563029-ba93-4b53-8d53-4ac145087212", "f6d779ed-52bf-42f2-9dbc-3125fe6491ba"];
+  const desiredInstallments = parcelas
+    .filter((p) => p.amount > 0 && p.dueDate)
+    .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
+
+  if (desiredInstallments.length === 0) return null;
+
+  const tabelas = [
+    "cb563029-ba93-4b53-8d53-4ac145087212",
+    "f6d779ed-52bf-42f2-9dbc-3125fe6491ba",
+  ];
+
   for (const simId of tabelas) {
     const simIndex = CREDENTIALS[2] ? 2 : 0;
     switchCredential(simIndex);
     await authenticate(true);
 
-    const payload = { simulationFeesId: simId, balanceId, targetAmount: 0, documentNumber: cpf, desiredInstallments, provider };
+    const payload = {
+      simulationFeesId: simId,
+      balanceId,
+      targetAmount: 0,
+      documentNumber: cpf,
+      desiredInstallments,
+      provider,
+    };
+
     try {
       const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       });
       const available = parseFloat(res.data.availableBalance || 0);
       if (available > 0) return { ...res.data, tabelaSimulada: simId === tabelas[0] ? "NORMAL" : "ACELERA" };
-    } catch {}
+    } catch (err) {
+      const erroCompleto = {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      };
+      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, erroCompleto);
+    }
   }
   return null;
 }
 
-// 🔹 Consultar planilha CSV
+// 🔹 Consultar planilha
 function consultarPlanilha(cpf, telefone) {
   const cpfNorm = normalizeCPF(cpf);
   const phoneNorm = normalizePhone(telefone);
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
 
-  const encontrado = registros.find(r => normalizeCPF(r['E-mail [#mail]']) === cpfNorm || normalizePhone(r['Telefone [#phone]']) === phoneNorm);
-  if (encontrado) return { id: encontrado['ID [#id]']?.trim(), stageId: encontrado['ID da Etapa [#stageid]']?.trim() };
+  const encontrado = registros.find(r =>
+    normalizeCPF(r['E-mail [#mail]']) === cpfNorm ||
+    normalizePhone(r['Telefone [#phone]']) === phoneNorm
+  );
+
+  if (encontrado) {
+    return { id: encontrado['ID [#id]']?.trim(), stageId: encontrado['ID da Etapa [#stageid]']?.trim() };
+  }
   return null;
 }
 
-// 🔹 Criar oportunidade
-async function criarOportunidade(cpf, telefone, valorLiberado) {
-  try {
-    const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, fkPipeline: 1, fkStage: 4, responsableid: 0, title: `Oportunidade CPF ${cpf}`, mainphone: telefone || "", mainmail: cpf || "", value: valorLiberado || 0 };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    return res.data.id;
-  } catch { return null; }
-}
-
-// 🔹 Atualizar oportunidade com tabela
+// 🔹 Atualizar oportunidade
 async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
   try {
     const formsdata = { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" };
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     return true;
-  } catch { return false; }
+  } catch (err) {
+    return false;
+  }
 }
 
-// 🔹 Atualizar CSV com novo ID
+// 🔹 Criar oportunidade
+async function criarOportunidade(cpf, telefone, valorLiberado) {
+  try {
+    const payload = {
+      queueId: QUEUE_ID,
+      apiKey: API_CRM_KEY,
+      fkPipeline: 1,
+      fkStage: 4,
+      responsableid: 0,
+      title: `Oportunidade CPF ${cpf}`,
+      mainphone: telefone || "",
+      mainmail: cpf || "",
+      value: valorLiberado || 0
+    };
+    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
+    return res.data.id;
+  } catch {
+    return null;
+  }
+}
+
+// 🔹 Atualizar CSV com ID
 function atualizarCSVcomID(cpf, telefone, novoID) {
   const csvContent = fs.readFileSync("LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: false, delimiter: ";" });
-  const linha = registros.find(r => normalizeCPF(r['E-mail [#mail]']) === normalizeCPF(cpf) || normalizePhone(r['Telefone [#phone]']) === normalizePhone(telefone));
-  if (linha) { linha['ID [#id]'] = novoID; fs.writeFileSync("LISTA-FGTS.csv", Object.keys(registros[0]).join(";") + "\n" + registros.map(r => Object.values(r).join(";")).join("\n"), "utf-8"); }
+  const linha = registros.find(r =>
+    normalizeCPF(r['E-mail [#mail]']) === normalizeCPF(cpf) ||
+    normalizePhone(r['Telefone [#phone]']) === normalizePhone(telefone)
+  );
+  if (linha) {
+    linha['ID [#id]'] = novoID;
+    const headers = Object.keys(registros[0]).join(";");
+    const body = registros.map(r => Object.values(r).join(";")).join("\n");
+    fs.writeFileSync("LISTA-FGTS.csv", headers + "\n" + body, "utf-8");
+  }
 }
 
 // 🔹 Disparar fluxo
@@ -249,27 +312,32 @@ async function disparaFluxo(opportunityId) {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
     await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
     return true;
-  } catch { return "erroDisparo"; }
+  } catch {
+    return "erroDisparo";
+  }
 }
-
-// 🔹 Atualizar CRM placeholder
-async function atualizarCRM(opportunityId, valorLiberado) { return true; }
 
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
-  let registros = cpfsReprocess && cpfsReprocess.length ? cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` })) : csvPath ? parse(fs.readFileSync(csvPath, "utf-8"), { columns: true, skip_empty_lines: true, delimiter: ";" }) : [];
-  if (!registros.length) throw new Error("Nenhum CSV fornecido para processar!");
+  let registros = [];
+  if (cpfsReprocess && cpfsReprocess.length) {
+    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+  } else if (csvPath) {
+    const csvContent = fs.readFileSync(csvPath, "utf-8");
+    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+  } else throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
   let processed = 0;
 
   for (let [index, registro] of registros.entries()) {
-    while (paused) await delay(500);
+    while (paused) await delay(500); // respeita pausa
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
+
     if (!cpf) { processed++; continue; }
 
     const planilha = consultarPlanilha(cpf, telefone);
@@ -287,13 +355,39 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       await delay(delayMs);
       resultado = await consultarResultado(cpf, linha);
-      if (resultado?.error) { emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: resultado.error, provider: providerUsed }, callback); continue; }
-      else if (resultado?.data && resultado.data.length > 0) break;
+
+      if (resultado?.error) continue;
+      if (resultado?.data && resultado.data.length > 0) break;
     }
 
-    if (todasCredenciaisExauridas) { emitirResultado({ cpf, id: idOriginal, status: "pending", message: "Limite de requisições excedido", provider: providerUsed || ultimoProvider }, callback); processed++; continue; }
-    if (!resultado?.data || resultado.data.length === 0) { emitirResultado({ cpf, id: idOriginal, status: "no_auth", message: "❌ Sem autorização", provider: providerUsed || ultimoProvider }, callback); processed++; continue; }
+    let pendenciaMessage = "Pendência não informada";
+    if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
 
+    if (todasCredenciaisExauridas) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        message: pendenciaMessage,
+        provider: providerUsed || ultimoProvider,
+        resultadoCompleto: resultado
+      }, callback);
+      processed++; continue;
+    }
+
+    if (!resultado?.data || resultado.data.length === 0) {
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "no_auth",
+        message: "❌ Sem autorização",
+        provider: providerUsed || ultimoProvider,
+        resultadoCompleto: resultado
+      }, callback);
+      processed++; continue;
+    }
+
+    // Processar saldo
     const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
     if (registrosValidos.length === 0) { processed++; continue; }
 
@@ -303,29 +397,54 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     if (saldo > 0 && balanceId) {
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
+
       if (simulacao) {
-        if (!idOriginal) { idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance); if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal); }
+        if (!idOriginal) {
+          idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
+          if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
+        }
+
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
-        await atualizarCRM(idOriginal, simulacao.availableBalance);
         const fluxo = await disparaFluxo(idOriginal);
 
-        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)", provider: providerUsed }, callback);
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "success",
+          valorLiberado: simulacao.availableBalance,
+          message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
+          provider: providerUsed,
+          resultadoCompleto: resultado
+        }, callback);
+
       } else {
-        emitirResultado({ cpf, id: idOriginal, status: "pending", valorLiberado: 0, message: "Sem saldo disponível após simulação", provider: providerUsed }, callback);
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "pending",
+          valorLiberado: 0,
+          message: pendenciaMessage,
+          provider: providerUsed,
+          resultadoCompleto: resultado
+        }, callback);
       }
     } else {
-      emitirResultado({ cpf, id: idOriginal, status: "pending", valorLiberado: 0, message: "Saldo zero", provider: providerUsed }, callback);
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        valorLiberado: 0,
+        message: pendenciaMessage,
+        provider: providerUsed,
+        resultadoCompleto: resultado
+      }, callback);
     }
 
     processed++;
-    if (callback) callback({ status: "progress", processed, total, percentage: Math.round((processed/total)*100) });
-    if (ioInstance) ioInstance.emit("progress", { processed, total, percentage: Math.round((processed/total)*100) });
-
     await delay(delayMs);
   }
 }
 
-// 🔹 Exportações
 export {
   processarCPFs,
   disparaFluxo,
