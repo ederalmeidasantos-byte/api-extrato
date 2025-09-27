@@ -179,10 +179,11 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       let contadorPending = 0;
       let contadorSemAutorizacao = 0;
 
-      // envia total inicial pro painel
+      // envia total inicial pro painel e log de início
       io.emit("progress", { done: 0, total: totalCpfs });
+      logPainel(`🔹 Iniciando processamento de ${totalCpfs} CPFs...`);
 
-      // Função que processa CPF individualmente com pausa (usa normalize antes)
+      // Função que processa CPF individualmente com pausa (mantém se precisar em outro lugar)
       async function processarCPFComPausa(cpfRaw) {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
         const cpfNorm = normalizeCPF(cpfRaw);
@@ -195,13 +196,15 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
         // pausa enquanto fgtsPaused for true (bloqueia progressão)
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
+        // caso sem resultado (linha sem retorno), atualiza progresso e log
         if (!result) {
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
+          logPainel(`➡️ Linha processada sem retorno (${processados}/${totalCpfs})`);
           return;
         }
 
-        // Normaliza CPF do resultado
+        // Normaliza CPF do resultado (mantém original em caso de falha na normalização)
         if (result.cpf) {
           const n = normalizeCPF(result.cpf);
           if (n) result.cpf = n;
@@ -221,7 +224,10 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
         // Adiciona resultado à lista global
         resultadosFGTS.push(result);
 
-        // Emite atualização (incrementa processados)
+        // Emite log legível + envia resultado padronizado ao front (usando sua helper)
+        emitirResultadoPainel(result);
+
+        // Envia também statusUpdate com contadores e progresso (frontend pode usar para atualizar cards/counters)
         io.emit("statusUpdate", {
           linha: result.linha || '?',
           cpf: result.cpf || '-',
@@ -239,8 +245,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
           processed: ++processados,
           total: totalCpfs
         });
-
-        io.emit("resultadoCPF", result);
       }, DELAY_MS);
 
       logPainel("✅ Processamento FGTS finalizado!");
