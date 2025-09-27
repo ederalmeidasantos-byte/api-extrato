@@ -49,6 +49,28 @@ setDelay(DELAY_MS);
 // Variável de controle de pausa
 let fgtsPaused = false;
 
+// ===== Normalização de CPF =====
+function normalizeCPF(input) {
+  if (input == null) return null;
+
+  // Se veio em notação científica (ex: 1.23456789e+10)
+  const asNumber = Number(input);
+  if (!Number.isNaN(asNumber) && Number.isFinite(asNumber)) {
+    input = asNumber.toFixed(0); // gera string inteira sem e+
+  }
+
+  // Remove qualquer caractere que não seja número
+  const digits = String(input).replace(/\D/g, "");
+
+  // CPF válido precisa ter 11 dígitos (completa zeros à esquerda se faltar)
+  if (digits.length <= 11) {
+    return digits.padStart(11, "0");
+  }
+
+  // Se passou de 11 dígitos, algo está errado
+  return null;
+}
+
 // Fila PQueue
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
 
@@ -183,8 +205,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
         if (result.cpf) {
           const n = normalizeCPF(result.cpf);
           if (n) result.cpf = n;
-          // se normalizeCPF retornou null, podemos marcar como inválido ou manter original;
-          // aqui mantemos original para debug, mas você pode preferir setar result.cpf = null;
         }
 
         // Atualiza contadores conforme status
@@ -234,8 +254,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
-
-
 
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
