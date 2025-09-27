@@ -140,7 +140,6 @@ const upload = multer({ dest: UPLOADS_DIR });
 app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // Inicia processamento CSV
-// Inicia processamento CSV
 app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
@@ -164,7 +163,8 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       }
 
       for (const line of lines) {
-        const cpf = line.trim();
+        // transforma CPF em string, remove tudo que não é dígito e garante 11 caracteres
+        const cpf = line.split(",")[0].toString().replace(/\D/g, '').padStart(11, '0');
 
         const resultadosRaw = await processarCPFComPausa(cpf);
 
@@ -175,7 +175,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
         for (const result of resultados) {
           // padroniza CPF
-          if (result.cpf) result.cpf = result.cpf.toString().padStart(11, '0');
+          if (result.cpf) result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
 
           // Atualiza contadores
           switch ((result.status || "").toLowerCase()) {
@@ -229,6 +229,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
+
 
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
