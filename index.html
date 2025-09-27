@@ -35,6 +35,7 @@
     input[type="file"] { display:none; }
     #fileName { margin-left: 10px; font-size: 12px; font-style: italic; }
     form { display:flex; gap:10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    #totalCPFsWrap { margin-top: 10px; font-weight: bold; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -48,6 +49,10 @@
   <button type="button" class="btn-primary" id="runBtn">▶️ Iniciar</button>
   <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
 </form>
+
+<div id="totalCPFsWrap">
+  Total de CPFs: <span id="totalCPFs">0</span>
+</div>
 
 <div id="delayControl" style="margin-top:15px;">
   ⏱️ Delay atual (ms): <span id="currentDelay">0</span>
@@ -107,6 +112,8 @@
 <script>
 const logs = document.getElementById('logs');
 const fileNameSpan = document.getElementById('fileName');
+const totalCPFsSpan = document.getElementById('totalCPFs');
+
 const tables = {
   success: document.querySelector('#tableSuccess tbody'),
   pending: document.querySelector('#tablePending tbody'),
@@ -200,6 +207,12 @@ function adicionarResultado(data){
 const socket = io();
 socket.on('log',msg=>{logs.textContent+=msg+'\n';logs.scrollTop=logs.scrollHeight;});
 socket.on('result',data=>{adicionarResultado(data);});
+socket.on('totalCPFs',total=>{
+  totalCPFsSpan.textContent = total;
+  totalToProcess = total;
+  processedCount = 0;
+  setProgress(0,0,totalToProcess);
+});
 
 document.getElementById('runBtn').addEventListener('click',async()=>{
   const f=document.getElementById('csvfile').files[0]; 
