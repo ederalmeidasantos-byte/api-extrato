@@ -20,7 +20,8 @@
     tr.pending { background-color: #fff3cd; }
     tr.no_auth { background-color: #f8d7da; }
     tr.ready_for_manual { background-color: #d1ecf1; }
-    button { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; }
+    button, .btn-file { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; transition: background 0.2s; }
+    button:hover, .btn-file:hover { filter: brightness(85%); }
     .btn-primary { background: #007bff; color: #fff; }
     .btn-warning { background: #ffc107; color: #000; }
     .btn-danger { background: #dc3545; color: #fff; }
@@ -31,7 +32,6 @@
     #progressBar { height:100%; width:0%; background:#28a745; transition: width 300ms ease; }
     #progressText { margin-left:8px; font-size:13px; }
     .btn-file { cursor:pointer; display:inline-block; padding: 8px 14px; border-radius: 6px; background:#007bff; color:#fff; font-size:12px; }
-    .btn-file:hover { background:#0056b3; }
     input[type="file"] { display:none; }
     #fileName { margin-left: 10px; font-size: 12px; font-style: italic; }
     form { display:flex; gap:10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
@@ -126,7 +126,6 @@ let totalToProcess = 0, processedCount = 0;
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
-// Mostrar nome do arquivo selecionado
 document.getElementById('csvfile').addEventListener('change', e => {
   fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
 });
@@ -138,13 +137,11 @@ function atualizarContadores() {
   counts.ready.textContent = totals.ready;
 }
 
-// Atualiza barra de progresso
 function setProgress(pct, processed, total){
   progressBar.style.width = pct + '%';
   progressText.textContent = `${pct}% (${processed}/${total})`;
 }
 
-// Adiciona resultado na tabela e atualiza contadores/barra
 function adicionarResultado(data){
   if(data && data.status==='progress'){
     const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
@@ -200,12 +197,10 @@ function adicionarResultado(data){
   atualizarContadores();
 }
 
-// Socket.IO
 const socket = io();
 socket.on('log',msg=>{logs.textContent+=msg+'\n';logs.scrollTop=logs.scrollHeight;});
 socket.on('result',data=>{adicionarResultado(data);});
 
-// Botões e demais funções continuam iguais
 document.getElementById('runBtn').addEventListener('click',async()=>{
   const f=document.getElementById('csvfile').files[0]; 
   if(!f) return alert('Escolha um arquivo CSV');
@@ -232,7 +227,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   atualizarContadores();
 });
 
-// ... Demais botões (Pause, Resume, Cancel, Export CSV, Delay) continuam iguais
+// Demais botões (Pause, Resume, Cancel, Export CSV, Delay) permanecem iguais
 </script>
 
 </body>
