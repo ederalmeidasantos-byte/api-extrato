@@ -28,7 +28,7 @@
     #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
     #controls { margin-top: 10px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     #progressWrap { margin-top: 10px; width:100%; background:#eee; border-radius:6px; height:20px; overflow:hidden; border:1px solid #ccc; }
-    #progressBar { height:100%; width:0%; background: linear-gradient(90deg, #28a745, #5ce07a); transition: width 300ms ease; }
+    #progressBar { height:100%; width:0%; background:#28a745; transition: width 300ms ease; }
     #progressText { margin-left:8px; font-size:13px; }
     .btn-file { cursor:pointer; display:inline-block; padding: 8px 14px; border-radius: 6px; background:#007bff; color:#fff; font-size:12px; }
     .btn-file:hover { background:#0056b3; }
@@ -59,7 +59,7 @@
   <button class="btn-secondary" id="btnPause">⏸️ Pausar</button>
   <button class="btn-primary" id="btnResume">▶️ Retomar</button>
   <button class="btn-danger" id="btnCancel">✖️ Cancelar</button>
-  <div id="progressText">0%</div>
+  <div id="progressText">0% (0/0)</div>
 </div>
 <div id="progressWrap"><div id="progressBar"></div></div>
 
@@ -119,18 +119,12 @@ const counts = {
   noAuth: document.getElementById('countNoAuth'),
   ready: document.getElementById('countReadyCSV')
 };
+
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
 let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
 let totalToProcess = 0, processedCount = 0;
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
-
-// Função de barra de progresso aprimorada
-function setProgress(pct, processed, total) {
-  pct = Math.max(0, Math.min(100, pct));
-  progressBar.style.width = pct + '%';
-  progressText.textContent = `${pct}% (${processed || 0}/${total || 0})`;
-}
 
 // Mostrar nome do arquivo selecionado
 document.getElementById('csvfile').addEventListener('change', e => {
@@ -144,22 +138,33 @@ function atualizarContadores() {
   counts.ready.textContent = totals.ready;
 }
 
-// Atualizar resultados e barra de progresso
+// Atualiza barra de progresso
+function setProgress(pct, processed, total){
+  progressBar.style.width = pct + '%';
+  progressText.textContent = `${pct}% (${processed}/${total})`;
+}
+
+// Adiciona resultado na tabela e atualiza contadores/barra
 function adicionarResultado(data){
   if(data && data.status==='progress'){
     const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
     processedCount = data.processed || processedCount;
     totalToProcess = data.total || totalToProcess;
-    setProgress(pct,processedCount,totalToProcess);
+    setProgress(pct, processedCount, totalToProcess);
     return;
   }
-  const removerDe=(arr,value,cellIndex,table)=>{
-    const i=arr.indexOf(value);if(i!==-1)arr.splice(i,1);
-    table.querySelectorAll('tr').forEach(row=>{if(row.cells[cellIndex].textContent===value)row.remove();});
+
+  const removerDe = (arr, value, cellIndex, table) => {
+    const i = arr.indexOf(value);
+    if(i !== -1) arr.splice(i, 1);
+    table.querySelectorAll('tr').forEach(row => {
+      if(row.cells[cellIndex].textContent === value) row.remove();
+    });
   };
+
   if(data.status==='success'){
-    removerDe(naoAutorizados,data.id,1,tables.no_auth);
-    const idxReady=readyForCSV.findIndex(r=>r.cpf===data.cpf);
+    removerDe(naoAutorizados, data.id, 1, tables.no_auth);
+    const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
     if(idxReady!==-1){
       readyForCSV.splice(idxReady,1);
       tables.ready.querySelectorAll('tr').forEach(row=>{
@@ -168,25 +173,30 @@ function adicionarResultado(data){
       totals.ready--;
     }
   }
-  const tr=document.createElement('tr');
+
+  const tr = document.createElement('tr');
   let valorExibido='-';
   if(data.status==='success') valorExibido=data.valorLiberado||'-';
   else if(data.status==='pending') valorExibido=data.motivo||'Aguardando retorno';
   else if(data.status==='no_auth') valorExibido=data.valorLiberado||'-';
   else if(data.status==='ready_for_manual') valorExibido=data.valorLiberado||'-';
-  tr.innerHTML=`<td>${data.cpf}</td><td>${data.telefone||data.id||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
-  tr.className=data.status==='ready_for_manual'?'ready_for_manual':data.status;
+  
+  tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone||data.id||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
+  tr.className = data.status==='ready_for_manual'?'ready_for_manual':data.status;
+
   switch(data.status){
     case 'success': tables.success.appendChild(tr); totals.success++; break;
     case 'pending': if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf); tables.pending.appendChild(tr); totals.pending++; break;
     case 'no_auth': if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id); tables.no_auth.appendChild(tr); totals.noAuth++; break;
     case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
   }
+
   processedCount++;
   if(totalToProcess){
-    const pct=Math.round((processedCount/totalToProcess)*100);
-    setProgress(pct,processedCount,totalToProcess);
+    const pct = Math.round((processedCount/totalToProcess)*100);
+    setProgress(pct, processedCount, totalToProcess);
   }
+
   atualizarContadores();
 }
 
@@ -195,7 +205,34 @@ const socket = io();
 socket.on('log',msg=>{logs.textContent+=msg+'\n';logs.scrollTop=logs.scrollHeight;});
 socket.on('result',data=>{adicionarResultado(data);});
 
-// Botões, pausa, retomar, cancelar e delay permanecem iguais ao seu código anterior
+// Botões e demais funções continuam iguais
+document.getElementById('runBtn').addEventListener('click',async()=>{
+  const f=document.getElementById('csvfile').files[0]; 
+  if(!f) return alert('Escolha um arquivo CSV');
+  const fd=new FormData(); fd.append('csvfile',f);
+  try{
+    const res=await fetch('/fgts/run',{method:'POST',body:fd}); 
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
+    if(json&&json.total){totalToProcess=json.total;processedCount=0;setProgress(0,0,totalToProcess);}
+  }catch(err){alert("❌ Falha ao enviar CSV: "+err.message); console.error(err);}
+});
+
+document.getElementById('btnLimpar').addEventListener('click', () => {
+  if (!confirm("Deseja limpar todas as listas e logs?")) return;
+  Object.values(tables).forEach(t => t.innerHTML = '');
+  logs.textContent = '';
+  pendentes = [];
+  naoAutorizados = [];
+  readyForCSV = [];
+  totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
+  totalToProcess = 0;
+  processedCount = 0;
+  setProgress(0,0,0);
+  atualizarContadores();
+});
+
+// ... Demais botões (Pause, Resume, Cancel, Export CSV, Delay) continuam iguais
 </script>
 
 </body>
