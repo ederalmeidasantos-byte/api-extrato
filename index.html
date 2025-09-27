@@ -137,11 +137,7 @@ function atualizarContadores() {
   counts.ready.textContent = totals.ready;
 }
 
-function setProgress(pct, processed = null, total = null) {
-  progressBar.style.width = `${pct}%`;
-  progressText.textContent = `${pct}% (${processed||processedCount}/${total||totalToProcess})`;
-}
-
+//Barra de texto da porcetagem
 function adicionarResultado(data){
   if(data && data.status==='progress'){
     const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);

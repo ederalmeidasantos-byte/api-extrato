@@ -63,8 +63,7 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 function emitirResultado(obj, callback = null) {
   if (!obj.apiResponse && obj.resultadoCompleto) {
     const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
-    const totalConsultas = obj.resultadoCompleto.pages?.total || firstItem.length;
-    obj.apiResponse = { data: firstItem, totalConsultas };
+    obj.apiResponse = { data: firstItem }; // simplificado para não alterar total de CPFs
   }
 
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
@@ -267,7 +266,7 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }
@@ -286,11 +285,12 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
       mainmail: cpf || "",
       value: valorLiberado || 0
     };
-const res = await axios.post(
-  "https://lunasdigital.atenderbem.com/int/createOpportunity",
-  payload,
-  { headers: { "Content-Type": "application/json" } }
-);    return res.data.id;
+    const res = await axios.post(
+      "https://lunasdigital.atenderbem.com/int/createOpportunity",
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return res.data.id;
   } catch {
     return null;
   }
@@ -324,7 +324,7 @@ async function disparaFluxo(opportunityId) {
   }
 }
 
-// 🔹 Processar CPFs (ajuste pausa completa)
+// 🔹 Processar CPFs (pausa completa, barra de progresso ajustada)
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -338,10 +338,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   const total = registros.length;
   let processed = 0;
 
+  // ✅ Emitir total de CPFs para o front-end
+  if (ioInstance) ioInstance.emit("totalCPFs", total);
+
   for (let [index, registro] of registros.entries()) {
 
-    // ✅ Pausa principal antes de qualquer operação
-    while (paused) await delay(500);
+    while (paused) await delay(500); // Pausa principal
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
@@ -362,7 +364,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let todasCredenciaisExauridas = false;
 
     for (const provider of PROVIDERS) {
-      // ✅ Pausa dentro do loop de providers
       while (paused) await delay(500);
 
       providerUsed = provider;
@@ -371,7 +372,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       if (filaResult === "pending429") { todasCredenciaisExauridas = true; break; }
       if (!filaResult) continue;
 
-      // ✅ Pausa antes de consultar resultado
       while (paused) await delay(500);
       await delay(delayMs);
 
@@ -392,19 +392,16 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const balanceId = registrosValidos[0]?.id || null;
 
     if (saldo > 0 && balanceId) {
-      // ✅ Pausa antes da simulação
       while (paused) await delay(500);
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
 
       if (simulacao) {
         if (!idOriginal) {
-          // ✅ Pausa antes de criar oportunidade
           while (paused) await delay(500);
           idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
           if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
         }
 
-        // ✅ Pausa antes de atualizar tabela e disparar fluxo
         while (paused) await delay(500);
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         const fluxo = await disparaFluxo(idOriginal);
@@ -430,7 +427,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     processed++;
     if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
 
-    // ✅ Pausa final antes de próxima iteração
     while (paused) await delay(500);
     await delay(delayMs);
   }
