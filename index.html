@@ -1,42 +1,42 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Painel de Consulta FGTS em lote</title>
-<script src="/socket.io/socket.io.js"></script>
-<script src="/painelfgts.js"></script> <!-- Nosso novo JS do painel -->
-<style>
-  body { font-family: Arial,sans-serif; margin:20px; background:#f9f9f9; }
-  h1 { font-size:28px; color:#007bff; text-align:center; margin-bottom:20px; text-shadow:1px 1px 3px rgba(0,0,0,0.1);}
-  h3 { margin-top:20px; }
-  #logs { border:1px solid #ccc; padding:10px; height:150px; overflow-y:auto; background:#fff; white-space:pre-wrap; font-size:12px; }
-  .columns { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
-  .column { flex:1; background:#fff; border:1px solid #ccc; border-radius:4px; padding:10px; display:flex; flex-direction:column; max-height:450px; min-width:250px; }
-  .column h3 { margin-top:0; margin-bottom:5px; font-size:14px; }
-  .list-container { flex:1; overflow-y:auto; border-top:1px solid #ccc; padding-top:5px; }
-  table { width:100%; border-collapse:collapse; font-size:12px; }
-  th, td { border:1px solid #ccc; padding:4px; text-align:center; }
-  th { background:#007bff; color:#fff; font-size:12px; }
-  tr.success { background:#d4edda; }
-  tr.pending { background:#fff3cd; }
-  tr.no_auth { background:#f8d7da; }
-  tr.ready_for_manual { background:#d1ecf1; }
-  button, .btn-file { padding:6px 12px; margin-top:5px; cursor:pointer; border:none; border-radius:4px; font-size:12px; transition:background 0.2s; }
-  button:hover, .btn-file:hover { filter:brightness(85%); }
-  .btn-primary { background:#007bff; color:#fff; }
-  .btn-warning { background:#ffc107; color:#000; }
-  .btn-danger { background:#dc3545; color:#fff; }
-  .btn-secondary { background:#6c757d; color:#fff; }
-  #counters { margin-top:10px; font-weight:bold; font-size:14px; }
-  #controls { margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  #progressWrap { margin-top:10px; width:100%; background:#eee; border-radius:6px; height:20px; overflow:hidden; border:1px solid #ccc; }
-  #progressBar { height:100%; width:0%; background:#28a745; transition:width 300ms ease; }
-  #progressText { margin-left:8px; font-size:13px; }
-  .btn-file { cursor:pointer; display:inline-block; padding:8px 14px; border-radius:6px; background:#007bff; color:#fff; font-size:12px; }
-  input[type="file"] { display:none; }
-  #fileName { margin-left:10px; font-size:12px; font-style:italic; }
-  form { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Painel de Consulta FGTS em lote</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+    h1 { font-size: 28px; font-weight: bold; color: #007bff; margin-bottom: 20px; text-align: center; text-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
+    h3 { margin-top: 20px; }
+    #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
+    .columns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
+    .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
+    .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    th { background-color: #007bff; color: #fff; font-size: 12px; }
+    tr.success { background-color: #d4edda; }
+    tr.pending { background-color: #fff3cd; }
+    tr.no_auth { background-color: #f8d7da; }
+    tr.ready_for_manual { background-color: #d1ecf1; }
+    button, .btn-file { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; transition: background 0.2s; }
+    button:hover, .btn-file:hover { filter: brightness(85%); }
+    .btn-primary { background: #007bff; color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-danger { background: #dc3545; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
+    #controls { margin-top: 10px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    #progressWrap { margin-top: 10px; width:100%; background:#eee; border-radius:6px; height:20px; overflow:hidden; border:1px solid #ccc; }
+    #progressBar { height:100%; width:0%; background:#28a745; transition: width 300ms ease; }
+    #progressText { margin-left:8px; font-size:13px; }
+    .btn-file { cursor:pointer; display:inline-block; padding: 8px 14px; border-radius: 6px; background:#007bff; color:#fff; font-size:12px; }
+    input[type="file"] { display:none; }
+    #fileName { margin-left: 10px; font-size: 12px; font-style: italic; }
+    form { display:flex; gap:10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    #totalCPFsWrap { margin-top: 10px; font-weight: bold; font-size: 14px; }
+  </style>
 </head>
 <body>
 
@@ -52,6 +52,12 @@
 
 <div id="totalCPFsWrap">
   Total de CPFs: <span id="totalCPFs">0</span>
+</div>
+
+<div id="delayControl" style="margin-top:15px;">
+  ⏱️ Delay atual (ms): <span id="currentDelay">0</span>
+  <input type="number" id="inputDelay" min="0" placeholder="Novo delay (ms)" style="width:100px; margin-left:10px;" />
+  <button class="btn-primary" id="btnUpdateDelay">💾 Atualizar Delay</button>
 </div>
 
 <div id="controls">
@@ -74,26 +80,190 @@
 <div id="logs"></div>
 
 <div class="columns">
-  <div class="column">
+  <div class="column" id="colSuccess">
     <h3>✅ Sucesso</h3>
-    <div class="list-container"><table id="tableSuccess"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table></div>
+    <div class="list-container">
+      <table id="tableSuccess"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+    </div>
   </div>
-  <div class="column">
+  <div class="column" id="colPending">
     <h3>⏳ Pendentes</h3>
-    <div class="list-container"><table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table></div>
+    <div class="list-container">
+      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table>
+    </div>
     <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
   </div>
-  <div class="column">
+  <div class="column" id="colNoAuth">
     <h3>🚫 Sem Autorização</h3>
-    <div class="list-container"><table id="tableNoAuth"><thead><tr><th>CPF</th><th>ID</th><th>Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table></div>
+    <div class="list-container">
+      <table id="tableNoAuth"><thead><tr><th>CPF</th><th>ID</th><th>Motivo</th><th>Provider</th></tr></thead><tbody></tbody></table>
+    </div>
     <button class="btn-danger" id="btnMudarFaseNoAuth">📌 Mudar fase no CRM</button>
   </div>
-  <div class="column">
+  <div class="column" id="colReadyCSV">
     <h3>📥 Prontos para CSV</h3>
-    <div class="list-container"><table id="tableReadyCSV"><thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table></div>
+    <div class="list-container">
+      <table id="tableReadyCSV"><thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+    </div>
     <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
   </div>
 </div>
+
+<script>
+const socket = io();
+
+const logs = document.getElementById('logs');
+const fileNameSpan = document.getElementById('fileName');
+const totalCPFsSpan = document.getElementById('totalCPFs');
+
+const tables = {
+  success: document.querySelector('#tableSuccess tbody'),
+  pending: document.querySelector('#tablePending tbody'),
+  no_auth: document.querySelector('#tableNoAuth tbody'),
+  ready: document.querySelector('#tableReadyCSV tbody')
+};
+
+const counts = {
+  success: document.getElementById('countSuccess'),
+  pending: document.getElementById('countPending'),
+  noAuth: document.getElementById('countNoAuth'),
+  ready: document.getElementById('countReadyCSV')
+};
+
+let pendentes = [], naoAutorizados = [], readyForCSV = [];
+let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
+let totalToProcess = 0, processedCount = 0;
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+
+function atualizarContadores() {
+  counts.success.textContent = totals.success;
+  counts.pending.textContent = totals.pending;
+  counts.noAuth.textContent = totals.noAuth;
+  counts.ready.textContent = totals.ready;
+}
+
+function setProgress(pct, processed = 0, total = 0){
+  progressBar.style.width = pct + '%';
+  progressText.textContent = `${pct}% (${processed}/${total})`;
+}
+
+socket.on('totalCPFs', total => {
+  totalCPFsSpan.textContent = total;
+  totalToProcess = total;
+  processedCount = 0;
+  setProgress(0,0,totalToProcess);
+  logs.textContent += `📄 Total de CPFs lidos: ${total}\n`;
+  logs.scrollTop = logs.scrollHeight;
+});
+
+socket.on('progress', pct => {
+  if(totalToProcess){
+    processedCount = Math.round((pct/100)*totalToProcess);
+    setProgress(pct, processedCount, totalToProcess);
+  }
+});
+
+socket.on('resultadoCPF', data => {
+  const tr = document.createElement('tr');
+  let valorExibido = data.valorLiberado || '-';
+  tr.innerHTML = `<td>${data.cpf}</td><td>${data.id||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
+  tr.className = data.status==='no_auth'?'no_auth':data.status==='ready_for_manual'?'ready_for_manual':'success';
+
+  switch(data.status){
+    case 'success':
+      tables.success.appendChild(tr); totals.success++; break;
+    case 'pending':
+      tables.pending.appendChild(tr); totals.pending++; pendentes.push(data); break;
+    case 'no_auth':
+      tables.no_auth.appendChild(tr); totals.noAuth++; naoAutorizados.push(data); break;
+    case 'ready_for_manual':
+      tables.ready.appendChild(tr); totals.ready++; readyForCSV.push(data); break;
+  }
+
+  processedCount++;
+  const pct = totalToProcess ? Math.round((processedCount/totalToProcess)*100) : 0;
+  setProgress(pct, processedCount, totalToProcess);
+  atualizarContadores();
+  logs.textContent += `[CPF ${data.cpf}] Status: ${data.status} | Valor: ${valorExibido}\n`;
+  logs.scrollTop = logs.scrollHeight;
+});
+
+document.getElementById('csvfile').addEventListener('change', e => {
+  fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
+});
+
+// Botões principais
+document.getElementById('runBtn').addEventListener('click', async ()=>{
+  const f = document.getElementById('csvfile').files[0];
+  if(!f) return alert("Escolha um CSV");
+  const fd = new FormData();
+  fd.append('csvfile', f);
+  try {
+    const res = await fetch('/fgts/run',{ method:'POST', body:fd });
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message||JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch(err){ alert("Erro ao enviar CSV: "+err.message); }
+});
+
+document.getElementById('btnLimpar').addEventListener('click', ()=>{
+  if(!confirm("Deseja limpar todas as listas e logs?")) return;
+  Object.values(tables).forEach(t => t.innerHTML='');
+  logs.textContent='';
+  pendentes=[]; naoAutorizados=[]; readyForCSV=[];
+  totals={ success:0,pending:0,noAuth:0,ready:0 };
+  totalToProcess=0; processedCount=0;
+  setProgress(0,0,0);
+  atualizarContadores();
+});
+
+document.getElementById('btnExportCSV').addEventListener('click', ()=>{
+  if(!readyForCSV.length){ alert("Não há dados prontos para CSV"); return; }
+  const header=["CPF","ID","Valor","Provider"];
+  const csvContent=[header.join(',')].concat(readyForCSV.map(r=>[r.cpf,r.id,r.valorLiberado,r.provider].join(','))).join('\n');
+  const blob = new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;
+  a.download=`prontos_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// Botão Reprocessar Pendentes
+document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
+  if(!pendentes.length){ alert("Não há pendentes"); return; }
+  const res = await fetch('/fgts/reprocessar',{method:'POST', body:JSON.stringify({pendentes}), headers:{'Content-Type':'application/json'}});
+  const json = await res.json();
+  logs.textContent += `[CLIENT] ${json.message||'Pendentes reprocessados'}\n`;
+  logs.scrollTop = logs.scrollHeight;
+});
+
+// Botão Mudar Fase NoAuth
+document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()=>{
+  if(!naoAutorizados.length){ alert("Não há CPFs sem autorização"); return; }
+  const res = await fetch('/fgts/mudarFaseNaoAutorizados',{method:'POST', body:JSON.stringify({naoAutorizados}), headers:{'Content-Type':'application/json'}});
+  const json = await res.json();
+  logs.textContent += `[CLIENT] ${json.message||'Fase atualizada no CRM'}\n`;
+  logs.scrollTop = logs.scrollHeight;
+});
+
+// Botões Pause/Resume
+document.getElementById('btnPause').addEventListener('click', async ()=> {
+  await fetch('/fgts/pause', { method:'POST' });
+  logs.textContent += '⏸️ Processamento pausado pelo usuário\n';
+  logs.scrollTop = logs.scrollHeight;
+});
+
+document.getElementById('btnResume').addEventListener('click', async ()=> {
+  await fetch('/fgts/resume', { method:'POST' });
+  logs.textContent += '▶️ Processamento retomado pelo usuário\n';
+  logs.scrollTop = logs.scrollHeight;
+});
+</script>
 
 </body>
 </html>
