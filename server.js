@@ -127,7 +127,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       let processados = 0;
 
       await processarCPFs(req.file.path, null, async (result) => {
-        // Aguarda se estiver pausado
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
         if (result) {

@@ -354,7 +354,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     if (!cpf) {
       processed++;
-      if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+      if (ioInstance) ioInstance.emit("progress", { done: processed, total });
       continue;
     }
 
