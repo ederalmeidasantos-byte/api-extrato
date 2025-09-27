@@ -156,28 +156,20 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       let contadorPending = 0;
       let contadorSemAutorizacao = 0;
 
-      // Função que processa CPF com pausa
+      // Função que processa CPF individualmente com pausa
       async function processarCPFComPausa(cpf) {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
         return await processarCPFs(null, [cpf], null, DELAY_MS);
       }
 
-      for (const line of lines) {
-        // transforma CPF em string, remove tudo que não é dígito e garante 11 caracteres
-        const cpf = line.split(",")[0].toString().replace(/\D/g, '').padStart(11, '0');
+      // Processa CSV completo via processarCPFs passando caminho do arquivo
+      await processarCPFs(req.file.path, null, async (result) => {
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
-        const resultadosRaw = await processarCPFComPausa(cpf);
-
-        // garante array mesmo que venha só um objeto ou undefined
-        const resultados = Array.isArray(resultadosRaw)
-          ? resultadosRaw
-          : (resultadosRaw ? [resultadosRaw] : []);
-
-        for (const result of resultados) {
-          // padroniza CPF
+        if (result) {
+          // garante CPF como string com 11 dígitos
           if (result.cpf) result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
 
-          // Atualiza contadores
           switch ((result.status || "").toLowerCase()) {
             case "success": contadorSuccess++; break;
             case "pending": contadorPending++; break;
@@ -188,10 +180,8 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
               break;
           }
 
-          // Adiciona resultado à lista global
           resultadosFGTS.push(result);
 
-          // Envia atualização para o painel
           io.emit("statusUpdate", {
             linha: result.linha || '?',
             cpf: result.cpf || '-',
@@ -208,15 +198,11 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
             total: totalCpfs
           });
 
-          io.emit("resultadoCPF", result);
-        }
-
-        // Caso não haja resultados, ainda atualiza progresso
-        if (!resultados.length) {
+        } else {
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
         }
-      }
+      }, DELAY_MS);
 
       logPainel("✅ Processamento FGTS finalizado!");
     } catch (err) {
@@ -229,7 +215,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
-
 
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
