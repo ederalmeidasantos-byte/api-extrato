@@ -339,27 +339,30 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     // --- Função interna de retry ---
     async function tentarConsultaComRetry(cpf, linha, provider = null, maxTentativas = 4, delayEntreTentativas = 1000) {
-      let tentativa = 0;
-      let resultado = null;
+  let tentativa = 0;
+  let resultado = null;
 
-      while (tentativa < maxTentativas) {
-        resultado = provider ? await consultarResultado(cpf, linha, provider) : await consultarFila(cpf, linha);
+  while (tentativa < maxTentativas) {
+    // Chama sempre consultarResultado; se provider for null, será a fila
+    resultado = await consultarResultado(cpf, linha, provider);
 
-        if (!resultado || !resultado.data || resultado.data.length === 0) break;
+    if (!resultado || !resultado.data || resultado.data.length === 0) break;
 
-        const erroConsulta = resultado.data.find(d =>
-          d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
-        );
+    // Verifica se houve erro temporário
+    const erroConsulta = resultado.data.find(d =>
+      d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
+    );
 
-        if (!erroConsulta) break;
+    if (!erroConsulta) break; // se não houver erro temporário, sai do loop
 
-        tentativa++;
-        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] Tentativa ${tentativa} para CPF ${cpf} devido a erro temporário`);
-        await delay(delayEntreTentativas);
-      }
+    tentativa++;
+    console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] Tentativa ${tentativa} para CPF ${cpf} devido a erro temporário`);
+    await delay(delayEntreTentativas);
+  }
 
-      return resultado;
-    }
+  return resultado;
+  }
+
 
     // --- Primeiro consulta na fila sem provider ---
     let resultadoFila = await tentarConsultaComRetry(cpf, linha);
