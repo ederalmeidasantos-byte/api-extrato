@@ -70,20 +70,13 @@ function emitirResultadoPainel(data) {
     icone = '✅'
   } = data;
 
-  // Garante que valorLiberado seja número
   const valorExibir = (typeof valorLiberado === 'number')
     ? valorLiberado.toFixed(2)
     : (valorLiberado ? valorLiberado : '-');
 
-  const msg = `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`;
-
-  // Emite para logs do painel
-  io.emit("log", msg);
-
-  // Emite o resultado individual
+  io.emit("log", `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`);
   io.emit("result", data);
 }
-
 
 // Conexão do Socket
 io.on("connection", (socket) => {
@@ -147,7 +140,6 @@ const upload = multer({ dest: UPLOADS_DIR });
 app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // Inicia processamento CSV
-// ===== Inicia processamento CSV ajustado =====
 app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
@@ -160,7 +152,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       const totalCpfs = lines.length;
       let processados = 0;
 
-      // Contadores por status
       let contadorSuccess = 0;
       let contadorPending = 0;
       let contadorSemAutorizacao = 0;
@@ -169,14 +160,9 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
         if (result) {
-          // Atualiza contadores
           switch ((result.status || "").toLowerCase()) {
-            case "success":
-              contadorSuccess++;
-              break;
-            case "pending":
-              contadorPending++;
-              break;
+            case "success": contadorSuccess++; break;
+            case "pending": contadorPending++; break;
             case "error":
               if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
                 contadorSemAutorizacao++;
@@ -184,10 +170,8 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
               break;
           }
 
-          // Salva resultado em memória
           resultadosFGTS.push(result);
 
-          // Emite resultado individual e contadores para painel
           io.emit("statusUpdate", {
             linha: result.linha || '?',
             cpf: result.cpf || '-',
@@ -203,7 +187,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
             processed: ++processados,
             total: totalCpfs
           });
-
         } else {
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
@@ -222,7 +205,6 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
 
-
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
   const cpfs = req.body.cpfs || [];
@@ -240,11 +222,11 @@ app.post("/fgts/reprocessar", async (req, res) => {
 
         if (result) {
           resultadosFGTS.push(result);
-          emitirResultadoPainel(result); // <-- novo formato para painel
-
-          processados++;
-          io.emit("progress", { done: processados, total: totalCpfs });
+          emitirResultadoPainel(result);
         }
+
+        processados++;
+        io.emit("progress", { done: processados, total: totalCpfs });
       }, DELAY_MS);
 
       logPainel(`✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
