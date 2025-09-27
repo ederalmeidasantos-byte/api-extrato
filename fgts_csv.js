@@ -382,7 +382,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         emitirResultado({
           cpf,
           id: idOriginal,
-          status: "not_authorized",
+          status: "no_auth",
           valorLiberado: 0,
           provider: providerUsed,
           linha,
