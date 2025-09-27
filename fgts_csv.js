@@ -319,6 +319,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
   for (let [index, registro] of registros.entries()) {
+    // pausa global
     while (paused) await delay(500);
 
     const linha = index + 2;
@@ -328,7 +329,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     if (!cpf) {
       processed++;
-      if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+      if (ioInstance) ioInstance.emit("progress", { done: processed, total });
       continue;
     }
 
@@ -340,6 +341,9 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     for (const provider of PROVIDERS) {
       while (paused) await delay(500);
       providerUsed = provider;
+
+      // 🔹 delay real antes da consulta
+      await delay(delayMs);
 
       // 🔹 Consulta
       resultado = await consultarResultado(cpf, linha);
@@ -363,6 +367,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       );
       if (precisaReenviarFila) {
         console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] CPF ${cpf} reenviado para fila`);
+        await delay(delayMs); // delay antes de enviar para fila
         await enviarParaFila(cpf, providerUsed);
         continue;
       }
@@ -427,17 +432,21 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       if (saldo > 0 && balanceId) {
         while (paused) await delay(500);
+        await delay(delayMs); // delay antes de simulação
         const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
 
         if (simulacao) {
           if (!idOriginal) {
             while (paused) await delay(500);
+            await delay(delayMs); // delay antes de criar oportunidade
             idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
             if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
           }
 
           while (paused) await delay(500);
+          await delay(delayMs); // delay antes de atualizar oportunidade
           await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
+          await delay(delayMs); // delay antes de disparar fluxo
           await disparaFluxo(idOriginal);
 
           emitirResultado({
@@ -457,13 +466,22 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     }
 
     processed++;
-    if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-    while (paused) await delay(delayMs);
+    // Atualiza progresso baseado no backend
+    if (ioInstance) ioInstance.emit("progress", {
+      done: processed,
+      total,
+      counters: {
+        success: contadorSucesso,
+        pending: contadorPending,
+        semAutorizacao: contadorSemAutorizacao
+      }
+    });
   }
 
   console.log(`📊 Contadores finais:
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao}`);
 }
+
 
 export {
   processarCPFs,
