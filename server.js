@@ -145,69 +145,76 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   logPainel(`📂 Planilha FGTS recebida: ${req.file.path}`);
 
-  (async () => {
-    try {
-      const lines = (await fsp.readFile(req.file.path, "utf-8"))
-        .split("\n").filter(l => l.trim());
-      const totalCpfs = lines.length;
-      let processados = 0;
+  const lines = (await fsp.readFile(req.file.path, "utf-8"))
+    .split("\n")
+    .filter(l => l.trim());
+  const totalCpfs = lines.length;
+  let processados = 0;
 
-      let contadorSuccess = 0;
-      let contadorPending = 0;
-      let contadorSemAutorizacao = 0;
+  let contadorSuccess = 0;
+  let contadorPending = 0;
+  let contadorSemAutorizacao = 0;
 
-      await processarCPFs(req.file.path, null, async (result) => {
-        // PAUSA REAL NO BACKEND
-        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
+  // Inicia o processamento sem bloquear a resposta HTTP
+  processarCPFs(req.file.path, null, async (result) => {
+    // PAUSA REAL NO BACKEND
+    while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
-        if (result) {
-          // Corrige CPF para manter formato correto
-          if (result.cpf) result.cpf = result.cpf.toString().padStart(11, '0');
+    if (result) {
+      // Corrige CPF
+      if (result.cpf) result.cpf = result.cpf.toString().padStart(11, '0');
 
-          switch ((result.status || "").toLowerCase()) {
-            case "success": contadorSuccess++; break;
-            case "pending": contadorPending++; break;
-            case "error":
-              if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
-                contadorSemAutorizacao++;
-              }
-              break;
+      // Contadores
+      switch ((result.status || "").toLowerCase()) {
+        case "success": contadorSuccess++; break;
+        case "pending": contadorPending++; break;
+        case "error":
+          if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
+            contadorSemAutorizacao++;
           }
+          break;
+      }
 
-          resultadosFGTS.push(result);
+      resultadosFGTS.push(result);
 
-          io.emit("statusUpdate", {
-            linha: result.linha || '?',
-            cpf: result.cpf || '-',
-            id: result.id || '-',
-            status: result.status || '-',
-            provider: result.provider || '-',
-            valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
-            counters: {
-              success: contadorSuccess,
-              pending: contadorPending,
-              semAutorizacao: contadorSemAutorizacao
-            },
-            processed: ++processados,
-            total: totalCpfs
-          });
-        } else {
-          processados++;
-          io.emit("progress", { done: processados, total: totalCpfs });
-        }
-      }, DELAY_MS);
+      // Emite para painel
+      io.emit("statusUpdate", {
+        linha: result.linha || '?',
+        cpf: result.cpf || '-',
+        id: result.id || '-',
+        status: result.status || '-',
+        provider: result.provider || '-',
+        valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
+        counters: {
+          success: contadorSuccess,
+          pending: contadorPending,
+          semAutorizacao: contadorSemAutorizacao
+        },
+        processed: ++processados,
+        total: totalCpfs
+      });
 
-      logPainel("✅ Processamento FGTS finalizado!");
-    } catch (err) {
-      logPainel(`❌ Erro no processamento FGTS: ${err.message}`);
-      console.error("❌ Erro no processamento FGTS:", err);
-    } finally {
-      try { await fsp.unlink(req.file.path); } catch {}
+      io.emit("resultadoCPF", result);
+    } else {
+      processados++;
+      io.emit("progress", { done: processados, total: totalCpfs });
     }
-  })();
+  }, DELAY_MS)
+  .then(() => {
+    logPainel("✅ Processamento FGTS finalizado!");
+  })
+  .catch(err => {
+    logPainel(`❌ Erro no processamento FGTS: ${err.message}`);
+    console.error("❌ Erro no processamento FGTS:", err);
+  })
+  .finally(async () => {
+    try { await fsp.unlink(req.file.path); } catch {}
+  });
 
+  // Retorna resposta HTTP imediata
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
+
 
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
