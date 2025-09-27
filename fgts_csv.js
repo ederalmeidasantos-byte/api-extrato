@@ -61,9 +61,7 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
 // 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
-  // incluir apiResponse sempre que existir
   if (!obj.apiResponse && obj.resultadoCompleto) {
-    // ⚡ Ajuste: só enviar a primeira consulta + total de páginas
     const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
     const totalConsultas = obj.resultadoCompleto.pages?.total || firstItem.length;
     obj.apiResponse = { data: firstItem, totalConsultas };
@@ -130,7 +128,6 @@ async function consultarResultado(cpf, linha) {
       headers: { Authorization: `Bearer ${TOKEN}` },
     });
     console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
-    // ⚡ Retornar somente a primeira consulta
     return {
       data: res.data.data?.[0] ? [res.data.data[0]] : [],
       pages: res.data.pages || { total: 0 }
@@ -367,8 +364,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       if (resultado?.data && resultado.data.length > 0) break;
     }
 
+    // Ajustes de pendência
     let pendenciaMessage = "Pendência não informada";
-    if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
+    if (resultado?.data?.[0]?.statusInfo === null) pendenciaMessage = "Aguardando retorno";
+    else if (todasCredenciaisExauridas) pendenciaMessage = "Tempo de requisição excedido";
+    else if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
 
     if (todasCredenciaisExauridas) {
       emitirResultado({
@@ -394,7 +394,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       processed++; continue;
     }
 
-    // Processar saldo
     const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
     if (registrosValidos.length === 0) { processed++; continue; }
 
@@ -425,6 +424,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }, callback);
 
       } else {
+        // Simulação não disponível, pendência
         emitirResultado({
           cpf,
           id: idOriginal,
@@ -436,6 +436,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }, callback);
       }
     } else {
+      // Sem saldo disponível, pendência
       emitirResultado({
         cpf,
         id: idOriginal,
