@@ -164,44 +164,52 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
       // Processa CSV completo via processarCPFs passando caminho do arquivo
       await processarCPFs(req.file.path, null, async (result) => {
+        // pausa enquanto fgtsPaused for true
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
-        if (result) {
-          // garante CPF como string com 11 dígitos
-          if (result.cpf) result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
-
-          switch ((result.status || "").toLowerCase()) {
-            case "success": contadorSuccess++; break;
-            case "pending": contadorPending++; break;
-            case "error":
-              if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
-                contadorSemAutorizacao++;
-              }
-              break;
-          }
-
-          resultadosFGTS.push(result);
-
-          io.emit("statusUpdate", {
-            linha: result.linha || '?',
-            cpf: result.cpf || '-',
-            id: result.id || '-',
-            status: result.status || '-',
-            provider: result.provider || '-',
-            valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
-            counters: {
-              success: contadorSuccess,
-              pending: contadorPending,
-              semAutorizacao: contadorSemAutorizacao
-            },
-            processed: ++processados,
-            total: totalCpfs
-          });
-
-        } else {
+        if (!result) {
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
+          return;
         }
+
+        // garante CPF como string de 11 dígitos
+        if (result.cpf) {
+          result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
+        }
+
+        // Atualiza contadores
+        switch ((result.status || "").toLowerCase()) {
+          case "success": contadorSuccess++; break;
+          case "pending": contadorPending++; break;
+          case "error":
+            if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
+              contadorSemAutorizacao++;
+            }
+            break;
+        }
+
+        // Adiciona resultado à lista global
+        resultadosFGTS.push(result);
+
+        // Envia atualização para o painel
+        io.emit("statusUpdate", {
+          linha: result.linha || '?',
+          cpf: result.cpf || '-',
+          id: result.id || '-',
+          status: result.status || '-',
+          provider: result.provider || '-',
+          valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
+          counters: {
+            success: contadorSuccess,
+            pending: contadorPending,
+            semAutorizacao: contadorSemAutorizacao
+          },
+          processed: ++processados,
+          total: totalCpfs
+        });
+
+        io.emit("resultadoCPF", result);
       }, DELAY_MS);
 
       logPainel("✅ Processamento FGTS finalizado!");
