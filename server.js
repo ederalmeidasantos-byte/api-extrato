@@ -147,6 +147,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   (async () => {
     try {
+      // Conta linhas do CSV (mesmo que tenha notação científica, zeros à esquerda etc)
       const lines = (await fsp.readFile(req.file.path, "utf-8"))
         .split("\n").filter(l => l.trim());
       const totalCpfs = lines.length;
@@ -156,61 +157,72 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       let contadorPending = 0;
       let contadorSemAutorizacao = 0;
 
-      // Função que processa CPF individualmente com pausa
+      // 🔹 Envia o total já no início
+      io.emit("progress", { done: 0, total: totalCpfs });
+
+      // Processa cada CPF com pausa
       async function processarCPFComPausa(cpf) {
         while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
         return await processarCPFs(null, [cpf], null, DELAY_MS);
       }
 
-      // Processa CSV completo via processarCPFs passando caminho do arquivo
-      await processarCPFs(req.file.path, null, async (result) => {
-        // pausa enquanto fgtsPaused for true
-        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
+      for (const line of lines) {
+        const cpf = line.split(",")[0]
+          .toString()
+          .replace(/\D/g, "")
+          .padStart(11, "0"); // garante 11 dígitos sempre
 
-        if (!result) {
+        const resultadosRaw = await processarCPFComPausa(cpf);
+
+        const resultados = Array.isArray(resultadosRaw)
+          ? resultadosRaw
+          : (resultadosRaw ? [resultadosRaw] : []);
+
+        for (const result of resultados) {
+          // Padroniza CPF
+          if (result.cpf) result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
+
+          // Atualiza contadores
+          switch ((result.status || "").toLowerCase()) {
+            case "success": contadorSuccess++; break;
+            case "pending": contadorPending++; break;
+            case "error":
+              if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
+                contadorSemAutorizacao++;
+              }
+              break;
+          }
+
+          resultadosFGTS.push(result);
+
+          // Envia atualização para painel
+          io.emit("statusUpdate", {
+            linha: result.linha || '?',
+            cpf: result.cpf || '-',
+            id: result.id || '-',
+            status: result.status || '-',
+            provider: result.provider || '-',
+            valorLiberado: (typeof result.valorLiberado === 'number')
+              ? result.valorLiberado.toFixed(2)
+              : (result.valorLiberado || '-'),
+            counters: {
+              success: contadorSuccess,
+              pending: contadorPending,
+              semAutorizacao: contadorSemAutorizacao
+            },
+            processed: ++processados,
+            total: totalCpfs
+          });
+
+          io.emit("resultadoCPF", result);
+        }
+
+        // Caso não haja resultados, ainda atualiza progresso
+        if (!resultados.length) {
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
-          return;
         }
-
-        // garante CPF como string de 11 dígitos
-        if (result.cpf) {
-          result.cpf = result.cpf.toString().replace(/\D/g, '').padStart(11, '0');
-        }
-
-        // Atualiza contadores
-        switch ((result.status || "").toLowerCase()) {
-          case "success": contadorSuccess++; break;
-          case "pending": contadorPending++; break;
-          case "error":
-            if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
-              contadorSemAutorizacao++;
-            }
-            break;
-        }
-
-        // Adiciona resultado à lista global
-        resultadosFGTS.push(result);
-
-        // Envia atualização para o painel
-        io.emit("statusUpdate", {
-          linha: result.linha || '?',
-          cpf: result.cpf || '-',
-          id: result.id || '-',
-          status: result.status || '-',
-          provider: result.provider || '-',
-          valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
-          counters: {
-            success: contadorSuccess,
-            pending: contadorPending,
-            semAutorizacao: contadorSemAutorizacao
-          },
-          processed: ++processados,
-          total: totalCpfs
-        });
-
-        io.emit("resultadoCPF", result);
-      }, DELAY_MS);
+      }
 
       logPainel("✅ Processamento FGTS finalizado!");
     } catch (err) {
@@ -223,6 +235,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
   res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
 });
+
 
 // Reprocessar pendentes
 app.post("/fgts/reprocessar", async (req, res) => {
