@@ -112,8 +112,6 @@
 <script>
 const logs = document.getElementById('logs');
 const fileNameSpan = document.getElementById('fileName');
-const totalCPFsSpan = document.getElementById('totalCPFs');
-
 const tables = {
   success: document.querySelector('#tableSuccess tbody'),
   pending: document.querySelector('#tablePending tbody'),
@@ -151,9 +149,9 @@ function setProgress(pct, processed, total){
 
 function adicionarResultado(data){
   if(data && data.status==='progress'){
-    const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
     processedCount = data.processed || processedCount;
     totalToProcess = data.total || totalToProcess;
+    const pct = data.percentage || Math.round((processedCount/totalToProcess)*100);
     setProgress(pct, processedCount, totalToProcess);
     return;
   }
@@ -204,43 +202,28 @@ function adicionarResultado(data){
   atualizarContadores();
 }
 
+// ===== Socket.IO =====
 const socket = io();
-socket.on('log',msg=>{logs.textContent+=msg+'\n';logs.scrollTop=logs.scrollHeight;});
-socket.on('result',data=>{adicionarResultado(data);});
-socket.on('totalCPFs',total=>{
-  totalCPFsSpan.textContent = total;
+
+// Logs
+socket.on('log', msg => {
+  logs.textContent += msg + '\n';
+  logs.scrollTop = logs.scrollHeight;
+});
+
+// Resultado FGTS
+socket.on('result', data => {
+  adicionarResultado(data);
+});
+
+// Atualiza total de CPFs inicial
+socket.on('totalCPFs', total => {
   totalToProcess = total;
   processedCount = 0;
-  setProgress(0,0,totalToProcess);
+  setProgress(0, 0, totalToProcess);
+  logs.textContent += `📄 Total de CPFs lidos: ${totalToProcess}\n`;
+  logs.scrollTop = logs.scrollHeight;
 });
-
-document.getElementById('runBtn').addEventListener('click',async()=>{
-  const f=document.getElementById('csvfile').files[0]; 
-  if(!f) return alert('Escolha um arquivo CSV');
-  const fd=new FormData(); fd.append('csvfile',f);
-  try{
-    const res=await fetch('/fgts/run',{method:'POST',body:fd}); 
-    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
-    if(json&&json.total){totalToProcess=json.total;processedCount=0;setProgress(0,0,totalToProcess);}
-  }catch(err){alert("❌ Falha ao enviar CSV: "+err.message); console.error(err);}
-});
-
-document.getElementById('btnLimpar').addEventListener('click', () => {
-  if (!confirm("Deseja limpar todas as listas e logs?")) return;
-  Object.values(tables).forEach(t => t.innerHTML = '');
-  logs.textContent = '';
-  pendentes = [];
-  naoAutorizados = [];
-  readyForCSV = [];
-  totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
-  totalToProcess = 0;
-  processedCount = 0;
-  setProgress(0,0,0);
-  atualizarContadores();
-});
-
-// Demais botões (Pause, Resume, Cancel, Export CSV, Delay) permanecem iguais
 </script>
 
 </body>
