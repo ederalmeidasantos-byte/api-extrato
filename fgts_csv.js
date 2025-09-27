@@ -286,8 +286,11 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
       mainmail: cpf || "",
       value: valorLiberado || 0
     };
-    const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    return res.data.id;
+const res = await axios.post(
+  "https://lunasdigital.atenderbem.com/int/createOpportunity",
+  payload,
+  { headers: { "Content-Type": "application/json" } }
+);    return res.data.id;
   } catch {
     return null;
   }
@@ -342,7 +345,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
 
-    if (!cpf) { processed++; continue; }
+    if (!cpf) { 
+      processed++; 
+      if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+      continue; 
+    }
 
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) idOriginal = planilha.id;
@@ -370,40 +377,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     else if (todasCredenciaisExauridas) pendenciaMessage = "Tempo de requisição excedido";
     else if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
 
-    if (todasCredenciaisExauridas) {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "pending",
-        message: pendenciaMessage,
-        provider: providerUsed || ultimoProvider,
-        resultadoCompleto: resultado
-      }, callback);
-      processed++; continue;
-    }
-
-    if (!resultado?.data || resultado.data.length === 0) {
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "no_auth",
-        message: "❌ Sem autorização",
-        provider: providerUsed || ultimoProvider,
-        resultadoCompleto: resultado
-      }, callback);
-      processed++; continue;
-    }
-
-    const registrosValidos = resultado.data.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente")));
-    if (registrosValidos.length === 0) { processed++; continue; }
-
+    // Se não passou na simulação ou não há saldo, descarta
+    const registrosValidos = resultado?.data?.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente"))) || [];
     const saldo = registrosValidos[0]?.amount || 0;
     const parcelas = registrosValidos[0]?.periods || [];
     const balanceId = registrosValidos[0]?.id || null;
 
     if (saldo > 0 && balanceId) {
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
-
       if (simulacao) {
         if (!idOriginal) {
           idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
@@ -424,31 +405,16 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }, callback);
 
       } else {
-        // Simulação não disponível, pendência
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "pending",
-          valorLiberado: 0,
-          message: pendenciaMessage,
-          provider: providerUsed,
-          resultadoCompleto: resultado
-        }, callback);
+        // Simulação não disponível, descarta
+        console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não passou na simulação, descartando.`);
       }
     } else {
-      // Sem saldo disponível, pendência
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "pending",
-        valorLiberado: 0,
-        message: pendenciaMessage,
-        provider: providerUsed,
-        resultadoCompleto: resultado
-      }, callback);
+      // Sem saldo disponível, descarta
+      console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} sem saldo, descartando.`);
     }
 
     processed++;
+    if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
     await delay(delayMs);
   }
 }
