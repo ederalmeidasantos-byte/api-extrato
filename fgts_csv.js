@@ -297,7 +297,7 @@ async function disparaFluxo(opportunityId) {
   } catch { return "erroDisparo"; }
 }
 
-// 🔹 Processar CPFs
+// 🔹 Processar CPFs - versão otimizada
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -336,50 +336,42 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) idOriginal = planilha.id;
 
-    let resultado = null, providerUsed = null;
+    // 🔹 Delay principal por CPF
+    await delay(delayMs);
+
+    let resultado = null;
+    let providerUsed = null;
 
     for (const provider of PROVIDERS) {
-      while (paused) await delay(500);
+      while (paused) await delay(500); // pausa antes de cada provider
       providerUsed = provider;
-
-      // 🔹 delay real antes da consulta
-      await delay(delayMs);
 
       // 🔹 Consulta
       resultado = await consultarResultado(cpf, linha);
 
-      // 🔹 Normalizar status
-      if (resultado && resultado.data) {
-        resultado.data.forEach(d => {
-          if (d.status) d.status = d.status.toLowerCase();
-          if (d.statusInfo) d.statusInfo = d.statusInfo.toLowerCase();
-        });
-      }
-
-      // Se não retornou nada, passa para o próximo provider
       if (!resultado || !resultado.data || resultado.data.length === 0) continue;
 
-      console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Primeiro item do retorno:`, resultado.data[0]);
+      // Normaliza status
+      resultado.data.forEach(d => {
+        if (d.status) d.status = d.status.toLowerCase();
+        if (d.statusInfo) d.statusInfo = d.statusInfo.toLowerCase();
+      });
 
-      // 🔹 Reenvio para fila em caso de erro temporário
-      const precisaReenviarFila = resultado.data.some(d =>
-        d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
-      );
-      if (precisaReenviarFila) {
+      // Reenvio para fila se necessário
+      if (resultado.data.some(d => d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta"))) {
         console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] CPF ${cpf} reenviado para fila`);
-        await delay(delayMs); // delay antes de enviar para fila
         await enviarParaFila(cpf, providerUsed);
         continue;
       }
 
-      // 🔹 Saldo insuficiente → descartar
+      // Saldo insuficiente → descartar
       if (resultado.data.some(d => d.status === "error" && d.statusInfo?.includes("saldo insuficiente"))) {
         console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: saldo insuficiente.`);
         resultado = null;
         break;
       }
 
-      // 🔹 Sem autorização → pendência
+      // Sem autorização → pendência
       const pendenciaNaoAutorizado = resultado.data.find(d =>
         d.status === "error" && d.statusInfo?.includes("não possui autorização")
       );
@@ -401,7 +393,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         break;
       }
 
-      // 🔹 Pending → pendência
+      // Pending → pendência
       const pendenciaPending = resultado.data.find(d => d.status === "pending");
       if (pendenciaPending) {
         registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
@@ -421,7 +413,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         break;
       }
 
-      // 🔹 Retorno válido → processa
+      // Retorno válido → processa
       const registrosValidos = resultado.data.filter(r =>
         !(r.status === "error" && r.statusInfo?.includes("trabalhador não possui adesão ao saque aniversário vigente"))
       );
@@ -431,22 +423,15 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       const balanceId = registrosValidos[0]?.id || null;
 
       if (saldo > 0 && balanceId) {
-        while (paused) await delay(500);
-        await delay(delayMs); // delay antes de simulação
         const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
 
         if (simulacao) {
           if (!idOriginal) {
-            while (paused) await delay(500);
-            await delay(delayMs); // delay antes de criar oportunidade
             idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
             if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
           }
 
-          while (paused) await delay(500);
-          await delay(delayMs); // delay antes de atualizar oportunidade
           await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
-          await delay(delayMs); // delay antes de disparar fluxo
           await disparaFluxo(idOriginal);
 
           emitirResultado({
@@ -466,10 +451,10 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     }
 
     processed++;
-    // Atualiza progresso baseado no backend
     if (ioInstance) ioInstance.emit("progress", {
       done: processed,
       total,
+      linhaAtual: linha,
       counters: {
         success: contadorSucesso,
         pending: contadorPending,
@@ -481,6 +466,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   console.log(`📊 Contadores finais:
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao}`);
 }
+
 
 
 export {

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { setPause } from "./fgts_csv.js";
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -241,9 +242,21 @@ app.post("/fgts/delay", (req,res) => {
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
 });
 
-// ===== Pausar / Retomar =====
-app.post("/fgts/pause",(req,res)=>{ fgtsPaused=true; logPainel("⏸️ Processamento pausado pelo usuário"); res.json({message:"Pausado"}); });
-app.post("/fgts/resume",(req,res)=>{ fgtsPaused=false; logPainel("▶️ Processamento retomado pelo usuário"); res.json({message:"Retomado"}); });
+// Pausar
+app.post("/fgts/pause", (req,res)=>{
+  fgtsPaused = true;
+  setPause(true);
+  logPainel("⏸️ Processamento pausado pelo usuário");
+  res.json({message:"Pausado"});
+});
+
+// Retomar
+app.post("/fgts/resume", (req,res)=>{
+  fgtsPaused = false;
+  setPause(false);
+  logPainel("▶️ Processamento retomado pelo usuário");
+  res.json({message:"Retomado"});
+});
 
 // ===== Cálculo =====
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
