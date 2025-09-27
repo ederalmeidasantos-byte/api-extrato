@@ -62,9 +62,7 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 // 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
   if (!obj.apiResponse && obj.resultadoCompleto) {
-    // 🔹 Usar apenas o primeiro item da API
     const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
-    // 🔹 Descarta somente success com amount 0
     const filtered = firstItem.filter(r => !(r.status === "success" && (r.amount || 0) === 0));
     obj.apiResponse = { data: filtered };
   }
@@ -327,7 +325,7 @@ async function disparaFluxo(opportunityId) {
   }
 }
 
-// 🔹 Processar CPFs (pausa completa, barra de progresso ajustada)
+// 🔹 Processar CPFs (pausa completa, barra de progresso ajustada, log total)
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -341,6 +339,8 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   const total = registros.length;
   let processed = 0;
 
+  // ✅ Log total de CPFs
+  console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
   for (let [index, registro] of registros.entries()) {
