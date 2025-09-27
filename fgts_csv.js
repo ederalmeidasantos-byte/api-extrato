@@ -277,128 +277,85 @@ async function disparaFluxo(opportunityId) {
 }
 
 // 🔹 Processar CPFs
-async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
-  let registros = [];
+async function processarCPFs() {
+  for (let i = 0; i < cpfs.length; i++) {
+    const cpf = cpfs[i];
+    const linha = i + 1;
 
-  if (cpfsReprocess && cpfsReprocess.length) {
-    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
-  } else if (csvPath) {
-    const csvContent = fs.readFileSync(csvPath, "utf-8");
-    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-  } else throw new Error("Nenhum CSV fornecido para processar!");
+    console.log(`\n[${new Date().toISOString()}] ▶️ [Linha ${linha}] Iniciando consulta CPF: ${cpf}`);
 
-  const total = registros.length;
-  let processed = 0;
+    try {
+      const resultado = await consultarAPI(cpf, providerAtual);
 
-  console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
-  if (ioInstance) ioInstance.emit("totalCPFs", total);
+      // 🔹 Log completo (debug)
+      console.log(
+        `[${new Date().toISOString()}] 📦 [Linha ${linha}] Retorno completo da API:`,
+        JSON.stringify(resultado, null, 2)
+      );
 
-  for (let [index, registro] of registros.entries()) {
-    while (paused) await delay(500);
-
-    const linha = index + 2;
-    const cpf = normalizeCPF(registro.CPF);
-    let idOriginal = (registro.ID || "").trim();
-    const telefone = normalizePhone(registro.TELEFONE);
-
-    if (!cpf) { 
-      processed++; 
-      if (ioInstance) ioInstance.emit("progress", { done: processed, total }); 
-      continue; 
-    }
-
-    const planilha = consultarPlanilha(cpf, telefone);
-    if (planilha) idOriginal = planilha.id;
-
-    let resultado = null, providerUsed = null, todasCredenciaisExauridas = false;
-
-    for (const provider of PROVIDERS) {
-      while (paused) await delay(500);
-      providerUsed = provider;
-
-      const filaResult = await enviarParaFila(cpf, providerUsed);
-      if (filaResult === "pending429") { 
-        todasCredenciaisExauridas = true; 
-        break; 
-      }
-      if (!filaResult) continue;
-
-      while (paused) await delay(500);
-      await delay(delayMs);
-
-      resultado = await consultarResultado(cpf, linha);
-
-      // 🔹 Logar apenas o primeiro item do retorno
-      if (resultado?.data) {
-        if (resultado.data.length > 0) {
-          console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Primeiro item do retorno:`, resultado.data[0]);
-        } else {
-          console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Retorno vazio:`, resultado);
-        }
+      // 🔹 Log resumido (primeiro item)
+      if (resultado?.data?.length > 0) {
+        console.log(
+          `[${new Date().toISOString()}] 📦 [Linha ${linha}] Primeiro item do retorno:`,
+          resultado.data[0]
+        );
+      } else {
+        console.log(
+          `[${new Date().toISOString()}] 📦 [Linha ${linha}] Nenhum item retornado pela API`
+        );
       }
 
-      if (resultado?.error) continue;
-
-      // 🔹 Se houver erro de saldo insuficiente → descartar
-      if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("Saldo insuficiente"))) {
-        console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: saldo insuficiente (parcelas < R$10,00).`);
-        resultado = null; // não processa mais nada
-        break;
-      }
-
-      // 🔹 Se autorização negada → tenta próximo provider
-      if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("não possui autorização"))) {
-        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} não autorizado no provider ${providerUsed}, tentando próximo...`);
-        resultado = null; 
+      // 🔹 Validar retorno
+      if (!resultado?.data?.length) {
+        console.log(`[${new Date().toISOString()}] ⚠️ [Linha ${linha}] Nenhum dado encontrado para CPF ${cpf}`);
+        listaPendentes.push({ cpf, motivo: "Sem retorno da API" });
         continue;
       }
 
-      if (resultado?.data && resultado.data.length > 0) break;
-    }
+      const item = resultado.data[0];
+      const { status, statusInfo, amount, provider } = item;
 
-    let pendenciaMessage = "Pendência não informada";
-    if (resultado?.data?.[0]?.statusInfo === null) pendenciaMessage = "Aguardando retorno";
-    else if (todasCredenciaisExauridas) pendenciaMessage = "Tempo de requisição excedido";
-    else if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
-
-    const registrosValidos = resultado?.data?.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente"))) || [];
-    const saldo = registrosValidos[0]?.amount || 0;
-    const parcelas = registrosValidos[0]?.periods || [];
-    const balanceId = registrosValidos[0]?.id || null;
-
-    if (saldo > 0 && balanceId) {
-      while (paused) await delay(500);
-      const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
-
-      if (simulacao) {
-        if (!idOriginal) {
-          while (paused) await delay(500);
-          idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
-          if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
-        }
-
-        while (paused) await delay(500);
-        await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
-        const fluxo = await disparaFluxo(idOriginal);
-
-        emitirResultado({
-          cpf,
-          id: idOriginal,
-          status: "success",
-          valorLiberado: simulacao.availableBalance,
-          message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
-          provider: providerUsed,
-          resultadoCompleto: resultado
-        }, callback);
+      // ❌ Erro de saldo mínimo (descartar direto, não reconsultar)
+      if (status === "error" && statusInfo?.includes("Saldo insuficiente, parcelas menores R$10,00")) {
+        console.log(`[${new Date().toISOString()}] ❌ [Linha ${linha}] ${cpf} descartado -> ${statusInfo}`);
+        listaErros.push({ cpf, motivo: statusInfo });
+        continue;
       }
-    }
 
-    processed++;
-    if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-    while (paused) await delay(500);
-    await delay(delayMs);
+      // ❌ Não autorizado → tenta próximo provider
+      if (status === "error" && statusInfo?.includes("não possui autorização")) {
+        console.log(`[${new Date().toISOString()}] 🔄 [Linha ${linha}] ${cpf} não autorizado no provider ${provider}, enviando para próximo`);
+        adicionarNaFilaComProximoProvider(cpf, provider);
+        continue;
+      }
+
+      // 🕒 Pending → guarda na lista de pendentes
+      if (status === "pending") {
+        console.log(`[${new Date().toISOString()}] ⏳ [Linha ${linha}] ${cpf} em análise (pending)`);
+        listaPendentes.push({ cpf, motivo: "Consulta pendente" });
+        continue;
+      }
+
+      // ✅ Sucesso
+      if (status === "success" && amount > 0) {
+        console.log(`[${new Date().toISOString()}] ✅ [Linha ${linha}] ${cpf} sucesso -> Saldo liberado: ${amount}`);
+        listaSucesso.push({ cpf, valor: amount });
+        continue;
+      }
+
+      // 🔹 Qualquer outro erro → lista de erros
+      console.log(`[${new Date().toISOString()}] ⚠️ [Linha ${linha}] ${cpf} erro -> ${statusInfo || "Erro não especificado"}`);
+      listaErros.push({ cpf, motivo: statusInfo || "Erro não especificado" });
+
+    } catch (erro) {
+      console.error(`[${new Date().toISOString()}] 💥 [Linha ${linha}] Falha inesperada CPF ${cpf}:`, erro.message);
+      listaErros.push({ cpf, motivo: erro.message });
+    }
   }
+
+  console.log("\n🔚 Processamento concluído.");
 }
+
 
 
 export {
