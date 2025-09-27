@@ -20,6 +20,7 @@
     tr.pending { background-color: #fff3cd; }
     tr.no_auth { background-color: #f8d7da; }
     tr.ready_for_manual { background-color: #d1ecf1; }
+    tr.descartado { background-color: #e2e3e5; }
     button, .btn-file { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; transition: background 0.2s; }
     button:hover, .btn-file:hover { filter: brightness(85%); }
     .btn-primary { background: #007bff; color: #fff; }
@@ -70,10 +71,10 @@
 
 <h3>📊 Contadores</h3>
 <div id="counters">
-  Sucesso: <span id="countSuccess">0</span> | 
-  Pendentes: <span id="countPending">0</span> | 
-  Sem Autorização: <span id="countNoAuth">0</span> | 
-  Prontos CSV: <span id="countReadyCSV">0</span>
+  <span>✅ Sucesso: <span id="countSuccess">0</span></span> | 
+  <span>⏳ Pendentes: <span id="countPending">0</span></span> | 
+  <span>🚫 Sem Autorização: <span id="countNoAuth">0</span></span> | 
+  <span>❌ Descartados: <span id="countDescartados">0</span></span>
 </div>
 
 <h3>📜 Logs</h3>
@@ -121,16 +122,11 @@ const tables = {
   no_auth: document.querySelector('#tableNoAuth tbody'),
   ready: document.querySelector('#tableReadyCSV tbody')
 };
-const counts = {
-  success: document.getElementById('countSuccess'),
-  pending: document.getElementById('countPending'),
-  noAuth: document.getElementById('countNoAuth'),
-  ready: document.getElementById('countReadyCSV')
-};
 
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
-let totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
+let totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartados: 0 };
 let totalToProcess = 0, processedCount = 0;
+
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
@@ -138,11 +134,12 @@ fileInput.addEventListener('change', e => {
   fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
 });
 
-function atualizarContadores() {
-  counts.success.textContent = totals.success;
-  counts.pending.textContent = totals.pending;
-  counts.noAuth.textContent = totals.noAuth;
-  counts.ready.textContent = totals.ready;
+// Função para atualizar os contadores
+function atualizarContadores({ success = totals.success, pending = totals.pending, no_auth = totals.noAuth, descartados = totals.descartados } = {}) {
+  document.getElementById('countSuccess').textContent = success;
+  document.getElementById('countPending').textContent = pending;
+  document.getElementById('countNoAuth').textContent = no_auth;
+  document.getElementById('countDescartados').textContent = descartados;
 }
 
 function setProgress(pct, processed, total){
@@ -165,34 +162,33 @@ function adicionarResultado(data){
   else if(data.status==='pending') valorExibido=data.motivo||'Aguardando retorno';
   else if(data.status==='no_auth') valorExibido=data.valorLiberado||'-';
   else if(data.status==='ready_for_manual') valorExibido=data.valorLiberado||'-';
-  
+  else if(data.status==='descartado') valorExibido='-';
+
   tr.innerHTML = `<td>${data.cpf}</td><td>${data.id||data.telefone||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
-  tr.className = data.status==='ready_for_manual'?'ready_for_manual':data.status;
+  tr.className = data.status;
 
   switch(data.status){
     case 'success':
-      tables.success.appendChild(tr); 
-      totals.success++; 
-      readyForCSV = readyForCSV.filter(r=>r.cpf!==data.cpf);
-      tables.ready.querySelectorAll('tr').forEach(row=>{
-        if(row.cells[0].textContent===data.cpf) row.remove();
-      });
-      totals.ready = tables.ready.querySelectorAll('tr').length;
+      tables.success.appendChild(tr);
+      totals.success++;
       break;
     case 'pending':
       if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
-      tables.pending.appendChild(tr); 
+      tables.pending.appendChild(tr);
       totals.pending++;
       break;
     case 'no_auth':
       if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
-      tables.no_auth.appendChild(tr); 
+      tables.no_auth.appendChild(tr);
       totals.noAuth++;
       break;
     case 'ready_for_manual':
       readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'});
-      tables.ready.appendChild(tr); 
+      tables.ready.appendChild(tr);
       totals.ready++;
+      break;
+    case 'descartado':
+      totals.descartados++;
       break;
   }
 
@@ -206,10 +202,7 @@ function adicionarResultado(data){
 const socket = io();
 
 socket.on('log', msg => { logs.textContent += msg + '\n'; logs.scrollTop = logs.scrollHeight; });
-
-// Corrigido: agora escuta 'resultadoCPF'
 socket.on('resultadoCPF', data => { adicionarResultado(data); });
-
 socket.on('totalCPFs', total => {
   totalCPFsSpan.textContent = total;
   totalToProcess = total;
@@ -219,16 +212,20 @@ socket.on('totalCPFs', total => {
   logs.scrollTop = logs.scrollHeight;
 });
 
+// Atualiza progresso e contadores incluindo descartados
 socket.on('progress', data => {
   if(data && typeof data.done !== 'undefined' && typeof data.total !== 'undefined'){
-    const pct = Math.round((data.done/data.total)*100);
+    const pct = Math.round((data.done / data.total) * 100);
     processedCount = data.done;
     totalToProcess = data.total;
     setProgress(pct, processedCount, totalToProcess);
   }
+  if(data && data.counters){
+    atualizarContadores(data.counters);
+  }
 });
 
-// Botões mantidos
+// Botões
 document.getElementById('runBtn').addEventListener('click', async () => {
   const f = fileInput.files[0]; 
   if(!f) return alert('Escolha um arquivo CSV');
@@ -249,7 +246,7 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   pendentes = [];
   naoAutorizados = [];
   readyForCSV = [];
-  totals = { success: 0, pending: 0, noAuth: 0, ready: 0 };
+  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartados: 0 };
   totalToProcess = 0;
   processedCount = 0;
   setProgress(0,0,0);
