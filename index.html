@@ -232,6 +232,7 @@ socket.on('progress', data => {
   }
 });
 
+// Iniciar
 document.getElementById('runBtn').addEventListener('click', async () => {
   const f = document.getElementById('csvfile').files[0]; 
   if(!f) return alert('Escolha um arquivo CSV');
@@ -242,15 +243,10 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     const json = await res.json();
     logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
     logs.scrollTop = logs.scrollHeight;
-    if(json && json.total){ 
-      totalCPFsSpan.textContent = json.total;
-      totalToProcess = json.total; 
-      processedCount = 0;
-      setProgress(0, 0, totalToProcess);
-    }
   }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err); }
 });
 
+// Limpar
 document.getElementById('btnLimpar').addEventListener('click', () => {
   if(!confirm("Deseja limpar todas as listas e logs?")) return;
   Object.values(tables).forEach(t => t.innerHTML = '');
@@ -263,6 +259,69 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   processedCount = 0;
   setProgress(0,0,0);
   atualizarContadores();
+});
+
+// Atualizar delay
+document.getElementById('btnUpdateDelay').addEventListener('click', async () => {
+  const val = parseInt(document.getElementById('inputDelay').value,10);
+  if(isNaN(val) || val<0){ alert("Delay inválido"); return; }
+  try{
+    const res = await fetch('/fgts/delay',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({delay: val}) });
+    if(!res.ok) throw new Error(res.statusText);
+    document.getElementById('currentDelay').textContent = val;
+    logs.textContent += `⏱️ Delay atualizado para ${val}ms\n`;
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Erro ao atualizar delay: "+err.message); console.error(err); }
+});
+
+// Pausar / Retomar
+document.getElementById('btnPause').addEventListener('click', async ()=>{ 
+  await fetch('/fgts/pause',{ method:'POST' }); 
+  logs.textContent += "⏸️ Processamento pausado\n"; logs.scrollTop = logs.scrollHeight;
+});
+document.getElementById('btnResume').addEventListener('click', async ()=>{ 
+  await fetch('/fgts/resume',{ method:'POST' }); 
+  logs.textContent += "▶️ Processamento retomado\n"; logs.scrollTop = logs.scrollHeight;
+});
+
+// Reprocessar pendentes
+document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
+  if(!pendentes.length){ alert("Não há pendentes para reprocessar"); return; }
+  if(!confirm(`Reprocessar ${pendentes.length} pendentes?`)) return;
+  try{
+    const res = await fetch('/fgts/reprocessar',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cpfs: pendentes}) });
+    if(!res.ok) throw new Error(res.statusText);
+    logs.textContent += `🔄 Reprocessamento iniciado para ${pendentes.length} CPFs\n`;
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Erro ao reprocessar pendentes: "+err.message); console.error(err); }
+});
+
+// Mudar fase no CRM
+document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()=>{
+  if(!naoAutorizados.length){ alert("Não há registros para mudar fase"); return; }
+  if(!confirm(`Mudar fase no CRM para ${naoAutorizados.length} registros?`)) return;
+  try{
+    const res = await fetch('/fgts/mudarFaseNaoAutorizados',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ids: naoAutorizados}) });
+    if(!res.ok) throw new Error(res.statusText);
+    logs.textContent += `📌 Fase alterada para ${naoAutorizados.length} registros\n`;
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ alert("❌ Erro ao mudar fase: "+err.message); console.error(err); }
+});
+
+// Exportar CSV
+document.getElementById('btnExportCSV').addEventListener('click', ()=>{
+  if(!readyForCSV.length){ alert("Não há dados prontos para CSV"); return; }
+  const header = ["CPF","Telefone","Valor","Provider"];
+  const csvContent = [header.join(',')].concat(readyForCSV.map(r=>[r.cpf,r.telefone,r.valor,r.provider].join(','))).join('\n');
+  const blob = new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `prontos_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 });
 </script>
 

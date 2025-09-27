@@ -33,7 +33,7 @@ const cacheValido = (p) => {
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true })); // 🔹 ADICIONADO
+app.use(express.urlencoded({ extended: true }));
 
 // ====== Socket.IO ======
 const server = http.createServer(app);
@@ -51,6 +51,20 @@ let fgtsPaused = false;
 
 // Fila PQueue
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
+
+// ===== Função para logs no painel =====
+function logPainel(msg) {
+  io.emit("log", msg);  // envia para painel
+  console.log(msg);     // mantém log no terminal
+}
+
+// Função para emitir resultado de CPF no formato painel
+function emitirResultadoPainel({ linha, cpf, id, status, valorLiberado = 0, provider }) {
+  const icone = status==='success'?'✅':status==='pending'?'⏳':status==='no_auth'?'🚫':'ℹ️';
+  const msg = `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf} | ID: ${id} | Status: ${status} | Valor Liberado: ${valorLiberado.toFixed(2)} | Provider: ${provider}`;
+  logPainel(msg);
+  io.emit("result", { linha, cpf, id, status, valorLiberado, provider });
+}
 
 // Conexão do Socket
 io.on("connection", (socket) => {
@@ -117,8 +131,7 @@ app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")))
 app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
-  console.log("📂 Planilha FGTS recebida:", req.file.path);
-  io.emit("log", `📂 Planilha FGTS recebida: ${req.file.path}`);
+  logPainel(`📂 Planilha FGTS recebida: ${req.file.path}`);
 
   (async () => {
     try {
@@ -131,18 +144,17 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
         if (result) {
           resultadosFGTS.push(result);
-          io.emit("log", JSON.stringify(result));
-          io.emit("result", result);
+          emitirResultadoPainel(result); // <-- novo formato para painel
 
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
         }
       }, DELAY_MS);
 
-      io.emit("log", "✅ Processamento FGTS finalizado!");
+      logPainel("✅ Processamento FGTS finalizado!");
     } catch (err) {
+      logPainel(`❌ Erro no processamento FGTS: ${err.message}`);
       console.error("❌ Erro no processamento FGTS:", err);
-      io.emit("log", `❌ Erro no processamento FGTS: ${err.message}`);
     } finally {
       try { await fsp.unlink(req.file.path); } catch {}
     }
@@ -156,8 +168,7 @@ app.post("/fgts/reprocessar", async (req, res) => {
   const cpfs = req.body.cpfs || [];
   if (!cpfs.length) return res.status(400).json({ message: "Nenhum CPF fornecido" });
 
-  console.log("🔄 Reprocessar pendentes:", cpfs);
-  io.emit("log", `🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
+  logPainel(`🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
 
   (async () => {
     try {
@@ -169,18 +180,17 @@ app.post("/fgts/reprocessar", async (req, res) => {
 
         if (result) {
           resultadosFGTS.push(result);
-          io.emit("log", JSON.stringify(result));
-          io.emit("result", result);
+          emitirResultadoPainel(result); // <-- novo formato para painel
 
           processados++;
           io.emit("progress", { done: processados, total: totalCpfs });
         }
       }, DELAY_MS);
 
-      io.emit("log", `✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
+      logPainel(`✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
     } catch (err) {
+      logPainel(`❌ Erro no reprocessamento: ${err.message}`);
       console.error("❌ Erro no reprocessamento:", err);
-      io.emit("log", `❌ Erro no reprocessamento: ${err.message}`);
     }
   })();
 
@@ -192,16 +202,15 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   const ids = req.body.ids || [];
   if (!ids.length) return res.status(400).json({ message: "Nenhum ID fornecido" });
 
-  console.log("📌 Mudar fase no CRM para IDs:", ids);
-  io.emit("log", `📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
+  logPainel(`📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
 
   (async () => {
     try {
       for (const id of ids) await disparaFluxo(id, 3);
-      io.emit("log", `✅ Fase alterada para ${ids.length} registros`);
+      logPainel(`✅ Fase alterada para ${ids.length} registros`);
     } catch (err) {
+      logPainel(`❌ Erro ao mudar fase: ${err.message}`);
       console.error("❌ Erro ao mudar fase:", err);
-      io.emit("log", `❌ Erro ao mudar fase: ${err.message}`);
     }
   })();
 
@@ -216,22 +225,20 @@ app.post("/fgts/delay", (req, res) => {
   DELAY_MS = novoDelay;
   setDelay(DELAY_MS);
   io.emit("delayUpdate", DELAY_MS);
-  console.log(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
+  logPainel(`⏱️ Delay atualizado para ${DELAY_MS}ms`);
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
 });
 
 // Pausar / Retomar processamento FGTS
 app.post("/fgts/pause", (req, res) => {
   fgtsPaused = true;
-  io.emit("log", "⏸️ Processamento FGTS pausado pelo usuário");
-  console.log("⏸️ Processamento FGTS pausado");
+  logPainel("⏸️ Pausado pelo usuário");
   res.json({ message: "Processamento pausado" });
 });
 
 app.post("/fgts/resume", (req, res) => {
   fgtsPaused = false;
-  io.emit("log", "▶️ Processamento FGTS retomado pelo usuário");
-  console.log("▶️ Processamento FGTS retomado");
+  logPainel("▶️ Retomado pelo usuário");
   res.json({ message: "Processamento retomado" });
 });
 
