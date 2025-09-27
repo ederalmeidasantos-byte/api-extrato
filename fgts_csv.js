@@ -60,19 +60,27 @@ const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
 // 🔹 Emitir resultado
-function emitirResultado(obj, callback = null) {
-  if (!obj.apiResponse && obj.resultadoCompleto) {
-    const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
-    const filtered = firstItem.filter(r => !(r.status === "success" && (r.amount || 0) === 0));
-    obj.apiResponse = { data: filtered };
-  }
+function emitirResultado(payload, callback) {
+  const linha = payload.linha || "?";
 
-  console.log("RESULT:" + JSON.stringify(obj, null, 2));
+  // 🔹 Log simplificado no console/painel
+  console.log(`[CLIENT] ✅ Linha: ${linha} | CPF: ${payload.cpf} | ID: ${payload.id} | Status: ${payload.status} | Valor Liberado: ${payload.valorLiberado.toFixed(2)} | Provider: ${payload.provider}`);
 
-  if (callback) callback(obj);
-  if (ioInstance) {
-    try { ioInstance.emit("result", obj); } catch {}
-  }
+  if (!callback) return;
+
+  // 🔹 Prepara payload para render/UI
+  const renderPayload = {
+    ...payload,
+    linha, // adiciona a linha no render
+    resultadoCompleto: payload.resultadoCompleto
+      ? {
+          ...payload.resultadoCompleto,
+          data: payload.resultadoCompleto.data?.[0] ? [payload.resultadoCompleto.data[0]] : [],
+        }
+      : undefined
+  };
+
+  callback(renderPayload);
 }
 
 // 🔹 Alternar credencial
@@ -269,6 +277,7 @@ async function disparaFluxo(opportunityId) {
 }
 
 // 🔹 Processar CPFs
+// 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -288,12 +297,16 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   for (let [index, registro] of registros.entries()) {
     while (paused) await delay(500);
 
-    const linha = index + 2;
+    const linha = index + 2; // linha do CSV
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
 
-    if (!cpf) { processed++; if (ioInstance) ioInstance.emit("progress", { done: processed, total }); continue; }
+    if (!cpf) { 
+      processed++; 
+      if (ioInstance) ioInstance.emit("progress", { done: processed, total }); 
+      continue; 
+    }
 
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) idOriginal = planilha.id;
@@ -313,6 +326,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
       resultado = await consultarResultado(cpf, linha);
       if (resultado?.error) continue;
+
+      // validação do erro "não autorizado"
+      if (resultado?.data?.[0]?.status === "error" && resultado.data[0].statusInfo?.includes("Instituição Fiduciária não possui autorização do Trabalhador")) {
+        continue; // tenta próximo provider
+      }
+
       if (resultado?.data && resultado.data.length > 0) break;
     }
 
@@ -341,14 +360,21 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         const fluxo = await disparaFluxo(idOriginal);
 
+        // 🔹 Emitir resultado com linha e log simplificado
+        const resultadoRender = {
+          ...resultado,
+          data: resultado?.data?.[0] ? [resultado.data[0]] : []
+        };
+
         emitirResultado({
+          linha,
           cpf,
           id: idOriginal,
           status: "success",
           valorLiberado: simulacao.availableBalance,
           message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
           provider: providerUsed,
-          resultadoCompleto: resultado
+          resultadoCompleto: resultadoRender
         }, callback);
       }
     }
@@ -359,6 +385,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     await delay(delayMs);
   }
 }
+
 
 export {
   processarCPFs,
