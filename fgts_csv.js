@@ -62,8 +62,11 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 // 🔹 Emitir resultado
 function emitirResultado(obj, callback = null) {
   if (!obj.apiResponse && obj.resultadoCompleto) {
+    // 🔹 Usar apenas o primeiro item da API
     const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
-    obj.apiResponse = { data: firstItem }; // simplificado para não alterar total de CPFs
+    // 🔹 Descarta somente success com amount 0
+    const filtered = firstItem.filter(r => !(r.status === "success" && (r.amount || 0) === 0));
+    obj.apiResponse = { data: filtered };
   }
 
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
@@ -338,12 +341,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   const total = registros.length;
   let processed = 0;
 
-  // ✅ Emitir total de CPFs para o front-end
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
   for (let [index, registro] of registros.entries()) {
 
-    while (paused) await delay(500); // Pausa principal
+    while (paused) await delay(500);
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
