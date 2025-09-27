@@ -75,13 +75,13 @@ function emitirResultadoPainel(data) {
     : (valorLiberado ? valorLiberado : '-');
 
   io.emit("log", `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`);
-  io.emit("resultadoCPF", data);
+  io.emit("resultadoCPF", data); // padronizado para o front
 }
 
 // Conexão do Socket
 io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
-  resultadosFGTS.forEach(r => socket.emit("result", r));
+  resultadosFGTS.forEach(r => socket.emit("resultadoCPF", r)); // ajuste aqui
   socket.emit("delayUpdate", DELAY_MS);
 });
 
@@ -171,6 +171,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
           }
 
           resultadosFGTS.push(result);
+          emitirResultadoPainel(result); // << ajuste aqui
 
           io.emit("statusUpdate", {
             linha: result.linha || '?',
