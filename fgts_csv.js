@@ -318,6 +318,114 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
+  // Array global de pendentes
+  const pendentes = [];
+
+  // Função para atualizar a barra de progresso
+  function atualizarProgresso() {
+    if (ioInstance) {
+      ioInstance.emit("progress", {
+        done: processed,
+        total,
+        pendentes: pendentes.length,
+        counters: {
+          success: contadorSucesso,
+          pending: contadorPending,
+          semAutorizacao: contadorSemAutorizacao
+        }
+      });
+    }
+  }
+
+  // --- Função de retry para consultas ---
+  async function tentarConsultaComRetry(cpf, linha, provider = null, maxTentativas = 4, delayEntreTentativas = 1000) {
+    let tentativa = 0;
+    let resultado = null;
+
+    while (tentativa < maxTentativas) {
+      resultado = await consultarResultado(cpf, linha); // provider não é usado na consulta da fila
+      if (provider) {
+        // se for provider específico, consulta direto nele
+        resultado = await consultarResultado(cpf, linha, provider);
+      }
+
+      // Se não tem erro temporário, sai do loop
+      const erroConsulta = resultado?.data?.find(d =>
+        d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
+      );
+      if (!erroConsulta) break;
+
+      tentativa++;
+      console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] Tentativa ${tentativa} para CPF ${cpf} devido a erro temporário`);
+      await delay(delayEntreTentativas);
+    }
+
+    return resultado;
+  }
+
+  // --- Reprocessamento paralelo dos pendentes ---
+  async function reprocessamentoPendentes() {
+    if (!pendentes.length) return;
+    const pendingsCopy = [...pendentes];
+
+    await Promise.all(pendingsCopy.map(async (p, i) => {
+      const resultado = await tentarConsultaComRetry(p.cpf, p.linha);
+
+      // Success → saldo > 0
+      const registroValido = resultado?.data?.find(r => r.amount > 0);
+      if (registroValido) {
+        const simulacao = await simularSaldo(p.cpf, registroValido.id, registroValido.periods, registroValido.provider);
+        if (simulacao) {
+          if (!p.id) {
+            p.id = await criarOportunidade(p.cpf, p.telefone, simulacao.availableBalance);
+            if (p.id) atualizarCSVcomID(p.cpf, p.telefone, p.id);
+          }
+          await atualizarOportunidadeComTabela(p.id, simulacao.tabelaSimulada);
+          await disparaFluxo(p.id);
+
+          emitirResultado({
+            cpf: p.cpf,
+            id: p.id,
+            status: "success",
+            valorLiberado: simulacao.availableBalance,
+            provider: registroValido.provider,
+            resultadoCompleto: registroValido
+          }, callback);
+
+          // Remove da lista de pendentes
+          const idx = pendentes.findIndex(x => x.cpf === p.cpf && x.linha === p.linha);
+          if (idx >= 0) pendentes.splice(idx, 1);
+
+          contadorSucesso++;
+          processed++;
+          atualizarProgresso();
+        }
+        return;
+      }
+
+      // Pending → ainda pendente
+      const isPending = resultado?.data?.some(d => d.status === "pending");
+      if (isPending) {
+        registrarPendencia(p.cpf, p.id, "Aguardando retorno", p.linha);
+        contadorPending++;
+        atualizarProgresso();
+        return;
+      }
+
+      // No Auth → se todos os resultados forem "não autorizado"
+      const todosNaoAut = resultado?.data?.every(d => d.status === "error" && d.statusInfo?.includes("não possui autorização"));
+      if (todosNaoAut) {
+        registrarPendencia(p.cpf, p.id, "Não autorizado", p.linha);
+        contadorSemAutorizacao++;
+        atualizarProgresso();
+        // Remove da lista de pendentes
+        const idx = pendentes.findIndex(x => x.cpf === p.cpf && x.linha === p.linha);
+        if (idx >= 0) pendentes.splice(idx, 1);
+      }
+    }));
+  }
+
+  // --- Loop principal de CPFs ---
   for (let [index, registro] of registros.entries()) {
     while (paused) await delay(500);
 
@@ -328,7 +436,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     if (!cpf) {
       processed++;
-      if (ioInstance) ioInstance.emit("progress", { done: processed, total });
+      atualizarProgresso();
       continue;
     }
 
@@ -337,51 +445,23 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     await delay(delayMs);
 
-    // --- Função interna de retry ---
-    async function tentarConsultaComRetry(cpf, linha, provider = null, maxTentativas = 4, delayEntreTentativas = 1000) {
-  let tentativa = 0;
-  let resultado = null;
-
-  while (tentativa < maxTentativas) {
-    // Chama sempre consultarResultado; se provider for null, será a fila
-    resultado = await consultarResultado(cpf, linha, provider);
-
-    if (!resultado || !resultado.data || resultado.data.length === 0) break;
-
-    // Verifica se houve erro temporário
-    const erroConsulta = resultado.data.find(d =>
-      d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
-    );
-
-    if (!erroConsulta) break; // se não houver erro temporário, sai do loop
-
-    tentativa++;
-    console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] Tentativa ${tentativa} para CPF ${cpf} devido a erro temporário`);
-    await delay(delayEntreTentativas);
-  }
-
-  return resultado;
-  }
-
-
-    // --- Primeiro consulta na fila sem provider ---
+    // Consulta inicial na fila
     let resultadoFila = await tentarConsultaComRetry(cpf, linha);
+
     if (!resultadoFila || !resultadoFila.data || resultadoFila.data.length === 0) {
       // envia para fila BMS
       await enviarParaFila(cpf, "bms");
       resultadoFila = await tentarConsultaComRetry(cpf, linha);
     }
 
-    // --- Consulta BMS e Cartos para avaliação final ---
+    // Consulta BMS e Cartos
     const providers = ["bms", "cartos"];
     let resultadosProviders = {};
-
     for (const prov of providers) {
       const res = await tentarConsultaComRetry(cpf, linha, prov);
       resultadosProviders[prov] = res?.data || [];
     }
 
-    // --- Avaliação do status final ---
     const todosStatus = Object.values(resultadosProviders).flat();
 
     // Success → saldo > 0
@@ -409,74 +489,46 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }, callback);
 
         contadorSucesso++;
+        processed++;
+        atualizarProgresso();
+        continue;
       }
-      processed++;
-      if (ioInstance) ioInstance.emit("progress", {
-        done: processed,
-        total,
-        linhaAtual: linha,
-        counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
-      });
-      continue;
     }
 
-    // Pending → se qualquer um dos dois estiver pending
+    // Pending → se algum dos dois estiver pending
     const hasPending = todosStatus.some(d => d.status === "pending");
     if (hasPending) {
+      pendentes.push({ cpf, id: idOriginal, telefone, linha });
       registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
       contadorPending++;
-
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "pending",
-        valorLiberado: 0,
-        provider: "bms_cartos",
-        linha,
-        resultadoCompleto: todosStatus
-      }, callback);
-
       processed++;
-      if (ioInstance) ioInstance.emit("progress", {
-        done: processed,
-        total,
-        linhaAtual: linha,
-        counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
-      });
+      atualizarProgresso();
       continue;
     }
 
-    // No Auth → só se os dois forem não autorizados
+    // No Auth → só se os dois forem "não autorizado"
     const todosNaoAut = todosStatus.every(d =>
       d.status === "error" && d.statusInfo?.includes("não possui autorização")
     );
     if (todosNaoAut) {
       registrarPendencia(cpf, idOriginal, "Não autorizado", linha);
       contadorSemAutorizacao++;
-
-      emitirResultado({
-        cpf,
-        id: idOriginal,
-        status: "no_auth",
-        valorLiberado: 0,
-        provider: "bms_cartos",
-        linha,
-        resultadoCompleto: todosStatus
-      }, callback);
+      processed++;
+      atualizarProgresso();
+      continue;
     }
 
-    processed++;
-    if (ioInstance) ioInstance.emit("progress", {
-      done: processed,
-      total,
-      linhaAtual: linha,
-      counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
-    });
+    // Reprocessar pendentes a cada N CPFs
+    if (processed % 10 === 0) await reprocessamentoPendentes();
   }
 
+  // Último reprocessamento dos pendentes restantes
+  await reprocessamentoPendentes();
+
   console.log(`📊 Contadores finais:
-Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao}`);
+Sucesso: ${contadorSucesso} | Pendentes: ${pendente.length} | Sem Autorização: ${contadorSemAutorizacao}`);
 }
+
 
 
 export {
