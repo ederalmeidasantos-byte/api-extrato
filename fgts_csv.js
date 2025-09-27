@@ -277,7 +277,6 @@ async function disparaFluxo(opportunityId) {
 }
 
 // 🔹 Processar CPFs
-// 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
 
@@ -297,7 +296,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   for (let [index, registro] of registros.entries()) {
     while (paused) await delay(500);
 
-    const linha = index + 2; // linha do CSV
+    const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
@@ -318,18 +317,40 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       providerUsed = provider;
 
       const filaResult = await enviarParaFila(cpf, providerUsed);
-      if (filaResult === "pending429") { todasCredenciaisExauridas = true; break; }
+      if (filaResult === "pending429") { 
+        todasCredenciaisExauridas = true; 
+        break; 
+      }
       if (!filaResult) continue;
 
       while (paused) await delay(500);
       await delay(delayMs);
 
       resultado = await consultarResultado(cpf, linha);
+
+      // 🔹 Logar apenas o primeiro item do retorno
+      if (resultado?.data) {
+        if (resultado.data.length > 0) {
+          console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Primeiro item do retorno:`, resultado.data[0]);
+        } else {
+          console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Retorno vazio:`, resultado);
+        }
+      }
+
       if (resultado?.error) continue;
 
-      // validação do erro "não autorizado"
-      if (resultado?.data?.[0]?.status === "error" && resultado.data[0].statusInfo?.includes("Instituição Fiduciária não possui autorização do Trabalhador")) {
-        continue; // tenta próximo provider
+      // 🔹 Se houver erro de saldo insuficiente → descartar
+      if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("Saldo insuficiente"))) {
+        console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: saldo insuficiente (parcelas < R$10,00).`);
+        resultado = null; // não processa mais nada
+        break;
+      }
+
+      // 🔹 Se autorização negada → tenta próximo provider
+      if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("não possui autorização"))) {
+        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} não autorizado no provider ${providerUsed}, tentando próximo...`);
+        resultado = null; 
+        continue;
       }
 
       if (resultado?.data && resultado.data.length > 0) break;
@@ -360,21 +381,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         const fluxo = await disparaFluxo(idOriginal);
 
-        // 🔹 Emitir resultado com linha e log simplificado
-        const resultadoRender = {
-          ...resultado,
-          data: resultado?.data?.[0] ? [resultado.data[0]] : []
-        };
-
         emitirResultado({
-          linha,
           cpf,
           id: idOriginal,
           status: "success",
           valorLiberado: simulacao.availableBalance,
           message: fluxo === true ? "Simulação finalizada" : "Erro disparo (tratado como sucesso)",
           provider: providerUsed,
-          resultadoCompleto: resultadoRender
+          resultadoCompleto: resultado
         }, callback);
       }
     }
