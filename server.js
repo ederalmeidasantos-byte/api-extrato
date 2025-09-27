@@ -59,12 +59,31 @@ function logPainel(msg) {
 }
 
 // Função para emitir resultado de CPF no formato painel
-function emitirResultadoPainel({ linha, cpf, id, status, valorLiberado = 0, provider }) {
-  const icone = status==='success'?'✅':status==='pending'?'⏳':status==='no_auth'?'🚫':'ℹ️';
-  const msg = `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf} | ID: ${id} | Status: ${status} | Valor Liberado: ${valorLiberado.toFixed(2)} | Provider: ${provider}`;
-  logPainel(msg);
-  io.emit("result", { linha, cpf, id, status, valorLiberado, provider });
+function emitirResultadoPainel(data) {
+  const {
+    linha,
+    cpf,
+    id,
+    status,
+    provider,
+    valorLiberado,
+    icone = '✅'
+  } = data;
+
+  // Garante que valorLiberado seja número
+  const valorExibir = (typeof valorLiberado === 'number')
+    ? valorLiberado.toFixed(2)
+    : (valorLiberado ? valorLiberado : '-');
+
+  const msg = `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`;
+
+  // Emite para logs do painel
+  io.emit("log", msg);
+
+  // Emite o resultado individual
+  io.emit("result", data);
 }
+
 
 // Conexão do Socket
 io.on("connection", (socket) => {
