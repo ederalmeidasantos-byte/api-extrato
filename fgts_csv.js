@@ -337,94 +337,144 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
     await delay(delayMs);
 
-    // ===== Consulta inicial na fila =====
-    let resultadoFila = await consultarFila(cpf, linha); // consulta sem provider
-    if (!resultadoFila || !resultadoFila.data || resultadoFila.data.length === 0) {
-      console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] Fila vazia, enviando para Cartos`);
-      await enviarParaFila(cpf, "cartos");
-      resultadoFila = await consultarFila(cpf, linha);
-    }
+    // --- Função interna de retry ---
+    async function tentarConsultaComRetry(cpf, linha, provider = null, maxTentativas = 4, delayEntreTentativas = 1000) {
+      let tentativa = 0;
+      let resultado = null;
 
-    // ===== Avalia DATA dos registros combinando Cartos e BMS =====
-    const dataCartos = resultadoFila?.data?.filter(r => r.provider === "cartos") || [];
-    const dataBMS = await consultarBMS(cpf, linha); // consulta BMS se necessário
+      while (tentativa < maxTentativas) {
+        resultado = provider ? await consultarResultado(cpf, linha, provider) : await consultarFila(cpf, linha);
 
-    let statusFinal = null;
-    let saldoLiberado = 0;
+        if (!resultado || !resultado.data || resultado.data.length === 0) break;
 
-    // Success: algum registro com amount > 0
-    const successCartos = dataCartos.find(r => r.amount > 0);
-    const successBMS = dataBMS?.data?.find(r => r.amount > 0);
-    if (successCartos || successBMS) {
-      statusFinal = "success";
-      saldoLiberado = successCartos?.amount || successBMS?.amount || 0;
-    } else {
-      // Pending: qualquer registro pendente
-      const pendingCartos = dataCartos.find(r => r.status === "pending");
-      const pendingBMS = dataBMS?.data?.find(r => r.status === "pending");
-      if (pendingCartos || pendingBMS) {
-        statusFinal = "pending";
-      } else {
-        // No_auth: somente se todos não autorizados
-        const naoAuthCartos = dataCartos.every(r => r.status === "error" && r.statusInfo?.includes("não possui autorização"));
-        const naoAuthBMS = dataBMS?.data?.every(r => r.status === "error" && r.statusInfo?.includes("não possui autorização"));
-        if (naoAuthCartos && naoAuthBMS) {
-          statusFinal = "no_auth";
-        }
+        const erroConsulta = resultado.data.find(d =>
+          d.status === "error" && d.statusInfo?.includes("erro ao realizar a consulta")
+        );
+
+        if (!erroConsulta) break;
+
+        tentativa++;
+        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] Tentativa ${tentativa} para CPF ${cpf} devido a erro temporário`);
+        await delay(delayEntreTentativas);
       }
+
+      return resultado;
     }
 
-    // ===== Processa resultado final =====
-    if (statusFinal === "success") {
-      const balanceId = (successCartos || successBMS)?.id;
-      const parcelas = (successCartos || successBMS)?.periods || [];
-      const simulacao = await simularSaldo(cpf, balanceId, parcelas, "cartos");
+    // --- Primeiro consulta na fila sem provider ---
+    let resultadoFila = await tentarConsultaComRetry(cpf, linha);
+    if (!resultadoFila || !resultadoFila.data || resultadoFila.data.length === 0) {
+      // envia para fila BMS
+      await enviarParaFila(cpf, "bms");
+      resultadoFila = await tentarConsultaComRetry(cpf, linha);
+    }
+
+    // --- Consulta BMS e Cartos para avaliação final ---
+    const providers = ["bms", "cartos"];
+    let resultadosProviders = {};
+
+    for (const prov of providers) {
+      const res = await tentarConsultaComRetry(cpf, linha, prov);
+      resultadosProviders[prov] = res?.data || [];
+    }
+
+    // --- Avaliação do status final ---
+    const todosStatus = Object.values(resultadosProviders).flat();
+
+    // Success → saldo > 0
+    const registrosValidos = todosStatus.filter(r => r.amount > 0);
+    if (registrosValidos.length > 0) {
+      const r = registrosValidos[0];
+      const simulacao = await simularSaldo(cpf, r.id, r.periods, r.provider);
 
       if (simulacao) {
         if (!idOriginal) {
           idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
           if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
         }
+
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         await disparaFluxo(idOriginal);
+
+        emitirResultado({
+          cpf,
+          id: idOriginal,
+          status: "success",
+          valorLiberado: simulacao.availableBalance,
+          provider: r.provider,
+          resultadoCompleto: r
+        }, callback);
+
         contadorSucesso++;
       }
-    } else if (statusFinal === "pending") {
-      registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
-      contadorPending++;
-    } else if (statusFinal === "no_auth") {
-      registrarPendencia(cpf, idOriginal, "Não autorizado em Cartos e BMS", linha);
-      contadorSemAutorizacao++;
-    } else {
-      console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: sem dados válidos`);
+      processed++;
+      if (ioInstance) ioInstance.emit("progress", {
+        done: processed,
+        total,
+        linhaAtual: linha,
+        counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
+      });
+      continue;
     }
 
-    emitirResultado({
-      cpf,
-      id: idOriginal,
-      status: statusFinal || "discarded",
-      valorLiberado: saldoLiberado,
-      provider: "cartos",
-      linha,
-      resultadoCompleto: { cartos: dataCartos, bms: dataBMS?.data }
-    }, callback);
+    // Pending → se qualquer um dos dois estiver pending
+    const hasPending = todosStatus.some(d => d.status === "pending");
+    if (hasPending) {
+      registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
+      contadorPending++;
+
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "pending",
+        valorLiberado: 0,
+        provider: "bms_cartos",
+        linha,
+        resultadoCompleto: todosStatus
+      }, callback);
+
+      processed++;
+      if (ioInstance) ioInstance.emit("progress", {
+        done: processed,
+        total,
+        linhaAtual: linha,
+        counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
+      });
+      continue;
+    }
+
+    // No Auth → só se os dois forem não autorizados
+    const todosNaoAut = todosStatus.every(d =>
+      d.status === "error" && d.statusInfo?.includes("não possui autorização")
+    );
+    if (todosNaoAut) {
+      registrarPendencia(cpf, idOriginal, "Não autorizado", linha);
+      contadorSemAutorizacao++;
+
+      emitirResultado({
+        cpf,
+        id: idOriginal,
+        status: "no_auth",
+        valorLiberado: 0,
+        provider: "bms_cartos",
+        linha,
+        resultadoCompleto: todosStatus
+      }, callback);
+    }
 
     processed++;
     if (ioInstance) ioInstance.emit("progress", {
       done: processed,
       total,
       linhaAtual: linha,
-      counters: {
-        success: contadorSucesso,
-        pending: contadorPending,
-        semAutorizacao: contadorSemAutorizacao
-      }
+      counters: { success: contadorSucesso, pending: contadorPending, semAutorizacao: contadorSemAutorizacao }
     });
   }
 
   console.log(`📊 Contadores finais:
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao}`);
 }
+
 
 export {
   processarCPFs,
