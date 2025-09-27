@@ -32,11 +32,14 @@ let TOKEN = null;
 let credIndex = 0;
 const LOG_PREFIX = () => `[${new Date().toISOString()}]`;
 let ultimoProvider = null;
+let paused = false;
+let ioInstance = null;
+
+// 🔹 Pendentes
+const pendentes = [];
 
 // 🔹 Delay e pausa
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-let paused = false;
-
 function setDelay(ms) {
   if (ms && !isNaN(ms) && ms > 0) {
     delayMs = ms;
@@ -49,8 +52,7 @@ function setPause(value) {
   console.log(`${LOG_PREFIX()} ⏸️ Pausa setada para ${paused}`);
 }
 
-// 🔹 IO opcional
-let ioInstance = null;
+// 🔹 Anexar socket
 function attachIO(io) {
   ioInstance = io;
 }
@@ -59,25 +61,24 @@ function attachIO(io) {
 const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
+// 🔹 Registrar pendência
+function registrarPendencia(cpf, id, motivo, linha) {
+  console.log(`${LOG_PREFIX()} ⚠️ Pendência registrada - Linha ${linha} | CPF: ${cpf} | ID: ${id} | Motivo: ${motivo}`);
+  pendentes.push({ cpf, id, motivo, linha });
+}
+
 // 🔹 Emitir resultado
 function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha = "?", resultadoCompleto = null }, callback = null) {
-  // 💡 Formata valor liberado com duas casas decimais
   const valorFormatado = Number(valorLiberado || 0).toFixed(2);
 
-  // 🔹 Log principal
   console.log(
     `[CLIENT] ✅ Linha: ${linha} | CPF: ${cpf} | ID: ${id || "N/A"} | Status: ${status} | Valor Liberado: ${valorFormatado} | Provider: ${provider}`
   );
 
-  // 🔹 Se houver retorno completo da API, loga só o primeiro item
   if (resultadoCompleto?.data && resultadoCompleto.data.length > 0) {
-    console.log(
-      `[CLIENT] 📦 [Linha ${linha}] Primeiro item do retorno:`,
-      resultadoCompleto.data[0]
-    );
+    console.log(`[CLIENT] 📦 [Linha ${linha}] Primeiro item do retorno:`, resultadoCompleto.data[0]);
   }
 
-  // 🔹 Emite via socket se houver instância
   if (ioInstance) {
     ioInstance.emit("resultadoCPF", {
       linha,
@@ -90,7 +91,6 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
     });
   }
 
-  // 🔹 Chama callback se fornecido
   if (typeof callback === "function") {
     callback({
       linha,
@@ -103,7 +103,6 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
     });
   }
 }
-
 
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
@@ -332,16 +331,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) idOriginal = planilha.id;
 
-    let resultado = null, providerUsed = null, todasCredenciaisExauridas = false;
+    let resultado = null, providerUsed = null;
 
     for (const provider of PROVIDERS) {
       while (paused) await delay(500);
       providerUsed = provider;
 
-      // 🔹 Consulta primeiro
       resultado = await consultarResultado(cpf, linha);
 
-      // 🔹 Log completo e primeiro item
       if (resultado?.data) {
         console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Retorno completo da API:`, resultado);
         if (resultado.data.length > 0) {
@@ -349,7 +346,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }
       }
 
-      // 🔹 Se erro "Erro ao realizar a consulta" → envia para fila
+      // 🔹 Erro de consulta → envia para fila
       const precisaReenviarFila = resultado?.data?.some(d =>
         d.status === "error" && d.statusInfo?.includes("Erro ao realizar a consulta, tente novamente")
       );
@@ -359,21 +356,21 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         continue;
       }
 
-      // 🔹 Se erro de saldo insuficiente → descartar
+      // 🔹 Saldo insuficiente → descartar
       if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("Saldo insuficiente"))) {
         console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: saldo insuficiente (parcelas < R$10,00).`);
         resultado = null;
         break;
       }
 
-      // 🔹 Se não autorizado → pendência
+      // 🔹 Não autorizado → pendência
       const naoAutorizado = resultado?.data?.some(d =>
         d.status === "error" && d.statusInfo?.includes("não possui autorização")
       );
 
       if (naoAutorizado) {
         const pendencia = resultado.data.find(d => d.statusInfo?.includes("não possui autorização"));
-        registrarPendencia(cpf, idOriginal, pendencia.statusInfo, linha);
+        registrarPendencia(cpf, idOriginal, pendencia?.statusInfo || 'Motivo não informado', linha);
         console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} não autorizado.`);
         resultado = null;
         break;
@@ -389,7 +386,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         break;
       }
 
-      // 🔹 Se retorno válido → processa
+      // 🔹 Retorno válido → processa
       const registrosValidos = resultado?.data?.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente"))) || [];
       const saldo = registrosValidos[0]?.amount || 0;
       const parcelas = registrosValidos[0]?.periods || [];
@@ -422,7 +419,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }
       }
 
-      break; // sai do loop de providers após processar ou pendência
+      break; // Sai do loop de providers após processar ou pendência
     }
 
     processed++;
@@ -431,9 +428,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     await delay(delayMs);
   }
 }
-
-
-
 
 export {
   processarCPFs,
