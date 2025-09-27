@@ -149,38 +149,14 @@ function setProgress(pct, processed, total){
   progressText.textContent = `${pct}% (${processed}/${total})`;
 }
 
+// 🔹 Função corrigida para manter pendentes e sem autorização
 function adicionarResultado(data){
-  if(!data) return;
-  
-  // Normaliza status
-  data.status = (data.status || '').toLowerCase();
-  
-  if(data.status==='progress'){
+  if(data && data.status==='progress'){
     const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
     processedCount = data.processed || processedCount;
     totalToProcess = data.total || totalToProcess;
     setProgress(pct, processedCount, totalToProcess);
     return;
-  }
-
-  const removerDe = (arr, value, cellIndex, table) => {
-    const i = arr.indexOf(value);
-    if(i !== -1) arr.splice(i, 1);
-    table.querySelectorAll('tr').forEach(row => {
-      if(row.cells[cellIndex].textContent === value) row.remove();
-    });
-  };
-
-  if(data.status==='success'){
-    removerDe(naoAutorizados, data.id, 1, tables.no_auth);
-    const idxReady = readyForCSV.findIndex(r=>r.cpf===data.cpf);
-    if(idxReady!==-1){
-      readyForCSV.splice(idxReady,1);
-      tables.ready.querySelectorAll('tr').forEach(row=>{
-        if(row.cells[0].textContent===data.cpf) row.remove();
-      });
-      totals.ready--;
-    }
   }
 
   const tr = document.createElement('tr');
@@ -193,11 +169,33 @@ function adicionarResultado(data){
   tr.innerHTML = `<td>${data.cpf}</td><td>${data.telefone||data.id||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
   tr.className = data.status==='ready_for_manual'?'ready_for_manual':data.status;
 
+  // ✅ Adiciona corretamente sem remover pendentes e sem autorização
   switch(data.status){
-    case 'success': tables.success.appendChild(tr); totals.success++; break;
-    case 'pending': if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf); tables.pending.appendChild(tr); totals.pending++; break;
-    case 'no_auth': if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id); tables.no_auth.appendChild(tr); totals.noAuth++; break;
-    case 'ready_for_manual': readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'}); tables.ready.appendChild(tr); totals.ready++; break;
+    case 'success':
+      tables.success.appendChild(tr); 
+      totals.success++; 
+      // Remove da lista readyForCSV caso exista duplicado
+      readyForCSV = readyForCSV.filter(r=>r.cpf!==data.cpf);
+      tables.ready.querySelectorAll('tr').forEach(row=>{
+        if(row.cells[0].textContent===data.cpf) row.remove();
+      });
+      totals.ready = tables.ready.querySelectorAll('tr').length;
+      break;
+    case 'pending':
+      if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
+      tables.pending.appendChild(tr); 
+      totals.pending++;
+      break;
+    case 'no_auth':
+      if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
+      tables.no_auth.appendChild(tr); 
+      totals.noAuth++;
+      break;
+    case 'ready_for_manual':
+      readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'});
+      tables.ready.appendChild(tr); 
+      totals.ready++;
+      break;
   }
 
   processedCount++;
@@ -237,7 +235,7 @@ socket.on('progress', data => {
   }
 });
 
-// Iniciar
+// 🔹 Mantive todos os botões e funcionalidades originais
 document.getElementById('runBtn').addEventListener('click', async () => {
   const f = document.getElementById('csvfile').files[0]; 
   if(!f) return alert('Escolha um arquivo CSV');
@@ -251,7 +249,6 @@ document.getElementById('runBtn').addEventListener('click', async () => {
   }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err); }
 });
 
-// Limpar
 document.getElementById('btnLimpar').addEventListener('click', () => {
   if(!confirm("Deseja limpar todas as listas e logs?")) return;
   Object.values(tables).forEach(t => t.innerHTML = '');
@@ -266,7 +263,6 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   atualizarContadores();
 });
 
-// Atualizar delay
 document.getElementById('btnUpdateDelay').addEventListener('click', async () => {
   const val = parseInt(document.getElementById('inputDelay').value,10);
   if(isNaN(val) || val<0){ alert("Delay inválido"); return; }
@@ -279,7 +275,6 @@ document.getElementById('btnUpdateDelay').addEventListener('click', async () => 
   }catch(err){ alert("❌ Erro ao atualizar delay: "+err.message); console.error(err); }
 });
 
-// Pausar / Retomar
 document.getElementById('btnPause').addEventListener('click', async ()=>{ 
   await fetch('/fgts/pause',{ method:'POST' }); 
   logs.textContent += "⏸️ Processamento pausado\n"; logs.scrollTop = logs.scrollHeight;
@@ -289,7 +284,6 @@ document.getElementById('btnResume').addEventListener('click', async ()=>{
   logs.textContent += "▶️ Processamento retomado\n"; logs.scrollTop = logs.scrollHeight;
 });
 
-// Reprocessar pendentes
 document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
   if(!pendentes.length){ alert("Não há pendentes para reprocessar"); return; }
   if(!confirm(`Reprocessar ${pendentes.length} pendentes?`)) return;
@@ -301,7 +295,6 @@ document.getElementById('btnReprocessarPendentes').addEventListener('click', asy
   }catch(err){ alert("❌ Erro ao reprocessar pendentes: "+err.message); console.error(err); }
 });
 
-// Mudar fase no CRM
 document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()=>{
   if(!naoAutorizados.length){ alert("Não há registros para mudar fase"); return; }
   if(!confirm(`Mudar fase no CRM para ${naoAutorizados.length} registros?`)) return;
@@ -313,7 +306,6 @@ document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()
   }catch(err){ alert("❌ Erro ao mudar fase: "+err.message); console.error(err); }
 });
 
-// Exportar CSV
 document.getElementById('btnExportCSV').addEventListener('click', ()=>{
   if(!readyForCSV.length){ alert("Não há dados prontos para CSV"); return; }
   const header = ["CPF","Telefone","Valor","Provider"];
