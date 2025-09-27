@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Painel de Consulta FGTS em lote</title>
+  <title>Painel de Consulta FGTS em Lote</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
@@ -10,17 +10,17 @@
     h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
     .columns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
+    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
     .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
     .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; vertical-align: middle; }
     th { background-color: #007bff; color: #fff; font-size: 12px; }
     tr.success { background-color: #d4edda; }
     tr.pending { background-color: #fff3cd; }
     tr.no_auth { background-color: #f8d7da; }
     tr.ready_for_manual { background-color: #d1ecf1; }
-    tr.descartado { background-color: #e2e3e5; }
+    tr.descartado { background-color: #f5c6cb; }
     button, .btn-file { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; transition: background 0.2s; }
     button:hover, .btn-file:hover { filter: brightness(85%); }
     .btn-primary { background: #007bff; color: #fff; }
@@ -41,7 +41,7 @@
 </head>
 <body>
 
-<h1>📂 Painel de Consulta FGTS em lote</h1>
+<h1>📂 Painel de Consulta FGTS em Lote</h1>
 
 <form id="form">
   <label for="csvfile" class="btn-file">📂 Escolher Arquivo</label>
@@ -108,6 +108,12 @@
     </div>
     <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
   </div>
+  <div class="column" id="colDescartados">
+    <h3>❌ Descartados</h3>
+    <div class="list-container">
+      <table id="tableDescartados"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -120,13 +126,20 @@ const tables = {
   success: document.querySelector('#tableSuccess tbody'),
   pending: document.querySelector('#tablePending tbody'),
   no_auth: document.querySelector('#tableNoAuth tbody'),
-  ready: document.querySelector('#tableReadyCSV tbody')
+  ready: document.querySelector('#tableReadyCSV tbody'),
+  descartado: document.querySelector('#tableDescartados tbody')
+};
+
+const counts = {
+  success: document.getElementById('countSuccess'),
+  pending: document.getElementById('countPending'),
+  noAuth: document.getElementById('countNoAuth'),
+  descartado: document.getElementById('countDescartados')
 };
 
 let pendentes = [], naoAutorizados = [], readyForCSV = [];
-let totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartados: 0 };
+let totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
 let totalToProcess = 0, processedCount = 0;
-
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
@@ -134,12 +147,11 @@ fileInput.addEventListener('change', e => {
   fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
 });
 
-// Função para atualizar os contadores
-function atualizarContadores({ success = totals.success, pending = totals.pending, no_auth = totals.noAuth, descartados = totals.descartados } = {}) {
-  document.getElementById('countSuccess').textContent = success;
-  document.getElementById('countPending').textContent = pending;
-  document.getElementById('countNoAuth').textContent = no_auth;
-  document.getElementById('countDescartados').textContent = descartados;
+function atualizarContadores(){
+  counts.success.textContent = totals.success;
+  counts.pending.textContent = totals.pending;
+  counts.noAuth.textContent = totals.noAuth;
+  counts.descartado.textContent = totals.descartado;
 }
 
 function setProgress(pct, processed, total){
@@ -162,73 +174,69 @@ function adicionarResultado(data){
   else if(data.status==='pending') valorExibido=data.motivo||'Aguardando retorno';
   else if(data.status==='no_auth') valorExibido=data.valorLiberado||'-';
   else if(data.status==='ready_for_manual') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='descartado') valorExibido='-';
+  else if(data.status==='descartado') valorExibido=data.valorLiberado||'0.00';
 
-  tr.innerHTML = `<td>${data.cpf}</td><td>${data.id||data.telefone||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
+  let statusIcon = '';
+  switch(data.status){
+    case 'success': statusIcon = '✅'; break;
+    case 'pending': statusIcon = '⏳'; break;
+    case 'no_auth': statusIcon = '🚫'; break;
+    case 'ready_for_manual': statusIcon = '📥'; break;
+    case 'descartado': statusIcon = '❌'; break;
+  }
+
+  tr.innerHTML = `<td>${statusIcon} ${data.cpf}</td><td>${data.id||data.telefone||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
   tr.className = data.status;
 
   switch(data.status){
     case 'success':
-      tables.success.appendChild(tr);
-      totals.success++;
-      break;
+      tables.success.appendChild(tr); totals.success++; break;
     case 'pending':
       if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
-      tables.pending.appendChild(tr);
-      totals.pending++;
-      break;
+      tables.pending.appendChild(tr); totals.pending++; break;
     case 'no_auth':
       if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
-      tables.no_auth.appendChild(tr);
-      totals.noAuth++;
-      break;
+      tables.no_auth.appendChild(tr); totals.noAuth++; break;
     case 'ready_for_manual':
       readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'});
-      tables.ready.appendChild(tr);
-      totals.ready++;
-      break;
+      tables.ready.appendChild(tr); totals.ready++; break;
     case 'descartado':
-      totals.descartados++;
-      break;
+      tables.descartado.appendChild(tr); totals.descartado++; break;
   }
 
   processedCount++;
   const pct = totalToProcess ? Math.round((processedCount/totalToProcess)*100) : 0;
   setProgress(pct, processedCount, totalToProcess||0);
-
   atualizarContadores();
+
+  // Scroll automático
+  const parent = tr.parentElement.parentElement; // list-container
+  parent.scrollTop = parent.scrollHeight;
 }
 
 const socket = io();
-
 socket.on('log', msg => { logs.textContent += msg + '\n'; logs.scrollTop = logs.scrollHeight; });
 socket.on('resultadoCPF', data => { adicionarResultado(data); });
 socket.on('totalCPFs', total => {
   totalCPFsSpan.textContent = total;
   totalToProcess = total;
   processedCount = 0;
-  setProgress(0, 0, totalToProcess);
+  setProgress(0,0,totalToProcess);
   logs.textContent += `📄 Total de CPFs lidos: ${total}\n`;
   logs.scrollTop = logs.scrollHeight;
 });
-
-// Atualiza progresso e contadores incluindo descartados
 socket.on('progress', data => {
   if(data && typeof data.done !== 'undefined' && typeof data.total !== 'undefined'){
-    const pct = Math.round((data.done / data.total) * 100);
+    const pct = Math.round((data.done/data.total)*100);
     processedCount = data.done;
     totalToProcess = data.total;
     setProgress(pct, processedCount, totalToProcess);
-  }
-  if(data && data.counters){
-    atualizarContadores(data.counters);
   }
 });
 
 // Botões
 document.getElementById('runBtn').addEventListener('click', async () => {
-  const f = fileInput.files[0]; 
-  if(!f) return alert('Escolha um arquivo CSV');
+  const f = fileInput.files[0]; if(!f) return alert('Escolha um arquivo CSV');
   const fd = new FormData(); fd.append('csvfile', f);
   try{
     const res = await fetch('/fgts/run', { method:'POST', body: fd });
@@ -238,7 +246,6 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     logs.scrollTop = logs.scrollHeight;
   }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err); }
 });
-
 document.getElementById('btnLimpar').addEventListener('click', () => {
   if(!confirm("Deseja limpar todas as listas e logs?")) return;
   Object.values(tables).forEach(t => t.innerHTML = '');
@@ -246,76 +253,12 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   pendentes = [];
   naoAutorizados = [];
   readyForCSV = [];
-  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartados: 0 };
+  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
   totalToProcess = 0;
   processedCount = 0;
   setProgress(0,0,0);
   atualizarContadores();
 });
-
-// Delay
-document.getElementById('btnUpdateDelay').addEventListener('click', async () => {
-  const val = parseInt(document.getElementById('inputDelay').value,10);
-  if(isNaN(val) || val<0){ alert("Delay inválido"); return; }
-  try{
-    const res = await fetch('/fgts/delay',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({delay: val}) });
-    if(!res.ok) throw new Error(res.statusText);
-    document.getElementById('currentDelay').textContent = val;
-    logs.textContent += `⏱️ Delay atualizado para ${val}ms\n`;
-    logs.scrollTop = logs.scrollHeight;
-  }catch(err){ alert("❌ Erro ao atualizar delay: "+err.message); console.error(err); }
-});
-
-// Pause/Resume
-document.getElementById('btnPause').addEventListener('click', async ()=>{ 
-  await fetch('/fgts/pause',{ method:'POST' }); 
-  logs.textContent += "⏸️ Processamento pausado\n"; logs.scrollTop = logs.scrollHeight;
-});
-document.getElementById('btnResume').addEventListener('click', async ()=>{ 
-  await fetch('/fgts/resume',{ method:'POST' }); 
-  logs.textContent += "▶️ Processamento retomado\n"; logs.scrollTop = logs.scrollHeight;
-});
-
-// Reprocessar pendentes
-document.getElementById('btnReprocessarPendentes').addEventListener('click', async ()=>{
-  if(!pendentes.length){ alert("Não há pendentes para reprocessar"); return; }
-  if(!confirm(`Reprocessar ${pendentes.length} pendentes?`)) return;
-  try{
-    const res = await fetch('/fgts/reprocessar',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cpfs: pendentes}) });
-    if(!res.ok) throw new Error(res.statusText);
-    logs.textContent += `🔄 Reprocessamento iniciado para ${pendentes.length} CPFs\n`;
-    logs.scrollTop = logs.scrollHeight;
-  }catch(err){ alert("❌ Erro ao reprocessar pendentes: "+err.message); console.error(err); }
-});
-
-// Mudar fase no CRM
-document.getElementById('btnMudarFaseNoAuth').addEventListener('click', async ()=>{
-  if(!naoAutorizados.length){ alert("Não há registros para mudar fase"); return; }
-  if(!confirm(`Mudar fase no CRM para ${naoAutorizados.length} registros?`)) return;
-  try{
-    const res = await fetch('/fgts/mudarFaseNaoAutorizados',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ids: naoAutorizados}) });
-    if(!res.ok) throw new Error(res.statusText);
-    logs.textContent += `📌 Fase alterada para ${naoAutorizados.length} registros\n`;
-    logs.scrollTop = logs.scrollHeight;
-  }catch(err){ alert("❌ Erro ao mudar fase: "+err.message); console.error(err); }
-});
-
-// Exportar CSV
-document.getElementById('btnExportCSV').addEventListener('click', ()=>{
-  if(!readyForCSV.length){ alert("Não há dados prontos para CSV"); return; }
-  const header = ["CPF","Telefone","Valor","Provider"];
-  const csvContent = [header.join(',')].concat(readyForCSV.map(r=>[r.cpf,r.telefone,r.valor,r.provider].join(','))).join('\n');
-  const blob = new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `prontos_${Date.now()}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
 </script>
-
 </body>
 </html>
