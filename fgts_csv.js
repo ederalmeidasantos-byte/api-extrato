@@ -324,9 +324,10 @@ async function disparaFluxo(opportunityId) {
   }
 }
 
-// 🔹 Processar CPFs
+// 🔹 Processar CPFs (ajuste pausa completa)
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
+
   if (cpfsReprocess && cpfsReprocess.length) {
     registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
   } else if (csvPath) {
@@ -338,17 +339,19 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   let processed = 0;
 
   for (let [index, registro] of registros.entries()) {
-    while (paused) await delay(500); // respeita pausa
+
+    // ✅ Pausa principal antes de qualquer operação
+    while (paused) await delay(500);
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
     let idOriginal = (registro.ID || "").trim();
     const telefone = normalizePhone(registro.TELEFONE);
 
-    if (!cpf) { 
-      processed++; 
+    if (!cpf) {
+      processed++;
       if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-      continue; 
+      continue;
     }
 
     const planilha = consultarPlanilha(cpf, telefone);
@@ -359,38 +362,50 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let todasCredenciaisExauridas = false;
 
     for (const provider of PROVIDERS) {
+      // ✅ Pausa dentro do loop de providers
+      while (paused) await delay(500);
+
       providerUsed = provider;
       const filaResult = await enviarParaFila(cpf, providerUsed);
+
       if (filaResult === "pending429") { todasCredenciaisExauridas = true; break; }
       if (!filaResult) continue;
 
+      // ✅ Pausa antes de consultar resultado
+      while (paused) await delay(500);
       await delay(delayMs);
+
       resultado = await consultarResultado(cpf, linha);
 
       if (resultado?.error) continue;
       if (resultado?.data && resultado.data.length > 0) break;
     }
 
-    // Ajustes de pendência
     let pendenciaMessage = "Pendência não informada";
     if (resultado?.data?.[0]?.statusInfo === null) pendenciaMessage = "Aguardando retorno";
     else if (todasCredenciaisExauridas) pendenciaMessage = "Tempo de requisição excedido";
     else if (resultado?.data?.[0]?.statusInfo) pendenciaMessage = resultado.data[0].statusInfo;
 
-    // Se não passou na simulação ou não há saldo, descarta
     const registrosValidos = resultado?.data?.filter(r => !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente"))) || [];
     const saldo = registrosValidos[0]?.amount || 0;
     const parcelas = registrosValidos[0]?.periods || [];
     const balanceId = registrosValidos[0]?.id || null;
 
     if (saldo > 0 && balanceId) {
+      // ✅ Pausa antes da simulação
+      while (paused) await delay(500);
       const simulacao = await simularSaldo(cpf, balanceId, parcelas, providerUsed);
+
       if (simulacao) {
         if (!idOriginal) {
+          // ✅ Pausa antes de criar oportunidade
+          while (paused) await delay(500);
           idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
           if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
         }
 
+        // ✅ Pausa antes de atualizar tabela e disparar fluxo
+        while (paused) await delay(500);
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         const fluxo = await disparaFluxo(idOriginal);
 
@@ -405,16 +420,18 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }, callback);
 
       } else {
-        // Simulação não disponível, descarta
         console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} não passou na simulação, descartando.`);
       }
+
     } else {
-      // Sem saldo disponível, descarta
       console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} sem saldo, descartando.`);
     }
 
     processed++;
     if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+
+    // ✅ Pausa final antes de próxima iteração
+    while (paused) await delay(500);
     await delay(delayMs);
   }
 }
