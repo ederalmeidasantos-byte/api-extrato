@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Painel de Consulta FGTS em Lote</title>
+  <title>Painel de Consulta FGTS em lote</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
@@ -10,7 +10,7 @@
     h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
     .columns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
+    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
     .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
     .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -41,7 +41,7 @@
 </head>
 <body>
 
-<h1>📂 Painel de Consulta FGTS em Lote</h1>
+<h1>📂 Painel de Consulta FGTS em lote</h1>
 
 <form id="form">
   <label for="csvfile" class="btn-file">📂 Escolher Arquivo</label>
@@ -129,7 +129,6 @@ const tables = {
   ready: document.querySelector('#tableReadyCSV tbody'),
   descartado: document.querySelector('#tableDescartados tbody')
 };
-
 const counts = {
   success: document.getElementById('countSuccess'),
   pending: document.getElementById('countPending'),
@@ -208,10 +207,6 @@ function adicionarResultado(data){
   const pct = totalToProcess ? Math.round((processedCount/totalToProcess)*100) : 0;
   setProgress(pct, processedCount, totalToProcess||0);
   atualizarContadores();
-
-  // Scroll automático
-  const parent = tr.parentElement.parentElement; // list-container
-  parent.scrollTop = parent.scrollHeight;
 }
 
 const socket = io();
