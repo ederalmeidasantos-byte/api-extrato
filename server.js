@@ -150,54 +150,52 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
       const lines = (await fsp.readFile(req.file.path, "utf-8"))
         .split("\n").filter(l => l.trim());
       const totalCpfs = lines.length;
+      let processados = 0;
 
       let contadorSuccess = 0;
       let contadorPending = 0;
       let contadorSemAutorizacao = 0;
-      let processados = 0;
 
-      // Função que processa cada CPF respeitando pausa
-      const processarCPFComPausa = async (line) => {
-        while(fgtsPaused) await new Promise(r => setTimeout(r, 200));
-        const result = await processarCPFs(null, [line]); // chamando processarCPFs para 1 linha
-        if(result && result[0]) {
-          const r = result[0];
+      await processarCPFs(req.file.path, null, async (result) => {
+        // PAUSA REAL NO BACKEND
+        while (fgtsPaused) await new Promise(r => setTimeout(r, 200));
 
-          // Contadores
-          switch ((r.status || "").toLowerCase()) {
+        if (result) {
+          // Corrige CPF para manter formato correto
+          if (result.cpf) result.cpf = result.cpf.toString().padStart(11, '0');
+
+          switch ((result.status || "").toLowerCase()) {
             case "success": contadorSuccess++; break;
             case "pending": contadorPending++; break;
             case "error":
-              if ((r.statusInfo || "").toLowerCase().includes("não possui autorização")) {
+              if ((result.statusInfo || "").toLowerCase().includes("não possui autorização")) {
                 contadorSemAutorizacao++;
               }
               break;
           }
 
-          resultadosFGTS.push(r);
+          resultadosFGTS.push(result);
 
-          // Emite para painel
-          emitirResultadoPainel(r);
-
-          // Atualiza progresso
-          processados++;
-          io.emit("progress", {
-            done: processados,
-            total: totalCpfs,
+          io.emit("statusUpdate", {
+            linha: result.linha || '?',
+            cpf: result.cpf || '-',
+            id: result.id || '-',
+            status: result.status || '-',
+            provider: result.provider || '-',
+            valorLiberado: (typeof result.valorLiberado === 'number') ? result.valorLiberado.toFixed(2) : (result.valorLiberado || '-'),
             counters: {
               success: contadorSuccess,
               pending: contadorPending,
               semAutorizacao: contadorSemAutorizacao
-            }
+            },
+            processed: ++processados,
+            total: totalCpfs
           });
+        } else {
+          processados++;
+          io.emit("progress", { done: processados, total: totalCpfs });
         }
-      };
-
-      // Adiciona cada linha na fila do PQueue
-      lines.forEach(line => queue.add(() => processarCPFComPausa(line)));
-
-      // Aguarda todas as tarefas terminarem
-      await queue.onIdle();
+      }, DELAY_MS);
 
       logPainel("✅ Processamento FGTS finalizado!");
     } catch (err) {
