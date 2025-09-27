@@ -75,7 +75,7 @@ function emitirResultadoPainel(data) {
     : (valorLiberado ? valorLiberado : '-');
 
   io.emit("log", `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`);
-  io.emit("result", data);
+  io.emit("resultadoCPF", data);
 }
 
 // Conexão do Socket
