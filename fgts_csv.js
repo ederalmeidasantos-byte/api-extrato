@@ -63,7 +63,10 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 function emitirResultado(obj, callback = null) {
   // incluir apiResponse sempre que existir
   if (!obj.apiResponse && obj.resultadoCompleto) {
-    obj.apiResponse = obj.resultadoCompleto;
+    // ⚡ Ajuste: só enviar a primeira consulta + total de páginas
+    const firstItem = obj.resultadoCompleto.data?.[0] ? [obj.resultadoCompleto.data[0]] : [];
+    const totalConsultas = obj.resultadoCompleto.pages?.total || firstItem.length;
+    obj.apiResponse = { data: firstItem, totalConsultas };
   }
 
   console.log("RESULT:" + JSON.stringify(obj, null, 2));
@@ -119,7 +122,7 @@ async function authenticate(force = false) {
   }
 }
 
-// 🔹 Consultar resultado
+// 🔹 Consultar resultado (apenas a primeira consulta)
 async function consultarResultado(cpf, linha) {
   try {
     await authenticate();
@@ -127,7 +130,11 @@ async function consultarResultado(cpf, linha) {
       headers: { Authorization: `Bearer ${TOKEN}` },
     });
     console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
-    return res.data;
+    // ⚡ Retornar somente a primeira consulta
+    return {
+      data: res.data.data?.[0] ? [res.data.data[0]] : [],
+      pages: res.data.pages || { total: 0 }
+    };
   } catch (err) {
     const erroCompleto = {
       message: err.message,

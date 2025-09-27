@@ -6,14 +6,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-    h1 { 
-      font-size: 28px; 
-      font-weight: bold; 
-      color: #007bff; 
-      margin-bottom: 20px; 
-      text-align: center; 
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
-    }
+    h1 { font-size: 28px; font-weight: bold; color: #007bff; margin-bottom: 20px; text-align: center; text-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
     h3 { margin-top: 20px; }
     #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
     .columns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
@@ -40,6 +33,7 @@
     .btn-file { cursor:pointer; display:inline-block; padding: 8px 14px; border-radius: 6px; background:#007bff; color:#fff; font-size:12px; }
     .btn-file:hover { background:#0056b3; }
     input[type="file"] { display:none; }
+    #fileName { margin-left: 10px; font-size: 12px; font-style: italic; }
     form { display:flex; gap:10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
   </style>
 </head>
@@ -50,7 +44,8 @@
 <form id="form">
   <label for="csvfile" class="btn-file">📂 Escolher Arquivo</label>
   <input type="file" id="csvfile" accept=".csv" required />
-  <button type="button" class="btn-primary" id="runBtn">📤 Enviar e Iniciar</button>
+  <span id="fileName">Nenhum arquivo selecionado</span>
+  <button type="button" class="btn-primary" id="runBtn">▶️ Iniciar</button>
   <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
 </form>
 
@@ -111,6 +106,7 @@
 
 <script>
 const logs = document.getElementById('logs');
+const fileNameSpan = document.getElementById('fileName');
 const tables = {
   success: document.querySelector('#tableSuccess tbody'),
   pending: document.querySelector('#tablePending tbody'),
@@ -129,16 +125,24 @@ let totalToProcess = 0, processedCount = 0;
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 
+// Mostrar nome do arquivo selecionado
+document.getElementById('csvfile').addEventListener('change', e => {
+  if(e.target.files.length) fileNameSpan.textContent = e.target.files[0].name;
+  else fileNameSpan.textContent = "Nenhum arquivo selecionado";
+});
+
 function atualizarContadores() {
   counts.success.textContent = totals.success;
   counts.pending.textContent = totals.pending;
   counts.noAuth.textContent = totals.noAuth;
   counts.ready.textContent = totals.ready;
 }
+
 function setProgress(pct, processed = null, total = null) {
   progressBar.style.width = `${pct}%`;
   progressText.textContent = `${pct}% (${processed||processedCount}/${total||totalToProcess})`;
 }
+
 function adicionarResultado(data){
   if(data && data.status==='progress'){
     const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
@@ -182,9 +186,12 @@ socket.on('result',data=>{adicionarResultado(data);});
 
 // Botões
 document.getElementById('runBtn').addEventListener('click',async()=>{
-  const f=document.getElementById('csvfile').files[0]; if(!f)return alert('Escolha um arquivo CSV');
+  const f=document.getElementById('csvfile').files[0]; 
+  if(!f) return alert('Escolha um arquivo CSV');
   const fd=new FormData(); fd.append('csvfile',f);
-  try{const res=await fetch('/fgts/run',{method:'POST',body:fd}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`);
+  try{
+    const res=await fetch('/fgts/run',{method:'POST',body:fd}); 
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
     const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
     if(json&&json.total){totalToProcess=json.total;processedCount=0;setProgress(0,0,totalToProcess);}
   }catch(err){alert("❌ Falha ao enviar CSV: "+err.message); console.error(err);}
@@ -192,16 +199,20 @@ document.getElementById('runBtn').addEventListener('click',async()=>{
 
 document.getElementById('btnReprocessarPendentes').addEventListener('click',async()=>{
   if(!pendentes.length)return alert("Nenhum CPF pendente para reprocessar");
-  try{const res=await fetch('/fgts/reprocessar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpfs:pendentes})});
-    if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
-  }catch(err){alert("❌ Falha ao reprocessar pendentes: "+err.message);console.error(err);}
+  try{
+    const res=await fetch('/fgts/reprocessar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cpfs:pendentes})});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
+  }catch(err){alert("❌ Falha ao reprocessar pendentes: "+err.message); console.error(err);}
 });
 
 document.getElementById('btnMudarFaseNoAuth').addEventListener('click',async()=>{
   if(!naoAutorizados.length)return alert("Nenhum registro sem autorização");
-  try{const res=await fetch('/fgts/mudarFaseNaoAutorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:naoAutorizados})});
-    if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
-  }catch(err){alert("❌ Falha ao mudar fase dos não autorizados: "+err.message);console.error(err);}
+  try{
+    const res=await fetch('/fgts/mudarFaseNaoAutorizados',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:naoAutorizados})});
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json=await res.json(); logs.textContent+='[CLIENT] '+(json.message||JSON.stringify(json))+'\n'; logs.scrollTop=logs.scrollHeight;
+  }catch(err){alert("❌ Falha ao mudar fase dos não autorizados: "+err.message); console.error(err);}
 });
 
 document.getElementById('btnExportCSV').addEventListener('click',()=>{
@@ -219,16 +230,33 @@ document.getElementById('btnLimpar').addEventListener('click',()=>{
 });
 
 // Pausar / Retomar / Cancelar
-document.getElementById('btnPause').addEventListener('click',async()=>{try{const res=await fetch('/fgts/pause',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Pausado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao pausar: "+err.message);}});
-document.getElementById('btnResume').addEventListener('click',async()=>{try{const res=await fetch('/fgts/resume',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Retomado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao retomar: "+err.message);}});
-document.getElementById('btnCancel').addEventListener('click',async()=>{if(!confirm("Deseja cancelar o processo em execução?")) return; try{const res=await fetch('/fgts/cancel',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Cancelado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao cancelar: "+err.message);}});
-
+document.getElementById('btnPause').addEventListener('click',async()=>{
+  try{const res=await fetch('/fgts/pause',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Pausado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao pausar: "+err.message);}});
+document.getElementById('btnResume').addEventListener('click',async()=>{
+  try{const res=await fetch('/fgts/resume',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Retomado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao retomar: "+err.message);}});
+document.getElementById('btnCancel').addEventListener('click',async()=>{
+  if(!confirm("Deseja cancelar o processo em execução?")) return;
+  try{const res=await fetch('/fgts/cancel',{method:'POST'}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); logs.textContent+='[CLIENT] Cancelado\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao cancelar: "+err.message);}});
+  
 // Controle de Delay
-const currentDelayEl=document.getElementById('currentDelay');
-const inputDelayEl=document.getElementById('inputDelay');
-document.getElementById('btnUpdateDelay').addEventListener('click',async()=>{
-  const novoDelay=parseInt(inputDelayEl.value,10); if(isNaN(novoDelay)||novoDelay<0)return alert("Informe um valor válido para o delay (ms)");
-  try{const res=await fetch('/fgts/delay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({delay:novoDelay})}); if(!res.ok)throw new Error(`Erro HTTP: ${res.status}`); currentDelayEl.textContent=novoDelay; logs.textContent+='[CLIENT] Delay atualizado: '+novoDelay+'ms\n'; logs.scrollTop=logs.scrollHeight;}catch(err){alert("Falha ao atualizar delay: "+err.message);}});
-</script>
-</body>
-</html>
+const currentDelayEl = document.getElementById('currentDelay');
+const inputDelayEl = document.getElementById('inputDelay');
+document.getElementById('btnUpdateDelay').addEventListener('click', async () => {
+  const novoDelay = parseInt(inputDelayEl.value, 10);
+  if (isNaN(novoDelay) || novoDelay < 0) return alert("Informe um valor válido para o delay (ms)");
+
+  try {
+    const res = await fetch('/fgts/delay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delay: novoDelay })
+    });
+    if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    currentDelayEl.textContent = novoDelay;
+    logs.textContent += `[CLIENT] Delay atualizado: ${novoDelay}ms\n`;
+    logs.scrollTop = logs.scrollHeight;
+  } catch (err) {
+    alert("Falha ao atualizar delay: " + err.message);
+    console.error(err);
+  }
+});
