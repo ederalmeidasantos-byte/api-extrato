@@ -69,16 +69,25 @@ function registrarPendencia(cpf, id, motivo, linha) {
 
 // 🔹 Emitir resultado
 function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha = "?", resultadoCompleto = null }, callback = null) {
+  // 💡 Formata valor liberado com duas casas decimais
   const valorFormatado = Number(valorLiberado || 0).toFixed(2);
 
+  // 🔹 Log principal
   console.log(
-    `[CLIENT] ✅ Linha: ${linha} | CPF: ${cpf} | ID: ${id || "N/A"} | Status: ${status} | Valor Liberado: ${valorFormatado} | Provider: ${provider}`
+    `[CLIENT] ✅ Linha: ${linha} | CPF: ${cpf} | ID: ${id || "N/A"} | Status: ${status} | Valor Liberado: ${valorFormatado} | Provider: ${provider || "N/A"}`
   );
 
+  // 🔹 Log detalhado do primeiro item do retorno da API
   if (resultadoCompleto?.data && resultadoCompleto.data.length > 0) {
-    console.log(`[CLIENT] 📦 [Linha ${linha}] Primeiro item do retorno:`, resultadoCompleto.data[0]);
+    console.log(
+      `[CLIENT] 📦 [Linha ${linha}] Primeiro item do retorno:`,
+      resultadoCompleto.data[0]
+    );
+  } else {
+    console.log(`[CLIENT] 📦 [Linha ${linha}] Sem retorno da API`);
   }
 
+  // 🔹 Emite via socket se houver instância
   if (ioInstance) {
     ioInstance.emit("resultadoCPF", {
       linha,
@@ -91,6 +100,7 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
     });
   }
 
+  // 🔹 Chama callback se fornecido
   if (typeof callback === "function") {
     callback({
       linha,
@@ -103,6 +113,7 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
     });
   }
 }
+
 
 // 🔹 Alternar credencial
 function switchCredential(forcedIndex = null) {
@@ -311,6 +322,14 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   const total = registros.length;
   let processed = 0;
 
+  // 📊 Contadores e listas
+  let contadorSucesso = 0;
+  let contadorPending = 0;
+  let contadorSemAutorizacao = 0;
+  const listaSucesso = [];
+  const listaPending = [];
+  const listaSemAutorizacao = [];
+
   console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
@@ -337,56 +356,64 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       while (paused) await delay(500);
       providerUsed = provider;
 
-      // 🔹 Consulta primeiro
+      // 🔹 Consulta
       resultado = await consultarResultado(cpf, linha);
 
-      const firstItem = resultado?.data?.[0] || null;
-
-      // 🔹 Se não retornou nada
-      if (!firstItem) {
-        processed++;
-        if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-        break;
+      // 🔹 Log apenas do primeiro item
+      if (resultado?.data?.length > 0) {
+        console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Primeiro item do retorno:`, resultado.data[0]);
       }
 
-      // 🔹 Log apenas do retorno da API
-      console.log(`[${new Date().toISOString()}] 📦 [Linha ${linha}] Primeiro item do retorno:`, firstItem);
-
-      // 🔹 Pending → pendência
-      if (firstItem.status === "pending") {
-        registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
-        processed++;
-        if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-        break;
-      }
-
-      // 🔹 Não autorizado → pendência
-      if (firstItem.status === "error" && firstItem.statusInfo?.includes("não possui autorização")) {
-        registrarPendencia(cpf, idOriginal, firstItem.statusInfo, linha);
-        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} não autorizado.`);
-        processed++;
-        if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-        break;
-      }
-
-      // 🔹 Outros erros de saldo → descartar
-      if (firstItem.status === "error" && firstItem.statusInfo?.includes("Saldo insuficiente")) {
-        processed++;
-        if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-        break;
-      }
-
-      // 🔹 Erros temporários → enviar para fila
-      if (firstItem.status === "error" && firstItem.statusInfo?.includes("Erro ao realizar a consulta")) {
-        console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] CPF ${cpf} reenviado para fila: ${firstItem.statusInfo}`);
+      // 🔹 Se erro "Erro ao realizar a consulta" → envia para fila
+      const precisaReenviarFila = resultado?.data?.some(d =>
+        d.status === "error" && d.statusInfo?.includes("Erro ao realizar a consulta, tente novamente")
+      );
+      if (precisaReenviarFila) {
+        console.log(`${LOG_PREFIX()} 🔄 [Linha ${linha}] CPF ${cpf} reenviado para fila: ${resultado.data[0].statusInfo}`);
         await enviarParaFila(cpf, providerUsed);
         continue;
       }
 
+      // 🔹 Saldo insuficiente → descartar
+      if (resultado?.data?.some(d => d.status === "error" && d.statusInfo?.includes("Saldo insuficiente"))) {
+        console.log(`${LOG_PREFIX()} ❌ [Linha ${linha}] CPF ${cpf} descartado: saldo insuficiente (parcelas < R$10,00).`);
+        resultado = null;
+        break;
+      }
+
+      // 🔹 Sem autorização → pendência
+      const naoAutorizado = resultado?.data?.some(d =>
+        d.status === "error" && d.statusInfo?.includes("não possui autorização")
+      );
+      if (naoAutorizado) {
+        const pendencia = resultado.data.find(d => d.statusInfo?.includes("não possui autorização"));
+        registrarPendencia(cpf, idOriginal, pendencia.statusInfo, linha);
+        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} não autorizado.`);
+        contadorSemAutorizacao++;
+        listaSemAutorizacao.push({ cpf, id: idOriginal, motivo: pendencia.statusInfo, linha });
+        resultado = null;
+        break;
+      }
+
+      // 🔹 Pending → pendência
+      const pending = resultado?.data?.some(d => d.status === "pending");
+      if (pending) {
+        const pend = resultado.data.find(d => d.status === "pending");
+        registrarPendencia(cpf, idOriginal, "Aguardando retorno", linha);
+        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] CPF ${cpf} pendente.`);
+        contadorPending++;
+        listaPending.push({ cpf, id: idOriginal, motivo: "Aguardando retorno", linha });
+        resultado = null;
+        break;
+      }
+
       // 🔹 Retorno válido → processa
-      const saldo = firstItem.amount || 0;
-      const parcelas = firstItem.periods || [];
-      const balanceId = firstItem.id || null;
+      const registrosValidos = resultado?.data?.filter(r =>
+        !(r.status === "error" && r.statusInfo?.includes("Trabalhador não possui adesão ao saque aniversário vigente"))
+      ) || [];
+      const saldo = registrosValidos[0]?.amount || 0;
+      const parcelas = registrosValidos[0]?.periods || [];
+      const balanceId = registrosValidos[0]?.id || null;
 
       if (saldo > 0 && balanceId) {
         while (paused) await delay(500);
@@ -413,24 +440,23 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
             resultadoCompleto: resultado
           }, callback);
 
-          processed++;
-          if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+          contadorSucesso++;
+          listaSucesso.push({ cpf, id: idOriginal, valorLiberado: simulacao.availableBalance, linha });
         }
       }
 
-      break; // sai do loop de providers após processar ou pendência
+      break; // sai do loop de providers
     }
 
-    // 🔹 Incrementa processed caso nenhum provider processou o CPF
-    if (!resultado?.data?.length) {
-      processed++;
-      if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
-    }
-
-    while (paused) await delay(500);
-    await delay(delayMs);
+    processed++;
+    if (ioInstance) ioInstance.emit("progress", Math.floor((processed / total) * 100));
+    while (paused) await delay(delayMs);
   }
+
+  console.log(`📊 Contadores
+Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao}`);
 }
+
 
 
 
