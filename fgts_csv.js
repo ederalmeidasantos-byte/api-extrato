@@ -1000,7 +1000,7 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
       csvPath,
       cpfsReprocess: cpfsReprocess?.length || 0,
       totalRegistros: registros?.length || 0,
-      processed,
+      processed: processed || 0,
       contadorSucesso,
       contadorPending,
       contadorSemAutorizacao,
