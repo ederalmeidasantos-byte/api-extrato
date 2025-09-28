@@ -234,6 +234,7 @@
                     <div class="results-grid">
                         <div class="result-card">
                             <h4>✅ Sucessos</h4>
+                            <div class="counter" id="successCounter">✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">0,00</span></div>
                             <table class="result-table" id="successTable">
                                 <thead>
                                     <tr>
@@ -247,11 +248,11 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
-                            <div class="counter" id="successCounter">✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">0,00</span></div>
                         </div>
 
                         <div class="result-card">
                             <h4>⏳ Pendentes</h4>
+                            <div class="counter" id="pendingCounter">⏳ Pendente | Total: <span id="countPending">0</span></div>
                             <table class="result-table" id="pendingTable">
                                 <thead>
                                     <tr>
@@ -264,12 +265,12 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
-                            <div class="counter" id="pendingCounter">⏳ Pendente | Total: <span id="countPending">0</span></div>
                             <button id="btnReprocessar" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;" disabled>🔄 Reprocessar Pendentes</button>
-</div>
+                        </div>
 
                         <div class="result-card">
                             <h4>🚫 Não Autorizados</h4>
+                            <div class="counter" id="noAuthCounter">🚫 Não Autorizado | Total: <span id="countNoAuth">0</span></div>
                             <table class="result-table" id="noAuthTable">
                                 <thead>
                                     <tr>
@@ -282,12 +283,12 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
-                            <div class="counter" id="noAuthCounter">🚫 Não Autorizado | Total: <span id="countNoAuth">0</span></div>
                             <button id="btnMudarFase" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;" disabled>📌 Mudar Fase no CRM</button>
-</div>
+                        </div>
 
                         <div class="result-card">
                             <h4>❌ Descartados</h4>
+                            <div class="counter" id="discardedCounter">❌ Descartado | Total: <span id="countDiscarded">0</span></div>
                             <table class="result-table" id="discardedTable">
                                 <thead>
                                     <tr>
@@ -300,11 +301,11 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
-                            <div class="counter" id="discardedCounter">❌ Descartado | Total: <span id="countDiscarded">0</span></div>
                         </div>
 
                         <div class="result-card">
                             <h4>📅 Agendados</h4>
+                            <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
                             <table class="result-table" id="scheduledTable">
                                 <thead>
                                     <tr>
@@ -316,7 +317,6 @@
                                 </thead>
                                 <tbody></tbody>
                             </table>
-                            <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
                         </div>
                     </div>
                     
@@ -1097,6 +1097,10 @@ const logs = document.getElementById('logs');
 
         socket.on('resultadoCPF', (data) => {
             adicionarResultado(data);
+        });
+
+        socket.on('removerPendente', (data) => {
+            removerResultado('pending', data.cpf, data.linha);
         });
 
         socket.on('agendamento', (data) => {

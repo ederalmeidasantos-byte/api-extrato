@@ -1080,7 +1080,7 @@ async function processarReprocessamentoRapido() {
       if (novoStatus === 'success') {
         adicionarResultadoLista('sucessos', {
           cpf: cpfRapido.cpf,
-          id: resultado.id || 'N/A',
+          id: cpfRapido.id || resultado.id || 'N/A',
           linha: cpfRapido.linha,
           valor: (resultado.valorLiberado || 0).toFixed(2),
           provider: resultado.provider || 'sistema',
@@ -1090,7 +1090,7 @@ async function processarReprocessamentoRapido() {
       } else if (novoStatus === 'no_auth') {
         adicionarResultadoLista('naoAutorizados', {
           cpf: cpfRapido.cpf,
-          id: resultado.id || 'N/A',
+          id: cpfRapido.id || resultado.id || 'N/A',
           linha: cpfRapido.linha,
           valor: '0.00',
           provider: resultado.provider || 'sistema',
@@ -1100,7 +1100,7 @@ async function processarReprocessamentoRapido() {
       } else {
         adicionarResultadoLista('descartados', {
           cpf: cpfRapido.cpf,
-          id: resultado.id || 'N/A',
+          id: cpfRapido.id || resultado.id || 'N/A',
           linha: cpfRapido.linha,
           valor: '0.00',
           provider: resultado.provider || 'sistema',
@@ -1120,6 +1120,12 @@ async function processarReprocessamentoRapido() {
           provider: resultado.provider || 'sistema',
           statusDetalhado: statusDetalhado,
           isReprocessamento: true
+        });
+        
+        // Emitir remoção da lista de pendentes
+        ioInstance.emit('removerPendente', {
+          cpf: cpfRapido.cpf,
+          linha: cpfRapido.linha
         });
       }
     }
