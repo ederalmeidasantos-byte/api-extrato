@@ -14,11 +14,18 @@ const LISTAS_FILE = path.join(CACHE_DIR, 'listas-resultados.json');
 const BACKUP_DIR = path.join(CACHE_DIR, 'backups');
 
 // Criar diretórios se não existirem
+console.log(`📁 CACHE_DIR: ${CACHE_DIR}`);
 if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
+  console.log(`✅ Pasta cache criada: ${CACHE_DIR}`);
+} else {
+  console.log(`✅ Pasta cache já existe: ${CACHE_DIR}`);
 }
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  console.log(`✅ Pasta backup criada: ${BACKUP_DIR}`);
+} else {
+  console.log(`✅ Pasta backup já existe: ${BACKUP_DIR}`);
 }
 
 // Função para fazer backup antes de salvar
@@ -316,11 +323,13 @@ export function carregarListas() {
 export function salvarListas(listas) {
   try {
     const dados = { ...listas, ultimaAtualizacao: new Date().toISOString() };
+    console.log(`💾 Salvando listas em: ${LISTAS_FILE}`);
     fs.writeFileSync(LISTAS_FILE, JSON.stringify(dados, null, 2));
-    console.log(`💾 Listas salvas: ${Object.keys(listas).length} tipos`);
+    console.log(`✅ Listas salvas: ${Object.keys(listas).length} tipos`);
     return true;
   } catch (error) {
     console.error('❌ Erro ao salvar listas:', error);
+    console.error('❌ Caminho do arquivo:', LISTAS_FILE);
     return false;
   }
 }
