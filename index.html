@@ -571,12 +571,26 @@ const logs = document.getElementById('logs');
                 'criado': 'CRIADO',
                 'agendado': 'AGENDADO',
                 'disparo': 'DISPARO',
-                'reprocessar_rapido': 'REPROCESSAR RÁPIDO',
+                'reprocessar_rapido': 'RÁPIDO',
                 'reprocess': 'REPROCESS'
             };
             
             const statusText = statusMap[status] || statusMap[statusDetalhado] || status;
-            const statusClass = `status-${status === 'success' ? (statusDetalhado || 'success') : (status === 'reprocess' ? 'pending' : status)}`;
+            // Mapear status para classes CSS corretas
+            let statusClass = '';
+            if (status === 'success') {
+                statusClass = statusDetalhado ? `status-${statusDetalhado}` : 'status-success';
+            } else if (status === 'reprocess' || status === 'reprocessar_rapido') {
+                statusClass = 'status-pending';
+            } else if (status === 'no_auth') {
+                statusClass = 'status-no-auth';
+            } else if (status === 'descartado') {
+                statusClass = 'status-discarded';
+            } else if (status === 'pending') {
+                statusClass = 'status-pending';
+            } else {
+                statusClass = `status-${status}`;
+            }
             
             const row = document.createElement('tr');
             row.setAttribute('data-cpf', cpf);
