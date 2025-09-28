@@ -1001,10 +1001,10 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
       cpfsReprocess: cpfsReprocess?.length || 0,
       totalRegistros: registros?.length || 0,
       processed: processed || 0,
-      contadorSucesso,
-      contadorPending,
-      contadorSemAutorizacao,
-      contadorDescartados
+      contadorSucesso: contadorSucesso || 0,
+      contadorPending: contadorPending || 0,
+      contadorSemAutorizacao: contadorSemAutorizacao || 0,
+      contadorDescartados: contadorDescartados || 0
     });
     
     console.error(`${LOG_PREFIX()} ❌ Erro crítico no processamento:`, error.message);
