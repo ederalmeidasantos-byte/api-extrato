@@ -71,6 +71,9 @@ tentativasCPF = carregarTentativasCache();
 const pendentesCarregados = carregarPendentes();
 const estadoCarregado = carregarEstadoProcessamento();
 
+// Carregar listas do cache
+carregarListasDoCache();
+
 // Função para carregar listas do cache
 export function carregarListasDoCache() {
   try {
@@ -479,7 +482,7 @@ async function consultarResultado(cpf, linha) {
         status: 'reprocessar_rapido',
         valorLiberado: 0,
         provider: 'sistema',
-        statusDetalhado: 'reprocessar_rapido'
+        statusDetalhado: 'RÁPIDO'
       });
     }
     
