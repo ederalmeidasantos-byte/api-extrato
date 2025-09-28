@@ -647,9 +647,17 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
     
     // Verificar se está em horário comercial para disparar
     if (isHorarioComercial()) {
-      await disparaFluxo(opportunityId);
-      console.log(`${LOG_PREFIX()} ✅ Oportunidade atualizada e disparada imediatamente - ID: ${opportunityId}`);
-      return { success: true, statusDetalhado: 'disparo' };
+      const resultadoDisparo = await disparaFluxo(opportunityId);
+      if (resultadoDisparo === "ja_disparado") {
+        console.log(`${LOG_PREFIX()} ⚠️ Oportunidade ${opportunityId} já foi disparada anteriormente`);
+        return { success: true, statusDetalhado: 'ja_disparado' };
+      } else if (resultadoDisparo === true) {
+        console.log(`${LOG_PREFIX()} ✅ Oportunidade atualizada e disparada imediatamente - ID: ${opportunityId}`);
+        return { success: true, statusDetalhado: 'disparo' };
+      } else {
+        console.log(`${LOG_PREFIX()} ❌ Erro ao disparar oportunidade ${opportunityId}`);
+        return { success: true, statusDetalhado: 'erro_disparo' };
+      }
     } else {
       agendarDisparo(opportunityId, 'atualizar');
       return { success: true, statusDetalhado: 'agendado' };
@@ -678,9 +686,17 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
     // Verificar se está em horário comercial
     if (isHorarioComercial()) {
       // Disparar imediatamente
-      await disparaFluxo(opportunityId);
-      console.log(`${LOG_PREFIX()} ✅ Oportunidade criada e disparada imediatamente - ID: ${opportunityId}`);
-      return { id: opportunityId, statusDetalhado: 'disparo' };
+      const resultadoDisparo = await disparaFluxo(opportunityId);
+      if (resultadoDisparo === "ja_disparado") {
+        console.log(`${LOG_PREFIX()} ⚠️ Oportunidade ${opportunityId} já foi disparada anteriormente`);
+        return { id: opportunityId, statusDetalhado: 'ja_disparado' };
+      } else if (resultadoDisparo === true) {
+        console.log(`${LOG_PREFIX()} ✅ Oportunidade criada e disparada imediatamente - ID: ${opportunityId}`);
+        return { id: opportunityId, statusDetalhado: 'disparo' };
+      } else {
+        console.log(`${LOG_PREFIX()} ❌ Erro ao disparar oportunidade ${opportunityId}`);
+        return { id: opportunityId, statusDetalhado: 'erro_disparo' };
+      }
     } else {
       // Agendar para horário comercial
       agendarDisparo(opportunityId, 'criar');
@@ -715,11 +731,32 @@ function atualizarCSVcomID(cpf, telefone, novoID) {
 // 🔹 Disparar fluxo
 async function disparaFluxo(opportunityId) {
   if (!opportunityId) return false;
+  
+  // Verificar se já foi disparado recentemente (evitar erro 400)
+  const chaveDisparo = `disparo_${opportunityId}`;
+  if (tentativasCPF.has(chaveDisparo)) {
+    console.log(`${LOG_PREFIX()} ⚠️ Oportunidade ${opportunityId} já foi disparada recentemente, pulando...`);
+    return "ja_disparado";
+  }
+  
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
     await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
+    
+    // Marcar como disparado para evitar reprocessamento
+    tentativasCPF.set(chaveDisparo, Date.now());
+    salvarTentativasCache(tentativasCPF);
+    
     return true;
   } catch (error) {
+    // Se for erro 400, marcar como já disparado para evitar tentativas futuras
+    if (error.response && error.response.status === 400) {
+      console.log(`${LOG_PREFIX()} ⚠️ Oportunidade ${opportunityId} já foi processada anteriormente (erro 400), marcando como já disparada`);
+      tentativasCPF.set(chaveDisparo, Date.now());
+      salvarTentativasCache(tentativasCPF);
+      return "ja_disparado";
+    }
+    
     // Log detalhado do erro de CRM
     logCrmError('disparaFluxo', error, null, opportunityId, {
       queueId: QUEUE_ID,
@@ -854,9 +891,8 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         if (saldoValido) {
           const simulacao = await simularSaldo(cpfPendente, saldoValido.id, saldoValido.periods, saldoValido.provider);
           if (simulacao) {
-            await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
-            await disparaFluxo(id);
-            emitirResultado({ cpf: cpfPendente, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha: linhaPendente, resultadoCompleto: saldoValido }, callback);
+            const resultadoAtualizacao = await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
+            emitirResultado({ cpf: cpfPendente, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha: linhaPendente, resultadoCompleto: saldoValido, statusDetalhado: resultadoAtualizacao.statusDetalhado }, callback);
             contadorSucesso++;
           }
         } else {
@@ -968,9 +1004,8 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     if (saldoValido) {
       const simulacao = await simularSaldo(cpf, saldoValido.id, saldoValido.periods, saldoValido.provider);
       if (simulacao) {
-        await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
-        await disparaFluxo(id);
-        emitirResultado({ cpf, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha, resultadoCompleto: saldoValido }, callback);
+        const resultadoAtualizacao = await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
+        emitirResultado({ cpf, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha, resultadoCompleto: saldoValido, statusDetalhado: resultadoAtualizacao.statusDetalhado }, callback);
         contadorSucesso++;
         pendentesParaReprocessar.splice(pendentesParaReprocessar.indexOf(pend), 1);
       }
