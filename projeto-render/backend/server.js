@@ -16,6 +16,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Servir arquivos estáticos do frontend
+app.use('/static', express.static(path.join(__dirname, '../frontend')));
+
 // Configuração do Multer para upload de PDFs
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -143,6 +146,29 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+// Fallback para SPA - todas as rotas não-API servem o index.html
+app.get('*', (req, res) => {
+  // Se for uma rota de API, retornar 404
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'API endpoint não encontrado',
+      path: req.path
+    });
+  }
+  
+  // Para outras rotas, tentar servir o arquivo específico ou index.html
+  const filePath = path.join(__dirname, '../frontend', req.path === '/' ? 'index.html' : req.path + '.html');
+  
+  // Verificar se o arquivo existe
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    // Fallback para index.html (SPA)
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  }
 });
 
 // ===== INICIALIZAÇÃO =====
