@@ -16,7 +16,7 @@
         .stat-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; border-left: 4px solid #00d4aa; }
         .stat-card h3 { color: #1e293b; font-size: 1.5rem; margin-bottom: 0.5rem; }
         .stat-card p { color: #64748b; font-size: 0.9rem; }
-        .main-content { display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem; margin-bottom: 2rem; }
+        .main-content { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem; }
         .left-panel { display: flex; flex-direction: column; gap: 1rem; }
         .card { background: white; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .card h3 { color: #1e293b; margin-bottom: 0.8rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
@@ -114,15 +114,12 @@
         @media (max-width: 1200px) { 
             .results-grid { grid-template-columns: repeat(2, 1fr); }
             .results-grid-bottom { grid-template-columns: 1fr; }
-            .main-content { grid-template-columns: 1fr 320px; }
         }
         
         @media (max-width: 768px) { 
-            .main-content { grid-template-columns: 1fr; } 
             .results-grid { grid-template-columns: 1fr; }
             .results-grid-bottom { grid-template-columns: 1fr; }
             .sidebar { width: 100%; right: -100%; }
-            .right-panel { position: static; }
         }
   </style>
 </head>
@@ -196,6 +193,15 @@
                             <div id="progressFill" class="progress-fill" style="width: 0%"></div>
                         </div>
                         <div id="progressText" class="progress-text">0% - Aguardando início</div>
+                    </div>
+</div>
+
+                <div class="card">
+                    <h3>📜 Logs em Tempo Real</h3>
+                    <div id="logs" class="logs"></div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnLimparLogs" class="btn btn-secondary">🗑️ Limpar Logs</button>
+                        <button id="btnExportarCSV" class="btn btn-primary">💾 Exportar CSV</button>
                     </div>
 </div>
 
@@ -313,24 +319,13 @@
                             </div>
                             <div id="cacheContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
                                 <div id="cacheContent"></div>
-                            </div>
-                        </div>
-                    </div>
+    </div>
+  </div>
+    </div>
   </div>
     </div>
   </div>
 
-            <div class="right-panel">
-                <div class="card">
-                    <h3>📜 Logs em Tempo Real</h3>
-                    <div id="logs" class="logs"></div>
-                    <div class="controls" style="margin-top: 1rem;">
-                        <button id="btnLimparLogs" class="btn btn-secondary">🗑️ Limpar Logs</button>
-                        <button id="btnExportarCSV" class="btn btn-primary">💾 Exportar CSV</button>
-    </div>
-  </div>
-    </div>
-    </div>
 </div>
 
 <!-- Botão Toggle da Sidebar -->
@@ -470,8 +465,8 @@
                 <button class="btn-test" id="restoreConfig">🔄 Restaurar</button>
             </div>
             <div id="backupStatus" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b;"></div>
-        </div>
     </div>
+  </div>
 </div>
 
 <script>
@@ -1089,7 +1084,9 @@ const logs = document.getElementById('logs');
                             'agendado': '📅 AGENDADO',
                             'disparo': '📱 DISPARO'
                         };
-                        statusCell.textContent = statusMap[statusDetalhado] || statusDetalhado;
+                        const statusText = statusMap[statusDetalhado] || statusDetalhado;
+                        const statusClass = `status-${statusDetalhado}`;
+                        statusCell.innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
                     }
                 }
             });
