@@ -94,12 +94,9 @@ function getCompetenciaAtual(dataExtratoDDMMYYYY) {
 
 // ================== Detectar contingência ==================
 function detectarContingencia(filePath) {
-  try {
-    const txt = fs.readFileSync(filePath, "utf-8");
-    return txt.includes("OffLine") || txt.includes("Demonstrativo de Empréstimos Consignados - OffLine");
-  } catch {
-    return false;
-  }
+  // Para PDFs, assumir que não é contingência por padrão
+  // A detecção real será feita pelo GPT baseado no conteúdo
+  return false;
 }
 
 // ================== Taxa helpers ==================

@@ -117,12 +117,17 @@ app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
     }
 
     console.log('Processando PDF:', req.file.filename);
+    console.log('Caminho do arquivo:', req.file.path);
+    console.log('Tamanho do arquivo:', req.file.size);
     
     // Usar fluxo completo com cache e pós-processamento
     const fileId = req.file.filename.split('-')[1]; // Extrai o ID único do nome do arquivo
     const jsonDir = path.join(__dirname, 'extratos'); // Diretório para salvar JSONs
     
+    console.log('File ID extraído:', fileId);
+    console.log('Diretório JSON:', jsonDir);
     console.log('Chamando extrairDeUpload...');
+    
     const resultado = await extrairDeUpload({
       fileId: fileId,
       pdfPath: req.file.path,
