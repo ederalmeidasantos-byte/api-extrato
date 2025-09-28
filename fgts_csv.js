@@ -1023,6 +1023,36 @@ async function processarReprocessamentoRapido() {
   
   // Processar todos os rápidos imediatamente
   for (const cpfRapido of rapidos) {
+    // Resetar contador de tentativas (persistente)
+    resetarTentativasCache(cpfRapido.cpf);
+    tentativasCPF.delete(cpfRapido.cpf);
+    
+    // Processar novamente
+    const resultado = await processarCPF(cpfRapido.cpf, cpfRapido.linha);
+    
+    // Atualizar status na lista de pendentes baseado no resultado
+    if (resultado && resultado.status) {
+      const novoStatus = resultado.status === 'success' ? 'success' : 'failed';
+      const statusDetalhado = resultado.status === 'success' ? 'Reprocessado para Sucesso' : 'Reprocessado para Falha';
+      
+      // Atualizar na lista de pendentes (persistente)
+      adicionarPendente(cpfRapido.cpf, cpfRapido.linha, novoStatus, 'sistema', statusDetalhado);
+      
+      // Emitir atualização para o painel
+      if (ioInstance) {
+        ioInstance.emit('resultadoCPF', {
+          linha: cpfRapido.linha,
+          cpf: cpfRapido.cpf,
+          id: null,
+          status: novoStatus,
+          valorLiberado: resultado.valorLiberado || 0,
+          provider: 'sistema',
+          statusDetalhado: statusDetalhado,
+          isReprocessamento: true
+        });
+      }
+    }
+    
     // Remover da lista de pendentes (persistente)
     removerPendente(cpfRapido.cpf, cpfRapido.linha);
     
@@ -1031,13 +1061,6 @@ async function processarReprocessamentoRapido() {
     if (index > -1) {
       pendentes.splice(index, 1);
     }
-    
-    // Resetar contador de tentativas (persistente)
-    resetarTentativasCache(cpfRapido.cpf);
-    tentativasCPF.delete(cpfRapido.cpf);
-    
-    // Processar novamente
-    await processarCPF(cpfRapido.cpf, cpfRapido.linha);
   }
 }
 

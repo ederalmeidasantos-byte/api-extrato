@@ -177,7 +177,7 @@ export function carregarEstadoProcessamento() {
 }
 
 // ===== FUNÇÕES DE UTILIDADE =====
-export function adicionarPendente(cpf, linha, status = 'pending', provider = 'bms_cartos') {
+export function adicionarPendente(cpf, linha, status = 'pending', provider = 'bms_cartos', statusDetalhado = null) {
   try {
     const pendentes = carregarPendentes();
     
@@ -192,6 +192,7 @@ export function adicionarPendente(cpf, linha, status = 'pending', provider = 'bm
       linha,
       status,
       provider,
+      statusDetalhado,
       timestamp: new Date().toISOString(),
       id: `pend_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
