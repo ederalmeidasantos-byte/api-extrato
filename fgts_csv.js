@@ -733,6 +733,10 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   let registros = [];
   const pendentesParaReprocessar = [];
   let processed = 0;
+  let contadorSucesso = 0;
+  let contadorPending = 0;
+  let contadorSemAutorizacao = 0;
+  let contadorDescartados = 0;
   
   try {
 
@@ -744,11 +748,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     } else throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
-
-  let contadorSucesso = 0;
-  let contadorPending = 0;
-  let contadorSemAutorizacao = 0;
-  let contadorDescartados = 0;
 
   console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
@@ -1000,11 +999,11 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
       csvPath,
       cpfsReprocess: cpfsReprocess?.length || 0,
       totalRegistros: registros?.length || 0,
-      processed: processed || 0,
-      contadorSucesso: contadorSucesso || 0,
-      contadorPending: contadorPending || 0,
-      contadorSemAutorizacao: contadorSemAutorizacao || 0,
-      contadorDescartados: contadorDescartados || 0
+      processed,
+      contadorSucesso,
+      contadorPending,
+      contadorSemAutorizacao,
+      contadorDescartados
     });
     
     console.error(`${LOG_PREFIX()} ❌ Erro crítico no processamento:`, error.message);
