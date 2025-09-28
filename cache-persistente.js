@@ -284,19 +284,45 @@ export function limparCacheCompleto() {
 
 // --- Cache das Listas de Resultados ---
 export function carregarListas() {
-  return readJsonFile(LISTAS_FILE, {
-    sucessos: [],
-    pendentes: [],
-    naoAutorizados: [],
-    descartados: [],
-    agendados: [],
-    ultimaAtualizacao: new Date(0).toISOString()
-  });
+  try {
+    if (!fs.existsSync(LISTAS_FILE)) {
+      return {
+        sucessos: [],
+        pendentes: [],
+        naoAutorizados: [],
+        descartados: [],
+        agendados: [],
+        ultimaAtualizacao: new Date(0).toISOString()
+      };
+    }
+    
+    const dados = JSON.parse(fs.readFileSync(LISTAS_FILE, 'utf8'));
+    console.log(`📂 Listas carregadas: ${Object.keys(dados).length} tipos`);
+    return dados;
+  } catch (error) {
+    console.error('❌ Erro ao carregar listas:', error);
+    return {
+      sucessos: [],
+      pendentes: [],
+      naoAutorizados: [],
+      descartados: [],
+      agendados: [],
+      ultimaAtualizacao: new Date(0).toISOString()
+    };
+  }
 }
 
 export function salvarListas(listas) {
-  createBackup(LISTAS_FILE);
-  return writeJsonFile(LISTAS_FILE, { ...listas, ultimaAtualizacao: new Date().toISOString() });
+  try {
+    createBackup(LISTAS_FILE);
+    const dados = { ...listas, ultimaAtualizacao: new Date().toISOString() };
+    fs.writeFileSync(LISTAS_FILE, JSON.stringify(dados, null, 2));
+    console.log(`💾 Listas salvas: ${Object.keys(listas).length} tipos`);
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar listas:', error);
+    return false;
+  }
 }
 
 export function adicionarResultadoLista(tipo, dados) {
