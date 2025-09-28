@@ -21,7 +21,7 @@ try {
   };
 }
 
-const RoteiroBancos = require('./roteiro-bancos');
+import RoteiroBancos from './roteiro-bancos.js';
 
 const TROCO_MINIMO = 100;
 const PRAZO_SIMULADO = 96;
