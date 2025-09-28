@@ -119,7 +119,7 @@ app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
     console.log('Processando PDF:', req.file.filename);
     
     // Processar PDF com GPT
-    const resultado = await gptExtrairJSON(req.file.path);
+    const resultado = await gptExtrairJSON(req.file.path, false);
     
     // Limpar arquivo temporário após processamento
     setTimeout(() => {
