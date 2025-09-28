@@ -11,7 +11,7 @@ import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8 } from "./fgts_csv.js";
+import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8, carregarListasDoCache } from "./fgts_csv.js";
 import { getRecentErrors, getErrorStats, cleanOldLogs } from "./error-logger.js";
 import { 
   obterEstatisticasCache, 
@@ -294,6 +294,17 @@ app.post("/fgts/limpar-cache/:cpf", async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro ao limpar cache:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Carregar listas do cache =====
+app.get("/fgts/listas", (req, res) => {
+  try {
+    const listas = carregarListasDoCache();
+    res.json({ success: true, listas });
+  } catch (error) {
+    console.error('❌ Erro ao carregar listas:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

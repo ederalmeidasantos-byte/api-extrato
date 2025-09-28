@@ -1396,8 +1396,92 @@ const logs = document.getElementById('logs');
             }
         });
 
+        // Função para carregar listas do cache
+        async function carregarListasDoCache() {
+            try {
+                const response = await fetch('/fgts/listas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const listas = data.listas;
+                    
+                    // Carregar sucessos
+                    listas.sucessos.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'success',
+                            statusDetalhado: item.statusDetalhado
+                        });
+                    });
+                    
+                    // Carregar pendentes
+                    listas.pendentes.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'pending'
+                        });
+                    });
+                    
+                    // Carregar não autorizados
+                    listas.naoAutorizados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'no_auth'
+                        });
+                    });
+                    
+                    // Carregar descartados
+                    listas.descartados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'descartado'
+                        });
+                    });
+                    
+                    // Carregar agendados
+                    listas.agendados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'agendado'
+                        });
+                    });
+                    
+                    console.log('📋 Listas carregadas do cache:', {
+                        sucessos: listas.sucessos.length,
+                        pendentes: listas.pendentes.length,
+                        naoAutorizados: listas.naoAutorizados.length,
+                        descartados: listas.descartados.length,
+                        agendados: listas.agendados.length
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar listas do cache:', error);
+            }
+        }
+
         // Inicializar
         init();
+        carregarListasDoCache();
         adicionarLog('🚀 Painel FGTS iniciado', 'info');
 </script>
 </body>

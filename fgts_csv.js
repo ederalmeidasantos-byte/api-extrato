@@ -14,7 +14,11 @@ import {
   adicionarPendente,
   removerPendente,
   incrementarTentativaCache,
-  resetarTentativasCache
+  resetarTentativasCache,
+  carregarListas,
+  adicionarResultadoLista,
+  removerResultadoLista,
+  limparLista
 } from "./cache-persistente.js";
 
 dotenv.config();
@@ -66,6 +70,30 @@ console.log('📂 Carregando cache persistente...');
 tentativasCPF = carregarTentativasCache();
 const pendentesCarregados = carregarPendentes();
 const estadoCarregado = carregarEstadoProcessamento();
+
+// Função para carregar listas do cache
+export function carregarListasDoCache() {
+  try {
+    const listas = carregarListas();
+    console.log('📋 Listas carregadas do cache:', {
+      sucessos: listas.sucessos.length,
+      pendentes: listas.pendentes.length,
+      naoAutorizados: listas.naoAutorizados.length,
+      descartados: listas.descartados.length,
+      agendados: listas.agendados.length
+    });
+    return listas;
+  } catch (error) {
+    console.error('❌ Erro ao carregar listas do cache:', error.message);
+    return {
+      sucessos: [],
+      pendentes: [],
+      naoAutorizados: [],
+      descartados: [],
+      agendados: []
+    };
+  }
+}
 
 // Adicionar pendentes carregados ao array em memória
 pendentesCarregados.forEach(pendente => {
@@ -252,6 +280,40 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
   const statusDisplay = statusMap[status] || `❓ ${status}`;
   const logMessage = `${statusDisplay} | Linha: ${linha || "?"} | CPF: ${cpf} | ID: ${id || "N/A"} | Valor: R$ ${valorFormatado} | Provider: ${provider}`;
   console.log(`[CLIENT] ${logMessage}`);
+
+  // Salvar no cache das listas
+  const dadosResultado = {
+    cpf,
+    id: id || 'N/A',
+    linha: linha || '?',
+    valor: valorFormatado,
+    provider: provider || 'N/A',
+    status: status,
+    statusDetalhado: statusDetalhado,
+    timestamp: new Date().toISOString()
+  };
+
+  // Mapear status para tipo de lista
+  let tipoLista = '';
+  switch(status) {
+    case 'success':
+      tipoLista = 'sucessos';
+      break;
+    case 'pending':
+      tipoLista = 'pendentes';
+      break;
+    case 'no_auth':
+      tipoLista = 'naoAutorizados';
+      break;
+    case 'descartado':
+      tipoLista = 'descartados';
+      break;
+    default:
+      tipoLista = 'descartados';
+  }
+
+  // Adicionar ao cache
+  adicionarResultadoLista(tipoLista, dadosResultado);
 
   // Emitir log resumido para o painel (sem detalhes da API)
   if (ioInstance) {

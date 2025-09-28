@@ -10,6 +10,7 @@ const CACHE_DIR = path.join(__dirname, 'cache');
 const PENDENTES_FILE = path.join(CACHE_DIR, 'pendentes.json');
 const TENTATIVAS_FILE = path.join(CACHE_DIR, 'tentativas-cache.json');
 const ESTADO_FILE = path.join(CACHE_DIR, 'estado-processamento.json');
+const LISTAS_FILE = path.join(CACHE_DIR, 'listas-resultados.json');
 const BACKUP_DIR = path.join(CACHE_DIR, 'backups');
 
 // Criar diretórios se não existirem
@@ -281,11 +282,66 @@ export function limparCacheCompleto() {
   }
 }
 
+// --- Cache das Listas de Resultados ---
+export function carregarListas() {
+  return readJsonFile(LISTAS_FILE, {
+    sucessos: [],
+    pendentes: [],
+    naoAutorizados: [],
+    descartados: [],
+    agendados: [],
+    ultimaAtualizacao: new Date(0).toISOString()
+  });
+}
+
+export function salvarListas(listas) {
+  createBackup(LISTAS_FILE);
+  return writeJsonFile(LISTAS_FILE, { ...listas, ultimaAtualizacao: new Date().toISOString() });
+}
+
+export function adicionarResultadoLista(tipo, dados) {
+  const listas = carregarListas();
+  
+  // Verificar se já existe (evitar duplicatas)
+  const existe = listas[tipo].some(item => 
+    item.cpf === dados.cpf && item.id === dados.id
+  );
+  
+  if (!existe) {
+    listas[tipo].push({
+      ...dados,
+      timestamp: new Date().toISOString()
+    });
+    salvarListas(listas);
+  }
+}
+
+export function removerResultadoLista(tipo, cpf, id) {
+  const listas = carregarListas();
+  const initialLength = listas[tipo].length;
+  listas[tipo] = listas[tipo].filter(item => 
+    !(item.cpf === cpf && item.id === id)
+  );
+  
+  if (listas[tipo].length < initialLength) {
+    salvarListas(listas);
+    return true;
+  }
+  return false;
+}
+
+export function limparLista(tipo) {
+  const listas = carregarListas();
+  listas[tipo] = [];
+  salvarListas(listas);
+}
+
 export function obterEstatisticasCache() {
   try {
     const pendentes = carregarPendentes();
     const tentativas = carregarTentativasCache();
     const estado = carregarEstadoProcessamento();
+    const listas = carregarListas();
     
     return {
       pendentes: {
@@ -301,6 +357,13 @@ export function obterEstatisticasCache() {
           acc[tentativas] = (acc[tentativas] || 0) + 1;
           return acc;
         }, {})
+      },
+      listas: {
+        sucessos: listas.sucessos.length,
+        pendentes: listas.pendentes.length,
+        naoAutorizados: listas.naoAutorizados.length,
+        descartados: listas.descartados.length,
+        agendados: listas.agendados.length
       },
       estado: estado,
       ultimaAtualizacao: estado.ultimaAtualizacao
