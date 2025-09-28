@@ -281,42 +281,52 @@ export async function gptExtrairJSON(pdfPath, isContingencia) {
   console.log("📄 [GPT] Upload concluído. File ID:", uploaded.id);
   console.log("🤖 [GPT] Solicitando extração...");
 
-  let response;
-  try {
-    response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: buildPrompt(isContingencia) },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-      temperature: 0.1
-    });
-  } catch (err) {
-    console.warn("⚠️ Falha no gpt-4o-mini, tentando fallback gpt-4o");
-    response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: buildPrompt(isContingencia) },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-      temperature: 0.1
-    });
+  // Usar API de Assistants para processar PDF
+  console.log("🤖 Criando assistant para processar PDF...");
+  const assistant = await openai.beta.assistants.create({
+    name: "PDF Extractor",
+    instructions: buildPrompt(isContingencia),
+    model: "gpt-4o-mini",
+    tools: [{"type": "code_interpreter"}]
+  });
+
+  console.log("📄 Criando thread...");
+  const thread = await openai.beta.threads.create();
+
+  console.log("📎 Anexando arquivo ao thread...");
+  const message = await openai.beta.threads.messages.create(thread.id, {
+    role: "user",
+    content: "Por favor, analise este PDF e extraia os dados conforme as instruções.",
+    attachments: [
+      {
+        file_id: uploaded.id,
+        tools: [{"type": "code_interpreter"}]
+      }
+    ]
+  });
+
+  console.log("🚀 Executando assistant...");
+  const run = await openai.beta.threads.runs.create(thread.id, {
+    assistant_id: assistant.id
+  });
+
+  // Aguardar conclusão
+  let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+  while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
   }
 
+  if (runStatus.status === 'failed') {
+    throw new Error('Assistant falhou: ' + runStatus.last_error?.message);
+  }
+
+  console.log("📥 Obtendo resposta...");
+  const messages = await openai.beta.threads.messages.list(thread.id);
+  const response = messages.data[0];
+
   console.log("✅ [GPT] Resposta recebida.");
-  const raw = response.choices[0].message.content;
+  const raw = response.content[0].text.value;
   console.log("📄 Raw response length:", raw ? raw.length : 0);
   console.log("📄 Raw response preview:", raw ? raw.substring(0, 200) + "..." : "null");
 
@@ -330,6 +340,15 @@ export async function gptExtrairJSON(pdfPath, isContingencia) {
     console.error("❌ Erro ao parsear resposta do GPT:", err.message);
     console.error(">>> Preview da resposta (1000 chars):\n", (raw || "").slice(0, 1000));
     throw new Error("Resposta inválida do GPT: " + err.message);
+  }
+
+  // Limpar recursos
+  try {
+    await openai.files.del(uploaded.id);
+    await openai.beta.assistants.del(assistant.id);
+    console.log("🗑️ Recursos temporários removidos");
+  } catch (cleanupError) {
+    console.warn("⚠️ Erro ao remover recursos temporários:", cleanupError.message);
   }
 
   return parsed;
