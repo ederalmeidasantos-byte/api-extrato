@@ -1,0 +1,59 @@
+{
+  "sucessos": [
+    {
+      "cpf": "12345678901",
+      "linha": 1,
+      "id": "TEST_001",
+      "valor": 100.5,
+      "provider": "teste",
+      "status": "success",
+      "timestamp": "2025-09-28T15:34:10.431Z"
+    },
+    {
+      "cpf": "07205730929",
+      "linha": 2,
+      "id": "36805",
+      "valor": "47.30",
+      "provider": "bms",
+      "status": "success",
+      "statusDetalhado": "CRIADO",
+      "timestamp": "2025-09-28T15:44:22.808Z"
+    },
+    {
+      "cpf": "11111111111",
+      "linha": 1,
+      "id": "TEST_001",
+      "valor": "100.50",
+      "provider": "teste",
+      "status": "success",
+      "statusDetalhado": "CRIADO",
+      "timestamp": "2025-09-28T15:48:55.849Z"
+    },
+    {
+      "cpf": "22222222222",
+      "linha": 2,
+      "id": "TEST_002",
+      "valor": "200.75",
+      "provider": "teste",
+      "status": "success",
+      "statusDetalhado": "AGENDADO",
+      "timestamp": "2025-09-28T15:48:55.858Z"
+    }
+  ],
+  "pendentes": [],
+  "naoAutorizados": [
+    {
+      "cpf": "33333333333",
+      "linha": 3,
+      "id": "TEST_003",
+      "valor": "0.00",
+      "provider": "teste",
+      "status": "no_auth",
+      "statusDetalhado": "Não Autorizado",
+      "timestamp": "2025-09-28T15:48:55.860Z"
+    }
+  ],
+  "descartados": [],
+  "agendados": [],
+  "ultimaAtualizacao": "2025-09-28T15:48:55.860Z"
+}
