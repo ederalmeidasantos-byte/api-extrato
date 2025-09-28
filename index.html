@@ -39,18 +39,20 @@
         .progress-bar { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); transition: width 0.3s ease; border-radius: 10px; }
         .progress-text { text-align: center; color: #64748b; font-size: 0.9rem; }
-        .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 280px; max-height: 400px; overflow-y: auto; }
+        .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .results-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 250px; max-height: 400px; overflow-y: auto; }
+        .result-card.wide { min-width: 100%; }
         .result-card h4 { color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
         .result-table th, .result-table td { padding: 0.4rem; text-align: left; border-bottom: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .result-table th { background: #f8fafc; font-weight: 600; color: #475569; }
-        .result-table .col-linha { width: 15%; }
-        .result-table .col-cpf { width: 25%; }
-        .result-table .col-id { width: 15%; }
-        .result-table .col-valor { width: 20%; }
-        .result-table .col-provider { width: 15%; }
-        .result-table .col-status { width: 10%; }
+        .result-table .col-linha { width: 12%; }
+        .result-table .col-cpf { width: 22%; }
+        .result-table .col-id { width: 12%; }
+        .result-table .col-valor { width: 18%; }
+        .result-table .col-provider { width: 18%; }
+        .result-table .col-status { width: 18%; }
         .result-table tr:hover { background: #f8fafc; }
         
         /* Status com retângulos arredondados */
@@ -111,12 +113,14 @@
         
         @media (max-width: 1200px) { 
             .results-grid { grid-template-columns: repeat(2, 1fr); }
+            .results-grid-bottom { grid-template-columns: 1fr; }
             .main-content { grid-template-columns: 1fr 320px; }
         }
         
         @media (max-width: 768px) { 
             .main-content { grid-template-columns: 1fr; } 
             .results-grid { grid-template-columns: 1fr; }
+            .results-grid-bottom { grid-template-columns: 1fr; }
             .sidebar { width: 100%; right: -100%; }
             .right-panel { position: static; }
         }
@@ -284,8 +288,11 @@
                             </table>
                             <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
                         </div>
-
-                        <div class="result-card">
+                    </div>
+                    
+                    <!-- Seção inferior com Logs de Erro e Cache Persistente -->
+                    <div class="results-grid-bottom">
+                        <div class="result-card wide">
                             <h4>📋 Logs de Erro</h4>
                             <div style="margin-bottom: 1rem;">
                                 <button id="btnVerLogs" class="btn btn-secondary" style="margin-right: 0.5rem;">📋 Ver Logs</button>
@@ -297,7 +304,7 @@
                             </div>
                         </div>
 
-                        <div class="result-card">
+                        <div class="result-card wide">
                             <h4>💾 Cache Persistente</h4>
                             <div style="margin-bottom: 1rem;">
                                 <button id="btnCacheStats" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
@@ -308,6 +315,7 @@
                                 <div id="cacheContent"></div>
                             </div>
                         </div>
+                    </div>
   </div>
     </div>
   </div>
