@@ -11,7 +11,7 @@ import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO } from "./fgts_csv.js";
+import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8 } from "./fgts_csv.js";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
 
@@ -255,6 +255,39 @@ app.post("/fgts/delay", (req,res) => {
   setDelay(novoDelay);
   io.emit("delayUpdate", DELAY_MS);
   res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
+});
+
+// ===== Processar reprocessamento rápido =====
+app.post("/fgts/reprocessar-rapido", async (req, res) => {
+  try {
+    console.log('⚡ Iniciando reprocessamento rápido...');
+    
+    await processarReprocessamentoRapido();
+    
+    res.json({ success: true, message: 'Reprocessamento rápido executado' });
+  } catch (error) {
+    console.error('❌ Erro no reprocessamento rápido:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Limpar cache de um CPF específico =====
+app.post("/fgts/limpar-cache/:cpf", async (req, res) => {
+  try {
+    const { cpf } = req.params;
+    console.log(`🧹 Limpando cache para CPF: ${cpf}`);
+    
+    const resultado = await limparCacheV8(cpf);
+    
+    if (resultado) {
+      res.json({ success: true, message: `Cache limpo para CPF: ${cpf}` });
+    } else {
+      res.status(500).json({ success: false, message: 'Erro ao limpar cache' });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao limpar cache:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Pausar

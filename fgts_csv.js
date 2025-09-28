@@ -44,6 +44,10 @@ let ioInstance = null;
 // 🔹 Pendentes
 const pendentes = [];
 
+// 🔹 Sistema de Cache e Tentativas
+const tentativasCPF = new Map(); // Contador de tentativas por CPF
+const CACHE_LIMIT = 2; // Máximo de tentativas de limpeza de cache
+
 // 🔹 Sistema de Agendamento
 const agendamentos = [];
 const HORARIO_COMERCIAL = {
@@ -311,6 +315,24 @@ async function authenticate(force = false) {
   }
 }
 
+// 🔹 Limpeza de Cache V8 Sistema
+async function limparCacheV8(cpf) {
+  try {
+    const response = await axios.delete(`https://bff.v8sistema.com/fgts/balance/cache/${cpf}`, {
+      headers: {
+        "Authorization": `Bearer ${TOKEN}`,
+        "Content-Type": "application/json"
+      }
+    });
+
+    console.log(`${LOG_PREFIX()} 🧹 Cache limpo para CPF: ${cpf}`);
+    return true;
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao limpar cache V8 para CPF ${cpf}:`, error.response?.data || error.message);
+    return false;
+  }
+}
+
 // 🔹 Consultar resultado com tratamento de 429
 async function consultarResultado(cpf, linha) {
   let tentativasCredenciais = 0;
@@ -318,6 +340,48 @@ async function consultarResultado(cpf, linha) {
   
   // Incrementar contador total
   contadorTotal++;
+  
+  // 🔹 Sistema de Cache - Verificar tentativas
+  const tentativas = tentativasCPF.get(cpf) || 0;
+  
+  // 1ª tentativa: Limpar cache antes da consulta
+  if (tentativas === 0) {
+    console.log(`${LOG_PREFIX()} 🧹 1ª tentativa - Limpando cache para CPF: ${cpf}`);
+    await limparCacheV8(cpf);
+    tentativasCPF.set(cpf, 1);
+  }
+  // 2ª tentativa: Não limpar cache (para não perder consulta anterior)
+  else if (tentativas === 1) {
+    console.log(`${LOG_PREFIX()} 🔄 2ª tentativa - Consultando sem limpar cache para CPF: ${cpf}`);
+    tentativasCPF.set(cpf, 2);
+  }
+  // 3ª tentativa: Marcar para reprocessamento rápido
+  else if (tentativas >= 2) {
+    console.log(`${LOG_PREFIX()} ⚡ 3ª tentativa - Marcando para reprocessamento rápido CPF: ${cpf}`);
+    // Adicionar à fila de reprocessamento rápido
+    pendentes.push({
+      cpf,
+      linha,
+      status: 'reprocessar_rapido',
+      tentativas: tentativas + 1,
+      timestamp: Date.now()
+    });
+    
+    // Emitir para o painel
+    if (ioInstance) {
+      ioInstance.emit("resultadoCPF", {
+        linha,
+        cpf,
+        id: null,
+        status: 'reprocessar_rapido',
+        valorLiberado: 0,
+        provider: 'sistema',
+        statusDetalhado: 'reprocessar_rapido'
+      });
+    }
+    
+    return { data: [], pending: true, errorDetails: { message: "Marcado para reprocessamento rápido" } };
+  }
 
   while (tentativasCredenciais < maxCredenciais) {
     try {
@@ -775,6 +839,29 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao} | Descartados: ${contadorDescartados}`);
 }
 
+// 🔹 Processar CPFs de reprocessamento rápido (prioridade alta)
+async function processarReprocessamentoRapido() {
+  const rapidos = pendentes.filter(p => p.status === 'reprocessar_rapido');
+  if (rapidos.length === 0) return;
+  
+  console.log(`${LOG_PREFIX()} ⚡ Processando ${rapidos.length} CPFs de reprocessamento rápido...`);
+  
+  // Processar todos os rápidos imediatamente
+  for (const cpfRapido of rapidos) {
+    // Remover da lista de pendentes
+    const index = pendentes.indexOf(cpfRapido);
+    if (index > -1) {
+      pendentes.splice(index, 1);
+    }
+    
+    // Resetar contador de tentativas
+    tentativasCPF.delete(cpfRapido.cpf);
+    
+    // Processar novamente
+    await processarCPF(cpfRapido.cpf, cpfRapido.linha);
+  }
+}
+
 
 export {
   processarCPFs,
@@ -788,5 +875,7 @@ export {
   isHorarioComercial,
   agendarDisparo,
   processarAgendamentos,
-  ajustarDelayDinamico
+  ajustarDelayDinamico,
+  processarReprocessamentoRapido,
+  limparCacheV8
 };
