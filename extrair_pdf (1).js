@@ -263,15 +263,8 @@ Esquema esperado:
 }
 
 // ================== GPT Call ==================
-export async function gptExtrairJSON(pdfPath, isContingencia) {
+async function gptExtrairJSON(pdfPath, isContingencia) {
   console.log("🧠 [GPT] Iniciando leitura do arquivo…");
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
-    throw new Error("OPENAI_API_KEY ausente");
-  }
-
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
@@ -313,15 +306,11 @@ export async function gptExtrairJSON(pdfPath, isContingencia) {
 
   console.log("✅ [GPT] Resposta recebida.");
   const raw = response.output_text;
-  console.log("📄 Raw response length:", raw ? raw.length : 0);
-  console.log("📄 Raw response preview:", raw ? raw.substring(0, 200) + "..." : "null");
 
   let parsed;
   try {
     const jsonText = extractJsonFromText(raw);
-    console.log("📄 JSON extraído:", jsonText.substring(0, 200) + "...");
     parsed = JSON.parse(jsonText);
-    console.log("✅ JSON parseado com sucesso");
   } catch (err) {
     console.error("❌ Erro ao parsear resposta do GPT:", err.message);
     console.error(">>> Preview da resposta (1000 chars):\n", (raw || "").slice(0, 1000));
@@ -500,4 +489,3 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
 
   return { fileId, ...json };
 }
-

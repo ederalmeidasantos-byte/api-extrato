@@ -364,8 +364,12 @@
             }
         });
 
-        // Click to upload
-        uploadArea.addEventListener('click', () => {
+        // Click to upload - apenas na área, não no botão
+        uploadArea.addEventListener('click', (e) => {
+            // Evitar duplicação se clicar no botão
+            if (e.target.classList.contains('upload-btn')) {
+                return;
+            }
             fileInput.click();
         });
 
