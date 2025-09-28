@@ -309,7 +309,7 @@
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
                 <div class="upload-text">Arraste seu PDF aqui ou clique para selecionar</div>
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                <button class="upload-btn" id="uploadBtn">
                     Selecionar Arquivo
                 </button>
                 <input type="file" id="fileInput" class="file-input" accept=".pdf" />
@@ -364,12 +364,14 @@
             }
         });
 
-        // Click to upload - apenas na área, não no botão
+        // Click to upload - área e botão
         uploadArea.addEventListener('click', (e) => {
-            // Evitar duplicação se clicar no botão
-            if (e.target.classList.contains('upload-btn')) {
-                return;
-            }
+            fileInput.click();
+        });
+        
+        // Event listener específico para o botão
+        document.getElementById('uploadBtn').addEventListener('click', (e) => {
+            e.stopPropagation(); // Evitar que o click da área também dispare
             fileInput.click();
         });
 

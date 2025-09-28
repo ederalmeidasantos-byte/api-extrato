@@ -283,36 +283,40 @@ export async function gptExtrairJSON(pdfPath, isContingencia) {
 
   let response;
   try {
-    response = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
+    response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
         {
           role: "user",
           content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
-            { type: "input_file", file_id: uploaded.id }
+            { type: "text", text: buildPrompt(isContingencia) },
+            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
           ]
         }
-      ]
+      ],
+      max_tokens: 4000,
+      temperature: 0.1
     });
   } catch (err) {
-    console.warn("⚠️ Falha no gpt-4.1-mini, tentando fallback gpt-4o-mini");
-    response = await openai.responses.create({
-      model: "gpt-4o-mini",
-      input: [
+    console.warn("⚠️ Falha no gpt-4o-mini, tentando fallback gpt-4o");
+    response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
         {
           role: "user",
           content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
-            { type: "input_file", file_id: uploaded.id }
+            { type: "text", text: buildPrompt(isContingencia) },
+            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
           ]
         }
-      ]
+      ],
+      max_tokens: 4000,
+      temperature: 0.1
     });
   }
 
   console.log("✅ [GPT] Resposta recebida.");
-  const raw = response.output_text;
+  const raw = response.choices[0].message.content;
   console.log("📄 Raw response length:", raw ? raw.length : 0);
   console.log("📄 Raw response preview:", raw ? raw.substring(0, 200) + "..." : "null");
 
