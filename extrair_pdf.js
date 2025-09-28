@@ -263,15 +263,8 @@ Esquema esperado:
 }
 
 // ================== GPT Call ==================
-export async function gptExtrairJSON(pdfPath, isContingencia) {
+async function gptExtrairJSON(pdfPath, isContingencia) {
   console.log("🧠 [GPT] Iniciando leitura do arquivo…");
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
-    throw new Error("OPENAI_API_KEY ausente");
-  }
-
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const uploaded = await openai.files.create({
     file: fs.createReadStream(pdfPath),
@@ -496,4 +489,3 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
 
   return { fileId, ...json };
 }
-
