@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
-import { gptExtrairJSON } from './extrair-pdf.js';
+import { gptExtrairJSON } from './extrair_pdf.js';
 import { calcularTrocoEndpoint } from './calculo.js';
 import RoteiroBancos from './roteiro-bancos.js';
 

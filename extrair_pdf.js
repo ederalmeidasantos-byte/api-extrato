@@ -5,12 +5,7 @@ import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 import { encontrarBanco } from "./bancos.js";
 
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
-  throw new Error("OPENAI_API_KEY ausente");
-}
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Verificação da API key será feita dentro das funções
 
 // ================== Helpers ==================
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -419,6 +414,11 @@ function posProcessar(parsed, isContingencia) {
 export async function gptExtrairJSON(pdfPath, isContingencia) {
   console.log(`🤖 Processando PDF com GPT: ${pdfPath}`);
   console.log(`📋 Tipo: ${isContingencia ? 'CONTINGENCIA' : 'INSS'}`);
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
+    throw new Error("OPENAI_API_KEY ausente");
+  }
 
   try {
     const openai = new OpenAI({
