@@ -92,9 +92,17 @@ async function processarAgendamentos() {
   
   for (const agendamento of agendamentosParaProcessar) {
     try {
-      if (agendamento.tipo === 'criar') {
+      if (agendamento.tipo === 'criar' || agendamento.tipo === 'atualizar') {
         await disparaFluxo(agendamento.id);
         console.log(`${LOG_PREFIX()} ✅ Disparo executado (agendado) - ID: ${agendamento.id}`);
+        
+        // Emitir atualização de status para "disparo"
+        if (ioInstance) {
+          ioInstance.emit("atualizarStatus", {
+            id: agendamento.id,
+            statusDetalhado: 'disparo'
+          });
+        }
       }
       
       // Remover da lista de agendamentos
@@ -196,7 +204,7 @@ function registrarPendencia(cpf, id, motivo, linha) {
 }
 
 // 🔹 Emitir resultado
-function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha = "?", resultadoCompleto = null }, callback = null) {
+function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha = "?", resultadoCompleto = null, statusDetalhado = null }, callback = null) {
   const valorFormatado = Number(valorLiberado || 0).toFixed(2);
 
   // Mapear status para exibição (melhorado)
@@ -233,7 +241,8 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
       status,
       valorLiberado: valorFormatado,
       provider,
-      resultadoCompleto
+      resultadoCompleto,
+      statusDetalhado
     });
   }
 
@@ -245,7 +254,8 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
       status,
       valorLiberado: valorFormatado,
       provider,
-      resultadoCompleto
+      resultadoCompleto,
+      statusDetalhado
     });
   }
 }
@@ -462,12 +472,12 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
     if (isHorarioComercial()) {
       await disparaFluxo(opportunityId);
       console.log(`${LOG_PREFIX()} ✅ Oportunidade atualizada e disparada imediatamente - ID: ${opportunityId}`);
+      return { success: true, statusDetalhado: 'disparo' };
     } else {
       agendarDisparo(opportunityId, 'atualizar');
+      return { success: true, statusDetalhado: 'agendado' };
     }
-    
-    return true;
-  } catch { return false; }
+  } catch { return { success: false, statusDetalhado: 'erro' }; }
 }
 
 // 🔹 Criar oportunidade
@@ -483,13 +493,13 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
       // Disparar imediatamente
       await disparaFluxo(opportunityId);
       console.log(`${LOG_PREFIX()} ✅ Oportunidade criada e disparada imediatamente - ID: ${opportunityId}`);
+      return { id: opportunityId, statusDetalhado: 'disparo' };
     } else {
       // Agendar para horário comercial
       agendarDisparo(opportunityId, 'criar');
+      return { id: opportunityId, statusDetalhado: 'agendado' };
     }
-    
-    return opportunityId;
-  } catch { return null; }
+  } catch { return { id: null, statusDetalhado: 'erro' }; }
 }
 
 // 🔹 Atualizar CSV com ID
@@ -683,18 +693,26 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       const r = registrosValidos[0];
       const simulacao = await simularSaldo(cpf, r.id, r.periods, r.provider);
 
-      if (simulacao) {
-        if (!idOriginal) {
-          idOriginal = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
-          if (idOriginal) atualizarCSVcomID(cpf, telefone, idOriginal);
+        if (simulacao) {
+          let statusDetalhado = 'criado';
+          
+          if (!idOriginal) {
+            const resultadoCriacao = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
+            if (resultadoCriacao?.id) {
+              idOriginal = resultadoCriacao.id;
+              statusDetalhado = resultadoCriacao.statusDetalhado;
+              atualizarCSVcomID(cpf, telefone, idOriginal);
+            }
+          } else {
+            const resultadoAtualizacao = await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
+            if (resultadoAtualizacao?.success) {
+              statusDetalhado = resultadoAtualizacao.statusDetalhado;
+            }
+          }
+
+          emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, provider: r.provider, linha, resultadoCompleto: r, statusDetalhado }, callback);
+          contadorSucesso++;
         }
-
-        await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
-        await disparaFluxo(idOriginal);
-
-        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, provider: r.provider, linha, resultadoCompleto: r }, callback);
-        contadorSucesso++;
-      }
       processed++;
       atualizarProgresso();
       continue;

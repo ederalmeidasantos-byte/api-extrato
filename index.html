@@ -143,12 +143,13 @@
                                         <th>ID</th>
                                         <th>Valor</th>
                                         <th>Provider</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                             <div class="counter" id="successCounter">✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">R$ 0,00</span></div>
-</div>
+                        </div>
 
                         <div class="result-card">
                             <h4>⏳ Pendentes</h4>
@@ -184,7 +185,7 @@
                             </table>
                             <div class="counter" id="noAuthCounter">🚫 Não Autorizado | Total: <span id="countNoAuth">0</span></div>
                             <button id="btnMudarFase" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;" disabled>📌 Mudar Fase no CRM</button>
-                        </div>
+</div>
 
                         <div class="result-card">
                             <h4>❌ Descartados</h4>
@@ -217,10 +218,10 @@
                                 <tbody></tbody>
                             </table>
                             <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    </div>
+  </div>
+    </div>
+  </div>
 
             <div class="right-panel">
                 <div class="card">
@@ -307,8 +308,17 @@ const logs = document.getElementById('logs');
 
         // Adicionar resultado às tabelas
         function adicionarResultado(data) {
-            const { linha, cpf, id, status, valorLiberado, provider } = data;
+            const { linha, cpf, id, status, valorLiberado, provider, statusDetalhado } = data;
             const valorFormatado = parseFloat(valorLiberado || 0).toFixed(2);
+            
+            // Mapear status detalhado para exibição
+            const statusMap = {
+                'criado': '🆕 CRIADO',
+                'agendado': '📅 AGENDADO',
+                'disparo': '📱 DISPARO'
+            };
+            
+            const statusDisplay = statusMap[statusDetalhado] || statusDetalhado || status;
             
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -317,6 +327,7 @@ const logs = document.getElementById('logs');
                 <td>${id || 'N/A'}</td>
                 <td>${status === 'success' ? valorFormatado : status}</td>
                 <td>${provider || 'N/A'}</td>
+                <td>${statusDisplay}</td>
             `;
 
             // Adicionar à tabela apropriada
@@ -533,8 +544,8 @@ const logs = document.getElementById('logs');
   }
 
             const csvContent = [
-                'Linha,CPF,ID,Status,Valor,Provider',
-                ...resultados.map(r => `${r.linha || '?'},${r.cpf},${r.id || 'N/A'},${r.status},${r.valorLiberado || 0},${r.provider || 'N/A'}`)
+                'Linha,CPF,ID,Status,Valor,Provider,StatusDetalhado',
+                ...resultados.map(r => `${r.linha || '?'},${r.cpf},${r.id || 'N/A'},${r.status},${r.valorLiberado || 0},${r.provider || 'N/A'},${r.statusDetalhado || ''}`)
             ].join('\n');
 
             const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -608,6 +619,27 @@ const logs = document.getElementById('logs');
         socket.on('delayUpdate', (delay) => {
             delayInput.value = delay;
             delayAtual.textContent = `${delay}ms`;
+        });
+
+        socket.on('atualizarStatus', (data) => {
+            const { id, statusDetalhado } = data;
+            
+            // Atualizar status na tabela de sucessos
+            const rows = successTable.querySelectorAll('tr');
+            rows.forEach(row => {
+                const idCell = row.cells[2];
+                if (idCell && idCell.textContent === id) {
+                    const statusCell = row.cells[5];
+                    if (statusCell) {
+                        const statusMap = {
+                            'criado': '🆕 CRIADO',
+                            'agendado': '📅 AGENDADO',
+                            'disparo': '📱 DISPARO'
+                        };
+                        statusCell.textContent = statusMap[statusDetalhado] || statusDetalhado;
+                    }
+                }
+            });
         });
 
         socket.on('progress', (data) => {
