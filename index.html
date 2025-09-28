@@ -296,6 +296,18 @@
                                 <div id="logsContent"></div>
                             </div>
                         </div>
+
+                        <div class="result-card">
+                            <h4>💾 Cache Persistente</h4>
+                            <div style="margin-bottom: 1rem;">
+                                <button id="btnCacheStats" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
+                                <button id="btnCachePendentes" class="btn btn-secondary" style="margin-right: 0.5rem;">⏳ Pendentes</button>
+                                <button id="btnCacheLimpar" class="btn btn-danger">🗑️ Limpar Cache</button>
+                            </div>
+                            <div id="cacheContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
+                                <div id="cacheContent"></div>
+                            </div>
+                        </div>
   </div>
     </div>
   </div>
@@ -732,6 +744,103 @@ const logs = document.getElementById('logs');
                 } catch (error) {
                     console.error('Erro ao limpar logs:', error);
                     alert('Erro ao limpar logs');
+                }
+            }
+        });
+
+        // Event Listeners para Cache Persistente
+        document.getElementById('btnCacheStats').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/cache/estatisticas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    const cacheContent = document.getElementById('cacheContent');
+                    const cacheContainer = document.getElementById('cacheContainer');
+                    
+                    cacheContent.innerHTML = `
+                        <div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;">
+                            <h4 style="color: #1e293b; margin-bottom: 0.5rem;">💾 Estatísticas do Cache Persistente</h4>
+                            <div><strong>Pendentes:</strong> ${stats.pendentes.total}</div>
+                            <div><strong>Tentativas de Cache:</strong> ${stats.tentativasCache.total}</div>
+                            <br>
+                            <div><strong>Pendentes por Status:</strong></div>
+                            ${Object.entries(stats.pendentes.porStatus).map(([status, count]) => 
+                                `<div style="margin-left: 1rem;">• ${status}: ${count}</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Distribuição de Tentativas:</strong></div>
+                            ${Object.entries(stats.tentativasCache.distribuicao).map(([tentativas, count]) => 
+                                `<div style="margin-left: 1rem;">• ${tentativas} tentativas: ${count} CPFs</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Estado do Processamento:</strong></div>
+                            <div style="margin-left: 1rem;">• Total CPFs: ${stats.estado.totalCPFs}</div>
+                            <div style="margin-left: 1rem;">• Processados: ${stats.estado.processados}</div>
+                            <div style="margin-left: 1rem;">• Sucessos: ${stats.estado.sucessos}</div>
+                            <div style="margin-left: 1rem;">• Pendentes: ${stats.estado.pendentes}</div>
+                            <div style="margin-left: 1rem;">• Não Autorizados: ${stats.estado.naoAutorizados}</div>
+                            <div style="margin-left: 1rem;">• Descartados: ${stats.estado.descartados}</div>
+                        </div>
+                    `;
+                    
+                    cacheContainer.style.display = cacheContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas do cache:', error);
+                alert('Erro ao carregar estatísticas do cache');
+            }
+        });
+
+        document.getElementById('btnCachePendentes').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/cache/pendentes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cacheContent = document.getElementById('cacheContent');
+                    const cacheContainer = document.getElementById('cacheContainer');
+                    
+                    if (data.pendentes.length === 0) {
+                        cacheContent.innerHTML = '<div style="color: #10b981;">✅ Nenhum pendente encontrado!</div>';
+                    } else {
+                        cacheContent.innerHTML = data.pendentes.map(pendente => 
+                            `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border-left: 4px solid #f59e0b;">
+                                <div style="font-weight: bold; color: #f59e0b;">CPF: ${pendente.cpf}</div>
+                                <div style="font-size: 0.7rem; color: #64748b;">
+                                    Linha: ${pendente.linha} | Status: ${pendente.status} | Provider: ${pendente.provider}
+                                </div>
+                                <div style="font-size: 0.6rem; color: #9ca3af;">
+                                    ${new Date(pendente.timestamp).toLocaleString('pt-BR')}
+                                </div>
+                            </div>`
+                        ).join('');
+                    }
+                    
+                    cacheContainer.style.display = cacheContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar pendentes:', error);
+                alert('Erro ao carregar pendentes');
+            }
+        });
+
+        document.getElementById('btnCacheLimpar').addEventListener('click', async () => {
+            if (confirm('Tem certeza que deseja limpar TODO o cache persistente? Isso irá remover pendentes e tentativas de cache!')) {
+                try {
+                    const response = await fetch('/fgts/cache/limpar', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Cache persistente limpo com sucesso!');
+                        document.getElementById('cacheContainer').style.display = 'none';
+                    } else {
+                        alert('Erro ao limpar cache persistente');
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar cache persistente:', error);
+                    alert('Erro ao limpar cache persistente');
                 }
             }
         });

@@ -13,6 +13,13 @@ import { Server } from "socket.io";
 import http from "http";
 import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8 } from "./fgts_csv.js";
 import { getRecentErrors, getErrorStats, cleanOldLogs } from "./error-logger.js";
+import { 
+  obterEstatisticasCache, 
+  limparCacheCompleto, 
+  carregarPendentes, 
+  carregarTentativasCache,
+  resetarTentativasCache 
+} from "./cache-persistente.js";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
 
@@ -334,6 +341,83 @@ app.post("/fgts/logs/limpar", (req, res) => {
     });
   } catch (error) {
     console.error('❌ Erro ao limpar logs:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Estatísticas do Cache Persistente =====
+app.get("/fgts/cache/estatisticas", (req, res) => {
+  try {
+    const stats = obterEstatisticasCache();
+    
+    res.json({
+      success: true,
+      statistics: stats
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter estatísticas do cache:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Limpar Cache Persistente =====
+app.post("/fgts/cache/limpar", (req, res) => {
+  try {
+    const resultado = limparCacheCompleto();
+    
+    if (resultado) {
+      res.json({
+        success: true,
+        message: 'Cache persistente limpo com sucesso'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao limpar cache persistente'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao limpar cache persistente:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Resetar Tentativas de Cache =====
+app.post("/fgts/cache/resetar-tentativas", (req, res) => {
+  try {
+    const { cpf } = req.body;
+    
+    if (cpf) {
+      resetarTentativasCache(cpf);
+      res.json({
+        success: true,
+        message: `Tentativas de cache resetadas para CPF: ${cpf}`
+      });
+    } else {
+      resetarTentativasCache();
+      res.json({
+        success: true,
+        message: 'Todas as tentativas de cache resetadas'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao resetar tentativas de cache:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Listar Pendentes =====
+app.get("/fgts/cache/pendentes", (req, res) => {
+  try {
+    const pendentes = carregarPendentes();
+    
+    res.json({
+      success: true,
+      pendentes: pendentes,
+      total: pendentes.length
+    });
+  } catch (error) {
+    console.error('❌ Erro ao listar pendentes:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

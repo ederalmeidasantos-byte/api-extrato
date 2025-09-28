@@ -4,6 +4,18 @@ import { parse } from "csv-parse/sync";
 import qs from "qs";
 import dotenv from "dotenv";
 import { logApiError, logAuthError, logCacheError, logCrmError, logSystemError } from "./error-logger.js";
+import { 
+  salvarPendentes, 
+  carregarPendentes, 
+  salvarTentativasCache, 
+  carregarTentativasCache, 
+  salvarEstadoProcessamento, 
+  carregarEstadoProcessamento,
+  adicionarPendente,
+  removerPendente,
+  incrementarTentativaCache,
+  resetarTentativasCache
+} from "./cache-persistente.js";
 
 dotenv.config();
 
@@ -46,8 +58,23 @@ let ioInstance = null;
 const pendentes = [];
 
 // 🔹 Sistema de Cache e Tentativas
-const tentativasCPF = new Map(); // Contador de tentativas por CPF
+let tentativasCPF = new Map(); // Contador de tentativas por CPF
 const CACHE_LIMIT = 2; // Máximo de tentativas de limpeza de cache
+
+// 🔹 Carregar cache persistente na inicialização
+console.log('📂 Carregando cache persistente...');
+tentativasCPF = carregarTentativasCache();
+const pendentesCarregados = carregarPendentes();
+const estadoCarregado = carregarEstadoProcessamento();
+
+// Adicionar pendentes carregados ao array em memória
+pendentesCarregados.forEach(pendente => {
+  if (!pendentes.find(p => p.cpf === pendente.cpf && p.linha === pendente.linha)) {
+    pendentes.push(pendente);
+  }
+});
+
+console.log(`📊 Cache carregado: ${tentativasCPF.size} tentativas de cache, ${pendentesCarregados.length} pendentes`);
 
 // 🔹 Sistema de Agendamento
 const agendamentos = [];
@@ -366,23 +393,20 @@ async function consultarResultado(cpf, linha) {
     console.log(`${LOG_PREFIX()} 🧹 1ª tentativa - Limpando cache para CPF: ${cpf}`);
     await limparCacheV8(cpf);
     tentativasCPF.set(cpf, 1);
+    salvarTentativasCache(tentativasCPF); // Salvar no cache persistente
   }
   // 2ª tentativa: Não limpar cache (para não perder consulta anterior)
   else if (tentativas === 1) {
     console.log(`${LOG_PREFIX()} 🔄 2ª tentativa - Consultando sem limpar cache para CPF: ${cpf}`);
     tentativasCPF.set(cpf, 2);
+    salvarTentativasCache(tentativasCPF); // Salvar no cache persistente
   }
   // 3ª tentativa: Marcar para reprocessamento rápido
   else if (tentativas >= 2) {
     console.log(`${LOG_PREFIX()} ⚡ 3ª tentativa - Marcando para reprocessamento rápido CPF: ${cpf}`);
-    // Adicionar à fila de reprocessamento rápido
-    pendentes.push({
-      cpf,
-      linha,
-      status: 'reprocessar_rapido',
-      tentativas: tentativas + 1,
-      timestamp: Date.now()
-    });
+    
+    // Adicionar à fila de reprocessamento rápido (persistente)
+    adicionarPendente(cpf, linha, 'reprocessar_rapido', 'sistema');
     
     // Emitir para o painel
     if (ioInstance) {
@@ -891,6 +915,22 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
   console.log(`📊 Contadores finais:
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao} | Descartados: ${contadorDescartados}`);
+  
+  // Salvar estado final do processamento
+  salvarEstadoProcessamento({
+    totalCPFs: total,
+    processados: processed,
+    sucessos: contadorSucesso,
+    pendentes: contadorPending,
+    naoAutorizados: contadorSemAutorizacao,
+    descartados: contadorDescartados,
+    agendados: 0,
+    delayAtual: delayMs
+  });
+  
+  // Salvar pendentes finais
+  salvarPendentes(pendentes);
+  
   } catch (error) {
     // Log detalhado do erro de sistema
     logSystemError('processarCPFs', error, {
@@ -918,13 +958,17 @@ async function processarReprocessamentoRapido() {
   
   // Processar todos os rápidos imediatamente
   for (const cpfRapido of rapidos) {
-    // Remover da lista de pendentes
+    // Remover da lista de pendentes (persistente)
+    removerPendente(cpfRapido.cpf, cpfRapido.linha);
+    
+    // Remover da lista em memória
     const index = pendentes.indexOf(cpfRapido);
     if (index > -1) {
       pendentes.splice(index, 1);
     }
     
-    // Resetar contador de tentativas
+    // Resetar contador de tentativas (persistente)
+    resetarTentativasCache(cpfRapido.cpf);
     tentativasCPF.delete(cpfRapido.cpf);
     
     // Processar novamente
