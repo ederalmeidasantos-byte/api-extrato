@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiros Bancos - Lunas Digital</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .header p { 
+            color: #64748b; 
+            font-size: 1.1rem; 
+        }
+        
+        .search-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #00d4aa;
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .category-filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .category-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .category-btn:hover {
+            border-color: #00d4aa;
+            color: #00d4aa;
+        }
+        
+        .category-btn.active {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .results-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .banco-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: #fafafa;
+            transition: all 0.3s;
+        }
+        
+        .banco-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .banco-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .banco-nome {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .banco-codigo {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .banco-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .info-group {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #00d4aa;
+        }
+        
+        .info-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-content {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .excecoes-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .excecoes-list li {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .excecoes-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .excecao-codigo {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .excecao-nome {
+            color: #64748b;
+        }
+        
+        .excecao-regra {
+            color: #00d4aa;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #00d4aa;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        
+        .no-results-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .category-filters {
+                justify-content: center;
+            }
+            
+            .banco-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .banco-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏦 Roteiros Bancos</h1>
+            <p>Consulte as regras e exceções de cada banco para contratos consignados</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar por banco, código ou regra...">
+                <button class="btn btn-primary" onclick="buscar()">🔍 Buscar</button>
+                <button class="btn btn-secondary" onclick="limparBusca()">🗑️ Limpar</button>
+            </div>
+            
+            <div class="category-filters">
+                <button class="category-btn active" data-category="all" onclick="filtrarPorCategoria('all')">Todos</button>
+                <button class="category-btn" data-category="BRB" onclick="filtrarPorCategoria('BRB')">BRB</button>
+                <button class="category-btn" data-category="DAYCOVAL" onclick="filtrarPorCategoria('DAYCOVAL')">DAYCOVAL</button>
+                <button class="category-btn" data-category="DIGIO" onclick="filtrarPorCategoria('DIGIO')">DIGIO</button>
+                <button class="category-btn" data-category="FINANTO" onclick="filtrarPorCategoria('FINANTO')">FINANTO</button>
+                <button class="category-btn" data-category="C6" onclick="filtrarPorCategoria('C6')">C6</button>
+                <button class="category-btn" data-category="FINTECH" onclick="filtrarPorCategoria('FINTECH')">FINTECH</button>
+                <button class="category-btn" data-category="INBURSA" onclick="filtrarPorCategoria('INBURSA')">INBURSA</button>
+                <button class="category-btn" data-category="FACTA" onclick="filtrarPorCategoria('FACTA')">FACTA</button>
+                <button class="category-btn" data-category="PICPAY" onclick="filtrarPorCategoria('PICPAY')">PICPAY</button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <span class="spinner"></span>
+                Carregando roteiros...
+            </div>
+            
+            <div id="resultsContainer">
+                <div class="loading">
+                    <span class="spinner"></span>
+                    Carregando roteiros bancários...
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="/" class="btn btn-secondary">🏠 Página Inicial</a>
+            <a href="/simulador" class="btn btn-secondary">🏛️ Simulador</a>
+        </div>
+    </div>
+
+    <script>
+        let roteirosData = {};
+        let categoriaAtiva = 'all';
+        let termoBusca = '';
+
+        async function carregarRoteiros() {
+            try {
+                document.getElementById('loadingIndicator').style.display = 'block';
+                
+                const response = await fetch('/api/roteiros-bancos');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    roteirosData = data.data;
+                    renderizarRoteiros();
+                } else {
+                    throw new Error(data.message || 'Erro ao carregar roteiros');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar roteiros:', error);
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">❌</div>
+                        <h3>Erro ao carregar roteiros</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function renderizarRoteiros() {
+            const container = document.getElementById('resultsContainer');
+            const bancos = Object.keys(roteirosData);
+            
+            if (bancos.length === 0) {
+                container.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">📄</div>
+                        <h3>Nenhum roteiro encontrado</h3>
+                        <p>Tente ajustar os filtros de busca</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let resultados = bancos;
+
+            // Filtrar por categoria
+            if (categoriaAtiva !== 'all') {
+                resultados = resultados.filter(banco => banco === categoriaAtiva);
+            }
+
+            // Filtrar por termo de busca
+            if (termoBusca) {
+                const termo = termoBusca.toLowerCase();
+                resultados = resultados.filter(banco => {
+                    const roteiro = roteirosData[banco];
+                    return banco.toLowerCase().includes(termo) ||
+                           roteiro.regraGeral.toLowerCase().includes(termo) ||
+                           roteirosData[banco].excecoes.some(ex => 
+                               ex.nome.toLowerCase().includes(termo) ||
+                               ex.codigo.includes(termo)
+                           );
+                });
+            }
+
+            if (resultados.length === 0) {
+                container.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h3>Nenhum resultado encontrado</h3>
+                        <p>Tente ajustar os filtros de busca</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = resultados.map(banco => {
+                const roteiro = roteirosData[banco];
+                return `
+                    <div class="banco-card">
+                        <div class="banco-header">
+                            <div class="banco-nome">${banco}</div>
+                            <div class="banco-codigo">${banco}</div>
+                        </div>
+                        
+                        <div class="banco-info">
+                            <div class="info-group">
+                                <div class="info-title">Regra Geral</div>
+                                <div class="info-content">${roteiro.regraGeral}</div>
+                            </div>
+                            
+                            <div class="info-group">
+                                <div class="info-title">Idade</div>
+                                <div class="info-content">${roteiro.idade}</div>
+                            </div>
+                            
+                            <div class="info-group">
+                                <div class="info-title">Taxas</div>
+                                <div class="info-content">${roteiro.taxas.join('%, ')}%</div>
+                            </div>
+                            
+                            <div class="info-group">
+                                <div class="info-title">Saldo Mínimo</div>
+                                <div class="info-content">R$ ${roteiro.saldoDevedorMinimo.toLocaleString('pt-BR')}</div>
+                            </div>
+                            
+                            <div class="info-group">
+                                <div class="info-title">Parcela Mínima</div>
+                                <div class="info-content">R$ ${roteiro.parcelaMinima.toLocaleString('pt-BR')}</div>
+                            </div>
+                            
+                            <div class="info-group">
+                                <div class="info-title">Espécies Aceitas</div>
+                                <div class="info-content">
+                                    ${roteiro.especiesAceitas.todas ? 'Todas' : 'Específicas'}
+                                    ${roteiro.especiesAceitas.exceto ? ` (exceto: ${roteiro.especiesAceitas.exceto.join(', ')})` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${roteiro.excecoes && roteiro.excecoes.length > 0 ? `
+                            <div class="info-group">
+                                <div class="info-title">Exceções</div>
+                                <ul class="excecoes-list">
+                                    ${roteiro.excecoes.map(ex => `
+                                        <li>
+                                            <span class="excecao-codigo">${ex.codigo}</span> - 
+                                            <span class="excecao-nome">${ex.nome}</span> - 
+                                            <span class="excecao-regra">${ex.regra}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${roteiro.naoPorta && roteiro.naoPorta.length > 0 ? `
+                            <div class="info-group">
+                                <div class="info-title">Bancos Não Portáveis</div>
+                                <ul class="excecoes-list">
+                                    ${roteiro.naoPorta.map(b => `
+                                        <li>
+                                            <span class="excecao-codigo">${b.codigo}</span> - 
+                                            <span class="excecao-nome">${b.nome}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function buscar() {
+            termoBusca = document.getElementById('searchInput').value.trim();
+            renderizarRoteiros();
+        }
+
+        function limparBusca() {
+            document.getElementById('searchInput').value = '';
+            termoBusca = '';
+            categoriaAtiva = 'all';
+            
+            // Atualizar botões de categoria
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('[data-category="all"]').classList.add('active');
+            
+            renderizarRoteiros();
+        }
+
+        function filtrarPorCategoria(categoria) {
+            categoriaAtiva = categoria;
+            
+            // Atualizar botões
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${categoria}"]`).classList.add('active');
+            
+            renderizarRoteiros();
+        }
+
+        // Buscar ao pressionar Enter
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                buscar();
+            }
+        });
+
+        // Inicialização
+        carregarRoteiros();
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: simulador-inss
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
+    branch: main
+    rootDir: .
+    dockerfilePath: ./Dockerfile
