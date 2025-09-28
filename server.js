@@ -199,17 +199,97 @@ app.get('/api/health', (req, res) => {
 // Debug - verificar estrutura de arquivos
 app.get('/api/debug', (req, res) => {
   const frontendPath = path.join(__dirname, '../frontend');
-  const files = fs.readdirSync(frontendPath);
+  const extratosPath = path.join(__dirname, 'extratos');
+  let files = [];
+  let extratosFiles = [];
+  
+  try {
+    files = fs.readdirSync(frontendPath);
+  } catch (e) {
+    files = [`Erro ao ler frontend: ${e.message}`];
+  }
+  
+  try {
+    extratosFiles = fs.readdirSync(extratosPath);
+  } catch (e) {
+    extratosFiles = [`Erro ao ler extratos: ${e.message}`];
+  }
   
   res.json({
     status: 'success',
     message: 'Debug info',
     __dirname: __dirname,
     frontendPath: frontendPath,
+    extratosPath: extratosPath,
     files: files,
+    extratosFiles: extratosFiles,
     simuladorExists: fs.existsSync(path.join(frontendPath, 'simulador.html')),
     roteirosExists: fs.existsSync(path.join(frontendPath, 'roteiros-bancos.html'))
   });
+});
+
+// Listar JSONs salvos
+app.get('/api/jsons', (req, res) => {
+  const extratosPath = path.join(__dirname, 'extratos');
+  try {
+    const files = fs.readdirSync(extratosPath);
+    const jsonFiles = files.filter(f => f.endsWith('.json'));
+    
+    const jsons = jsonFiles.map(file => {
+      const filePath = path.join(extratosPath, file);
+      const stats = fs.statSync(filePath);
+      return {
+        filename: file,
+        size: stats.size,
+        modified: stats.mtime,
+        path: filePath
+      };
+    });
+    
+    res.json({
+      status: 'success',
+      message: 'JSONs encontrados',
+      count: jsonFiles.length,
+      files: jsons
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao listar JSONs',
+      error: error.message
+    });
+  }
+});
+
+// Mostrar conteúdo de um JSON específico
+app.get('/api/json/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'extratos', filename);
+  
+  try {
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Arquivo não encontrado'
+      });
+    }
+    
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const json = JSON.parse(content);
+    
+    res.json({
+      status: 'success',
+      message: 'JSON carregado com sucesso',
+      filename: filename,
+      data: json
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao ler JSON',
+      error: error.message
+    });
+  }
 });
 
 // Fallback para rotas não encontradas
