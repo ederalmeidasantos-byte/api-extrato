@@ -315,7 +315,6 @@ export function carregarListas() {
 
 export function salvarListas(listas) {
   try {
-    createBackup(LISTAS_FILE);
     const dados = { ...listas, ultimaAtualizacao: new Date().toISOString() };
     fs.writeFileSync(LISTAS_FILE, JSON.stringify(dados, null, 2));
     console.log(`💾 Listas salvas: ${Object.keys(listas).length} tipos`);
