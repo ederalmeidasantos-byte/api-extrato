@@ -41,7 +41,7 @@
         .progress-text { text-align: center; color: #64748b; font-size: 0.9rem; }
         .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
         .results-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
-        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 250px; max-height: 400px; overflow-y: auto; }
+        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 250px; max-height: 400px; display: flex; flex-direction: column; }
         .result-card.wide { min-width: 100%; }
         .result-card h4 { color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; table-layout: fixed; }
@@ -54,6 +54,12 @@
         .result-table .col-provider { width: 15%; }
         .result-table .col-status { width: 30%; }
         .result-table tr:hover { background: #f8fafc; }
+        
+        /* Fixar cabeçalho e botão */
+        .result-table thead { position: sticky; top: 0; z-index: 10; background: white; }
+        .result-table tbody { max-height: 300px; overflow-y: auto; display: block; }
+        .result-table thead, .result-table tbody tr { display: table; width: 100%; table-layout: fixed; }
+        .counter { position: sticky; bottom: 0; background: white; z-index: 10; margin-top: auto; }
         
         /* Status com retângulos arredondados */
         .status-badge { 
