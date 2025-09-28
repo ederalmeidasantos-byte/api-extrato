@@ -12,6 +12,7 @@ import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
 import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8 } from "./fgts_csv.js";
+import { getRecentErrors, getErrorStats, cleanOldLogs } from "./error-logger.js";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
 
@@ -286,6 +287,53 @@ app.post("/fgts/limpar-cache/:cpf", async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro ao limpar cache:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Visualizar logs de erro =====
+app.get("/fgts/logs/erros", (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const errors = getRecentErrors(limit);
+    
+    res.json({
+      success: true,
+      total: errors.length,
+      errors: errors
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter logs de erro:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Estatísticas de erros =====
+app.get("/fgts/logs/estatisticas", (req, res) => {
+  try {
+    const stats = getErrorStats();
+    
+    res.json({
+      success: true,
+      statistics: stats
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter estatísticas:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== Limpar logs antigos =====
+app.post("/fgts/logs/limpar", (req, res) => {
+  try {
+    cleanOldLogs();
+    
+    res.json({
+      success: true,
+      message: 'Logs antigos removidos com sucesso'
+    });
+  } catch (error) {
+    console.error('❌ Erro ao limpar logs:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

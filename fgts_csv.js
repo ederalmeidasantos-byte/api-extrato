@@ -3,6 +3,7 @@ import axios from "axios";
 import { parse } from "csv-parse/sync";
 import qs from "qs";
 import dotenv from "dotenv";
+import { logApiError, logAuthError, logCacheError, logCrmError, logSystemError } from "./error-logger.js";
 
 dotenv.config();
 
@@ -310,6 +311,15 @@ async function authenticate(force = false) {
   } catch (err) {
     const user = cred?.username || "sem usuário";
     console.log(`${LOG_PREFIX()} ❌ Erro ao autenticar ${user}: ${err.message}`);
+    
+    // Log detalhado do erro de autenticação
+    logAuthError('FGTS', 'authenticate', err, null, {
+      credentialIndex: credIndex,
+      username: cred?.username,
+      totalCredentials: CREDENTIALS.length,
+      force: force
+    });
+    
     switchCredential();
     return authenticate();
   }
@@ -329,6 +339,13 @@ async function limparCacheV8(cpf) {
     return true;
   } catch (error) {
     console.error(`${LOG_PREFIX()} ❌ Erro ao limpar cache V8 para CPF ${cpf}:`, error.response?.data || error.message);
+    
+    // Log detalhado do erro de cache
+    logCacheError('limparCacheV8', error, cpf, {
+      token: TOKEN ? 'presente' : 'ausente',
+      url: `https://bff.v8sistema.com/fgts/balance/cache/${cpf}`
+    });
+    
     return false;
   }
 }
@@ -400,7 +417,14 @@ async function consultarResultado(cpf, linha) {
       const erroLog = `❌ Erro consulta CPF ${cpf}: ${JSON.stringify(erroCompleto)}`;
       console.log(`${LOG_PREFIX()} ${erroLog}`);
       
-      // NÃO emitir log de erro detalhado para o painel - apenas no console
+      // Log detalhado do erro de API
+      logApiError('FGTS', 'consultarResultado', err, cpf, {
+        linha,
+        tentativasCredenciais,
+        maxCredenciais,
+        credIndex,
+        username: CREDENTIALS[credIndex]?.username
+      }, res?.data);
 
       if (erroCompleto.status === 401) {
         await authenticate(true);
@@ -541,7 +565,17 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
       agendarDisparo(opportunityId, 'atualizar');
       return { success: true, statusDetalhado: 'agendado' };
     }
-  } catch { return { success: false, statusDetalhado: 'erro' }; }
+  } catch (error) {
+    // Log detalhado do erro de CRM
+    logCrmError('atualizarOportunidadeComTabela', error, null, opportunityId, {
+      tabelaSimulada,
+      formsdata: { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" },
+      queueId: QUEUE_ID,
+      payload: { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata: { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" } }
+    });
+    
+    return { success: false, statusDetalhado: 'erro' };
+  }
 }
 
 // 🔹 Criar oportunidade
@@ -563,7 +597,17 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
       agendarDisparo(opportunityId, 'criar');
       return { id: opportunityId, statusDetalhado: 'agendado' };
     }
-  } catch { return { id: null, statusDetalhado: 'erro' }; }
+  } catch (error) {
+    // Log detalhado do erro de CRM
+    logCrmError('criarOportunidade', error, cpf, null, {
+      telefone,
+      valorLiberado,
+      queueId: QUEUE_ID,
+      payload: { queueId: QUEUE_ID, apiKey: API_CRM_KEY, fkPipeline: 1, fkStage: 4, responsableid: 0, title: `Oportunidade CPF ${cpf}`, mainphone: telefone || "", mainmail: cpf || "", value: valorLiberado || 0 }
+    });
+    
+    return { id: null, statusDetalhado: 'erro' };
+  }
 }
 
 // 🔹 Atualizar CSV com ID
@@ -586,20 +630,30 @@ async function disparaFluxo(opportunityId) {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
     await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
     return true;
-  } catch { return "erroDisparo"; }
+  } catch (error) {
+    // Log detalhado do erro de CRM
+    logCrmError('disparaFluxo', error, null, opportunityId, {
+      queueId: QUEUE_ID,
+      destStageId: DEST_STAGE_ID,
+      payload: { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID }
+    });
+    
+    return "erroDisparo";
+  }
 }
 
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
-  let registros = [];
-  const pendentesParaReprocessar = [];
+  try {
+    let registros = [];
+    const pendentesParaReprocessar = [];
 
-  if (cpfsReprocess && cpfsReprocess.length) {
-    registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
-  } else if (csvPath) {
-    const csvContent = fs.readFileSync(csvPath, "utf-8");
-    registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
-  } else throw new Error("Nenhum CSV fornecido para processar!");
+    if (cpfsReprocess && cpfsReprocess.length) {
+      registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+    } else if (csvPath) {
+      const csvContent = fs.readFileSync(csvPath, "utf-8");
+      registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+    } else throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
   let processed = 0;
@@ -837,6 +891,22 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
 
   console.log(`📊 Contadores finais:
 Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização: ${contadorSemAutorizacao} | Descartados: ${contadorDescartados}`);
+  } catch (error) {
+    // Log detalhado do erro de sistema
+    logSystemError('processarCPFs', error, {
+      csvPath,
+      cpfsReprocess: cpfsReprocess?.length || 0,
+      totalRegistros: registros?.length || 0,
+      processed,
+      contadorSucesso,
+      contadorPending,
+      contadorSemAutorizacao,
+      contadorDescartados
+    });
+    
+    console.error(`${LOG_PREFIX()} ❌ Erro crítico no processamento:`, error.message);
+    throw error;
+  }
 }
 
 // 🔹 Processar CPFs de reprocessamento rápido (prioridade alta)

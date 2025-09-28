@@ -276,14 +276,26 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Tipo</th>
-                                        <th>Agendado Para</h4>
+                                        <th>Agendado Para</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                             <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
-    </div>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>📋 Logs de Erro</h4>
+                            <div style="margin-bottom: 1rem;">
+                                <button id="btnVerLogs" class="btn btn-secondary" style="margin-right: 0.5rem;">📋 Ver Logs</button>
+                                <button id="btnEstatisticas" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
+                                <button id="btnLimparLogs" class="btn btn-danger">🗑️ Limpar</button>
+                            </div>
+                            <div id="logsContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
+                                <div id="logsContent"></div>
+                            </div>
+                        </div>
   </div>
     </div>
   </div>
@@ -639,6 +651,90 @@ const logs = document.getElementById('logs');
             successCPFs.textContent = countSuccess.textContent;
             pendingCPFs.textContent = countPending.textContent;
         }
+
+        // Event Listeners para Logs de Erro
+        document.getElementById('btnVerLogs').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/logs/erros?limit=20');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const logsContent = document.getElementById('logsContent');
+                    const logsContainer = document.getElementById('logsContainer');
+                    
+                    if (data.errors.length === 0) {
+                        logsContent.innerHTML = '<div style="color: #10b981;">✅ Nenhum erro encontrado!</div>';
+                    } else {
+                        logsContent.innerHTML = data.errors.map(error => 
+                            `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border-left: 4px solid #ef4444;">
+                                <div style="font-weight: bold; color: #ef4444;">${error.split('[')[0]}</div>
+                                <div style="font-size: 0.7rem; color: #64748b;">${error}</div>
+                            </div>`
+                        ).join('');
+                    }
+                    
+                    logsContainer.style.display = logsContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar logs:', error);
+                alert('Erro ao carregar logs de erro');
+            }
+        });
+
+        document.getElementById('btnEstatisticas').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/logs/estatisticas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    const logsContent = document.getElementById('logsContent');
+                    const logsContainer = document.getElementById('logsContainer');
+                    
+                    logsContent.innerHTML = `
+                        <div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;">
+                            <h4 style="color: #1e293b; margin-bottom: 0.5rem;">📊 Estatísticas de Erros</h4>
+                            <div><strong>Total de Erros:</strong> ${stats.total}</div>
+                            <div><strong>Erros Recentes:</strong> ${stats.recent}</div>
+                            <br>
+                            <div><strong>Por Tipo:</strong></div>
+                            ${Object.entries(stats.byType).map(([type, count]) => 
+                                `<div style="margin-left: 1rem;">• ${type}: ${count}</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Por Sistema:</strong></div>
+                            ${Object.entries(stats.bySystem).map(([system, count]) => 
+                                `<div style="margin-left: 1rem;">• ${system}: ${count}</div>`
+                            ).join('')}
+                        </div>
+                    `;
+                    
+                    logsContainer.style.display = logsContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+                alert('Erro ao carregar estatísticas');
+            }
+        });
+
+        document.getElementById('btnLimparLogs').addEventListener('click', async () => {
+            if (confirm('Tem certeza que deseja limpar os logs antigos?')) {
+                try {
+                    const response = await fetch('/fgts/logs/limpar', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Logs antigos removidos com sucesso!');
+                        document.getElementById('logsContainer').style.display = 'none';
+                    } else {
+                        alert('Erro ao limpar logs');
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar logs:', error);
+                    alert('Erro ao limpar logs');
+                }
+            }
+        });
 
         // Event Listeners
         csvFile.addEventListener('change', (e) => {
