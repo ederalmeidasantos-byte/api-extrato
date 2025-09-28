@@ -1,5 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Carregar coeficientes
 const coeficientesPath = path.join(__dirname, 'coeficientes_96.json');
@@ -284,7 +288,7 @@ function calcularTrocoEndpoint(req, res) {
   }
 }
 
-module.exports = {
+export {
   simularContrato,
   calcularTrocoEndpoint,
   formatBRNumber,

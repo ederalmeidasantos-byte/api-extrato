@@ -239,4 +239,4 @@ const RoteiroBancos = {
   }
 };
 
-module.exports = RoteiroBancos;
+export default RoteiroBancos;

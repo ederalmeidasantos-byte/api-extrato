@@ -35,6 +35,28 @@
 
 ## 🛠️ **PREPARAÇÃO DO PROJETO**
 
+### **⚠️ REGRA CRÍTICA: server.js na RAIZ**
+
+**O Render exige que o arquivo principal se chame `server.js` e esteja na RAIZ do projeto!**
+
+❌ **NÃO FUNCIONA:**
+```
+projeto/
+├── src/
+│   └── server.js          # ❌ ERRADO - não está na raiz
+├── app/
+│   └── main.js            # ❌ ERRADO - nome diferente
+└── index.js               # ❌ ERRADO - nome diferente
+```
+
+✅ **FUNCIONA:**
+```
+projeto/
+├── server.js              # ✅ CORRETO - na raiz
+├── package.json
+└── outros-arquivos...
+```
+
 ### **1. Estrutura Mínima Necessária**
 ```
 projeto/
@@ -76,6 +98,9 @@ projeto/
 ```
 
 ### **3. server.js Configurado para Render**
+
+⚠️ **IMPORTANTE**: O arquivo principal DEVE se chamar `server.js` e estar na **RAIZ** do projeto!
+
 ```javascript
 const express = require('express');
 const path = require('path');
@@ -388,6 +413,36 @@ app.use((req, res, next) => {
 
 ---
 
+## ⚠️ **REGRAS CRÍTICAS DO RENDER**
+
+### **1. Arquivo server.js OBRIGATÓRIO**
+- ✅ **Nome**: Deve se chamar exatamente `server.js`
+- ✅ **Localização**: Deve estar na **RAIZ** do projeto
+- ✅ **Conteúdo**: Deve ser o arquivo principal do servidor
+
+### **2. Estrutura de Arquivos**
+```
+projeto-render/
+├── server.js              # ✅ OBRIGATÓRIO - na raiz
+├── package.json           # ✅ OBRIGATÓRIO - na raiz
+├── .env.example           # ✅ Recomendado
+├── .gitignore             # ✅ Recomendado
+├── README.md              # ✅ Recomendado
+└── outros-arquivos...
+```
+
+### **3. Configurações do package.json**
+```json
+{
+  "main": "server.js",        // ✅ Deve apontar para server.js
+  "scripts": {
+    "start": "node server.js" // ✅ Deve executar server.js
+  }
+}
+```
+
+---
+
 ## 🔧 **TROUBLESHOOTING**
 
 ### **Problemas Comuns e Soluções**
@@ -398,7 +453,34 @@ app.use((req, res, next) => {
 npm install --save express cors dotenv
 ```
 
-#### **2. Erro: "Port already in use"**
+#### **2. Erro: "Build failed - No start script"**
+```bash
+# ❌ PROBLEMA: Arquivo não se chama server.js
+projeto/
+├── app.js              # ❌ ERRADO
+└── package.json
+
+# ✅ SOLUÇÃO: Renomear para server.js
+projeto/
+├── server.js           # ✅ CORRETO
+└── package.json
+```
+
+#### **3. Erro: "Build failed - server.js not found"**
+```bash
+# ❌ PROBLEMA: server.js não está na raiz
+projeto/
+├── src/
+│   └── server.js       # ❌ ERRADO - não está na raiz
+└── package.json
+
+# ✅ SOLUÇÃO: Mover para a raiz
+projeto/
+├── server.js           # ✅ CORRETO - na raiz
+└── package.json
+```
+
+#### **4. Erro: "Port already in use"**
 ```javascript
 // Solução: Usar variável de ambiente PORT
 const PORT = process.env.PORT || 3000;

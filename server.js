@@ -1,11 +1,15 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const cors = require('cors');
-const { gptExtrairJSON } = require('./extrair-pdf');
-const { calcularTrocoEndpoint } = require('./calculo');
-const RoteiroBancos = require('./roteiro-bancos');
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { gptExtrairJSON } from './extrair-pdf.js';
+import { calcularTrocoEndpoint } from './calculo.js';
+import RoteiroBancos from './roteiro-bancos.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -238,4 +242,4 @@ app.listen(PORT, () => {
   console.log('===============================================');
 });
 
-module.exports = app;
+export default app;

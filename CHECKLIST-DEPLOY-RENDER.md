@@ -24,6 +24,8 @@ Use este checklist para garantir que seu deploy no Render seja bem-sucedido!
 - [ ] ✅ Versões das dependências especificadas
 
 ### **server.js**
+- [ ] ✅ **Arquivo se chama `server.js`** (não outro nome)
+- [ ] ✅ **Arquivo está na RAIZ** do projeto (não em subpasta)
 - [ ] ✅ `const PORT = process.env.PORT || 3000;` configurado
 - [ ] ✅ Middleware `express.static()` para arquivos estáticos
 - [ ] ✅ Rota principal `app.get('/', ...)` definida

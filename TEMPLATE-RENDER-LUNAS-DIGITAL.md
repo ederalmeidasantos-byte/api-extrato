@@ -56,6 +56,9 @@ projeto-lunas-render/
 ```
 
 ### **2. server.js**
+
+⚠️ **IMPORTANTE**: O arquivo principal DEVE se chamar `server.js` e estar na **RAIZ** do projeto!
+
 ```javascript
 // ===== SERVIDOR LUNAS DIGITAL - RENDER =====
 const express = require('express');
