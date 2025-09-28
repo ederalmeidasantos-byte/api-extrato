@@ -732,6 +732,7 @@ async function disparaFluxo(opportunityId) {
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
   const pendentesParaReprocessar = [];
+  let processed = 0;
   
   try {
 
@@ -743,7 +744,6 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     } else throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
-  let processed = 0;
 
   let contadorSucesso = 0;
   let contadorPending = 0;
