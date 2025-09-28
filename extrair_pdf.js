@@ -5,7 +5,12 @@ import OpenAI from "openai";
 import { mapBeneficio } from "./beneficios.js";
 import { encontrarBanco } from "./bancos.js";
 
-// Verificação da API key será feita dentro das funções
+if (!process.env.OPENAI_API_KEY) {
+  console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
+  throw new Error("OPENAI_API_KEY ausente");
+}
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ================== Helpers ==================
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -181,56 +186,52 @@ function extractJsonFromText(raw) {
 // ================== Prompt ==================
 function buildPrompt(isContingencia = false) {
   let base = `
-Você é um especialista em extrair dados de extratos do INSS. Extraia APENAS empréstimos consignados ATIVOS e retorne JSON válido.
+Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato e retorna **JSON válido**.
 
-🔍 INSTRUÇÕES CRÍTICAS:
-1. Retorne APENAS JSON válido, sem texto adicional
-2. Inclua TODOS os contratos ativos (exceto RMC/RCC)
-3. Valores numéricos: use números puros (ex: 1500.50, não "R$ 1.500,50")
-4. Campo "banco": APENAS o código numérico (ex: "237", "104", "341")
-5. Se valor não existir, use 0 ou null
-6. Siga EXATAMENTE o esquema JSON fornecido
+⚠️ Regras:
+- Retorne SOMENTE JSON.
+- Inclua todos os contratos ativos (exceto RMC/RCC).
+- Valores dentro de contratos devem vir crus (sem formatação BR).
+- O nome do benefício deve vir exatamente como está no documento.
+- O campo "banco" deve conter **somente o CÓDIGO do banco** (ex: "237"), nunca o nome.
+- Se não houver valores, use null ou 0.
+- Não invente chaves diferentes, siga o esquema fielmente.
 
-📅 DATAS IMPORTANTES:
-- DATA INCLUSÃO → campo "data_inclusao" (DD/MM/AAAA)
-- INÍCIO DESCONTO → campo "competencia_inicio_desconto" (MM/AAAA)  
-- PRIMEIRO DESCONTO → campo "primeiro_desconto" (DD/MM/AAAA)
+⚠️ Atenção especial às datas:
+- **DATA INCLUSÃO** → salvar em \`data_inclusao\` no formato DD/MM/YYYY.
+- **INÍCIO DE DESCONTO** (competência MM/YYYY) → salvar em \`competencia_inicio_desconto\`.
+- **PRIMEIRO DESCONTO** (DD/MM/YYYY) → salvar em \`primeiro_desconto\`.
 
-⚠️ NÃO confunda "DATA INCLUSÃO" com "INÍCIO DE DESCONTO"
-⚠️ NÃO use formatação brasileira nos números
-⚠️ NÃO invente campos que não existem no esquema
-
+❌ NÃO confundir "DATA INCLUSÃO" com "INÍCIO DE DESCONTO".
+❌ NÃO usar a coluna errada.
 `;
 
   if (isContingencia) {
     base += `
-🚨 EXTRATO DE CONTINGÊNCIA (OffLine):
-- origem: "CONTINGENCIA"
-- Use a taxa exata da coluna TAXA como taxa_juros_mensal
-- NÃO recalcule taxas
-- IOF pode ser igual à taxa se indicado
+⚠️ Este extrato é de CONTINGÊNCIA (OffLine).
+Inclua no JSON: "origem": "CONTINGENCIA".
+⚠️ Para CONTINGÊNCIA: use exatamente o valor da coluna TAXA como taxa_juros_mensal. NÃO recalcule. IOF pode ser igual à taxa se indicado no extrato.
 `;
   } else {
     base += `
-🏛️ EXTRATO OFICIAL INSS:
-- origem: "INSS"
-- Use taxas conforme extraídas do documento
+⚠️ Este extrato é do INSS oficial.
+Inclua no JSON: "origem": "INSS".
 `;
   }
 
   return base + `
-📋 ESQUEMA JSON OBRIGATÓRIO:
+Esquema esperado:
 {
   "origem": "INSS|CONTINGENCIA",
-  "cliente": "Nome completo do beneficiário",
+  "cliente": "Nome exato",
   "beneficio": {
-    "nb": "Número do benefício (apenas números)",
+    "nb": "string",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "PIX|TED|DOC|etc",
-    "banco_pagamento": "Nome do banco",
-    "agencia": "Número da agência",
-    "conta": "Número da conta",
-    "nomeBeneficio": "Nome exato do benefício",
+    "meio_pagamento": "string",
+    "banco_pagamento": "string",
+    "agencia": "string",
+    "conta": "string",
+    "nomeBeneficio": "string",
     "codigoBeneficio": null
   },
   "margens": {
@@ -241,8 +242,8 @@ Você é um especialista em extrair dados de extratos do INSS. Extraia APENAS em
   },
   "contratos": [
     {
-      "contrato": "Número do contrato",
-      "banco": "Código do banco (apenas números)",
+      "contrato": "string",
+      "banco": "string",
       "situacao": "ATIVO",
       "data_inclusao": "DD/MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
@@ -258,12 +259,95 @@ Você é um especialista em extrair dados de extratos do INSS. Extraia APENAS em
     }
   ],
   "data_extrato": "DD/MM/AAAA"
-}
-
-IMPORTANTE: Retorne APENAS o JSON, sem explicações ou texto adicional.`;
+}`;
 }
 
 // ================== GPT Call ==================
+export async function gptExtrairJSON(pdfPath, isContingencia) {
+  console.log(`🤖 Processando PDF com GPT: ${pdfPath}`);
+  console.log(`📋 Tipo: ${isContingencia ? 'CONTINGENCIA' : 'INSS'}`);
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
+    throw new Error("OPENAI_API_KEY ausente");
+  }
+
+  try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    // Upload do arquivo PDF
+    console.log("📤 Fazendo upload do PDF...");
+    const uploadedFile = await openai.files.create({
+      file: fs.createReadStream(pdfPath),
+      purpose: "assistants"
+    });
+
+    console.log("✅ Upload concluído. File ID:", uploadedFile.id);
+
+    let response;
+    try {
+      // Tentar primeiro com gpt-4o-mini
+      response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: buildPrompt(isContingencia) },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+    } catch (error) {
+      console.log("⚠️ gpt-4o-mini falhou, tentando gpt-4o...");
+      // Fallback para gpt-4o
+      response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: buildPrompt(isContingencia) },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+    }
+
+    const content = response.choices[0].message.content;
+    console.log("📄 Resposta do GPT:", content.substring(0, 200) + "...");
+
+    // Extrair JSON da resposta
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Resposta do GPT não contém JSON válido");
+    }
+
+    const json = JSON.parse(jsonMatch[0]);
+    console.log("✅ JSON extraído com sucesso");
+    
+    // Limpar arquivo temporário
+    try {
+      await openai.files.del(uploadedFile.id);
+      console.log("🗑️ Arquivo temporário removido");
+    } catch (cleanupError) {
+      console.warn("⚠️ Erro ao remover arquivo temporário:", cleanupError.message);
+    }
+    
+    return json;
+  } catch (error) {
+    console.error("❌ Erro no GPT:", error);
+    throw error;
+  }
+}
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, isContingencia) {
@@ -411,75 +495,6 @@ function posProcessar(parsed, isContingencia) {
 }
 
 // ================== Upload Flow ==================
-export async function gptExtrairJSON(pdfPath, isContingencia) {
-  console.log(`🤖 Processando PDF com GPT: ${pdfPath}`);
-  console.log(`📋 Tipo: ${isContingencia ? 'CONTINGENCIA' : 'INSS'}`);
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("❌ OPENAI_API_KEY não definida. Configure no Render.");
-    throw new Error("OPENAI_API_KEY ausente");
-  }
-
-  try {
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    let response;
-    try {
-      // Tentar primeiro com gpt-4o-mini
-      response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: buildPrompt(isContingencia) },
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
-      });
-    } catch (error) {
-      console.log("⚠️ gpt-4o-mini falhou, tentando gpt-4o...");
-      // Fallback para gpt-4o
-      response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: buildPrompt(isContingencia) },
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
-      });
-    }
-
-    const content = response.choices[0].message.content;
-    console.log("📄 Resposta do GPT:", content.substring(0, 200) + "...");
-
-    // Extrair JSON da resposta
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Resposta do GPT não contém JSON válido");
-    }
-
-    const json = JSON.parse(jsonMatch[0]);
-    console.log("✅ JSON extraído com sucesso");
-    
-    return json;
-  } catch (error) {
-    console.error("❌ Erro no GPT:", error);
-    throw error;
-  }
-}
-
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
@@ -503,3 +518,4 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
 
   return { fileId, ...json };
 }
+
