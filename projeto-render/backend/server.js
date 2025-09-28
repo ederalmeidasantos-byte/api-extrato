@@ -13,11 +13,36 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// ===== ROTAS PRINCIPAIS (ANTES DOS ARQUIVOS ESTÁTICOS) =====
+
+// Página inicial
+app.get('/', (req, res) => {
+  console.log('Acessando página inicial');
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// Simulador
+app.get('/simulador', (req, res) => {
+  console.log('Acessando simulador');
+  res.sendFile(path.join(__dirname, '../frontend/simulador.html'));
+});
+
+// Roteiros Bancos
+app.get('/roteiros', (req, res) => {
+  console.log('Acessando roteiros');
+  res.sendFile(path.join(__dirname, '../frontend/roteiros-bancos.html'));
+});
+
+// Roteiros Bancos (alternativa)
+app.get('/roteiros-bancos', (req, res) => {
+  console.log('Acessando roteiros-bancos');
+  res.sendFile(path.join(__dirname, '../frontend/roteiros-bancos.html'));
+});
+
+// Servir arquivos estáticos
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Servir arquivos estáticos do frontend
-app.use('/static', express.static(path.join(__dirname, '../frontend')));
 
 // Configuração do Multer para upload de PDFs
 const storage = multer.diskStorage({
@@ -46,23 +71,6 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
   }
-});
-
-// ===== ROTAS =====
-
-// Página inicial
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
-// Simulador
-app.get('/simulador', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/simulador.html'));
-});
-
-// Roteiros Bancos
-app.get('/roteiros', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/roteiros-bancos.html'));
 });
 
 // ===== API ENDPOINTS =====
@@ -148,8 +156,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Fallback para SPA - todas as rotas não-API servem o index.html
+// Fallback para rotas não encontradas
 app.get('*', (req, res) => {
+  console.log('Rota não encontrada:', req.path);
+  
   // Se for uma rota de API, retornar 404
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({
@@ -159,16 +169,8 @@ app.get('*', (req, res) => {
     });
   }
   
-  // Para outras rotas, tentar servir o arquivo específico ou index.html
-  const filePath = path.join(__dirname, '../frontend', req.path === '/' ? 'index.html' : req.path + '.html');
-  
-  // Verificar se o arquivo existe
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    // Fallback para index.html (SPA)
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
-  }
+  // Para outras rotas, servir index.html
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 // ===== INICIALIZAÇÃO =====
