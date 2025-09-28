@@ -57,9 +57,23 @@
         
         /* Fixar cabeçalho e botão */
         .result-table thead { position: sticky; top: 0; z-index: 10; background: white; }
-        .result-table tbody { max-height: 300px; overflow-y: auto; display: block; }
+        .result-table tbody { max-height: 250px; overflow-y: auto; display: block; }
         .result-table thead, .result-table tbody tr { display: table; width: 100%; table-layout: fixed; }
-        .counter { position: sticky; bottom: 0; background: white; z-index: 10; margin-top: auto; }
+        
+        /* Contador fixo no rodapé da caixa */
+        .counter { 
+            margin-top: auto; 
+            padding: 0.75rem; 
+            background: #f8fafc; 
+            border-radius: 8px; 
+            text-align: center; 
+            font-weight: 600; 
+            color: #1e293b; 
+            border-top: 1px solid #e2e8f0;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
         
         /* Status com retângulos arredondados */
         .status-badge { 
@@ -82,7 +96,6 @@
         .status-reprocess { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
         .status-processar { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
         .status-processar-rapido { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-        .counter { margin-top: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; text-align: center; font-weight: 600; color: #1e293b; }
         .logs { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem; height: 350px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #374151; }
         .log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
         .log-success { color: #10b981; }
