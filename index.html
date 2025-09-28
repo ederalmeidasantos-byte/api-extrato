@@ -47,12 +47,12 @@
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; table-layout: fixed; }
         .result-table th, .result-table td { padding: 0.3rem; text-align: left; border-bottom: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .result-table th { background: #f8fafc; font-weight: 600; color: #475569; }
-        .result-table .col-linha { width: 12%; }
-        .result-table .col-cpf { width: 22%; }
-        .result-table .col-id { width: 12%; }
-        .result-table .col-valor { width: 18%; }
-        .result-table .col-provider { width: 18%; }
-        .result-table .col-status { width: 18%; }
+        .result-table .col-linha { width: 10%; }
+        .result-table .col-cpf { width: 20%; }
+        .result-table .col-id { width: 10%; }
+        .result-table .col-valor { width: 15%; }
+        .result-table .col-provider { width: 15%; }
+        .result-table .col-status { width: 30%; }
         .result-table tr:hover { background: #f8fafc; }
         
         /* Status com retângulos arredondados */
@@ -466,7 +466,7 @@
                 <button class="btn-test" id="backupConfig">📦 Backup</button>
                 <button class="btn-test" id="exportConfig">📤 Exportar</button>
                 <button class="btn-test" id="restoreConfig">🔄 Restaurar</button>
-            </div>
+  </div>
             <div id="backupStatus" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b;"></div>
     </div>
   </div>
@@ -574,7 +574,7 @@ const logs = document.getElementById('logs');
             };
             
             const statusText = statusMap[status] || statusMap[statusDetalhado] || status;
-            const statusClass = `status-${status === 'success' ? (statusDetalhado || 'success') : status}`;
+            const statusClass = `status-${status === 'success' ? (statusDetalhado || 'success') : (status === 'reprocess' ? 'pending' : status)}`;
             
             const row = document.createElement('tr');
             row.setAttribute('data-cpf', cpf);
