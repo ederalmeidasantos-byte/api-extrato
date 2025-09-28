@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
-import { gptExtrairJSON } from './extrair_pdf.js';
+import { extrairDeUpload } from './extrair_pdf.js';
 import { calcularTrocoEndpoint } from './calculo.js';
 import RoteiroBancos from './roteiro-bancos.js';
 
@@ -118,17 +118,19 @@ app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
 
     console.log('Processando PDF:', req.file.filename);
     
-    // Processar PDF com GPT
-    console.log('Chamando gptExtrairJSON...');
-    const resultado = await gptExtrairJSON(req.file.path, false);
-    console.log('Resultado recebido:', JSON.stringify(resultado, null, 2).substring(0, 500) + '...');
+    // Usar fluxo completo com cache e pós-processamento
+    const fileId = req.file.filename.split('-')[1]; // Extrai o ID único do nome do arquivo
+    const jsonDir = path.join(__dirname, 'extratos'); // Diretório para salvar JSONs
     
-    // Limpar arquivo temporário após processamento
-    setTimeout(() => {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Erro ao deletar arquivo:', err);
-      });
-    }, 5000);
+    console.log('Chamando extrairDeUpload...');
+    const resultado = await extrairDeUpload({
+      fileId: fileId,
+      pdfPath: req.file.path,
+      jsonDir: jsonDir,
+      ttlMs: 14 * 24 * 60 * 60 * 1000 // 14 dias
+    });
+    
+    console.log('Resultado recebido:', JSON.stringify(resultado, null, 2).substring(0, 500) + '...');
 
     res.json({
       status: 'success',
