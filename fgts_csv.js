@@ -514,7 +514,7 @@ async function consultarResultado(cpf, linha) {
         maxCredenciais,
         credIndex,
         username: CREDENTIALS[credIndex]?.username
-      }, res?.data);
+      }, err.response?.data);
 
       if (erroCompleto.status === 401) {
         await authenticate(true);
@@ -1066,31 +1066,63 @@ async function processarReprocessamentoRapido() {
     // Processar novamente
     const resultado = await processarCPF(cpfRapido.cpf, cpfRapido.linha);
     
-    // Atualizar status na lista de pendentes baseado no resultado
+    // Remover da lista de pendentes primeiro (persistente)
+    removerPendente(cpfRapido.cpf, cpfRapido.linha);
+    
+    // Atualizar status baseado no resultado
     if (resultado && resultado.status) {
-      const novoStatus = resultado.status === 'success' ? 'success' : 'failed';
-      const statusDetalhado = resultado.status === 'success' ? 'Reprocessado para Sucesso' : 'Reprocessado para Falha';
+      const novoStatus = resultado.status === 'success' ? 'success' : (resultado.status === 'no_auth' ? 'no_auth' : 'failed');
+      const statusDetalhado = resultado.status === 'success' ? 'Reprocessado para Sucesso' : 
+                             resultado.status === 'no_auth' ? 'Reprocessado para Não Autorizado' : 
+                             'Reprocessado para Falha';
       
-      // Atualizar na lista de pendentes (persistente)
-      adicionarPendente(cpfRapido.cpf, cpfRapido.linha, novoStatus, 'sistema', statusDetalhado);
+      // Adicionar à lista correta baseada no status
+      if (novoStatus === 'success') {
+        adicionarResultadoLista('sucessos', {
+          cpf: cpfRapido.cpf,
+          id: resultado.id || 'N/A',
+          linha: cpfRapido.linha,
+          valor: (resultado.valorLiberado || 0).toFixed(2),
+          provider: resultado.provider || 'sistema',
+          status: novoStatus,
+          statusDetalhado: statusDetalhado
+        });
+      } else if (novoStatus === 'no_auth') {
+        adicionarResultadoLista('naoAutorizados', {
+          cpf: cpfRapido.cpf,
+          id: resultado.id || 'N/A',
+          linha: cpfRapido.linha,
+          valor: '0.00',
+          provider: resultado.provider || 'sistema',
+          status: novoStatus,
+          statusDetalhado: statusDetalhado
+        });
+      } else {
+        adicionarResultadoLista('descartados', {
+          cpf: cpfRapido.cpf,
+          id: resultado.id || 'N/A',
+          linha: cpfRapido.linha,
+          valor: '0.00',
+          provider: resultado.provider || 'sistema',
+          status: novoStatus,
+          statusDetalhado: statusDetalhado
+        });
+      }
       
       // Emitir atualização para o painel
       if (ioInstance) {
         ioInstance.emit('resultadoCPF', {
           linha: cpfRapido.linha,
           cpf: cpfRapido.cpf,
-          id: null,
+          id: resultado.id || null,
           status: novoStatus,
           valorLiberado: resultado.valorLiberado || 0,
-          provider: 'sistema',
+          provider: resultado.provider || 'sistema',
           statusDetalhado: statusDetalhado,
           isReprocessamento: true
         });
       }
     }
-    
-    // Remover da lista de pendentes (persistente)
-    removerPendente(cpfRapido.cpf, cpfRapido.linha);
     
     // Remover da lista em memória
     const index = pendentes.indexOf(cpfRapido);
