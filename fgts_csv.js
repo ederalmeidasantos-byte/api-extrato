@@ -668,9 +668,10 @@ async function disparaFluxo(opportunityId) {
 
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
+  let registros = [];
+  const pendentesParaReprocessar = [];
+  
   try {
-    let registros = [];
-    const pendentesParaReprocessar = [];
 
     if (cpfsReprocess && cpfsReprocess.length) {
       registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
