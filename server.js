@@ -11,7 +11,7 @@ import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS } from "./fgts_csv.js";
+import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO } from "./fgts_csv.js";
 import { calcularTrocoEndpoint } from "./calculo.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,6 +34,9 @@ app.use(express.urlencoded({ extended: true }));
 // ====== Socket.IO ======
 const server = http.createServer(app);
 const io = new Server(server);
+
+// Anexar socket ao módulo FGTS
+attachIO(io);
 
 // Armazenamento em memória dos resultados
 let resultadosFGTS = [];
@@ -166,7 +169,7 @@ app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
 
         processados++;
         io.emit("progress", { done: processados, total: totalCpfs, counters: { success: contadorSuccess, pending: contadorPending, semAutorizacao: contadorSemAutorizacao } });
-      }, DELAY_MS);
+      });
 
       logPainel("✅ Processamento FGTS finalizado!");
     } catch (err) {
@@ -227,8 +230,16 @@ app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
   if (!ids.length) return res.status(400).json({ message: "Nenhum ID fornecido" });
   logPainel(`📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
   (async () => {
-    try { for(const id of ids) await disparaFluxo(id, 3); logPainel(`✅ Fase alterada para ${ids.length} registros`); }
-    catch(err){ logPainel(`❌ Erro ao mudar fase: ${err.message}`); console.error(err); }
+    try { 
+      for(const id of ids) {
+        await disparaFluxo(id);
+      }
+      logPainel(`✅ Fase alterada para ${ids.length} registros`); 
+    }
+    catch(err){ 
+      logPainel(`❌ Erro ao mudar fase: ${err.message}`); 
+      console.error(err); 
+    }
   })();
   res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
 });

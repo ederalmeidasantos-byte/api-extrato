@@ -1,0 +1,32 @@
+# Configurações para o Painel FGTS
+# Renomeie este arquivo para .env e preencha com suas credenciais
+
+# Credenciais FGTS (adicione quantas precisar)
+FGTS_USER_1=seu_usuario_fgts_1@email.com
+FGTS_PASS_1=sua_senha_fgts_1
+FGTS_USER_2=seu_usuario_fgts_2@email.com
+FGTS_PASS_2=sua_senha_fgts_2
+
+# API Lunas
+LUNAS_API_KEY=sua_chave_api_lunas
+LUNAS_QUEUE_ID=25
+LUNAS_API_URL=https://lunasdigital.atenderbem.com/int/downloadFile
+
+# API V8 Sistema (para webhooks OAuth2)
+V8_API_BASE=https://bff.v8sistema.com
+V8_AUTH_URL=https://auth.v8sistema.com/oauth/token
+V8_CLIENT_ID=seu_client_id_v8
+V8_AUDIENCE=https://bff.v8sistema.com
+V8_USERNAME=seu_email_v8@dominio.com
+V8_PASSWORD=sua_senha_v8
+WEBHOOK_BASE_URL=https://seu-app.onrender.com
+
+# Configurações do sistema
+DEST_STAGE_ID=4
+PORT=3000
+
+# Delay padrão (em milissegundos)
+DEFAULT_DELAY=1000
+
+# OpenAI (opcional - apenas se usar extração de PDF)
+OPENAI_API_KEY=sua_chave_openai

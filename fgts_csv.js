@@ -71,12 +71,30 @@ function registrarPendencia(cpf, id, motivo, linha) {
 function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha = "?", resultadoCompleto = null }, callback = null) {
   const valorFormatado = Number(valorLiberado || 0).toFixed(2);
 
-  console.log(
-    `[CLIENT] ✅ Linha: ${linha} | CPF: ${cpf} | ID: ${id || "N/A"} | Status: ${status} | Valor Liberado: ${valorFormatado} | Provider: ${provider}`
-  );
+  // Mapear status para exibição (melhorado)
+  const statusMap = {
+    'success': '✅ Sucesso',
+    'pending': '⏳ Pendente', 
+    'no_auth': '🚫 Não Autorizado',
+    'descartado': '❌ Descartado',
+    'ready_for_manual': '📥 Pronto',
+    'limite_excedido': '⏰ Limite Excedido'
+  };
+  
+  const statusDisplay = statusMap[status] || `❓ ${status}`;
+  const logMessage = `${statusDisplay} | Linha: ${linha || "?"} | CPF: ${cpf} | ID: ${id || "N/A"} | Valor: R$ ${valorFormatado} | Provider: ${provider}`;
+  console.log(`[CLIENT] ${logMessage}`);
+
+  // Emitir log resumido para o painel (sem detalhes da API)
+  if (ioInstance) {
+    ioInstance.emit("log", logMessage);
+  }
 
   if (resultadoCompleto?.data && resultadoCompleto.data.length > 0) {
-    console.log(`[CLIENT] 📦 [Linha ${linha}] Primeiro item do retorno:`, resultadoCompleto.data[0]);
+    const detalhesLog = `📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(resultadoCompleto)}`;
+    console.log(`[CLIENT] ${detalhesLog}`);
+    
+    // NÃO emitir detalhes para o painel - apenas no console
   }
 
   if (ioInstance) {
@@ -110,7 +128,10 @@ function switchCredential(forcedIndex = null) {
   credIndex = forcedIndex !== null ? forcedIndex % CREDENTIALS.length : (credIndex + 1) % CREDENTIALS.length;
   TOKEN = null;
   const user = CREDENTIALS[credIndex]?.username || "sem usuário";
-  console.log(`${LOG_PREFIX()} 🔄 Alternando para credencial: ${user}`);
+  const switchLog = `🔄 Alternando para credencial: ${user}`;
+  console.log(`${LOG_PREFIX()} ${switchLog}`);
+  
+  // NÃO emitir log de mudança de credencial para o painel - apenas no console
 }
 
 // 🔹 Autenticar
@@ -120,7 +141,10 @@ async function authenticate(force = false) {
   const cred = CREDENTIALS[credIndex];
 
   try {
-    console.log(`${LOG_PREFIX()} 🔑 Tentando autenticar: ${cred.username}`);
+    const authAttemptLog = `🔑 Tentando autenticar: ${cred.username}`;
+    console.log(`${LOG_PREFIX()} ${authAttemptLog}`);
+    
+    // NÃO emitir log de tentativa de autenticação para o painel - apenas no console
     const data = qs.stringify({
       grant_type: "password",
       username: cred.username,
@@ -135,7 +159,11 @@ async function authenticate(force = false) {
     });
 
     TOKEN = res.data.access_token;
-    console.log(`${LOG_PREFIX()} ✅ Autenticado com sucesso - ${cred.username}`);
+    const authLog = `✅ Autenticado com sucesso - ${cred.username}`;
+    console.log(`${LOG_PREFIX()} ${authLog}`);
+    
+    // NÃO emitir log de autenticação para o painel - apenas no console
+    
     return TOKEN;
   } catch (err) {
     const user = cred?.username || "sem usuário";
@@ -156,18 +184,33 @@ async function consultarResultado(cpf, linha) {
       const res = await axios.get(`https://bff.v8sistema.com/fgts/balance?search=${cpf}`, {
         headers: { Authorization: `Bearer ${TOKEN}` },
       });
-      console.log(`${LOG_PREFIX()} 📦 [Linha ${linha}] Retorno completo da API:`, JSON.stringify(res.data));
+      const apiLog = `📦 [Linha ${linha}] Retorno completo da API: ${JSON.stringify(res.data)}`;
+      console.log(`${LOG_PREFIX()} ${apiLog}`);
+      
+      // NÃO emitir log da API para o painel - apenas no console
+      
       return { data: res.data.data?.[0] ? [res.data.data[0]] : [], pages: res.data.pages || { total: 0 } };
     } catch (err) {
       const erroCompleto = { message: err.message, status: err.response?.status, data: err.response?.data };
-      console.log(`${LOG_PREFIX()} ❌ Erro consulta CPF ${cpf}:`, erroCompleto);
+      const erroLog = `❌ Erro consulta CPF ${cpf}: ${JSON.stringify(erroCompleto)}`;
+      console.log(`${LOG_PREFIX()} ${erroLog}`);
+      
+      // NÃO emitir log de erro detalhado para o painel - apenas no console
 
       if (erroCompleto.status === 401) {
         await authenticate(true);
         continue;
       } else if (erroCompleto.status === 429 || (err.response?.data?.message || "").includes("Limite de requisições")) {
         tentativasCredenciais++;
-        console.log(`${LOG_PREFIX()} ⚠️ [Linha ${linha}] 429 detectado, tentando próxima credencial (${tentativasCredenciais}/${maxCredenciais})`);
+        const credLog = `⚠️ [Linha ${linha}] 429 detectado, tentando próxima credencial (${tentativasCredenciais}/${maxCredenciais})`;
+        console.log(`${LOG_PREFIX()} ${credLog}`);
+        
+        // Emitir log com nome da credencial para o painel
+        if (ioInstance) {
+          const user = CREDENTIALS[credIndex]?.username || "sem usuário";
+          ioInstance.emit("log", `⚠️ Rate limit detectado, trocando para: ${user}`);
+        }
+        
         switchCredential();
         await authenticate(true);
         await delay(delayMs * 2);
@@ -185,7 +228,7 @@ async function consultarResultado(cpf, linha) {
       linha,
       cpf,
       id: "N/A",
-      status: "limite_requisicoes",
+      status: "limite_excedido",
       valorLiberado: 0,
       provider: "bms_cartos",
       resultadoCompleto: null
@@ -362,7 +405,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let limit429 = false;
 
     while (tentativa < maxTentativas) {
-      resultado = await consultarResultado(cpf, linha, provider);
+      resultado = await consultarResultado(cpf, linha);
 
       if (!resultado || !resultado.data || resultado.data.length === 0) break;
 
@@ -415,6 +458,41 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
       continue;
     }
 
+    // Reprocessar pendentes a cada 10 CPFs
+    if ((index + 1) % 10 === 0 && pendentesParaReprocessar.length > 0) {
+      console.log(`${LOG_PREFIX()} 🔄 Reprocessando ${pendentesParaReprocessar.length} pendentes após ${index + 1} CPFs processados`);
+      
+      // Reprocessar pendentes
+      const cpfsPendentes = [...pendentesParaReprocessar];
+      pendentesParaReprocessar.length = 0; // Limpar array de pendentes
+      
+      for (const pend of cpfsPendentes) {
+        if (paused) break;
+        const { cpf: cpfPendente, id, linha: linhaPendente } = pend;
+        
+        const resultadoRetry = await tentarConsultaComRetry(cpfPendente, linhaPendente);
+        const saldoValido = resultadoRetry?.data?.find(r => r.amount > 0);
+
+        if (saldoValido) {
+          const simulacao = await simularSaldo(cpfPendente, saldoValido.id, saldoValido.periods, saldoValido.provider);
+          if (simulacao) {
+            await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
+            await disparaFluxo(id);
+            emitirResultado({ cpf: cpfPendente, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha: linhaPendente, resultadoCompleto: saldoValido }, callback);
+            contadorSucesso++;
+          }
+        } else {
+          // Se não conseguiu resolver, volta para pendentes
+          pendentesParaReprocessar.push(pend);
+        }
+        
+        await delay(delayMs);
+        atualizarProgresso();
+      }
+      
+      console.log(`${LOG_PREFIX()} ✅ Reprocessamento de pendentes concluído`);
+    }
+
     const planilha = consultarPlanilha(cpf, telefone);
     if (planilha) idOriginal = planilha.id;
 
@@ -432,7 +510,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     let resultadosProviders = {};
 
     for (const prov of providers) {
-      const res = await tentarConsultaComRetry(cpf, linha, prov);
+      const res = await tentarConsultaComRetry(cpf, linha);
       resultadosProviders[prov] = res?.data || [];
     }
 
@@ -453,7 +531,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada);
         await disparaFluxo(idOriginal);
 
-        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, provider: r.provider, resultadoCompleto: r }, callback);
+        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, provider: r.provider, linha, resultadoCompleto: r }, callback);
         contadorSucesso++;
       }
       processed++;
@@ -498,7 +576,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     while (paused) await delay(500);
     const { cpf, id, linha } = pend;
 
-    const resultadoRetry = await tentarConsultaComRetry(cpf, linha, "bms");
+    const resultadoRetry = await tentarConsultaComRetry(cpf, linha);
     const saldoValido = resultadoRetry?.data?.find(r => r.amount > 0);
 
     if (saldoValido) {

@@ -1,259 +1,582 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>Painel de Consulta FGTS em lote</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel FGTS - Lunas Digital</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-    h1 { font-size: 28px; font-weight: bold; color: #007bff; margin-bottom: 20px; text-align: center; text-shadow: 1px 1px 3px rgba(0,0,0,0.1); }
-    h3 { margin-top: 20px; }
-    #logs { border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; background: #fff; white-space: pre-wrap; font-size: 12px; }
-    .columns { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .column { flex: 1; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; max-height: 450px; min-width: 250px; }
-    .column h3 { margin-top: 0; margin-bottom: 5px; font-size: 14px; }
-    .list-container { flex: 1; overflow-y: auto; border-top: 1px solid #ccc; padding-top: 5px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; vertical-align: middle; }
-    th { background-color: #007bff; color: #fff; font-size: 12px; }
-    tr.success { background-color: #d4edda; }
-    tr.pending { background-color: #fff3cd; }
-    tr.no_auth { background-color: #f8d7da; }
-    tr.ready_for_manual { background-color: #d1ecf1; }
-    tr.descartado { background-color: #f5c6cb; }
-    button, .btn-file { padding: 6px 12px; margin-top: 5px; cursor: pointer; border: none; border-radius: 4px; font-size: 12px; transition: background 0.2s; }
-    button:hover, .btn-file:hover { filter: brightness(85%); }
-    .btn-primary { background: #007bff; color: #fff; }
-    .btn-warning { background: #ffc107; color: #000; }
-    .btn-danger { background: #dc3545; color: #fff; }
-    .btn-secondary { background: #6c757d; color: #fff; }
-    #counters { margin-top: 10px; font-weight: bold; font-size: 14px; }
-    #controls { margin-top: 10px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    #progressWrap { margin-top: 10px; width:100%; background:#eee; border-radius:6px; height:20px; overflow:hidden; border:1px solid #ccc; }
-    #progressBar { height:100%; width:0%; background:#28a745; transition: width 300ms ease; }
-    #progressText { margin-left:8px; font-size:13px; }
-    .btn-file { cursor:pointer; display:inline-block; padding: 8px 14px; border-radius: 6px; background:#007bff; color:#fff; font-size:12px; }
-    input[type="file"] { display:none; }
-    #fileName { margin-left: 10px; font-size: 12px; font-style: italic; }
-    form { display:flex; gap:10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-    #totalCPFsWrap { margin-top: 10px; font-weight: bold; font-size: 14px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh; color: #334155; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        .stats-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; border-left: 4px solid #00d4aa; }
+        .stat-card h3 { color: #1e293b; font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .stat-card p { color: #64748b; font-size: 0.9rem; }
+        .main-content { display: grid; grid-template-columns: 1fr 400px; gap: 2rem; margin-bottom: 2rem; }
+        .left-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+        .card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .card h3 { color: #1e293b; margin-bottom: 1rem; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
+        .upload-section { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2rem; text-align: center; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #00d4aa; background: #f0fdfa; }
+        .file-input { display: none; }
+        .file-label { display: inline-block; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .file-label:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3); }
+        .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; }
+        .btn-primary { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .delay-control { display: flex; align-items: center; gap: 0.5rem; }
+        .delay-input { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 100px; }
+        .progress-section { margin-bottom: 1rem; }
+        .progress-bar { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); transition: width 0.3s ease; border-radius: 10px; }
+        .progress-text { text-align: center; color: #64748b; font-size: 0.9rem; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; }
+        .result-card h4 { color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .result-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .result-table th, .result-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .result-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .result-table tr:hover { background: #f8fafc; }
+        .counter { margin-top: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; text-align: center; font-weight: 600; color: #1e293b; }
+        .logs { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem; height: 400px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.875rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #374151; }
+        .log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
+        .log-success { color: #10b981; }
+        .log-error { color: #ef4444; }
+        .log-warning { color: #f59e0b; }
+        .log-info { color: #06b6d4; }
+        .right-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+        @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } .results-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Painel de Consulta FGTS</h1>
+            <p>Monitoramento em tempo real das consultas de saldo FGTS</p>
+        </div>
 
-<h1>📂 Painel de Consulta FGTS em lote</h1>
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3 id="totalCPFs">0</h3>
+                <p>Total de CPFs</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="processedCPFs">0</h3>
+                <p>Processados</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="successCPFs">0</h3>
+                <p>Sucessos</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="pendingCPFs">0</h3>
+                <p>Pendentes</p>
+            </div>
+        </div>
 
-<form id="form">
-  <label for="csvfile" class="btn-file">📂 Escolher Arquivo</label>
-  <input type="file" id="csvfile" accept=".csv" required />
-  <span id="fileName">Nenhum arquivo selecionado</span>
-  <button type="button" class="btn-primary" id="runBtn">▶️ Iniciar</button>
-  <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar listas e logs</button>
-</form>
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="card">
+                    <h3>📂 Upload de Arquivo</h3>
+                    <div class="upload-section">
+                        <input type="file" id="csvFile" class="file-input" accept=".csv">
+                        <label for="csvFile" class="file-label">📂 Escolher Arquivo CSV</label>
+                        <p id="fileInfo" style="margin-top: 1rem; color: #64748b;"></p>
+                    </div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnProcessar" class="btn btn-primary" disabled>▶️ Iniciar Processamento</button>
+                        <button id="btnLimpar" class="btn btn-secondary">🗑️ Limpar</button>
+                    </div>
+                </div>
 
-<div id="totalCPFsWrap">
-  Total de CPFs: <span id="totalCPFs">0</span>
+                <div class="card">
+                    <h3>⚙️ Controles de Processamento</h3>
+                    <div class="controls">
+                        <div class="delay-control">
+                            <label>Delay (ms):</label>
+                            <input type="number" id="delayInput" class="delay-input" value="1000" min="100" max="10000">
+                            <button id="btnAtualizarDelay" class="btn btn-secondary">💾 Atualizar</button>
+                        </div>
+                        <button id="btnPausar" class="btn btn-danger" disabled>⏸️ Pausar</button>
+                        <button id="btnRetomar" class="btn btn-success" disabled>▶️ Retomar</button>
+                        <button id="btnCancelar" class="btn btn-danger" disabled>✖️ Cancelar</button>
+                    </div>
 </div>
 
-<div id="delayControl" style="margin-top:15px;">
-  ⏱️ Delay atual (ms): <span id="currentDelay">0</span>
-  <input type="number" id="inputDelay" min="0" placeholder="Novo delay (ms)" style="width:100px; margin-left:10px;" />
-  <button class="btn-primary" id="btnUpdateDelay">💾 Atualizar Delay</button>
+                <div class="card">
+                    <h3>📈 Progresso do Processamento</h3>
+                    <div class="progress-section">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div id="progressText" class="progress-text">0% - Aguardando início</div>
+                    </div>
 </div>
 
-<div id="controls">
-  <button class="btn-secondary" id="btnPause">⏸️ Pausar</button>
-  <button class="btn-primary" id="btnResume">▶️ Retomar</button>
-  <button class="btn-danger" id="btnCancel">✖️ Cancelar</button>
-  <div id="progressText">0% (0/0)</div>
+                <div class="card">
+                    <h3>📊 Resultados</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h4>✅ Sucessos</h4>
+                            <table class="result-table" id="successTable">
+                                <thead>
+                                    <tr>
+                                        <th>Linha</th>
+                                        <th>CPF</th>
+                                        <th>ID</th>
+                                        <th>Valor</th>
+                                        <th>Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="counter" id="successCounter">✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">R$ 0,00</span></div>
 </div>
-<div id="progressWrap"><div id="progressBar"></div></div>
 
-<h3>📊 Contadores</h3>
-<div id="counters">
-  <span>✅ Sucesso: <span id="countSuccess">0</span></span> | 
-  <span>⏳ Pendentes: <span id="countPending">0</span></span> | 
-  <span>🚫 Sem Autorização: <span id="countNoAuth">0</span></span> | 
-  <span>❌ Descartados: <span id="countDescartados">0</span></span>
+                        <div class="result-card">
+                            <h4>⏳ Pendentes</h4>
+                            <table class="result-table" id="pendingTable">
+                                <thead>
+                                    <tr>
+                                        <th>Linha</th>
+                                        <th>CPF</th>
+                                        <th>ID</th>
+                                        <th>Status</th>
+                                        <th>Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="counter" id="pendingCounter">⏳ Pendente | Total: <span id="countPending">0</span></div>
+                            <button id="btnReprocessar" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;" disabled>🔄 Reprocessar Pendentes</button>
 </div>
 
-<h3>📜 Logs</h3>
-<div id="logs"></div>
+                        <div class="result-card">
+                            <h4>🚫 Não Autorizados</h4>
+                            <table class="result-table" id="noAuthTable">
+                                <thead>
+                                    <tr>
+                                        <th>Linha</th>
+                                        <th>CPF</th>
+                                        <th>ID</th>
+                                        <th>Status</th>
+                                        <th>Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="counter" id="noAuthCounter">🚫 Não Autorizado | Total: <span id="countNoAuth">0</span></div>
+                            <button id="btnMudarFase" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;" disabled>📌 Mudar Fase no CRM</button>
+                        </div>
 
-<div class="columns">
-  <div class="column" id="colSuccess">
-    <h3>✅ Sucesso</h3>
-    <div class="list-container">
-      <table id="tableSuccess"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+                        <div class="result-card">
+                            <h4>❌ Descartados</h4>
+                            <table class="result-table" id="discardedTable">
+                                <thead>
+                                    <tr>
+                                        <th>Linha</th>
+                                        <th>CPF</th>
+                                        <th>ID</th>
+                                        <th>Status</th>
+                                        <th>Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="counter" id="discardedCounter">❌ Descartado | Total: <span id="countDiscarded">0</span></div>
     </div>
   </div>
-  <div class="column" id="colPending">
-    <h3>⏳ Pendentes</h3>
-    <div class="list-container">
-      <table id="tablePending"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
-    <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
   </div>
-  <div class="column" id="colNoAuth">
-    <h3>🚫 Sem Autorização</h3>
-    <div class="list-container">
-      <table id="tableNoAuth"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
+
+            <div class="right-panel">
+                <div class="card">
+                    <h3>📜 Logs em Tempo Real</h3>
+                    <div id="logs" class="logs"></div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnLimparLogs" class="btn btn-secondary">🗑️ Limpar Logs</button>
+                        <button id="btnExportarCSV" class="btn btn-primary">💾 Exportar CSV</button>
     </div>
-    <button class="btn-danger" id="btnMudarFaseNoAuth">📌 Mudar fase no CRM</button>
   </div>
-  <div class="column" id="colReadyCSV">
-    <h3>📥 Prontos para CSV</h3>
-    <div class="list-container">
-      <table id="tableReadyCSV"><thead><tr><th>CPF</th><th>Telefone</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
-    </div>
-    <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
-  </div>
-  <div class="column" id="colDescartados">
-    <h3>❌ Descartados</h3>
-    <div class="list-container">
-      <table id="tableDescartados"><thead><tr><th>CPF</th><th>ID</th><th>Valor</th><th>Provider</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 </div>
 
 <script>
+        const socket = io();
+        
+        // Elementos DOM
+        const csvFile = document.getElementById('csvFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const btnProcessar = document.getElementById('btnProcessar');
+        const btnLimpar = document.getElementById('btnLimpar');
+        const btnPausar = document.getElementById('btnPausar');
+        const btnRetomar = document.getElementById('btnRetomar');
+        const btnCancelar = document.getElementById('btnCancelar');
+        const btnAtualizarDelay = document.getElementById('btnAtualizarDelay');
+        const delayInput = document.getElementById('delayInput');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
 const logs = document.getElementById('logs');
-const fileInput = document.getElementById('csvfile');
-const fileNameSpan = document.getElementById('fileName');
-const totalCPFsSpan = document.getElementById('totalCPFs');
+        const btnLimparLogs = document.getElementById('btnLimparLogs');
+        const btnExportarCSV = document.getElementById('btnExportarCSV');
+        const btnReprocessar = document.getElementById('btnReprocessar');
+        const btnMudarFase = document.getElementById('btnMudarFase');
 
-const tables = {
-  success: document.querySelector('#tableSuccess tbody'),
-  pending: document.querySelector('#tablePending tbody'),
-  no_auth: document.querySelector('#tableNoAuth tbody'),
-  ready: document.querySelector('#tableReadyCSV tbody'),
-  descartado: document.querySelector('#tableDescartados tbody')
-};
-const counts = {
-  success: document.getElementById('countSuccess'),
-  pending: document.getElementById('countPending'),
-  noAuth: document.getElementById('countNoAuth'),
-  descartado: document.getElementById('countDescartados')
-};
+        // Tabelas
+        const successTable = document.getElementById('successTable').querySelector('tbody');
+        const pendingTable = document.getElementById('pendingTable').querySelector('tbody');
+        const noAuthTable = document.getElementById('noAuthTable').querySelector('tbody');
+        const discardedTable = document.getElementById('discardedTable').querySelector('tbody');
 
-let pendentes = [], naoAutorizados = [], readyForCSV = [];
-let totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
-let totalToProcess = 0, processedCount = 0;
-const progressBar = document.getElementById('progressBar');
-const progressText = document.getElementById('progressText');
+        // Contadores
+        const totalCPFs = document.getElementById('totalCPFs');
+        const processedCPFs = document.getElementById('processedCPFs');
+        const successCPFs = document.getElementById('successCPFs');
+        const pendingCPFs = document.getElementById('pendingCPFs');
 
-fileInput.addEventListener('change', e => {
-  fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
-});
+        // Contadores de valores
+        const countSuccess = document.getElementById('countSuccess');
+        const countPending = document.getElementById('countPending');
+        const countNoAuth = document.getElementById('countNoAuth');
+        const countDiscarded = document.getElementById('countDiscarded');
+        const valorTotalSuccess = document.getElementById('valorTotalSuccess');
 
-function atualizarContadores(){
-  counts.success.textContent = totals.success;
-  counts.pending.textContent = totals.pending;
-  counts.noAuth.textContent = totals.noAuth;
-  counts.descartado.textContent = totals.descartado;
-}
+        // Variáveis de controle
+        let isProcessing = false;
+        let isPaused = false;
+        let currentFile = null;
+        let resultados = [];
 
-function setProgress(pct, processed, total){
-  progressBar.style.width = pct + '%';
-  progressText.textContent = `${pct}% (${processed}/${total})`;
-}
+        // Inicializar
+        function init() {
+            btnProcessar.disabled = true;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = true;
+            btnCancelar.disabled = true;
+            btnReprocessar.disabled = true;
+            btnMudarFase.disabled = true;
+        }
 
-function adicionarResultado(data){
-  if(data && data.status==='progress'){
-    const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
-    processedCount = data.processed || processedCount;
-    totalToProcess = data.total || totalToProcess;
-    setProgress(pct, processedCount, totalToProcess);
+        // Adicionar log
+        function adicionarLog(mensagem, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${tipo}`;
+            logEntry.textContent = `[${timestamp}] ${mensagem}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Adicionar resultado às tabelas
+        function adicionarResultado(data) {
+            const { linha, cpf, id, status, valorLiberado, provider } = data;
+            const valorFormatado = parseFloat(valorLiberado || 0).toFixed(2);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${linha || '?'}</td>
+                <td>${cpf}</td>
+                <td>${id || 'N/A'}</td>
+                <td>${status === 'success' ? valorFormatado : status}</td>
+                <td>${provider || 'N/A'}</td>
+            `;
+
+            // Adicionar à tabela apropriada
+            switch(status) {
+                case 'success':
+                    successTable.appendChild(row);
+                    atualizarContador('success', valorFormatado);
+                    break;
+                case 'pending':
+                    pendingTable.appendChild(row);
+                    atualizarContador('pending');
+                    break;
+                case 'no_auth':
+                    noAuthTable.appendChild(row);
+                    atualizarContador('no_auth');
+                    break;
+                case 'descartado':
+                    discardedTable.appendChild(row);
+                    atualizarContador('descartado');
+                    break;
+            }
+
+            resultados.push(data);
+        }
+
+        // Atualizar contadores
+        function atualizarContador(tipo, valor = 0) {
+            const contadores = {
+                success: { count: countSuccess, valor: valorTotalSuccess },
+                pending: { count: countPending },
+                no_auth: { count: countNoAuth },
+                descartado: { count: countDiscarded }
+            };
+
+            const contador = contadores[tipo];
+            if (contador) {
+                const currentCount = parseInt(contador.count.textContent);
+                contador.count.textContent = currentCount + 1;
+
+                if (tipo === 'success' && contador.valor) {
+                    const currentValor = parseFloat(contador.valor.textContent.replace('R$ ', '').replace(',', '.'));
+                    const newValor = currentValor + parseFloat(valor);
+                    contador.valor.textContent = `R$ ${newValor.toFixed(2).replace('.', ',')}`;
+                }
+            }
+
+            // Atualizar contadores gerais
+            const totalProcessed = parseInt(countSuccess.textContent) + parseInt(countPending.textContent) + 
+                                 parseInt(countNoAuth.textContent) + parseInt(countDiscarded.textContent);
+            processedCPFs.textContent = totalProcessed;
+            successCPFs.textContent = countSuccess.textContent;
+            pendingCPFs.textContent = countPending.textContent;
+        }
+
+        // Event Listeners
+        csvFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                currentFile = e.target.files[0];
+                fileInfo.textContent = `📁 Arquivo selecionado: ${currentFile.name}`;
+                btnProcessar.disabled = false;
+            }
+        });
+
+        btnProcessar.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            isProcessing = true;
+            btnProcessar.disabled = true;
+            btnPausar.disabled = false;
+            btnCancelar.disabled = false;
+
+            const formData = new FormData();
+            formData.append('csvfile', currentFile);
+
+            try {
+                const response = await fetch('/fgts/run', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    adicionarLog('🚀 Processamento iniciado!', 'info');
+                } else {
+                    throw new Error('Erro ao iniciar processamento');
+                }
+            } catch (error) {
+                adicionarLog(`❌ Erro: ${error.message}`, 'error');
+                isProcessing = false;
+                btnProcessar.disabled = false;
+                btnPausar.disabled = true;
+                btnCancelar.disabled = true;
+            }
+        });
+
+        btnLimpar.addEventListener('click', () => {
+            // Limpar tudo
+            resultados = [];
+            successTable.innerHTML = '';
+            pendingTable.innerHTML = '';
+            noAuthTable.innerHTML = '';
+            discardedTable.innerHTML = '';
+            logs.innerHTML = '';
+            
+            // Resetar contadores
+            countSuccess.textContent = '0';
+            countPending.textContent = '0';
+            countNoAuth.textContent = '0';
+            countDiscarded.textContent = '0';
+            valorTotalSuccess.textContent = 'R$ 0,00';
+            
+            totalCPFs.textContent = '0';
+            processedCPFs.textContent = '0';
+            successCPFs.textContent = '0';
+            pendingCPFs.textContent = '0';
+            
+            // Resetar progresso
+            progressFill.style.width = '0%';
+            progressText.textContent = '0% - Aguardando início';
+            
+            // Resetar controles
+            isProcessing = false;
+            isPaused = false;
+            currentFile = null;
+            csvFile.value = '';
+            fileInfo.textContent = '';
+            
+            init();
+            adicionarLog('🗑️ Painel limpo', 'info');
+        });
+
+        btnPausar.addEventListener('click', async () => {
+            try {
+                await fetch('/fgts/pause', { method: 'POST' });
+                isPaused = true;
+                btnPausar.disabled = true;
+                btnRetomar.disabled = false;
+                adicionarLog('⏸️ Processamento pausado', 'warning');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao pausar: ${error.message}`, 'error');
+            }
+        });
+
+        btnRetomar.addEventListener('click', async () => {
+            try {
+                await fetch('/fgts/resume', { method: 'POST' });
+                isPaused = false;
+                btnPausar.disabled = false;
+                btnRetomar.disabled = true;
+                adicionarLog('▶️ Processamento retomado', 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao retomar: ${error.message}`, 'error');
+            }
+        });
+
+        btnCancelar.addEventListener('click', () => {
+            isProcessing = false;
+            isPaused = false;
+            btnProcessar.disabled = false;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = true;
+            btnCancelar.disabled = true;
+            adicionarLog('✖️ Processamento cancelado', 'warning');
+        });
+
+        btnAtualizarDelay.addEventListener('click', async () => {
+            const delay = parseInt(delayInput.value);
+            if (isNaN(delay) || delay < 100) {
+                adicionarLog('❌ Delay inválido. Use valores entre 100 e 10000ms', 'error');
+                return;
+            }
+
+            try {
+                await fetch('/fgts/delay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delay })
+                });
+                adicionarLog(`⚡ Delay atualizado para ${delay}ms`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao atualizar delay: ${error.message}`, 'error');
+            }
+        });
+
+        btnLimparLogs.addEventListener('click', () => {
+            logs.innerHTML = '';
+            adicionarLog('🗑️ Logs limpos', 'info');
+        });
+
+        btnExportarCSV.addEventListener('click', () => {
+            if (resultados.length === 0) {
+                adicionarLog('❌ Nenhum resultado para exportar', 'warning');
     return;
   }
 
-  const tr = document.createElement('tr');
-  let valorExibido='-';
-  if(data.status==='success') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='pending') valorExibido=data.motivo||'Aguardando retorno';
-  else if(data.status==='no_auth') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='ready_for_manual') valorExibido=data.valorLiberado||'-';
-  else if(data.status==='descartado') valorExibido=data.valorLiberado||'0.00';
+            const csvContent = [
+                'Linha,CPF,ID,Status,Valor,Provider',
+                ...resultados.map(r => `${r.linha || '?'},${r.cpf},${r.id || 'N/A'},${r.status},${r.valorLiberado || 0},${r.provider || 'N/A'}`)
+            ].join('\n');
 
-  let statusIcon = '';
-  switch(data.status){
-    case 'success': statusIcon = '✅'; break;
-    case 'pending': statusIcon = '⏳'; break;
-    case 'no_auth': statusIcon = '🚫'; break;
-    case 'ready_for_manual': statusIcon = '📥'; break;
-    case 'descartado': statusIcon = '❌'; break;
-  }
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `resultados_fgts_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            adicionarLog('💾 CSV exportado com sucesso', 'info');
+        });
 
-  tr.innerHTML = `<td>${statusIcon} ${data.cpf}</td><td>${data.id||data.telefone||''}</td><td>${valorExibido}</td><td>${data.provider||'-'}</td>`;
-  tr.className = data.status;
+        btnReprocessar.addEventListener('click', async () => {
+            const cpfsPendentes = Array.from(pendingTable.querySelectorAll('tr'))
+                .map(row => row.cells[1].textContent)
+                .filter(cpf => cpf !== 'CPF');
 
-  switch(data.status){
-    case 'success':
-      tables.success.appendChild(tr); totals.success++; break;
-    case 'pending':
-      if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
-      tables.pending.appendChild(tr); totals.pending++; break;
-    case 'no_auth':
-      if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
-      tables.no_auth.appendChild(tr); totals.noAuth++; break;
-    case 'ready_for_manual':
-      readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'});
-      tables.ready.appendChild(tr); totals.ready++; break;
-    case 'descartado':
-      tables.descartado.appendChild(tr); totals.descartado++; break;
-  }
+            if (cpfsPendentes.length === 0) {
+                adicionarLog('❌ Nenhum CPF pendente para reprocessar', 'warning');
+                return;
+            }
 
-  processedCount++;
-  const pct = totalToProcess ? Math.round((processedCount/totalToProcess)*100) : 0;
-  setProgress(pct, processedCount, totalToProcess||0);
-  atualizarContadores();
-}
+            try {
+                await fetch('/fgts/reprocessar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cpfs: cpfsPendentes })
+                });
+                adicionarLog(`🔄 Reprocessando ${cpfsPendentes.length} CPFs pendentes`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao reprocessar: ${error.message}`, 'error');
+            }
+        });
 
-const socket = io();
-socket.on('log', msg => { logs.textContent += msg + '\n'; logs.scrollTop = logs.scrollHeight; });
-socket.on('resultadoCPF', data => { adicionarResultado(data); });
-socket.on('totalCPFs', total => {
-  totalCPFsSpan.textContent = total;
-  totalToProcess = total;
-  processedCount = 0;
-  setProgress(0,0,totalToProcess);
-  logs.textContent += `📄 Total de CPFs lidos: ${total}\n`;
-  logs.scrollTop = logs.scrollHeight;
-});
-socket.on('progress', data => {
-  if(data && typeof data.done !== 'undefined' && typeof data.total !== 'undefined'){
-    const pct = Math.round((data.done/data.total)*100);
-    processedCount = data.done;
-    totalToProcess = data.total;
-    setProgress(pct, processedCount, totalToProcess);
-  }
-});
+        btnMudarFase.addEventListener('click', async () => {
+            const idsNaoAuth = Array.from(noAuthTable.querySelectorAll('tr'))
+                .map(row => row.cells[2].textContent)
+                .filter(id => id !== 'ID' && id !== 'N/A');
 
-// Botões
-document.getElementById('runBtn').addEventListener('click', async () => {
-  const f = fileInput.files[0]; if(!f) return alert('Escolha um arquivo CSV');
-  const fd = new FormData(); fd.append('csvfile', f);
-  try{
-    const res = await fetch('/fgts/run', { method:'POST', body: fd });
-    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-    const json = await res.json();
-    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
-    logs.scrollTop = logs.scrollHeight;
-  }catch(err){ alert("❌ Falha ao enviar CSV: "+err.message); console.error(err); }
-});
-document.getElementById('btnLimpar').addEventListener('click', () => {
-  if(!confirm("Deseja limpar todas as listas e logs?")) return;
-  Object.values(tables).forEach(t => t.innerHTML = '');
-  logs.textContent = '';
-  pendentes = [];
-  naoAutorizados = [];
-  readyForCSV = [];
-  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
-  totalToProcess = 0;
-  processedCount = 0;
-  setProgress(0,0,0);
-  atualizarContadores();
-});
+            if (idsNaoAuth.length === 0) {
+                adicionarLog('❌ Nenhum ID válido para mudar fase', 'warning');
+                return;
+            }
+
+            try {
+                await fetch('/fgts/mudarFaseNaoAutorizados', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: idsNaoAuth })
+                });
+                adicionarLog(`📌 Mudando fase para ${idsNaoAuth.length} registros`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao mudar fase: ${error.message}`, 'error');
+            }
+        });
+
+        // Socket.IO Events
+        socket.on('log', (message) => {
+            adicionarLog(message, 'info');
+        });
+
+        socket.on('resultadoCPF', (data) => {
+            adicionarResultado(data);
+        });
+
+        socket.on('progress', (data) => {
+            const { done, total, counters } = data;
+            const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
+            
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${percentage}% - ${done}/${total} CPFs processados`;
+            
+            if (counters) {
+                totalCPFs.textContent = total;
+                successCPFs.textContent = counters.success || 0;
+                pendingCPFs.textContent = counters.pending || 0;
+            }
+        });
+
+        socket.on('totalCPFs', (total) => {
+            totalCPFs.textContent = total;
+        });
+
+        socket.on('delayUpdate', (delay) => {
+            delayInput.value = delay;
+        });
+
+        // Inicializar
+        init();
+        adicionarLog('🚀 Painel FGTS iniciado', 'info');
 </script>
 </body>
 </html>

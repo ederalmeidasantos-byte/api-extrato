@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel de Consulta FGTS - Melhorado</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    h1 { 
+      font-size: 32px; 
+      font-weight: 700; 
+      color: #2c3e50; 
+      margin-bottom: 30px; 
+      text-align: center; 
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      border: 1px solid #e1e8ed;
+    }
+    
+    .upload-section {
+      background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+      color: white;
+    }
+    
+    .controls-section {
+      background: linear-gradient(135deg, #5a67d8 0%, #7c3aed 100%);
+      color: white;
+    }
+    
+    .progress-section {
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+      color: white;
+    }
+    
+    .logs-section {
+      background: linear-gradient(135deg, #00d4aa 0%, #06b6d4 100%);
+      color: white;
+    }
+    
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .result-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      border: 1px solid #e1e8ed;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+    
+    .result-card.success::before { background: linear-gradient(90deg, #00d4aa, #06b6d4); }
+    .result-card.pending::before { background: linear-gradient(90deg, #f59e0b, #f97316); }
+    .result-card.no-auth::before { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .result-card.descartado::before { background: linear-gradient(90deg, #6b7280, #4b5563); }
+    .result-card.ready::before { background: linear-gradient(90deg, #5a67d8, #7c3aed); }
+    
+    .result-card h3 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .list-container {
+      max-height: 400px;
+      overflow-y: auto;
+      border-radius: 10px;
+      background: #f8f9fa;
+      padding: 10px;
+    }
+    
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 11px; 
+    }
+    
+    th, td { 
+      padding: 6px; 
+      text-align: left; 
+      border-bottom: 1px solid #e1e8ed;
+    }
+    
+    th { 
+      background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+      color: white; 
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+    
+    tr:hover { background: rgba(0,0,0,0.05); }
+    
+    .status-icon {
+      font-size: 16px;
+      margin-right: 5px;
+    }
+    
+    .card-footer {
+      margin-top: 15px;
+      padding: 15px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 10px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .counter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .counter-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    button, .btn-file { 
+      padding: 12px 20px; 
+      margin: 5px; 
+      cursor: pointer; 
+      border: none; 
+      border-radius: 25px; 
+      font-size: 14px; 
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    button:hover, .btn-file:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-primary { 
+      background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+      color: white; 
+    }
+    
+    .btn-warning { 
+      background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+      color: white; 
+    }
+    
+    .btn-danger { 
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white; 
+    }
+    
+    .btn-secondary { 
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+      color: white; 
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #00d4aa 0%, #06b6d4 100%);
+      color: white;
+    }
+    
+    #logs { 
+      border: none; 
+      padding: 15px; 
+      height: 200px; 
+      overflow-y: auto; 
+      background: rgba(255,255,255,0.9); 
+      white-space: pre-wrap; 
+      font-size: 13px; 
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .progress-container {
+      background: rgba(255,255,255,0.2);
+      border-radius: 25px;
+      height: 25px;
+      overflow: hidden;
+      margin: 15px 0;
+    }
+    
+    #progressBar { 
+      height: 100%; 
+      width: 0%; 
+      background: linear-gradient(90deg, #00d4aa, #5a67d8, #7c3aed);
+      transition: width 0.5s ease;
+      border-radius: 25px;
+    }
+    
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    
+    .form-group {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    
+    .form-group input {
+      padding: 10px 15px;
+      border: 2px solid #e1e8ed;
+      border-radius: 25px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn-file { 
+      cursor: pointer; 
+      display: inline-block; 
+      padding: 12px 20px; 
+      border-radius: 25px; 
+      background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+      color: white; 
+      font-size: 14px; 
+      font-weight: 600;
+    }
+    
+    input[type="file"] { display: none; }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-success { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+    .status-pending { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+    .status-no-auth { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
+    .status-descartado { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); color: #374151; }
+    .status-ready { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #3730a3; }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📊 Painel de Consulta FGTS - Melhorado</h1>
+
+  <!-- Upload Section -->
+  <div class="card upload-section">
+    <h3>📂 Upload de Arquivo</h3>
+    <form id="form">
+      <div class="form-group">
+        <label for="csvfile" class="btn-file">📂 Escolher Arquivo CSV</label>
+        <input type="file" id="csvfile" accept=".csv" required />
+        <span id="fileName">Nenhum arquivo selecionado</span>
+        <button type="button" class="btn-primary" id="runBtn">▶️ Iniciar Processamento</button>
+        <button type="button" class="btn-secondary" id="btnLimpar">🗑️ Limpar Tudo</button>
+      </div>
+    </form>
+    <div id="totalCPFsWrap">
+      <strong>Total de CPFs: <span id="totalCPFs">0</span></strong>
+    </div>
+  </div>
+
+  <!-- Controls Section -->
+  <div class="card controls-section">
+    <h3>⚙️ Controles de Processamento</h3>
+    <div class="form-group">
+      <label>⏱️ Delay atual (ms): <span id="currentDelay">1000</span></label>
+      <input type="number" id="inputDelay" min="0" placeholder="Novo delay (ms)" value="1000" />
+      <button class="btn-primary" id="btnUpdateDelay">💾 Atualizar Delay</button>
+    </div>
+    <div class="form-group">
+      <button class="btn-warning" id="btnPause">⏸️ Pausar</button>
+      <button class="btn-success" id="btnResume">▶️ Retomar</button>
+      <button class="btn-danger" id="btnCancel">✖️ Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Progress Section -->
+  <div class="card progress-section">
+    <h3>📈 Progresso do Processamento</h3>
+    <div class="progress-container">
+      <div id="progressBar"></div>
+    </div>
+    <div class="progress-info">
+      <span id="progressText">0% (0/0)</span>
+      <span id="statusInfo">Aguardando início...</span>
+    </div>
+  </div>
+
+  <!-- Logs Section -->
+  <div class="card logs-section">
+    <h3>📜 Logs em Tempo Real</h3>
+    <div id="logs"></div>
+  </div>
+
+  <!-- Results Grid -->
+  <div class="results-grid">
+    <!-- Sucesso -->
+    <div class="result-card success">
+      <h3><span class="status-icon">✅</span> Sucesso</h3>
+      <div class="list-container">
+        <table id="tableSuccess">
+          <thead>
+            <tr>
+              <th>CPF</th>
+              <th>ID</th>
+              <th>Valor</th>
+              <th>Provider</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card-footer">
+        <div style="font-size: 12px; font-weight: 600;">
+          ✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">R$ 0,00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pendentes -->
+    <div class="result-card pending">
+      <h3><span class="status-icon">⏳</span> Pendentes</h3>
+      <div class="list-container">
+        <table id="tablePending">
+          <thead>
+            <tr>
+              <th>CPF</th>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Provider</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card-footer">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">
+          ⏳ Pendentes | Total: <span id="countPending">0</span>
+        </div>
+        <button class="btn-warning" id="btnReprocessarPendentes">🔄 Reprocessar Pendentes</button>
+      </div>
+    </div>
+
+    <!-- Sem Autorização -->
+    <div class="result-card no-auth">
+      <h3><span class="status-icon">🚫</span> Sem Autorização</h3>
+      <div class="list-container">
+        <table id="tableNoAuth">
+          <thead>
+            <tr>
+              <th>CPF</th>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Provider</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card-footer">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">
+          🚫 Sem Autorização | Total: <span id="countNoAuth">0</span>
+        </div>
+        <button class="btn-danger" id="btnMudarFaseNoAuth">📌 Mudar Fase no CRM</button>
+      </div>
+    </div>
+
+    <!-- Prontos para CSV -->
+    <div class="result-card ready">
+      <h3><span class="status-icon">📥</span> Prontos para CSV</h3>
+      <div class="list-container">
+        <table id="tableReadyCSV">
+          <thead>
+            <tr>
+              <th>CPF</th>
+              <th>Telefone</th>
+              <th>Valor</th>
+              <th>Provider</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card-footer">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 10px;">
+          📥 Prontos para CSV | Total: <span id="countReady">0</span>
+        </div>
+        <button class="btn-primary" id="btnExportCSV">💾 Exportar CSV</button>
+      </div>
+    </div>
+
+    <!-- Descartados -->
+    <div class="result-card descartado">
+      <h3><span class="status-icon">❌</span> Descartados</h3>
+      <div class="list-container">
+        <table id="tableDescartados">
+          <thead>
+            <tr>
+              <th>CPF</th>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Provider</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card-footer">
+        <div style="font-size: 12px; font-weight: 600;">
+          ❌ Descartados | Total: <span id="countDescartados">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Elementos do DOM
+const logs = document.getElementById('logs');
+const fileInput = document.getElementById('csvfile');
+const fileNameSpan = document.getElementById('fileName');
+const totalCPFsSpan = document.getElementById('totalCPFs');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const statusInfo = document.getElementById('statusInfo');
+
+const tables = {
+  success: document.querySelector('#tableSuccess tbody'),
+  pending: document.querySelector('#tablePending tbody'),
+  no_auth: document.querySelector('#tableNoAuth tbody'),
+  ready: document.querySelector('#tableReadyCSV tbody'),
+  descartado: document.querySelector('#tableDescartados tbody')
+};
+
+const counts = {
+  success: document.getElementById('countSuccess'),
+  pending: document.getElementById('countPending'),
+  noAuth: document.getElementById('countNoAuth'),
+  ready: document.getElementById('countReady'),
+  descartado: document.getElementById('countDescartados')
+};
+
+const valores = {
+  success: document.getElementById('valorTotalSuccess')
+};
+
+// Variáveis de controle
+let pendentes = [], naoAutorizados = [], readyForCSV = [];
+let totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
+let totalToProcess = 0, processedCount = 0;
+let currentDelay = 1000;
+let isProcessing = false;
+let valorTotalSuccess = 0;
+
+// Elementos dos botões
+const currentDelaySpan = document.getElementById('currentDelay');
+const inputDelay = document.getElementById('inputDelay');
+const btnUpdateDelay = document.getElementById('btnUpdateDelay');
+const btnPause = document.getElementById('btnPause');
+const btnResume = document.getElementById('btnResume');
+const btnCancel = document.getElementById('btnCancel');
+const btnReprocessarPendentes = document.getElementById('btnReprocessarPendentes');
+const btnMudarFaseNoAuth = document.getElementById('btnMudarFaseNoAuth');
+const btnExportCSV = document.getElementById('btnExportCSV');
+
+// Inicializar delay atual
+currentDelaySpan.textContent = currentDelay;
+inputDelay.value = currentDelay;
+
+// Conectar com Socket.IO
+let socket;
+try {
+  socket = io();
+  
+  socket.on('connect', () => {
+    statusInfo.textContent = 'Conectado ✅';
+    logs.textContent += '🔌 Conectado ao servidor\n';
+    logs.scrollTop = logs.scrollHeight;
+  });
+  
+  socket.on('disconnect', () => {
+    statusInfo.textContent = 'Desconectado ❌';
+    logs.textContent += '❌ Desconectado do servidor\n';
+    logs.scrollTop = logs.scrollHeight;
+  });
+  
+  socket.on('log', msg => { 
+    logs.textContent += msg + '\n'; 
+    logs.scrollTop = logs.scrollHeight; 
+  });
+  
+  socket.on('resultadoCPF', data => { 
+    adicionarResultado(data); 
+  });
+  
+  socket.on('totalCPFs', total => {
+    totalCPFsSpan.textContent = total;
+    totalToProcess = total;
+    processedCount = 0;
+    setProgress(0,0,totalToProcess);
+    logs.textContent += `📄 Total de CPFs lidos: ${total}\n`;
+    logs.scrollTop = logs.scrollHeight;
+  });
+  
+  socket.on('progress', data => {
+    if(data && typeof data.done !== 'undefined' && typeof data.total !== 'undefined'){
+      const pct = Math.round((data.done/data.total)*100);
+      processedCount = data.done;
+      totalToProcess = data.total;
+      setProgress(pct, processedCount, totalToProcess);
+    }
+  });
+  
+  socket.on('delayUpdate', delay => {
+    currentDelay = delay;
+    currentDelaySpan.textContent = delay;
+    inputDelay.value = delay;
+  });
+  
+} catch (err) {
+  statusInfo.textContent = 'Erro de conexão ❌';
+  logs.textContent += '❌ Erro ao conectar: ' + err.message + '\n';
+  logs.scrollTop = logs.scrollHeight;
+}
+
+// Funções auxiliares
+function atualizarContadores(){
+  counts.success.textContent = totals.success;
+  counts.pending.textContent = totals.pending;
+  counts.noAuth.textContent = totals.noAuth;
+  counts.ready.textContent = totals.ready;
+  counts.descartado.textContent = totals.descartado;
+  
+  // Atualizar valor total de sucesso
+  valores.success.textContent = `R$ ${valorTotalSuccess.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+}
+
+function setProgress(pct, processed, total){
+  progressBar.style.width = pct + '%';
+  progressText.textContent = `${pct}% (${processed}/${total})`;
+  
+  if (pct === 100) {
+    statusInfo.textContent = 'Processamento concluído ✅';
+  } else if (isProcessing) {
+    statusInfo.textContent = 'Processando...';
+  } else {
+    statusInfo.textContent = 'Aguardando início...';
+  }
+}
+
+function adicionarResultado(data){
+  if(data && data.status==='progress'){
+    const pct = data.percentage || Math.round(((data.processed||processedCount)/(data.total||totalToProcess||1))*100);
+    processedCount = data.processed || processedCount;
+    totalToProcess = data.total || totalToProcess;
+    setProgress(pct, processedCount, totalToProcess);
+    return;
+  }
+
+  const tr = document.createElement('tr');
+  tr.className = 'fade-in';
+  
+  let valorExibido='-';
+  if(data.status==='success') {
+    valorExibido = data.valorLiberado||'-';
+    // Adicionar ao valor total
+    const valor = parseFloat(valorExibido.replace(',', '.')) || 0;
+    valorTotalSuccess += valor;
+  }
+  else if(data.status==='pending') valorExibido = data.motivo||'Aguardando retorno';
+  else if(data.status==='no_auth') valorExibido = data.valorLiberado||'-';
+  else if(data.status==='ready_for_manual') valorExibido = data.valorLiberado||'-';
+  else if(data.status==='descartado') valorExibido = data.valorLiberado||'0.00';
+
+  // Status badge
+  const statusBadge = `<span class="status-badge status-${data.status}">${data.status}</span>`;
+
+  tr.innerHTML = `
+    <td>${data.cpf}</td>
+    <td>${data.id||data.telefone||''}</td>
+    <td>${data.status === 'success' ? valorExibido : statusBadge}</td>
+    <td>${data.provider||'-'}</td>
+  `;
+
+  switch(data.status){
+    case 'success':
+      tables.success.appendChild(tr); totals.success++; break;
+    case 'pending':
+      if(!pendentes.includes(data.cpf)) pendentes.push(data.cpf);
+      tables.pending.appendChild(tr); totals.pending++; break;
+    case 'no_auth':
+      if(!naoAutorizados.includes(data.id)) naoAutorizados.push(data.id);
+      tables.no_auth.appendChild(tr); totals.noAuth++; break;
+    case 'ready_for_manual':
+      readyForCSV.push({cpf:data.cpf,telefone:data.telefone,valor:data.valorLiberado||'',provider:data.provider||'-'});
+      tables.ready.appendChild(tr); totals.ready++; break;
+    case 'descartado':
+      tables.descartado.appendChild(tr); totals.descartado++; break;
+  }
+
+  processedCount++;
+  const pct = totalToProcess ? Math.round((processedCount/totalToProcess)*100) : 0;
+  setProgress(pct, processedCount, totalToProcess||0);
+  atualizarContadores();
+}
+
+// Event listeners
+fileInput.addEventListener('change', e => {
+  fileNameSpan.textContent = e.target.files.length ? e.target.files[0].name : "Nenhum arquivo selecionado";
+});
+
+// Botão Iniciar
+document.getElementById('runBtn').addEventListener('click', async () => {
+  if(isProcessing) {
+    alert('Já existe um processamento em andamento!');
+    return;
+  }
+  
+  const f = fileInput.files[0]; 
+  if(!f) return alert('Escolha um arquivo CSV');
+  
+  isProcessing = true;
+  btnPause.disabled = false;
+  btnResume.disabled = true;
+  btnCancel.disabled = false;
+  
+  const fd = new FormData(); 
+  fd.append('csvfile', f);
+  
+  try{
+    const res = await fetch('/fgts/run', { method:'POST', body: fd });
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+  }catch(err){ 
+    alert("❌ Falha ao enviar CSV: "+err.message); 
+    console.error(err);
+    isProcessing = false;
+    btnPause.disabled = true;
+    btnResume.disabled = true;
+    btnCancel.disabled = true;
+  }
+});
+
+// Botão Limpar
+document.getElementById('btnLimpar').addEventListener('click', () => {
+  if(!confirm("Deseja limpar todas as listas e logs?")) return;
+  Object.values(tables).forEach(t => t.innerHTML = '');
+  logs.textContent = '';
+  pendentes = [];
+  naoAutorizados = [];
+  readyForCSV = [];
+  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
+  valorTotalSuccess = 0;
+  totalToProcess = 0;
+  processedCount = 0;
+  setProgress(0,0,0);
+  atualizarContadores();
+  isProcessing = false;
+  btnPause.disabled = true;
+  btnResume.disabled = true;
+  btnCancel.disabled = true;
+});
+
+// Atualizar Delay
+btnUpdateDelay.addEventListener('click', async () => {
+  const novoDelay = parseInt(inputDelay.value);
+  if(isNaN(novoDelay) || novoDelay < 0) {
+    alert('Digite um delay válido (número >= 0)');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/fgts/delay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delay: novoDelay })
+    });
+    
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch(err) {
+    alert("❌ Falha ao atualizar delay: " + err.message);
+    console.error(err);
+  }
+});
+
+// Pausar
+btnPause.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/fgts/pause', { method: 'POST' });
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+    btnPause.disabled = true;
+    btnResume.disabled = false;
+  } catch(err) {
+    alert("❌ Falha ao pausar: " + err.message);
+    console.error(err);
+  }
+});
+
+// Retomar
+btnResume.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/fgts/resume', { method: 'POST' });
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+    btnPause.disabled = false;
+    btnResume.disabled = true;
+  } catch(err) {
+    alert("❌ Falha ao retomar: " + err.message);
+    console.error(err);
+  }
+});
+
+// Cancelar
+btnCancel.addEventListener('click', () => {
+  if(!confirm("Deseja cancelar o processamento atual?")) return;
+  
+  Object.values(tables).forEach(t => t.innerHTML = '');
+  pendentes = [];
+  naoAutorizados = [];
+  readyForCSV = [];
+  totals = { success: 0, pending: 0, noAuth: 0, ready: 0, descartado: 0 };
+  valorTotalSuccess = 0;
+  totalToProcess = 0;
+  processedCount = 0;
+  setProgress(0,0,0);
+  atualizarContadores();
+  
+  isProcessing = false;
+  btnPause.disabled = true;
+  btnResume.disabled = true;
+  btnCancel.disabled = true;
+  
+  logs.textContent += '[CLIENT] Processamento cancelado pelo usuário\n';
+  logs.scrollTop = logs.scrollHeight;
+});
+
+// Reprocessar Pendentes
+btnReprocessarPendentes.addEventListener('click', async () => {
+  if(pendentes.length === 0) {
+    alert('Não há CPFs pendentes para reprocessar');
+    return;
+  }
+  
+  if(!confirm(`Deseja reprocessar ${pendentes.length} CPFs pendentes?`)) return;
+  
+  try {
+    const res = await fetch('/fgts/reprocessar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpfs: pendentes })
+    });
+    
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch(err) {
+    alert("❌ Falha ao reprocessar pendentes: " + err.message);
+    console.error(err);
+  }
+});
+
+// Mudar Fase Não Autorizados
+btnMudarFaseNoAuth.addEventListener('click', async () => {
+  if(naoAutorizados.length === 0) {
+    alert('Não há IDs de não autorizados para alterar fase');
+    return;
+  }
+  
+  if(!confirm(`Deseja alterar a fase de ${naoAutorizados.length} registros não autorizados?`)) return;
+  
+  try {
+    const res = await fetch('/fgts/mudarFaseNaoAutorizados', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: naoAutorizados })
+    });
+    
+    if(!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+    const json = await res.json();
+    logs.textContent += '[CLIENT] ' + (json.message || JSON.stringify(json)) + '\n';
+    logs.scrollTop = logs.scrollHeight;
+  } catch(err) {
+    alert("❌ Falha ao alterar fase: " + err.message);
+    console.error(err);
+  }
+});
+
+// Exportar CSV
+btnExportCSV.addEventListener('click', () => {
+  if(readyForCSV.length === 0) {
+    alert('Não há dados prontos para exportar');
+    return;
+  }
+  
+  const csvContent = [
+    'CPF,Telefone,Valor,Provider',
+    ...readyForCSV.map(item => `${item.cpf},${item.telefone},${item.valor},${item.provider}`)
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `fgts_prontos_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  logs.textContent += `[CLIENT] CSV exportado com ${readyForCSV.length} registros\n`;
+  logs.scrollTop = logs.scrollHeight;
+});
+
+// Inicializar estado dos botões
+btnPause.disabled = true;
+btnResume.disabled = true;
+btnCancel.disabled = true;
+
+// Adicionar mensagem inicial
+logs.textContent += '🧪 Painel melhorado carregado\n';
+logs.textContent += '📡 Conectando ao servidor...\n';
+</script>
+
+</body>
+</html>

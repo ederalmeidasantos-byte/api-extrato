@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel FGTS com Webhooks - Lunas Digital</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #00d4aa, #06b6d4);
+      color: white;
+      padding: 2rem 0;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+    
+    .webhook-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-right: 0.75rem;
+    }
+    
+    .upload-icon { background: linear-gradient(135deg, #00d4aa, #06b6d4); }
+    .controls-icon { background: linear-gradient(135deg, #5a67d8, #7c3aed); }
+    .progress-icon { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+    .logs-icon { background: linear-gradient(135deg, #00d4aa, #06b6d4); }
+    .webhook-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .form-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    
+    .btn-primary { background: #00d4aa; color: white; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-file { background: #00d4aa; color: white; }
+    
+    .file-input {
+      display: none;
+    }
+    
+    .progress-container {
+      background: #f1f5f9;
+      border-radius: 8px;
+      height: 12px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    
+    .progress-bar {
+      background: linear-gradient(90deg, #00d4aa, #06b6d4);
+      height: 100%;
+      transition: width 0.3s ease;
+      border-radius: 8px;
+    }
+    
+    .progress-text {
+      font-size: 0.875rem;
+      color: #64748b;
+      text-align: center;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      border: 1px solid #e2e8f0;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+    
+    .success { color: #10b981; }
+    .warning { color: #f59e0b; }
+    .error { color: #ef4444; }
+    .info { color: #3b82f6; }
+    
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .result-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      border: 1px solid #e2e8f0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+    
+    .result-card.success::before { background: #10b981; }
+    .result-card.pending::before { background: #f59e0b; }
+    .result-card.no-auth::before { background: #ef4444; }
+    .result-card.descartado::before { background: #6b7280; }
+    .result-card.webhook::before { background: #00d4aa; }
+    
+    .result-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .result-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    
+    .result-value {
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    
+    .logs {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      height: 400px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border: 1px solid #374151;
+    }
+    
+    .log-entry {
+      margin-bottom: 0.25rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #374151;
+    }
+    
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    
+    .log-timestamp {
+      color: #64748b;
+      font-size: 0.7rem;
+    }
+    
+    .log-success { color: #10b981; }
+    .log-error { color: #ef4444; }
+    .log-warning { color: #f59e0b; }
+    .log-info { color: #3b82f6; }
+    .log-webhook { color: #00d4aa; font-weight: 600; }
+    
+    .webhook-status {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .webhook-status.active {
+      background: #fef3c7;
+      border-color: #fcd34d;
+    }
+    
+    .webhook-status.error {
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+    
+    .webhook-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    
+    .webhook-indicator.active { background: #10b981; }
+    .webhook-indicator.inactive { background: #6b7280; }
+    .webhook-indicator.error { background: #ef4444; }
+    
+    @media (max-width: 1200px) {
+      .results-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 600px) {
+      .results-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏢 Lunas FGTS</h1>
+    <p>Painel de Controle - Consulta em Lote</p>
+    <div class="webhook-badge">🔄 Sistema com Webhooks Ativo</div>
+  </div>
+
+  <div class="container">
+    <!-- Status do Webhook -->
+    <div class="webhook-status" id="webhookStatus">
+      <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+        <span class="webhook-indicator inactive" id="webhookIndicator"></span>
+        <strong>Status do Webhook:</strong>
+        <span id="webhookStatusText">Aguardando conexão...</span>
+      </div>
+      <div style="font-size: 0.875rem; color: #64748b;">
+        <div>🔗 URL: <code>http://localhost:3000/webhook/saldo</code></div>
+        <div>📊 Consultas pendentes: <span id="webhookPendingCount">0</span></div>
+      </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number success" id="totalCPFs">0</div>
+        <div class="stat-label">Total de CPFs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number info" id="processados">0</div>
+        <div class="stat-label">Processados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number success" id="sucessos">0</div>
+        <div class="stat-label">Sucessos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number warning" id="pendentes">0</div>
+        <div class="stat-label">Pendentes</div>
+      </div>
+    </div>
+
+    <!-- Upload e Controles -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon upload-icon">📁</div>
+        <div class="card-title">Upload e Processamento</div>
+      </div>
+      
+      <div class="form-group">
+        <input type="file" id="csvFile" class="file-input" accept=".csv" />
+        <button class="btn btn-file" id="btnUpload">📁 Escolher Arquivo CSV</button>
+        <button class="btn btn-primary" id="btnProcessar" disabled>🚀 Iniciar Processamento</button>
+        <button class="btn btn-warning" id="btnPausar" disabled>⏸️ Pausar</button>
+        <button class="btn btn-success" id="btnRetomar" disabled>▶️ Retomar</button>
+        <button class="btn btn-danger" id="btnCancelar" disabled>⏹️ Cancelar</button>
+      </div>
+      
+      <div class="form-group">
+        <label>Delay (ms):</label>
+        <input type="number" id="delayInput" value="100" min="50" max="10000" step="50" />
+        <button class="btn btn-primary" id="btnAtualizarDelay">⚡ Atualizar Delay</button>
+        <button class="btn btn-success" id="btnLimparPendentes">🧹 Limpar Pendentes</button>
+        <button class="btn btn-primary" id="btnSimularLogs">📊 Simular Logs</button>
+      </div>
+    </div>
+
+    <!-- Progresso -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon progress-icon">📊</div>
+        <div class="card-title">Progresso do Processamento</div>
+      </div>
+      
+      <div class="progress-container">
+        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progressText">Aguardando processamento...</div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="results-grid">
+      <div class="result-card success">
+        <div class="result-title">✅ Sucesso</div>
+        <div class="result-count" id="countSuccess">0</div>
+        <div class="result-value">Valor Total: R$ <span id="valorTotalSuccess">0,00</span></div>
+      </div>
+      
+      <div class="result-card pending">
+        <div class="result-title">⏳ Pendentes</div>
+        <div class="result-count" id="countPending">0</div>
+        <div class="result-value">Aguardando webhook</div>
+      </div>
+      
+      <div class="result-card no-auth">
+        <div class="result-title">🚫 Não Autorizados</div>
+        <div class="result-count" id="countNoAuth">0</div>
+        <div class="result-value">Requerem atenção</div>
+      </div>
+      
+      <div class="result-card webhook">
+        <div class="result-title">🔄 Webhooks</div>
+        <div class="result-count" id="countWebhooks">0</div>
+        <div class="result-value">Recebidos</div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon logs-icon">📝</div>
+        <div class="card-title">Logs em Tempo Real</div>
+      </div>
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    
+    // Elementos DOM
+    const csvFile = document.getElementById('csvFile');
+    const btnUpload = document.getElementById('btnUpload');
+    const btnProcessar = document.getElementById('btnProcessar');
+    const btnPausar = document.getElementById('btnPausar');
+    const btnRetomar = document.getElementById('btnRetomar');
+    const btnCancelar = document.getElementById('btnCancelar');
+    const btnAtualizarDelay = document.getElementById('btnAtualizarDelay');
+    const btnLimparPendentes = document.getElementById('btnLimparPendentes');
+    const btnSimularLogs = document.getElementById('btnSimularLogs');
+    const delayInput = document.getElementById('delayInput');
+    const logs = document.getElementById('logs');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    // Contadores
+    const contadores = {
+      total: 0,
+      processados: 0,
+      sucessos: 0,
+      pendentes: 0,
+      noAuth: 0,
+      webhooks: 0
+    };
+    
+    // Status do webhook
+    const webhookStatus = document.getElementById('webhookStatus');
+    const webhookIndicator = document.getElementById('webhookIndicator');
+    const webhookStatusText = document.getElementById('webhookStatusText');
+    const webhookPendingCount = document.getElementById('webhookPendingCount');
+    
+    // Estado do processamento
+    let isProcessing = false;
+    let isPaused = false;
+    let simulacaoAtiva = false;
+    let intervaloSimulacao = null;
+    
+    // Função para adicionar log
+    function adicionarLog(mensagem, tipo = 'info') {
+      const timestamp = new Date().toLocaleTimeString('pt-BR');
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      
+      const timestampSpan = document.createElement('span');
+      timestampSpan.className = 'log-timestamp';
+      timestampSpan.textContent = `[${timestamp}] `;
+      
+      const messageSpan = document.createElement('span');
+      messageSpan.className = `log-${tipo}`;
+      messageSpan.textContent = mensagem;
+      
+      logEntry.appendChild(timestampSpan);
+      logEntry.appendChild(messageSpan);
+      
+      logs.appendChild(logEntry);
+      logs.scrollTop = logs.scrollHeight;
+    }
+    
+    // Função para simular logs detalhados (como no terminal)
+    function simularLogsDetalhados() {
+      if (simulacaoAtiva) return;
+      
+      simulacaoAtiva = true;
+      const cpfs = ['12345678901', '98765432100', '11122233344', '55566677788', '99988877766'];
+      let contador = 0;
+      
+      intervaloSimulacao = setInterval(() => {
+        if (!simulacaoAtiva) return;
+        
+        contador++;
+        const cpf = cpfs[Math.floor(Math.random() * cpfs.length)];
+        const timestamp = new Date().toLocaleTimeString('pt-BR');
+        
+        if (contador % 3 === 0) {
+          // Webhook de sucesso
+          adicionarLog(`🔔 Webhook recebido: balance.status.received.success - CPF: ${cpf}`, 'webhook');
+          const valor = (Math.random() * 5000 + 500).toFixed(2);
+          adicionarLog(`✅ Linha: ${contador} | CPF: ${cpf} | Status: Sucesso | Valor: R$ ${valor} | Provider: bms`, 'success');
+          
+          // Atualizar contadores
+          contadores.sucessos++;
+          contadores.processados++;
+          atualizarContadores();
+          
+        } else if (contador % 5 === 0) {
+          // Webhook de falha
+          adicionarLog(`🔔 Webhook recebido: balance.status.received.fail - CPF: ${cpf}`, 'webhook');
+          adicionarLog(`❌ Linha: ${contador} | CPF: ${cpf} | Status: Não Autorizado | Provider: bms`, 'error');
+          
+          // Atualizar contadores
+          contadores.noAuth++;
+          contadores.processados++;
+          atualizarContadores();
+          
+        } else {
+          // Envio para fila
+          const id = Math.floor(Math.random() * 10000);
+          adicionarLog(`📤 Linha: ${contador} | CPF: ${cpf} | Status: Enviado para fila | ID: ${id}`, 'info');
+          
+          // Atualizar contadores
+          contadores.pendentes++;
+          atualizarContadores();
+        }
+        
+        // Mostrar progresso a cada 10
+        if (contador % 10 === 0) {
+          const progresso = (contador / 3430 * 100).toFixed(1);
+          adicionarLog(`📊 Progresso: ${contador}/3430 (${progresso}%)`, 'info');
+          
+          // Atualizar barra de progresso
+          progressBar.style.width = `${progresso}%`;
+          progressText.textContent = `${contador}/3430 CPFs processados (${progresso}%)`;
+        }
+        
+      }, 2000); // A cada 2 segundos
+    }
+    
+    // Função para atualizar contadores
+    function atualizarContadores() {
+      document.getElementById('totalCPFs').textContent = contadores.total;
+      document.getElementById('processados').textContent = contadores.processados;
+      document.getElementById('sucessos').textContent = contadores.sucessos;
+      document.getElementById('countSuccess').textContent = contadores.sucessos;
+      document.getElementById('countPending').textContent = contadores.pendentes;
+      document.getElementById('countNoAuth').textContent = contadores.noAuth;
+      document.getElementById('countWebhooks').textContent = contadores.webhooks;
+    }
+    
+    // Função para atualizar status do webhook
+    function atualizarStatusWebhook(status) {
+      webhookStatus.className = `webhook-status ${status}`;
+      
+      switch(status) {
+        case 'active':
+          webhookIndicator.className = 'webhook-indicator active';
+          webhookStatusText.textContent = 'Conectado e funcionando';
+          break;
+        case 'error':
+          webhookIndicator.className = 'webhook-indicator error';
+          webhookStatusText.textContent = 'Erro na conexão';
+          break;
+        default:
+          webhookIndicator.className = 'webhook-indicator inactive';
+          webhookStatusText.textContent = 'Aguardando conexão...';
+      }
+    }
+    
+    // Event listeners
+    btnUpload.addEventListener('click', () => csvFile.click());
+    
+    csvFile.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        btnProcessar.disabled = false;
+        adicionarLog(`📁 Arquivo selecionado: ${e.target.files[0].name}`, 'info');
+      }
+    });
+    
+    btnProcessar.addEventListener('click', async () => {
+      if (!csvFile.files[0]) return;
+      
+      const formData = new FormData();
+      formData.append('csv', csvFile.files[0]);
+      
+      try {
+        const response = await fetch('/fgts/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          isProcessing = true;
+          btnProcessar.disabled = true;
+          btnPausar.disabled = false;
+          btnCancelar.disabled = false;
+          btnUpload.disabled = true;
+          
+          contadores.total = result.total;
+          atualizarContadores();
+          
+          adicionarLog(`🚀 Processamento iniciado com webhooks - ${result.total} CPFs`, 'webhook');
+          atualizarStatusWebhook('active');
+        } else {
+          adicionarLog(`❌ Erro: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro na requisição: ${error.message}`, 'error');
+      }
+    });
+    
+    btnPausar.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/fgts/pause', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          isPaused = true;
+          btnPausar.disabled = true;
+          btnRetomar.disabled = false;
+          adicionarLog('⏸️ Processamento pausado', 'warning');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro ao pausar: ${error.message}`, 'error');
+      }
+    });
+    
+    btnRetomar.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/fgts/resume', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          isPaused = false;
+          btnPausar.disabled = false;
+          btnRetomar.disabled = true;
+          adicionarLog('▶️ Processamento retomado', 'success');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro ao retomar: ${error.message}`, 'error');
+      }
+    });
+    
+    btnCancelar.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/fgts/cancel', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          isProcessing = false;
+          isPaused = false;
+          btnProcessar.disabled = false;
+          btnPausar.disabled = true;
+          btnRetomar.disabled = true;
+          btnCancelar.disabled = true;
+          btnUpload.disabled = false;
+          
+          adicionarLog('⏹️ Processamento cancelado', 'error');
+          atualizarStatusWebhook('inactive');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro ao cancelar: ${error.message}`, 'error');
+      }
+    });
+    
+    btnAtualizarDelay.addEventListener('click', async () => {
+      const delay = parseInt(delayInput.value);
+      
+      try {
+        const response = await fetch('/fgts/delay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delay })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          adicionarLog(`⚡ Delay atualizado para ${delay}ms`, 'info');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro ao atualizar delay: ${error.message}`, 'error');
+      }
+    });
+    
+    btnLimparPendentes.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/fgts/limparPendentes', { method: 'POST' });
+        const result = await response.json();
+        
+        if (response.ok) {
+          contadores.pendentes = 0;
+          contadores.webhooks = 0;
+          atualizarContadores();
+          webhookPendingCount.textContent = '0';
+          adicionarLog(`🧹 ${result.message}`, 'info');
+        }
+      } catch (error) {
+        adicionarLog(`❌ Erro ao limpar pendentes: ${error.message}`, 'error');
+      }
+    });
+    
+    btnSimularLogs.addEventListener('click', () => {
+      if (!simulacaoAtiva) {
+        // Iniciar simulação
+        simularLogsDetalhados();
+        btnSimularLogs.textContent = '⏹️ Parar Simulação';
+        btnSimularLogs.className = 'btn btn-danger';
+        adicionarLog('📊 Simulação de logs iniciada', 'info');
+      } else {
+        // Parar simulação
+        simulacaoAtiva = false;
+        if (intervaloSimulacao) {
+          clearInterval(intervaloSimulacao);
+          intervaloSimulacao = null;
+        }
+        btnSimularLogs.textContent = '📊 Simular Logs';
+        btnSimularLogs.className = 'btn btn-primary';
+        adicionarLog('⏹️ Simulação de logs parada', 'info');
+      }
+    });
+    
+    // Socket.IO events
+    socket.on('connect', () => {
+      adicionarLog('🔗 Conectado ao servidor', 'success');
+      atualizarStatusWebhook('active');
+    });
+    
+    socket.on('disconnect', () => {
+      adicionarLog('🔌 Desconectado do servidor', 'error');
+      atualizarStatusWebhook('error');
+    });
+    
+    socket.on('log', (msg) => {
+      let tipo = 'info';
+      if (msg.includes('✅') || msg.includes('Sucesso')) tipo = 'success';
+      else if (msg.includes('❌') || msg.includes('Erro')) tipo = 'error';
+      else if (msg.includes('⚠️') || msg.includes('Aviso')) tipo = 'warning';
+      else if (msg.includes('📤') || msg.includes('webhook')) tipo = 'webhook';
+      
+      adicionarLog(msg, tipo);
+      
+      // Atualizar contadores baseado nos logs
+      if (msg.includes('Status: Sucesso')) {
+        contadores.sucessos++;
+        contadores.processados++;
+      } else if (msg.includes('Status: Enviado para fila')) {
+        contadores.pendentes++;
+      } else if (msg.includes('Status: Falha') || msg.includes('Status: no_auth')) {
+        contadores.noAuth++;
+        contadores.processados++;
+      } else if (msg.includes('Webhook recebido')) {
+        contadores.webhooks++;
+      }
+      
+      atualizarContadores();
+    });
+    
+    // Adicionar listener para resultadoCPF (evento específico do fgts_csv.js)
+    socket.on('resultadoCPF', (data) => {
+      const { linha, cpf, id, status, valorLiberado, provider } = data;
+      
+      // Criar mensagem de log formatada
+      let mensagem = '';
+      let tipo = 'info';
+      
+      switch(status) {
+        case 'success':
+          mensagem = `✅ Linha: ${linha} | CPF: ${cpf} | Status: Sucesso | Valor: R$ ${valorLiberado} | Provider: ${provider}`;
+          tipo = 'success';
+          contadores.sucessos++;
+          contadores.processados++;
+          break;
+        case 'pending':
+          mensagem = `⏳ Linha: ${linha} | CPF: ${cpf} | Status: Pendente | Aguardando webhook`;
+          tipo = 'warning';
+          contadores.pendentes++;
+          break;
+        case 'no_auth':
+          mensagem = `🚫 Linha: ${linha} | CPF: ${cpf} | Status: Não Autorizado | Provider: ${provider}`;
+          tipo = 'error';
+          contadores.noAuth++;
+          contadores.processados++;
+          break;
+        case 'descartado':
+          mensagem = `❌ Linha: ${linha} | CPF: ${cpf} | Status: Descartado | Provider: ${provider}`;
+          tipo = 'error';
+          contadores.processados++;
+          break;
+        case 'limite_excedido':
+          mensagem = `⏰ Linha: ${linha} | CPF: ${cpf} | Status: Limite Excedido | Provider: ${provider}`;
+          tipo = 'warning';
+          contadores.pendentes++;
+          break;
+        default:
+          mensagem = `❓ Linha: ${linha} | CPF: ${cpf} | Status: ${status} | Provider: ${provider}`;
+          tipo = 'info';
+      }
+      
+      adicionarLog(mensagem, tipo);
+      atualizarContadores();
+    });
+    
+    socket.on('progress', (data) => {
+      progressBar.style.width = `${data.percentage}%`;
+      progressText.textContent = `${data.current}/${data.total} CPFs processados (${data.percentage}%)`;
+    });
+    
+    socket.on('totalCPFs', (total) => {
+      contadores.total = total;
+      atualizarContadores();
+    });
+    
+    socket.on('status', (status) => {
+      isProcessing = status.isProcessing;
+      isPaused = status.isPaused;
+      
+      if (status.pendentes !== undefined) {
+        webhookPendingCount.textContent = status.pendentes;
+      }
+      
+      if (!isProcessing) {
+        btnProcessar.disabled = false;
+        btnPausar.disabled = true;
+        btnRetomar.disabled = true;
+        btnCancelar.disabled = true;
+        btnUpload.disabled = false;
+      }
+    });
+    
+    // Inicializar
+    adicionarLog('🚀 Painel FGTS com Webhooks carregado', 'webhook');
+    adicionarLog('📋 Aguardando upload de arquivo CSV...', 'info');
+  </script>
+</body>
+</html>
