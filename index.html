@@ -339,6 +339,7 @@
                             <div style="margin-bottom: 1rem;">
                                 <button id="btnCacheStats" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
                                 <button id="btnCachePendentes" class="btn btn-secondary" style="margin-right: 0.5rem;">⏳ Pendentes</button>
+                                <button id="btnVisualizarCache" class="btn btn-info" style="margin-right: 0.5rem;">👁️ Visualizar Cache</button>
                                 <button id="btnCacheLimpar" class="btn btn-danger">🗑️ Limpar Cache</button>
                             </div>
                             <div id="cacheContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
@@ -884,6 +885,49 @@ const logs = document.getElementById('logs');
                     console.error('Erro ao limpar cache persistente:', error);
                     alert('Erro ao limpar cache persistente');
                 }
+            }
+        });
+
+        // Event Listener para Visualizar Cache
+        document.getElementById('btnVisualizarCache').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/cache/visualizar');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cacheContent = document.getElementById('cacheContent');
+                    const cacheContainer = document.getElementById('cacheContainer');
+                    
+                    let html = `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;">
+                        <h4 style="color: #1e293b; margin-bottom: 0.5rem;">📁 Visualização dos Arquivos de Cache</h4>
+                        <div><strong>Diretório:</strong> ${data.cacheDir}</div>
+                        <div><strong>Total de arquivos:</strong> ${data.totalArquivos}</div>
+                    </div>`;
+                    
+                    for (const [arquivo, info] of Object.entries(data.arquivos)) {
+                        html += `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border-left: 4px solid #3b82f6;">
+                            <h5 style="color: #1e293b; margin-bottom: 0.5rem;">📄 ${arquivo}</h5>`;
+                        
+                        if (info.erro) {
+                            html += `<div style="color: #dc2626;">❌ ${info.erro}: ${info.detalhes}</div>`;
+                        } else {
+                            html += `<div><strong>Tamanho:</strong> ${info.tamanho} bytes</div>
+                                <div><strong>Linhas:</strong> ${info.linhas}</div>
+                                <div><strong>Conteúdo:</strong></div>
+                                <pre style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px; font-size: 0.7rem; max-height: 200px; overflow-y: auto;">${JSON.stringify(info.conteudo, null, 2)}</pre>`;
+                        }
+                        
+                        html += `</div>`;
+                    }
+                    
+                    cacheContent.innerHTML = html;
+                    cacheContainer.style.display = 'block';
+                } else {
+                    alert('Erro ao visualizar cache: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erro ao visualizar cache:', error);
+                alert('Erro ao visualizar cache');
             }
         });
 

@@ -309,6 +309,51 @@ app.get("/fgts/listas", (req, res) => {
   }
 });
 
+// ===== Visualizar todos os caches =====
+app.get("/fgts/cache/visualizar", (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const cacheDir = path.join(__dirname, 'cache');
+    const caches = {};
+    
+    // Listar todos os arquivos de cache
+    if (fs.existsSync(cacheDir)) {
+      const arquivos = fs.readdirSync(cacheDir);
+      
+      for (const arquivo of arquivos) {
+        if (arquivo.endsWith('.json')) {
+          const caminhoCompleto = path.join(cacheDir, arquivo);
+          try {
+            const conteudo = fs.readFileSync(caminhoCompleto, 'utf8');
+            caches[arquivo] = {
+              tamanho: conteudo.length,
+              linhas: conteudo.split('\n').length,
+              conteudo: JSON.parse(conteudo)
+            };
+          } catch (err) {
+            caches[arquivo] = {
+              erro: 'Erro ao ler arquivo',
+              detalhes: err.message
+            };
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      cacheDir: cacheDir,
+      arquivos: caches,
+      totalArquivos: Object.keys(caches).length
+    });
+  } catch (error) {
+    console.error('❌ Erro ao visualizar caches:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== Visualizar logs de erro =====
 app.get("/fgts/logs/erros", (req, res) => {
   try {
