@@ -269,72 +269,6 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações ou texto adicional.`;
 }
 
 // ================== GPT Call ==================
-async function gptExtrairJSON(pdfPath, isContingencia) {
-  console.log("🧠 [GPT] Iniciando leitura do arquivo…");
-
-  const uploaded = await openai.files.create({
-    file: fs.createReadStream(pdfPath),
-    purpose: "assistants"
-  });
-
-  console.log("📄 [GPT] Upload concluído. File ID:", uploaded.id);
-  console.log("🤖 [GPT] Solicitando extração...");
-
-  let response;
-  try {
-    // Tentar primeiro com gpt-4o-mini (mais estável)
-    response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: buildPrompt(isContingencia) },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-      temperature: 0.1
-    });
-  } catch (err) {
-    console.warn("⚠️ Falha no gpt-4o-mini, tentando fallback com vision");
-    try {
-      response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: buildPrompt(isContingencia) },
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
-            ]
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.1
-      });
-    } catch (err2) {
-      console.error("❌ Falha em ambos os modelos:", err2.message);
-      throw new Error("Falha na extração com GPT: " + err2.message);
-    }
-  }
-
-  console.log("✅ [GPT] Resposta recebida.");
-  const raw = response.choices[0]?.message?.content || "";
-
-  let parsed;
-  try {
-    const jsonText = extractJsonFromText(raw);
-    parsed = JSON.parse(jsonText);
-  } catch (err) {
-    console.error("❌ Erro ao parsear resposta do GPT:", err.message);
-    console.error(">>> Preview da resposta (1000 chars):\n", (raw || "").slice(0, 1000));
-    throw new Error("Resposta inválida do GPT: " + err.message);
-  }
-
-  return parsed;
-}
 
 // ================== Pós-processamento ==================
 function posProcessar(parsed, isContingencia) {
@@ -482,6 +416,70 @@ function posProcessar(parsed, isContingencia) {
 }
 
 // ================== Upload Flow ==================
+export async function gptExtrairJSON(pdfPath, isContingencia) {
+  console.log(`🤖 Processando PDF com GPT: ${pdfPath}`);
+  console.log(`📋 Tipo: ${isContingencia ? 'CONTINGENCIA' : 'INSS'}`);
+
+  try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    let response;
+    try {
+      // Tentar primeiro com gpt-4o-mini
+      response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: buildPrompt(isContingencia) },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+    } catch (error) {
+      console.log("⚠️ gpt-4o-mini falhou, tentando gpt-4o...");
+      // Fallback para gpt-4o
+      response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: buildPrompt(isContingencia) },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+    }
+
+    const content = response.choices[0].message.content;
+    console.log("📄 Resposta do GPT:", content.substring(0, 200) + "...");
+
+    // Extrair JSON da resposta
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Resposta do GPT não contém JSON válido");
+    }
+
+    const json = JSON.parse(jsonMatch[0]);
+    console.log("✅ JSON extraído com sucesso");
+    
+    return json;
+  } catch (error) {
+    console.error("❌ Erro no GPT:", error);
+    throw error;
+  }
+}
+
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
 
