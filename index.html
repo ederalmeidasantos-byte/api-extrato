@@ -81,6 +81,14 @@
                 <h3 id="pendingCPFs">0</h3>
                 <p>Pendentes</p>
             </div>
+            <div class="stat-card">
+                <h3 id="agendadosCPFs">0</h3>
+                <p>Agendados</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="delayAtual">1000ms</h3>
+                <p>Delay Atual</p>
+            </div>
         </div>
 
         <div class="main-content">
@@ -193,10 +201,26 @@
                                 <tbody></tbody>
                             </table>
                             <div class="counter" id="discardedCounter">❌ Descartado | Total: <span id="countDiscarded">0</span></div>
-    </div>
-  </div>
-    </div>
-  </div>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>📅 Agendados</h4>
+                            <table class="result-table" id="scheduledTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Tipo</th>
+                                        <th>Agendado Para</h4>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="right-panel">
                 <div class="card">
@@ -237,18 +261,22 @@ const logs = document.getElementById('logs');
         const pendingTable = document.getElementById('pendingTable').querySelector('tbody');
         const noAuthTable = document.getElementById('noAuthTable').querySelector('tbody');
         const discardedTable = document.getElementById('discardedTable').querySelector('tbody');
+        const scheduledTable = document.getElementById('scheduledTable').querySelector('tbody');
 
         // Contadores
         const totalCPFs = document.getElementById('totalCPFs');
         const processedCPFs = document.getElementById('processedCPFs');
         const successCPFs = document.getElementById('successCPFs');
         const pendingCPFs = document.getElementById('pendingCPFs');
+        const agendadosCPFs = document.getElementById('agendadosCPFs');
+        const delayAtual = document.getElementById('delayAtual');
 
         // Contadores de valores
         const countSuccess = document.getElementById('countSuccess');
         const countPending = document.getElementById('countPending');
         const countNoAuth = document.getElementById('countNoAuth');
         const countDiscarded = document.getElementById('countDiscarded');
+        const countScheduled = document.getElementById('countScheduled');
         const valorTotalSuccess = document.getElementById('valorTotalSuccess');
 
         // Variáveis de controle
@@ -314,13 +342,31 @@ const logs = document.getElementById('logs');
             resultados.push(data);
         }
 
+        // Adicionar agendamento à tabela
+        function adicionarAgendamento(data) {
+            const { id, tipo, agendadoPara } = data;
+            const dataFormatada = new Date(agendadoPara).toLocaleString('pt-BR');
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${id}</td>
+                <td>${tipo}</td>
+                <td>${dataFormatada}</td>
+                <td>⏳ Agendado</td>
+            `;
+
+            scheduledTable.appendChild(row);
+            atualizarContador('scheduled');
+        }
+
         // Atualizar contadores
         function atualizarContador(tipo, valor = 0) {
             const contadores = {
                 success: { count: countSuccess, valor: valorTotalSuccess },
                 pending: { count: countPending },
                 no_auth: { count: countNoAuth },
-                descartado: { count: countDiscarded }
+                descartado: { count: countDiscarded },
+                scheduled: { count: countScheduled }
             };
 
             const contador = contadores[tipo];
@@ -390,6 +436,7 @@ const logs = document.getElementById('logs');
             pendingTable.innerHTML = '';
             noAuthTable.innerHTML = '';
             discardedTable.innerHTML = '';
+            scheduledTable.innerHTML = '';
             logs.innerHTML = '';
             
             // Resetar contadores
@@ -397,12 +444,14 @@ const logs = document.getElementById('logs');
             countPending.textContent = '0';
             countNoAuth.textContent = '0';
             countDiscarded.textContent = '0';
+            countScheduled.textContent = '0';
             valorTotalSuccess.textContent = 'R$ 0,00';
             
             totalCPFs.textContent = '0';
             processedCPFs.textContent = '0';
             successCPFs.textContent = '0';
             pendingCPFs.textContent = '0';
+            agendadosCPFs.textContent = '0';
             
             // Resetar progresso
             progressFill.style.width = '0%';
@@ -550,6 +599,15 @@ const logs = document.getElementById('logs');
 
         socket.on('resultadoCPF', (data) => {
             adicionarResultado(data);
+        });
+
+        socket.on('agendamento', (data) => {
+            adicionarAgendamento(data);
+        });
+
+        socket.on('delayUpdate', (delay) => {
+            delayInput.value = delay;
+            delayAtual.textContent = `${delay}ms`;
         });
 
         socket.on('progress', (data) => {

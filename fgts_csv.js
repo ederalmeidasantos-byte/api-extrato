@@ -8,6 +8,12 @@ dotenv.config();
 
 // 🔹 Configurações
 let delayMs = 1000;
+let delayBase = 1000; // Delay base
+let delayAtual = 1000; // Delay atual (pode variar)
+let taxaErro429 = 0; // Taxa de erro 429 (0-1)
+let contador429 = 0; // Contador de erros 429
+let contadorTotal = 0; // Contador total de consultas
+let ultimoAjusteDelay = Date.now(); // Última vez que ajustou o delay
 const QUEUE_ID = process.env.QUEUE_ID || 25;
 const API_CRM_KEY = process.env.LUNAS_API_KEY;
 const DEST_STAGE_ID = process.env.DEST_STAGE_ID || 4;
@@ -38,12 +44,134 @@ let ioInstance = null;
 // 🔹 Pendentes
 const pendentes = [];
 
+// 🔹 Sistema de Agendamento
+const agendamentos = [];
+const HORARIO_COMERCIAL = {
+  inicio: 8,  // 08:00
+  fim: 22     // 22:00
+};
+
+// 🔹 Verificar se está em horário comercial
+function isHorarioComercial() {
+  const agora = new Date();
+  const hora = agora.getHours();
+  return hora >= HORARIO_COMERCIAL.inicio && hora < HORARIO_COMERCIAL.fim;
+}
+
+// 🔹 Calcular próximo horário comercial
+function proximoHorarioComercial() {
+  const agora = new Date();
+  const amanha = new Date(agora);
+  amanha.setDate(amanha.getDate() + 1);
+  amanha.setHours(HORARIO_COMERCIAL.inicio, 0, 0, 0);
+  return amanha;
+}
+
+// 🔹 Agendar disparo para horário comercial
+function agendarDisparo(opportunityId, tipo = 'criar') {
+  const proximoHorario = proximoHorarioComercial();
+  const agendamento = {
+    id: opportunityId,
+    tipo,
+    agendadoPara: proximoHorario,
+    criadoEm: new Date()
+  };
+  
+  agendamentos.push(agendamento);
+  console.log(`${LOG_PREFIX()} 📅 Disparo agendado para ${proximoHorario.toLocaleString('pt-BR')} - ID: ${opportunityId}`);
+  
+  if (ioInstance) {
+    ioInstance.emit("log", `📅 Disparo agendado para ${proximoHorario.toLocaleString('pt-BR')} - ID: ${opportunityId}`);
+  }
+}
+
+// 🔹 Processar agendamentos pendentes
+async function processarAgendamentos() {
+  const agora = new Date();
+  const agendamentosParaProcessar = agendamentos.filter(a => a.agendadoPara <= agora);
+  
+  for (const agendamento of agendamentosParaProcessar) {
+    try {
+      if (agendamento.tipo === 'criar') {
+        await disparaFluxo(agendamento.id);
+        console.log(`${LOG_PREFIX()} ✅ Disparo executado (agendado) - ID: ${agendamento.id}`);
+      }
+      
+      // Remover da lista de agendamentos
+      const index = agendamentos.indexOf(agendamento);
+      agendamentos.splice(index, 1);
+      
+    } catch (error) {
+      console.error(`${LOG_PREFIX()} ❌ Erro ao processar agendamento ${agendamento.id}:`, error.message);
+    }
+  }
+}
+
+// 🔹 Executar verificações de agendamento a cada minuto
+setInterval(processarAgendamentos, 60000); // 1 minuto
+
 // 🔹 Delay e pausa
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 🔹 Sistema de Controle Dinâmico de Delay
+function ajustarDelayDinamico() {
+  const agora = Date.now();
+  const tempoDesdeUltimoAjuste = agora - ultimoAjusteDelay;
+  
+  // Só ajustar a cada 30 segundos
+  if (tempoDesdeUltimoAjuste < 30000) return;
+  
+  // Calcular taxa de erro 429
+  if (contadorTotal > 0) {
+    taxaErro429 = contador429 / contadorTotal;
+  }
+  
+  let novoDelay = delayBase;
+  
+  if (taxaErro429 > 0.3) {
+    // Muitos erros 429 - aumentar delay significativamente
+    novoDelay = delayBase * 3;
+    console.log(`${LOG_PREFIX()} 🐌 Muitos erros 429 (${(taxaErro429 * 100).toFixed(1)}%) - Aumentando delay para ${novoDelay}ms`);
+  } else if (taxaErro429 > 0.1) {
+    // Alguns erros 429 - aumentar delay moderadamente
+    novoDelay = delayBase * 2;
+    console.log(`${LOG_PREFIX()} ⚠️ Alguns erros 429 (${(taxaErro429 * 100).toFixed(1)}%) - Aumentando delay para ${novoDelay}ms`);
+  } else if (taxaErro429 === 0 && contadorTotal > 10) {
+    // Nenhum erro 429 - pode diminuir delay gradualmente
+    novoDelay = Math.max(delayBase * 0.8, delayAtual * 0.9);
+    console.log(`${LOG_PREFIX()} 🚀 Sem erros 429 - Diminuindo delay para ${novoDelay}ms`);
+  } else {
+    // Manter delay atual
+    novoDelay = delayAtual;
+  }
+  
+  // Aplicar limites
+  novoDelay = Math.max(500, Math.min(5000, novoDelay));
+  
+  if (novoDelay !== delayAtual) {
+    delayAtual = novoDelay;
+    delayMs = novoDelay;
+    ultimoAjusteDelay = agora;
+    
+    if (ioInstance) {
+      ioInstance.emit("log", `⚡ Delay ajustado dinamicamente para ${delayMs}ms (Taxa 429: ${(taxaErro429 * 100).toFixed(1)}%)`);
+    }
+  }
+  
+  // Resetar contadores a cada 5 minutos
+  if (tempoDesdeUltimoAjuste > 300000) {
+    contador429 = 0;
+    contadorTotal = 0;
+    taxaErro429 = 0;
+  }
+}
+
 function setDelay(ms) {
   if (ms && !isNaN(ms) && ms > 0) {
+    delayBase = ms;
+    delayAtual = ms;
     delayMs = ms;
-    console.log(`${LOG_PREFIX()} ⚡ Delay atualizado para ${delayMs}ms`);
+    console.log(`${LOG_PREFIX()} ⚡ Delay base atualizado para ${delayMs}ms`);
   }
 }
 
@@ -177,6 +305,9 @@ async function authenticate(force = false) {
 async function consultarResultado(cpf, linha) {
   let tentativasCredenciais = 0;
   const maxCredenciais = CREDENTIALS.length;
+  
+  // Incrementar contador total
+  contadorTotal++;
 
   while (tentativasCredenciais < maxCredenciais) {
     try {
@@ -201,6 +332,9 @@ async function consultarResultado(cpf, linha) {
         await authenticate(true);
         continue;
       } else if (erroCompleto.status === 429 || (err.response?.data?.message || "").includes("Limite de requisições")) {
+        // Incrementar contador de erros 429
+        contador429++;
+        
         tentativasCredenciais++;
         const credLog = `⚠️ [Linha ${linha}] 429 detectado, tentando próxima credencial (${tentativasCredenciais}/${maxCredenciais})`;
         console.log(`${LOG_PREFIX()} ${credLog}`);
@@ -323,6 +457,15 @@ async function atualizarOportunidadeComTabela(opportunityId, tabelaSimulada) {
     const formsdata = { f0a67ce0: tabelaSimulada, "80b68ec0": "cartos" };
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, formsdata };
     await axios.post("https://lunasdigital.atenderbem.com/int/updateOpportunity", payload, { headers: { "Content-Type": "application/json" } });
+    
+    // Verificar se está em horário comercial para disparar
+    if (isHorarioComercial()) {
+      await disparaFluxo(opportunityId);
+      console.log(`${LOG_PREFIX()} ✅ Oportunidade atualizada e disparada imediatamente - ID: ${opportunityId}`);
+    } else {
+      agendarDisparo(opportunityId, 'atualizar');
+    }
+    
     return true;
   } catch { return false; }
 }
@@ -332,7 +475,20 @@ async function criarOportunidade(cpf, telefone, valorLiberado) {
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, fkPipeline: 1, fkStage: 4, responsableid: 0, title: `Oportunidade CPF ${cpf}`, mainphone: telefone || "", mainmail: cpf || "", value: valorLiberado || 0 };
     const res = await axios.post("https://lunasdigital.atenderbem.com/int/createOpportunity", payload, { headers: { "Content-Type": "application/json" } });
-    return res.data.id;
+    
+    const opportunityId = res.data.id;
+    
+    // Verificar se está em horário comercial
+    if (isHorarioComercial()) {
+      // Disparar imediatamente
+      await disparaFluxo(opportunityId);
+      console.log(`${LOG_PREFIX()} ✅ Oportunidade criada e disparada imediatamente - ID: ${opportunityId}`);
+    } else {
+      // Agendar para horário comercial
+      agendarDisparo(opportunityId, 'criar');
+    }
+    
+    return opportunityId;
   } catch { return null; }
 }
 
@@ -444,6 +600,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   // --- Loop principal ---
   for (let [index, registro] of registros.entries()) {
     while (paused) await delay(500);
+
+    // Ajustar delay dinamicamente a cada 10 CPFs
+    if ((index + 1) % 10 === 0) {
+      ajustarDelayDinamico();
+    }
 
     const linha = index + 2;
     const cpf = normalizeCPF(registro.CPF);
@@ -605,5 +766,9 @@ export {
   criarOportunidade,
   setDelay,
   setPause,
-  attachIO
+  attachIO,
+  isHorarioComercial,
+  agendarDisparo,
+  processarAgendamentos,
+  ajustarDelayDinamico
 };

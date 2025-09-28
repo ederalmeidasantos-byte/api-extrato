@@ -38,6 +38,9 @@ const io = new Server(server);
 // Anexar socket ao módulo FGTS
 attachIO(io);
 
+// Importar funções de agendamento
+import { isHorarioComercial, agendarDisparo, processarAgendamentos, ajustarDelayDinamico } from "./fgts_csv.js";
+
 // Armazenamento em memória dos resultados
 let resultadosFGTS = [];
 
@@ -271,6 +274,26 @@ app.post("/fgts/resume", (req,res)=>{
 
 // ===== Cálculo =====
 app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
+
+// ===== Agendamentos =====
+app.get("/fgts/agendamentos", (req, res) => {
+  // Esta função seria implementada para retornar agendamentos pendentes
+  res.json({ message: "Endpoint de agendamentos - em desenvolvimento" });
+});
+
+// ===== Status do sistema =====
+app.get("/fgts/status", (req, res) => {
+  const agora = new Date();
+  const hora = agora.getHours();
+  const isComercial = hora >= 8 && hora < 22;
+  
+  res.json({
+    horarioComercial: isComercial,
+    horaAtual: agora.toLocaleString('pt-BR'),
+    delayAtual: DELAY_MS,
+    status: "online"
+  });
+});
 
 // ===== Servidor =====
 const PORT = process.env.PORT || 3000;
