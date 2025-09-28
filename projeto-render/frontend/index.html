@@ -428,20 +428,38 @@
         }
 
         function showResult(data) {
+            // Mapear dados para o formato esperado pelo simulador
+            const dadosSimulador = {
+                cliente: {
+                    nome: data.cliente,
+                    nb: data.beneficio?.nb || '',
+                    especie: data.beneficio?.nomeBeneficio || '',
+                    origem: data.origem,
+                    dataExtrato: data.data_extrato
+                },
+                margens: {
+                    disponivel: parseFloat(data.margens?.margem_disponivel_empretimo?.replace(',', '.') || '0'),
+                    extrapolada: parseFloat(data.margens?.margem_extrapolada?.replace(',', '.') || '0'),
+                    rmc: parseFloat(data.margens?.margem_disponivel_rmc?.replace(',', '.') || '0'),
+                    rcc: parseFloat(data.margens?.margem_disponivel_rcc?.replace(',', '.') || '0')
+                },
+                contratos: data.contratos || []
+            };
+
             resultContent.innerHTML = `
-                <h3>Cliente: ${data.cliente.nome}</h3>
-                <p><strong>NB:</strong> ${data.cliente.nb} | <strong>Espécie:</strong> ${data.cliente.especie}</p>
-                <p><strong>Contratos encontrados:</strong> ${data.contratos.length}</p>
-                <p><strong>Margem disponível:</strong> R$ ${data.margens.disponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                <h3>Cliente: ${dadosSimulador.cliente.nome}</h3>
+                <p><strong>NB:</strong> ${dadosSimulador.cliente.nb} | <strong>Espécie:</strong> ${dadosSimulador.cliente.especie}</p>
+                <p><strong>Contratos encontrados:</strong> ${dadosSimulador.contratos.length}</p>
+                <p><strong>Margem disponível:</strong> R$ ${dadosSimulador.margens.disponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 <details style="margin-top: 1rem;">
                     <summary>Ver dados completos</summary>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <pre>${JSON.stringify(dadosSimulador, null, 2)}</pre>
                 </details>
             `;
             resultSection.style.display = 'block';
             
             // Salvar dados no localStorage para usar no simulador
-            localStorage.setItem('extratoData', JSON.stringify(data));
+            localStorage.setItem('extratoData', JSON.stringify(dadosSimulador));
         }
 
         function showError(message) {
