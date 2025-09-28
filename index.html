@@ -39,13 +39,31 @@
         .progress-bar { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); transition: width 0.3s ease; border-radius: 10px; }
         .progress-text { text-align: center; color: #64748b; font-size: 0.9rem; }
-        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
-        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; }
+        .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; max-height: 500px; overflow-y: auto; }
+        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 300px; }
         .result-card h4 { color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .result-table th, .result-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
         .result-table th { background: #f8fafc; font-weight: 600; color: #475569; }
         .result-table tr:hover { background: #f8fafc; }
+        
+        /* Status com retângulos arredondados */
+        .status-badge { 
+            display: inline-block; 
+            padding: 0.25rem 0.75rem; 
+            border-radius: 20px; 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            text-align: center;
+            min-width: 80px;
+        }
+        .status-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-no-auth { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-discarded { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .status-criado { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .status-agendado { background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; }
+        .status-disparo { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
         .counter { margin-top: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; text-align: center; font-weight: 600; color: #1e293b; }
         .logs { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem; height: 400px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.875rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #374151; }
         .log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
@@ -84,7 +102,11 @@
         .sidebar-toggle { position: fixed; top: 20px; right: 20px; z-index: 1001; background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); transition: all 0.3s ease; }
         .sidebar-toggle:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4); }
         
-        @media (max-width: 1024px) { 
+        @media (max-width: 1200px) { 
+            .results-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) { 
             .main-content { grid-template-columns: 1fr; } 
             .results-grid { grid-template-columns: 1fr; }
             .sidebar { width: 100%; right: -100%; }
@@ -493,43 +515,65 @@ const logs = document.getElementById('logs');
             const { linha, cpf, id, status, valorLiberado, provider, statusDetalhado } = data;
             const valorFormatado = parseFloat(valorLiberado || 0).toFixed(2);
             
-            // Mapear status detalhado para exibição
+            // Verificar se já existe para evitar duplicatas
+            const existingRow = document.querySelector(`tr[data-cpf="${cpf}"][data-id="${id}"]`);
+            if (existingRow) {
+                return; // Já existe, não adicionar duplicata
+            }
+            
+            // Mapear status para exibição com retângulos
             const statusMap = {
-                'criado': '🆕 CRIADO',
-                'agendado': '📅 AGENDADO',
-                'disparo': '📱 DISPARO'
+                'success': 'Sucesso',
+                'pending': 'Pendente',
+                'no_auth': 'Não Autorizado',
+                'descartado': 'Descartado',
+                'criado': 'CRIADO',
+                'agendado': 'AGENDADO',
+                'disparo': 'DISPARO'
             };
             
-            const statusDisplay = statusMap[statusDetalhado] || statusDetalhado || status;
+            const statusText = statusMap[status] || statusMap[statusDetalhado] || status;
+            const statusClass = `status-${status === 'success' ? (statusDetalhado || 'success') : status}`;
             
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${linha || '?'}</td>
-                <td>${cpf}</td>
-                <td>${id || 'N/A'}</td>
-                <td>${status === 'success' ? valorFormatado : status}</td>
-                <td>${provider || 'N/A'}</td>
-                <td>${statusDisplay}</td>
-            `;
-
-            // Adicionar à tabela apropriada
-            switch(status) {
-                case 'success':
-                    successTable.appendChild(row);
-                    atualizarContador('success', valorFormatado);
-                    break;
-                case 'pending':
-                    pendingTable.appendChild(row);
-                    atualizarContador('pending');
-                    break;
-                case 'no_auth':
-                    noAuthTable.appendChild(row);
-                    atualizarContador('no_auth');
-                    break;
-                case 'descartado':
-                    discardedTable.appendChild(row);
-                    atualizarContador('descartado');
-                    break;
+            row.setAttribute('data-cpf', cpf);
+            row.setAttribute('data-id', id);
+            
+            if (status === 'success') {
+                row.innerHTML = `
+                    <td>${linha || '?'}</td>
+                    <td>${cpf}</td>
+                    <td>${id || 'N/A'}</td>
+                    <td>R$ ${valorFormatado.replace('.', ',')}</td>
+                    <td>${provider || 'N/A'}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+                successTable.appendChild(row);
+                atualizarContador('success', valorFormatado);
+            } else {
+                row.innerHTML = `
+                    <td>${linha || '?'}</td>
+                    <td>${cpf}</td>
+                    <td>${id || 'N/A'}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${provider || 'N/A'}</td>
+                `;
+                
+                // Adicionar à tabela apropriada
+                switch(status) {
+                    case 'pending':
+                        pendingTable.appendChild(row);
+                        atualizarContador('pending');
+                        break;
+                    case 'no_auth':
+                        noAuthTable.appendChild(row);
+                        atualizarContador('no_auth');
+                        break;
+                    case 'descartado':
+                        discardedTable.appendChild(row);
+                        atualizarContador('descartado');
+                        break;
+                }
             }
 
             resultados.push(data);
