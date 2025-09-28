@@ -25,19 +25,46 @@ app.get('/', (req, res) => {
 // Simulador
 app.get('/simulador', (req, res) => {
   console.log('Acessando simulador');
-  res.sendFile(path.join(__dirname, '../frontend/simulador.html'));
+  const filePath = path.join(__dirname, '../frontend/simulador.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo simulador.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
 });
 
 // Roteiros Bancos
 app.get('/roteiros', (req, res) => {
   console.log('Acessando roteiros');
-  res.sendFile(path.join(__dirname, '../frontend/roteiros-bancos.html'));
+  const filePath = path.join(__dirname, '../frontend/roteiros-bancos.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo roteiros-bancos.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
 });
 
 // Roteiros Bancos (alternativa)
 app.get('/roteiros-bancos', (req, res) => {
   console.log('Acessando roteiros-bancos');
-  res.sendFile(path.join(__dirname, '../frontend/roteiros-bancos.html'));
+  const filePath = path.join(__dirname, '../frontend/roteiros-bancos.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo roteiros-bancos.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
 });
 
 // Servir arquivos estáticos
@@ -153,6 +180,22 @@ app.get('/api/health', (req, res) => {
     message: 'API funcionando',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+// Debug - verificar estrutura de arquivos
+app.get('/api/debug', (req, res) => {
+  const frontendPath = path.join(__dirname, '../frontend');
+  const files = fs.readdirSync(frontendPath);
+  
+  res.json({
+    status: 'success',
+    message: 'Debug info',
+    __dirname: __dirname,
+    frontendPath: frontendPath,
+    files: files,
+    simuladorExists: fs.existsSync(path.join(frontendPath, 'simulador.html')),
+    roteirosExists: fs.existsSync(path.join(frontendPath, 'roteiros-bancos.html'))
   });
 });
 
