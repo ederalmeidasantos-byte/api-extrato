@@ -327,6 +327,7 @@ export function salvarListas(listas) {
 }
 
 export function adicionarResultadoLista(tipo, dados) {
+  console.log(`🔍 Adicionando resultado à lista ${tipo}:`, dados);
   const listas = carregarListas();
   
   // Verificar se já existe (evitar duplicatas)
@@ -339,7 +340,10 @@ export function adicionarResultadoLista(tipo, dados) {
       ...dados,
       timestamp: new Date().toISOString()
     });
+    console.log(`✅ Resultado adicionado à lista ${tipo}. Total: ${listas[tipo].length}`);
     salvarListas(listas);
+  } else {
+    console.log(`⚠️ Resultado já existe na lista ${tipo}, pulando...`);
   }
 }
 

@@ -316,6 +316,7 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
   }
 
   // Adicionar ao cache
+  console.log(`🔍 Salvando resultado no cache - Tipo: ${tipoLista}, CPF: ${cpf}, Status: ${status}`);
   adicionarResultadoLista(tipoLista, dadosResultado);
 
   // Emitir log resumido para o painel (sem detalhes da API)
