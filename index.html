@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel FGTS - Lunas Digital</title>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="menu.js"></script>
   <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh; color: #334155; }
@@ -349,7 +350,7 @@
     </div>
   </div>
     </div>
-  </div>
+</div>
 
 </div>
 
@@ -384,7 +385,7 @@
                     <option value="Europe/London">Londres (GMT+0)</option>
                 </select>
             </div>
-        </div>
+</div>
 
         <!-- Seção de Credenciais FGTS -->
         <div class="config-section">
@@ -408,7 +409,7 @@
             <div class="config-actions">
                 <button class="btn-test" id="testFgts">🧪 Testar</button>
             </div>
-        </div>
+</div>
 
         <!-- Seção de Credenciais V8 Sistema -->
         <div class="config-section">
@@ -451,8 +452,8 @@
             </div>
             <div class="config-actions">
                 <button class="btn-test" id="testLunas">🧪 Testar</button>
-            </div>
-        </div>
+    </div>
+  </div>
 
         <!-- Seção de Performance -->
         <div class="config-section">
@@ -472,14 +473,25 @@
             <div class="config-group">
                 <label>Taxa de Erro para Ajuste (%)</label>
                 <input type="number" id="taxaErro" placeholder="10" min="1" max="50">
-            </div>
-        </div>
+    </div>
+  </div>
 
         <!-- Ações Gerais -->
         <div class="config-actions">
             <button class="btn-save" id="saveConfig">💾 Salvar</button>
             <button class="btn-cancel" id="cancelConfig">❌ Cancelar</button>
-        </div>
+    </div>
+        
+        <!-- Página de Teste -->
+        <div class="config-section">
+            <h3>🧪 Página de Teste</h3>
+            <div class="config-actions">
+                <button class="btn-test" id="btnTestePagina">📄 Abrir Página de Teste</button>
+                <button class="btn-test" id="btnTesteAPI">🔌 Testar APIs</button>
+                <button class="btn-test" id="btnTesteSocket">📡 Testar Socket.IO</button>
+  </div>
+            <div id="testeStatus" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b;"></div>
+    </div>
         
         <!-- Backup e Restore -->
         <div class="config-section">
@@ -1048,8 +1060,8 @@ const logs = document.getElementById('logs');
             const delay = parseInt(delayInput.value);
             if (isNaN(delay) || delay < 100) {
                 adicionarLog('❌ Delay inválido. Use valores entre 100 e 10000ms', 'error');
-                return;
-            }
+    return;
+  }
 
             try {
                 await fetch('/fgts/delay', {
@@ -1201,283 +1213,9 @@ const logs = document.getElementById('logs');
             delayInput.value = delay;
         });
 
-        // Funções da Sidebar
-        function toggleSidebar() {
-            sidebar.classList.toggle('open');
-        }
-
-        function closeSidebar() {
-            sidebar.classList.remove('open');
-        }
-
-        function loadConfig() {
-            // Carregar configurações do servidor
-            fetch('/fgts/config')
-                .then(response => response.json())
-                .then(config => {
-                    // Preencher campos com valores atuais
-                    document.getElementById('horarioInicio').value = config.horarioInicio || '08:00';
-                    document.getElementById('horarioFim').value = config.horarioFim || '22:00';
-                    document.getElementById('fusoHorario').value = config.fusoHorario || 'America/Sao_Paulo';
-                    document.getElementById('delayBase').value = config.delayBase || 1000;
-                    document.getElementById('delayMin').value = config.delayMin || 500;
-                    document.getElementById('delayMax').value = config.delayMax || 5000;
-                    document.getElementById('taxaErro').value = config.taxaErro || 10;
-                    
-                    // Credenciais (apenas mostrar se existem, não os valores)
-                    document.getElementById('fgtsUser1').placeholder = config.fgtsUser1 ? '••••••••••••' : 'usuario1@email.com';
-                    document.getElementById('fgtsUser2').placeholder = config.fgtsUser2 ? '••••••••••••' : 'usuario2@email.com';
-                    document.getElementById('v8ClientId').placeholder = config.v8ClientId ? '••••••••••••' : 'seu_client_id';
-                    document.getElementById('v8Username').placeholder = config.v8Username ? '••••••••••••' : 'usuario@email.com';
-                    document.getElementById('lunasApiKey').placeholder = config.lunasApiKey ? '••••••••••••••••' : '••••••••••••••••';
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar configurações:', error);
-                    adicionarLog('❌ Erro ao carregar configurações', 'error');
-                });
-        }
-
-        function saveConfigToServer() {
-            const config = {
-                horarioInicio: document.getElementById('horarioInicio').value,
-                horarioFim: document.getElementById('horarioFim').value,
-                fusoHorario: document.getElementById('fusoHorario').value,
-                delayBase: parseInt(document.getElementById('delayBase').value),
-                delayMin: parseInt(document.getElementById('delayMin').value),
-                delayMax: parseInt(document.getElementById('delayMax').value),
-                taxaErro: parseInt(document.getElementById('taxaErro').value),
-                fgtsUser1: document.getElementById('fgtsUser1').value,
-                fgtsPass1: document.getElementById('fgtsPass1').value,
-                fgtsUser2: document.getElementById('fgtsUser2').value,
-                fgtsPass2: document.getElementById('fgtsPass2').value,
-                v8ClientId: document.getElementById('v8ClientId').value,
-                v8Audience: document.getElementById('v8Audience').value,
-                v8Username: document.getElementById('v8Username').value,
-                v8Password: document.getElementById('v8Password').value,
-                lunasApiKey: document.getElementById('lunasApiKey').value,
-                lunasQueueId: parseInt(document.getElementById('lunasQueueId').value),
-                lunasStageId: parseInt(document.getElementById('lunasStageId').value)
-            };
-
-            fetch('/fgts/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    adicionarLog('✅ Configurações salvas com sucesso', 'success');
-                    closeSidebar();
-                } else {
-                    adicionarLog(`❌ Erro ao salvar: ${result.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao salvar configurações:', error);
-                adicionarLog('❌ Erro ao salvar configurações', 'error');
-            });
-        }
-
-        function testConnection(api) {
-            const button = document.getElementById(`test${api}`);
-            const originalText = button.textContent;
-            
-            button.textContent = '🔄 Testando...';
-            button.disabled = true;
-
-            fetch(`/fgts/test/${api}`, { method: 'POST' })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        button.textContent = '✅ Conectado';
-                        button.style.background = '#10b981';
-                        adicionarLog(`✅ ${api} conectado com sucesso`, 'success');
-                    } else {
-                        button.textContent = '❌ Erro';
-                        button.style.background = '#ef4444';
-                        adicionarLog(`❌ Erro na conexão ${api}: ${result.message}`, 'error');
-                    }
-                })
-                .catch(error => {
-                    button.textContent = '❌ Erro';
-                    button.style.background = '#ef4444';
-                    adicionarLog(`❌ Erro na conexão ${api}`, 'error');
-                })
-                .finally(() => {
-                    setTimeout(() => {
-                        button.textContent = originalText;
-                        button.style.background = '#3b82f6';
-                        button.disabled = false;
-                    }, 3000);
-                });
-        }
-
-        // Event Listeners da Sidebar
-        sidebarToggle.addEventListener('click', () => {
-            toggleSidebar();
-            loadConfig();
-        });
-
-        sidebarClose.addEventListener('click', closeSidebar);
-
-        saveConfig.addEventListener('click', saveConfigToServer);
-
-        cancelConfig.addEventListener('click', () => {
-            closeSidebar();
-            loadConfig(); // Recarregar valores originais
-        });
-
-        // Testes de conexão
-        document.getElementById('testFgts').addEventListener('click', () => testConnection('Fgts'));
-        document.getElementById('testV8').addEventListener('click', () => testConnection('V8'));
-        document.getElementById('testLunas').addEventListener('click', () => testConnection('Lunas'));
-        
-        // Backup e Restore
-        document.getElementById('backupConfig').addEventListener('click', createBackup);
-        document.getElementById('exportConfig').addEventListener('click', exportConfig);
-        document.getElementById('restoreConfig').addEventListener('click', restoreConfig);
-
-        // Funções de Backup e Restore
-        function createBackup() {
-            const statusDiv = document.getElementById('backupStatus');
-            statusDiv.textContent = '🔄 Criando backup...';
-            
-            fetch('/fgts/config/backup', { method: 'POST' })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        statusDiv.textContent = `✅ Backup criado: ${new Date().toLocaleString('pt-BR')}`;
-                        statusDiv.style.color = '#10b981';
-                        
-                        // Salvar backup no localStorage
-                        localStorage.setItem('fgts_config_backup', JSON.stringify(result.data));
-                        
-                        adicionarLog('📦 Backup das configurações criado', 'success');
-                    } else {
-                        statusDiv.textContent = `❌ Erro: ${result.message}`;
-                        statusDiv.style.color = '#ef4444';
-                        adicionarLog(`❌ Erro ao criar backup: ${result.message}`, 'error');
-                    }
-                })
-                .catch(error => {
-                    statusDiv.textContent = '❌ Erro ao criar backup';
-                    statusDiv.style.color = '#ef4444';
-                    adicionarLog('❌ Erro ao criar backup', 'error');
-                });
-        }
-        
-        function exportConfig() {
-            const statusDiv = document.getElementById('backupStatus');
-            statusDiv.textContent = '🔄 Exportando configurações...';
-            
-            fetch('/fgts/config/export')
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        statusDiv.innerHTML = `
-                            ✅ Exportado: ${result.file}<br>
-                            <small style="color: #64748b;">
-                                📋 Copie as variáveis do arquivo e cole no painel do Render
-                            </small>
-                        `;
-                        statusDiv.style.color = '#10b981';
-                        adicionarLog(`📤 Configurações exportadas para ${result.file}`, 'success');
-                        
-                        // Mostrar instruções detalhadas
-                        showDeployInstructions();
-                    } else {
-                        statusDiv.textContent = `❌ Erro: ${result.message}`;
-                        statusDiv.style.color = '#ef4444';
-                        adicionarLog(`❌ Erro ao exportar: ${result.message}`, 'error');
-                    }
-                })
-                .catch(error => {
-                    statusDiv.textContent = '❌ Erro ao exportar';
-                    statusDiv.style.color = '#ef4444';
-                    adicionarLog('❌ Erro ao exportar configurações', 'error');
-                });
-        }
-        
-        function showDeployInstructions() {
-            const instructions = `
-                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 1rem; margin-top: 1rem;">
-                    <h4 style="color: #0c4a6e; margin-bottom: 0.5rem;">🚀 Instruções para Deploy no Render</h4>
-                    <ol style="color: #0c4a6e; font-size: 0.9rem; line-height: 1.6;">
-                        <li>Abra o arquivo <code>config-export.env</code> no servidor</li>
-                        <li>Copie todas as variáveis (HORARIO_INICIO, DELAY_BASE, etc.)</li>
-                        <li>No painel do Render, vá em <strong>Environment</strong></li>
-                        <li>Cole as variáveis uma por uma</li>
-                        <li>Faça o deploy da aplicação</li>
-                    </ol>
-                    <p style="color: #0c4a6e; font-size: 0.8rem; margin-top: 0.5rem;">
-                        💡 <strong>Dica:</strong> As credenciais (FGTS_USER_1, V8_CLIENT_ID, etc.) devem ser configuradas separadamente no Render
-                    </p>
-                </div>
-            `;
-            
-            // Adicionar instruções ao painel
-            const sidebar = document.getElementById('sidebar');
-            const existingInstructions = sidebar.querySelector('.deploy-instructions');
-            if (existingInstructions) {
-                existingInstructions.remove();
-            }
-            
-            const instructionsDiv = document.createElement('div');
-            instructionsDiv.className = 'deploy-instructions';
-            instructionsDiv.innerHTML = instructions;
-            sidebar.querySelector('.sidebar-content').appendChild(instructionsDiv);
-        }
-        
-        function restoreConfig() {
-            const backupData = localStorage.getItem('fgts_config_backup');
-            if (!backupData) {
-                const statusDiv = document.getElementById('backupStatus');
-                statusDiv.textContent = '❌ Nenhum backup encontrado';
-                statusDiv.style.color = '#ef4444';
-                adicionarLog('❌ Nenhum backup encontrado no localStorage', 'error');
-                return;
-            }
-            
-            const statusDiv = document.getElementById('backupStatus');
-            statusDiv.textContent = '🔄 Restaurando configurações...';
-            
-            const config = JSON.parse(backupData);
-            
-            fetch('/fgts/config/restore', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ config })
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    statusDiv.textContent = `✅ Restaurado: ${config.backupDate}`;
-                    statusDiv.style.color = '#10b981';
-                    
-                    // Recarregar configurações na sidebar
-                    loadConfig();
-                    
-                    adicionarLog('🔄 Configurações restauradas do backup', 'success');
-                } else {
-                    statusDiv.textContent = `❌ Erro: ${result.message}`;
-                    statusDiv.style.color = '#ef4444';
-                    adicionarLog(`❌ Erro ao restaurar: ${result.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                statusDiv.textContent = '❌ Erro ao restaurar';
-                statusDiv.style.color = '#ef4444';
-                adicionarLog('❌ Erro ao restaurar configurações', 'error');
-            });
-        }
-
-        // Fechar sidebar ao clicar fora
-        document.addEventListener('click', (e) => {
-            if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
-                closeSidebar();
-            }
-        });
+        // ===== FUNÇÕES DO MENU MOVIDAS PARA menu.js =====
+        // Todo o código do menu/sidebar foi movido para o arquivo menu.js
+        // para evitar conflitos e facilitar manutenção
 
         // Função para carregar listas do cache
         async function carregarListasDoCache() {

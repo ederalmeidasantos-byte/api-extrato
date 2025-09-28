@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador INSS - Debug</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+            padding: 1rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .contrato-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafafa;
+        }
+        
+        .contrato-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+        
+        .contrato-title {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        .contrato-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #00d4aa;
+        }
+        
+        .contrato-info {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .contrato-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .detail-input {
+            padding: 0.4rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .debug-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .debug-info h3 {
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .debug-info pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Simulador INSS - Debug</h1>
+            <p>Sistema de simulação de contratos e troco</p>
+        </div>
+
+        <!-- Debug Info -->
+        <div class="debug-info">
+            <h3>🔍 Debug Info</h3>
+            <div id="debugInfo">
+                <p>Carregando dados...</p>
+            </div>
+        </div>
+
+        <!-- Informações do Cliente -->
+        <div class="section">
+            <div class="section-title">📋 Informações do Cliente</div>
+            <div id="clienteInfo">
+                <p>Nome: <span id="clienteNome">Carregando...</span></p>
+                <p>NB: <span id="clienteNB">Carregando...</span></p>
+                <p>Espécie: <span id="clienteEspecie">Carregando...</span></p>
+            </div>
+        </div>
+
+        <!-- Contratos Ativos -->
+        <div class="section">
+            <div class="section-title">📄 Contratos Ativos</div>
+            <div id="contratosLista">
+                <p>Carregando contratos...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Iniciando simulador debug...');
+        
+        // Dados de exemplo hardcoded
+        const dadosExemplo = {
+            cliente: {
+                nome: "João Silva Santos",
+                nb: "1234567890",
+                especie: "32",
+                origem: "INSS",
+                dataExtrato: "28/09/2025"
+            },
+            
+            margens: {
+                disponivel: 1500.00,
+                extrapolada: 500.00,
+                rmc: 200.00,
+                rcc: 100.00
+            },
+            
+            contratos: [
+                {
+                    id: 1,
+                    contrato: "12345",
+                    banco: "BRB",
+                    bancoCodigo: "925",
+                    prazo: 96,
+                    pagas: 12,
+                    parcela: 500.00,
+                    saldo: 45000.00,
+                    taxa: 1.85,
+                    selecionado: true,
+                    simulacao: null
+                },
+                {
+                    id: 2,
+                    contrato: "67890",
+                    banco: "C6",
+                    bancoCodigo: "626",
+                    prazo: 84,
+                    pagas: 6,
+                    parcela: 300.00,
+                    saldo: 25000.00,
+                    taxa: 1.79,
+                    selecionado: true,
+                    simulacao: null
+                },
+                {
+                    id: 3,
+                    contrato: "11111",
+                    banco: "FINANTO",
+                    bancoCodigo: "000",
+                    prazo: 96,
+                    pagas: 2,
+                    parcela: 800.00,
+                    saldo: 75000.00,
+                    taxa: 1.85,
+                    selecionado: true,
+                    simulacao: null
+                }
+            ]
+        };
+
+        let contratos = [...dadosExemplo.contratos];
+        let cliente = { ...dadosExemplo.cliente };
+        let margens = { ...dadosExemplo.margens };
+
+        function formatBRNumber(n) {
+            return Number(n).toLocaleString("pt-BR", { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+        }
+
+        function renderizarContratos() {
+            console.log('Renderizando contratos:', contratos);
+            const container = document.getElementById('contratosLista');
+            if (!container) {
+                console.error('Container contratosLista não encontrado!');
+                return;
+            }
+            
+            if (contratos.length === 0) {
+                container.innerHTML = '<p>Nenhum contrato encontrado.</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+
+            contratos.forEach(contrato => {
+                const contratoDiv = document.createElement('div');
+                contratoDiv.className = 'contrato-item';
+                contratoDiv.innerHTML = `
+                    <div class="contrato-header">
+                        <div class="contrato-title">
+                            <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
+                                   onchange="toggleContrato(${contrato.id})">
+                            <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco}</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="simularContrato(${contrato.id})">
+                                🔄 Simular
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contrato-details">
+                        <div class="detail-item">
+                            <label class="detail-label">Prazo</label>
+                            <input type="number" class="detail-input" value="${contrato.prazo}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'prazo', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Pagas</label>
+                            <input type="number" class="detail-input" value="${contrato.pagas}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'pagas', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Parcela</label>
+                            <input type="number" class="detail-input" value="${contrato.parcela}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'parcela', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Saldo</label>
+                            <input type="number" class="detail-input" value="${contrato.saldo}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'saldo', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Taxa (%)</label>
+                            <input type="number" class="detail-input" step="0.01" value="${contrato.taxa}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'taxa', this.value)">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(contratoDiv);
+            });
+        }
+
+        function toggleContrato(contratoId) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (contrato) {
+                contrato.selecionado = !contrato.selecionado;
+                console.log('Contrato toggled:', contrato);
+            }
+        }
+
+        function atualizarContrato(contratoId, campo, valor) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (contrato) {
+                contrato[campo] = parseFloat(valor) || 0;
+                console.log('Contrato atualizado:', contrato);
+            }
+        }
+
+        function simularContrato(contratoId) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (!contrato) return;
+            
+            console.log('Simulando contrato:', contrato);
+            alert(`Simulando contrato ${contrato.contrato} - ${contrato.banco}`);
+        }
+
+        function atualizarDadosCliente() {
+            document.getElementById('clienteNome').textContent = cliente.nome;
+            document.getElementById('clienteNB').textContent = cliente.nb;
+            document.getElementById('clienteEspecie').textContent = cliente.especie;
+        }
+
+        function atualizarDebugInfo() {
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML = `
+                <pre>${JSON.stringify({
+                    contratos: contratos.length,
+                    cliente: cliente.nome,
+                    margens: margens
+                }, null, 2)}</pre>
+            `;
+        }
+
+        // Inicialização
+        console.log('Dados carregados:', { contratos, cliente, margens });
+        atualizarDadosCliente();
+        atualizarDebugInfo();
+        renderizarContratos();
+    </script>
+</body>
+</html>

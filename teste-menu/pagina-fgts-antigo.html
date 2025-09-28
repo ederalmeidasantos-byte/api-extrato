@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel FGTS - Lunas Digital</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 1.5rem;
+        }
+        
+        .upload-section {
+            text-align: center;
+            padding: 2rem;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            background: #f9fafb;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-section.dragover {
+            border-color: #00d4aa;
+            background: #f0fdfa;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn { 
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.9rem;
+            margin: 0.25rem;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        
+        .progress-container {
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .lists-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .list-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .list-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .list-count {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .list-content {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+        }
+        
+        .list-item {
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+        
+        .list-item.success {
+            background: #dcfce7;
+            border-left-color: #10b981;
+        }
+        
+        .list-item.pending {
+            background: #fef3c7;
+            border-left-color: #f59e0b;
+        }
+        
+        .list-item.error {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+        
+        .list-item.discarded {
+            background: #f3f4f6;
+            border-left-color: #6b7280;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success { background: #dcfce7; color: #166534; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-discarded { background: #f3f4f6; color: #6b7280; }
+        
+        .logs-container {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Barra Lateral de Navegação */
+        .sidebar { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 60px; 
+            height: 100vh; 
+            background: #ffffff; 
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); 
+            transition: all 0.3s ease; 
+            z-index: 1000; 
+            overflow-y: auto; 
+            border-right: 1px solid #e5e7eb;
+        }
+        .sidebar.open { 
+            left: 0; 
+            width: 400px; 
+        }
+        
+        /* Zona de Hover para abrir menu */
+        .hover-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 100vh;
+            z-index: 999;
+            background: transparent;
+        }
+        
+        .hover-zone:hover + .sidebar {
+            width: 400px !important;
+        }
+        
+        .hover-zone:hover + .sidebar .sidebar-header {
+            opacity: 1 !important;
+        }
+        
+        .hover-zone:hover + .sidebar .nav-link .nav-text {
+            opacity: 1 !important;
+        }
+        .sidebar-header { 
+            padding: 1rem; 
+            border-bottom: 1px solid #e5e7eb; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 60px;
+        }
+        
+        .sidebar-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -20%;
+            right: -20%;
+            height: 100%;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            z-index: -1;
+        }
+        .sidebar.open .sidebar-header {
+            opacity: 1;
+        }
+        .sidebar-title { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            color: #ffffff; 
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #ffffff; }
+        .sidebar-close:hover { color: #f1f5f9; }
+        .sidebar-content { 
+            padding: 0.5rem 1rem; 
+            background: #ffffff;
+            margin-top: -0.5rem;
+        }
+        .nav-menu { 
+            list-style: none; 
+            padding: 0;
+            margin: 0;
+        }
+        .nav-item { 
+            margin-bottom: 0.5rem; 
+        }
+        .nav-link { 
+            display: flex; 
+            align-items: center;
+            padding: 0.75rem; 
+            color: #64748b; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            transition: all 0.3s ease; 
+            border: 1px solid transparent;
+            white-space: nowrap;
+            margin-bottom: 0.25rem;
+        }
+        
+        .nav-link .nav-text {
+            margin-left: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .sidebar.open .nav-link .nav-text {
+            opacity: 1;
+        }
+        .nav-link:hover { 
+            background: #f1f5f9; 
+            color: #1e293b; 
+            border: 1px solid #e2e8f0;
+        }
+        .nav-link.active { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border: 1px solid #00d4aa;
+        }
+        
+        /* Estilo dos ícones - apenas quando fechado */
+        .sidebar:not(.open) .nav-link {
+            justify-content: center;
+            padding: 0.75rem 0.5rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .sidebar:not(.open) .nav-link span:first-child {
+            font-size: 1.1rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: #64748b;
+            transition: all 0.3s ease;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sidebar:not(.open) .nav-link.active span:first-child {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            color: white;
+            position: relative;
+        }
+        
+        .sidebar:not(.open) .nav-link.active span:first-child::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -18px;
+            right: -18px;
+            height: calc(100% + 4px);
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            border-radius: 4px;
+            z-index: -1;
+        }
+        
+        .sidebar:not(.open) .nav-link:hover span:first-child {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        
+        @media (max-width: 768px) { 
+            .sidebar { width: 100%; right: -100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Painel FGTS</h1>
+            <p>Consulta em lote de saldo FGTS</p>
+        </div>
+
+        <div class="card">
+            <h3>📂 Upload de Arquivo CSV</h3>
+            <div class="upload-section" id="uploadSection">
+                <div>
+                    <h4>Arraste e solte seu arquivo CSV aqui</h4>
+                    <p>ou</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        📁 Selecionar Arquivo
+                    </button>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+            
+            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border: 1px solid #0ea5e9;">
+                <h4>📄 Arquivo Selecionado:</h4>
+                <p id="fileName"></p>
+                <p id="fileSize"></p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎛️ Controles de Processamento</h3>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0% - Aguardando arquivo</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-success" id="startBtn" onclick="iniciarProcessamento()" disabled>▶️ Iniciar</button>
+                <button class="btn btn-warning" id="pauseBtn" onclick="pausarProcessamento()" disabled>⏸️ Pausar</button>
+                <button class="btn btn-primary" id="resumeBtn" onclick="retomarProcessamento()" disabled>▶️ Retomar</button>
+                <button class="btn btn-danger" id="cancelBtn" onclick="cancelarProcessamento()" disabled>✖️ Cancelar</button>
+                <button class="btn btn-secondary" onclick="limparTudo()">🧹 Limpar Tudo</button>
+            </div>
+            
+            <div style="margin-top: 1rem;">
+                <label for="delayInput">Delay entre consultas (ms):</label>
+                <input type="number" id="delayInput" value="1000" min="100" max="10000" style="margin-left: 0.5rem; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 120px;">
+                <button class="btn btn-primary" onclick="atualizarDelay()">🔄 Atualizar</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Resultados</h3>
+            <div class="lists-container">
+                <div class="list-card">
+                    <div class="list-header">
+                        <div class="list-title">✅ Sucessos</div>
+                        <div class="list-count" id="successCount">0</div>
+                    </div>
+                    <div class="list-content" id="successList">
+                        <div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>
+                    </div>
+                </div>
+                
+                <div class="list-card">
+                    <div class="list-header">
+                        <div class="list-title">⏳ Pendentes</div>
+                        <div class="list-count" id="pendingCount">0</div>
+                    </div>
+                    <div class="list-content" id="pendingList">
+                        <div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>
+                    </div>
+                </div>
+                
+                <div class="list-card">
+                    <div class="list-header">
+                        <div class="list-title">❌ Erros</div>
+                        <div class="list-count" id="errorCount">0</div>
+                    </div>
+                    <div class="list-content" id="errorList">
+                        <div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>
+                    </div>
+                </div>
+                
+                <div class="list-card">
+                    <div class="list-header">
+                        <div class="list-title">🗑️ Descartados</div>
+                        <div class="list-count" id="discardedCount">0</div>
+                    </div>
+                    <div class="list-content" id="discardedList">
+                        <div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Logs em Tempo Real</h3>
+            <div id="logs" class="logs-container">
+                [15:30:00] 🚀 Sistema iniciado - Aguardando arquivo CSV
+                [15:30:00] 💡 Arraste um arquivo CSV ou clique em "Selecionar Arquivo"
+            </div>
+        </div>
+    </div>
+
+    <!-- Zona de Hover para abrir menu -->
+    <div class="hover-zone" title="Passe o mouse aqui para abrir o menu"></div>
+
+    <!-- Barra Lateral de Navegação -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title" id="sidebarTitle">
+                <span id="sidebarIcon">📊</span>
+                <span id="sidebarText">Painel FGTS</span>
+            </h2>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-content">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/teste-menu" class="nav-link">
+                        🏠 <span class="nav-text">Página Inicial</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-fgts" class="nav-link active">
+                        📊 <span class="nav-text">Painel FGTS</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-dashboard" class="nav-link">
+                        📈 <span class="nav-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-configuracoes" class="nav-link">
+                        ⚙️ <span class="nav-text">Configurações</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-logs" class="nav-link">
+                        📋 <span class="nav-text">Logs</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-cache" class="nav-link">
+                        💾 <span class="nav-text">Cache</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let socket;
+        let isProcessing = false;
+        let isPaused = false;
+        let currentFile = null;
+        let processedCount = 0;
+        let totalCount = 0;
+
+        // Função para atualizar header
+        function atualizarHeader(icon, text) {
+            const sidebarIcon = document.getElementById('sidebarIcon');
+            const sidebarText = document.getElementById('sidebarText');
+            
+            if (sidebarIcon) sidebarIcon.textContent = icon;
+            if (sidebarText) sidebarText.textContent = text;
+        }
+
+        // Função para adicionar log
+        function adicionarLog(mensagem) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = `[${timestamp}] ${mensagem}\n`;
+            logs.textContent += logEntry;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Função para atualizar progresso
+        function atualizarProgresso(percentual, texto) {
+            document.getElementById('progressFill').style.width = percentual + '%';
+            document.getElementById('progressText').textContent = texto;
+        }
+
+        // Função para atualizar contadores
+        function atualizarContadores() {
+            const successCount = document.querySelectorAll('.list-item.success').length;
+            const pendingCount = document.querySelectorAll('.list-item.pending').length;
+            const errorCount = document.querySelectorAll('.list-item.error').length;
+            const discardedCount = document.querySelectorAll('.list-item.discarded').length;
+            
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('pendingCount').textContent = pendingCount;
+            document.getElementById('errorCount').textContent = errorCount;
+            document.getElementById('discardedCount').textContent = discardedCount;
+        }
+
+        // Função para adicionar item à lista
+        function adicionarItemLista(tipo, dados) {
+            const listId = tipo + 'List';
+            const list = document.getElementById(listId);
+            
+            // Remover mensagem de "Nenhum resultado"
+            const emptyMsg = list.querySelector('div[style*="text-align: center"]');
+            if (emptyMsg) {
+                emptyMsg.remove();
+            }
+            
+            const item = document.createElement('div');
+            item.className = `list-item ${tipo}`;
+            
+            let statusBadge = '';
+            if (tipo === 'success') statusBadge = '<span class="status-badge status-success">Sucesso</span>';
+            else if (tipo === 'pending') statusBadge = '<span class="status-badge status-pending">Pendente</span>';
+            else if (tipo === 'error') statusBadge = '<span class="status-badge status-error">Erro</span>';
+            else if (tipo === 'discarded') statusBadge = '<span class="status-badge status-discarded">Descartado</span>';
+            
+            item.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>CPF:</strong> ${dados.cpf}<br>
+                        <strong>Linha:</strong> ${dados.linha || 'N/A'}<br>
+                        <strong>Valor:</strong> R$ ${dados.valor || '0,00'}<br>
+                        <strong>Provider:</strong> ${dados.provider || 'N/A'}
+                    </div>
+                    <div>${statusBadge}</div>
+                </div>
+            `;
+            
+            list.insertBefore(item, list.firstChild);
+            atualizarContadores();
+        }
+
+        // Função para lidar com seleção de arquivo
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                currentFile = file;
+                document.getElementById('fileName').textContent = `Nome: ${file.name}`;
+                document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
+                document.getElementById('fileInfo').style.display = 'block';
+                document.getElementById('startBtn').disabled = false;
+                adicionarLog(`📁 Arquivo selecionado: ${file.name}`);
+            }
+        }
+
+        // Função para iniciar processamento
+        function iniciarProcessamento() {
+            if (!currentFile) {
+                alert('Selecione um arquivo CSV primeiro!');
+                return;
+            }
+            
+            isProcessing = true;
+            isPaused = false;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('cancelBtn').disabled = false;
+            
+            adicionarLog('🚀 Iniciando processamento...');
+            
+            // Simular processamento
+            simularProcessamento();
+        }
+
+        // Função para pausar processamento
+        function pausarProcessamento() {
+            isPaused = true;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('resumeBtn').disabled = false;
+            adicionarLog('⏸️ Processamento pausado');
+        }
+
+        // Função para retomar processamento
+        function retomarProcessamento() {
+            isPaused = false;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('resumeBtn').disabled = true;
+            adicionarLog('▶️ Processamento retomado');
+        }
+
+        // Função para cancelar processamento
+        function cancelarProcessamento() {
+            isProcessing = false;
+            isPaused = false;
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('resumeBtn').disabled = true;
+            document.getElementById('cancelBtn').disabled = true;
+            
+            atualizarProgresso(0, 'Processamento cancelado');
+            adicionarLog('✖️ Processamento cancelado');
+        }
+
+        // Função para limpar tudo
+        function limparTudo() {
+            if (confirm('Tem certeza que deseja limpar todos os resultados?')) {
+                document.getElementById('successList').innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>';
+                document.getElementById('pendingList').innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>';
+                document.getElementById('errorList').innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>';
+                document.getElementById('discardedList').innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 2rem;">Nenhum resultado ainda</div>';
+                
+                atualizarContadores();
+                atualizarProgresso(0, '0% - Aguardando arquivo');
+                adicionarLog('🧹 Resultados limpos');
+            }
+        }
+
+        // Função para atualizar delay
+        function atualizarDelay() {
+            const delay = document.getElementById('delayInput').value;
+            adicionarLog(`🔄 Delay atualizado para ${delay}ms`);
+        }
+
+        // Função para simular processamento
+        function simularProcessamento() {
+            totalCount = 20; // Simular 20 CPFs
+            processedCount = 0;
+            
+            const interval = setInterval(() => {
+                if (!isProcessing || isPaused) return;
+                
+                processedCount++;
+                const percentual = Math.round((processedCount / totalCount) * 100);
+                atualizarProgresso(percentual, `${percentual}% - Processando...`);
+                
+                // Simular resultado aleatório
+                const tipos = ['success', 'pending', 'error', 'discarded'];
+                const tipo = tipos[Math.floor(Math.random() * tipos.length)];
+                
+                const dados = {
+                    cpf: Math.random().toString().substr(2, 11),
+                    linha: processedCount,
+                    valor: tipo === 'success' ? (Math.random() * 5000).toFixed(2) : '0,00',
+                    provider: ['cartos', 'bms_cartos'][Math.floor(Math.random() * 2)]
+                };
+                
+                adicionarItemLista(tipo, dados);
+                adicionarLog(`✅ Processado CPF ${dados.cpf} - Status: ${tipo}`);
+                
+                if (processedCount >= totalCount) {
+                    clearInterval(interval);
+                    isProcessing = false;
+                    
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('pauseBtn').disabled = true;
+                    document.getElementById('resumeBtn').disabled = true;
+                    document.getElementById('cancelBtn').disabled = true;
+                    
+                    atualizarProgresso(100, '100% - Processamento concluído!');
+                    adicionarLog('🎉 Processamento concluído!');
+                }
+            }, parseInt(document.getElementById('delayInput').value));
+        }
+
+        // Aguardar DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners do menu
+            const sidebarClose = document.getElementById('sidebarClose');
+            const sidebar = document.getElementById('sidebar');
+            const hoverZone = document.querySelector('.hover-zone');
+            
+            if (sidebarClose) {
+                sidebarClose.onclick = closeMenu;
+            }
+
+            // Hover para expandir menu
+            if (hoverZone && sidebar) {
+                hoverZone.addEventListener('mouseenter', () => {
+                    sidebar.classList.add('open');
+                    adicionarLog('Menu expandido por hover');
+                });
+                
+                sidebar.addEventListener('mouseleave', () => {
+                    sidebar.classList.remove('open');
+                    adicionarLog('Menu colapsado (saiu da área)');
+                });
+                
+                // Também manter aberto quando hover no sidebar
+                sidebar.addEventListener('mouseenter', () => {
+                    sidebar.classList.add('open');
+                });
+            }
+
+            // Event listeners para os links do menu
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Remover active de todos os links
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    // Adicionar active ao link clicado
+                    link.classList.add('active');
+                    
+                    // Atualizar header
+                    const icon = link.querySelector('span:first-child').textContent.trim();
+                    const text = link.querySelector('.nav-text').textContent.trim();
+                    atualizarHeader(icon, text);
+                    
+                    adicionarLog(`Link clicado: ${icon} ${text}`);
+                });
+            });
+
+            // Fechar ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (sidebar && sidebar.classList.contains('open')) {
+                    if (!sidebar.contains(e.target) && !hoverZone.contains(e.target)) {
+                        sidebar.classList.remove('open');
+                        adicionarLog('Menu fechado (clique fora)');
+                    }
+                }
+            });
+
+            // Drag and drop
+            const uploadSection = document.getElementById('uploadSection');
+            
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+            
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        currentFile = file;
+                        document.getElementById('fileName').textContent = `Nome: ${file.name}`;
+                        document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
+                        document.getElementById('fileInfo').style.display = 'block';
+                        document.getElementById('startBtn').disabled = false;
+                        adicionarLog(`📁 Arquivo arrastado: ${file.name}`);
+                    } else {
+                        alert('Por favor, selecione um arquivo CSV válido!');
+                    }
+                }
+            });
+            
+            // Inicialização
+            adicionarLog('Página Painel FGTS carregada');
+        });
+
+        function closeMenu() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                adicionarLog('Menu fechado');
+            }
+        }
+    </script>
+</body>
+</html>
+

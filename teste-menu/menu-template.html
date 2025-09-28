@@ -1,0 +1,235 @@
+<!-- ===== TEMPLATE DO MENU LATERAL ===== -->
+<!-- Incluir este código em todas as páginas -->
+
+<!-- Zona de Hover para abrir menu -->
+<div class="hover-zone" title="Passe o mouse aqui para abrir o menu"></div>
+
+<!-- Barra Lateral de Navegação -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2 class="sidebar-title" id="sidebarTitle">
+            <span id="sidebarIcon">🏠</span>
+            <span id="sidebarText">Página Inicial</span>
+        </h2>
+        <button class="sidebar-close" id="sidebarClose">×</button>
+    </div>
+    <div class="sidebar-content">
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="/teste-menu" class="nav-link">
+                    🏠 <span class="nav-text">Página Inicial</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/pagina-fgts" class="nav-link">
+                    📊 <span class="nav-text">Painel FGTS</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/pagina-dashboard" class="nav-link">
+                    📈 <span class="nav-text">Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/pagina-configuracoes" class="nav-link">
+                    ⚙️ <span class="nav-text">Configurações</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/pagina-logs" class="nav-link">
+                    📋 <span class="nav-text">Logs</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/pagina-cache" class="nav-link">
+                    💾 <span class="nav-text">Cache</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- CSS do Menu (incluir no <head>) -->
+<style>
+/* Barra Lateral de Navegação */
+.sidebar { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 60px; 
+    height: 100vh; 
+    background: #ffffff; 
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); 
+    transition: all 0.3s ease; 
+    z-index: 1000; 
+    overflow-y: auto; 
+    border-right: 1px solid #e5e7eb;
+}
+.sidebar.open { 
+    left: 0; 
+    width: 400px; 
+}
+
+/* Zona de Hover para abrir menu */
+.hover-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 100vh;
+    z-index: 999;
+    background: transparent;
+}
+
+.hover-zone:hover + .sidebar {
+    width: 400px !important;
+}
+
+.hover-zone:hover + .sidebar .sidebar-header {
+    opacity: 1 !important;
+}
+
+.hover-zone:hover + .sidebar .nav-link .nav-text {
+    opacity: 1 !important;
+}
+.sidebar-header { 
+    padding: 1rem; 
+    border-bottom: 1px solid #e5e7eb; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    min-height: 60px;
+}
+
+.sidebar-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -20%;
+    right: -20%;
+    height: 100%;
+    background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+    z-index: -1;
+}
+.sidebar.open .sidebar-header {
+    opacity: 1;
+}
+.sidebar-title { 
+    font-size: 1.25rem; 
+    font-weight: 600; 
+    color: #ffffff; 
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #ffffff; }
+.sidebar-close:hover { color: #f1f5f9; }
+.sidebar-content { 
+    padding: 0.5rem 1rem; 
+    background: #ffffff;
+    margin-top: -0.5rem;
+}
+.nav-menu { 
+    list-style: none; 
+    padding: 0;
+    margin: 0;
+}
+.nav-item { 
+    margin-bottom: 0.5rem; 
+}
+.nav-link { 
+    display: flex; 
+    align-items: center;
+    padding: 0.75rem; 
+    color: #64748b; 
+    text-decoration: none; 
+    border-radius: 8px; 
+    transition: all 0.3s ease; 
+    border: 1px solid transparent;
+    white-space: nowrap;
+    margin-bottom: 0.25rem;
+}
+
+.nav-link .nav-text {
+    margin-left: 0.75rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.sidebar.open .nav-link .nav-text {
+    opacity: 1;
+}
+.nav-link:hover { 
+    background: #f1f5f9; 
+    color: #1e293b; 
+    border: 1px solid #e2e8f0;
+}
+.nav-link.active { 
+    background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+    color: white; 
+    border: 1px solid #00d4aa;
+}
+
+/* Estilo dos ícones - apenas quando fechado */
+.sidebar:not(.open) .nav-link {
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.sidebar:not(.open) .nav-link span:first-child {
+    font-size: 1.1rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #64748b;
+    transition: all 0.3s ease;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar:not(.open) .nav-link.active span:first-child {
+    background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+    color: white;
+    position: relative;
+}
+
+.sidebar:not(.open) .nav-link.active span:first-child::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -18px;
+    right: -18px;
+    height: calc(100% + 4px);
+    background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+    border-radius: 4px;
+    z-index: -1;
+}
+
+.sidebar:not(.open) .nav-link:hover span:first-child {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+@media (max-width: 768px) { 
+    .sidebar { width: 100%; right: -100%; }
+}
+</style>
+
+<!-- JavaScript do Menu (incluir antes do </body>) -->
+<script src="/menu.js"></script>
+

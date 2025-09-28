@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs de Erro FGTS - Lunas Digital</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 1.5rem;
+        }
+        
+        .logs-container {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        
+        .log-error { color: #f87171; }
+        .log-warning { color: #fbbf24; }
+        .log-info { color: #60a5fa; }
+        .log-success { color: #34d399; }
+        
+        .btn { 
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.9rem;
+            margin: 0.25rem;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .filter-group label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+        
+        .filter-group select, .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        /* Barra Lateral de Navegação */
+        .sidebar { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 60px; 
+            height: 100vh; 
+            background: #ffffff; 
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); 
+            transition: all 0.3s ease; 
+            z-index: 1000; 
+            overflow-y: auto; 
+            border-right: 1px solid #e5e7eb;
+        }
+        .sidebar.open { 
+            left: 0; 
+            width: 400px; 
+        }
+        
+        /* Zona de Hover para abrir menu */
+        .hover-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 100vh;
+            z-index: 999;
+            background: transparent;
+        }
+        
+        .hover-zone:hover + .sidebar {
+            width: 400px !important;
+        }
+        
+        .hover-zone:hover + .sidebar .sidebar-header {
+            opacity: 1 !important;
+        }
+        
+        .hover-zone:hover + .sidebar .nav-link .nav-text {
+            opacity: 1 !important;
+        }
+        .sidebar-header { 
+            padding: 1rem; 
+            border-bottom: 1px solid #e5e7eb; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 60px;
+        }
+        
+        .sidebar-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -20%;
+            right: -20%;
+            height: 100%;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            z-index: -1;
+        }
+        .sidebar.open .sidebar-header {
+            opacity: 1;
+        }
+        .sidebar-title { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            color: #ffffff; 
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #ffffff; }
+        .sidebar-close:hover { color: #f1f5f9; }
+        .sidebar-content { 
+            padding: 0.5rem 1rem; 
+            background: #ffffff;
+            margin-top: -0.5rem;
+        }
+        .nav-menu { 
+            list-style: none; 
+            padding: 0;
+            margin: 0;
+        }
+        .nav-item { 
+            margin-bottom: 0.5rem; 
+        }
+        .nav-link { 
+            display: flex; 
+            align-items: center;
+            padding: 0.75rem; 
+            color: #64748b; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            transition: all 0.3s ease; 
+            border: 1px solid transparent;
+            white-space: nowrap;
+            margin-bottom: 0.25rem;
+        }
+        
+        .nav-link .nav-text {
+            margin-left: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .sidebar.open .nav-link .nav-text {
+            opacity: 1;
+        }
+        .nav-link:hover { 
+            background: #f1f5f9; 
+            color: #1e293b; 
+            border: 1px solid #e2e8f0;
+        }
+        .nav-link.active { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border: 1px solid #00d4aa;
+        }
+        
+        /* Estilo dos ícones - apenas quando fechado */
+        .sidebar:not(.open) .nav-link {
+            justify-content: center;
+            padding: 0.75rem 0.5rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .sidebar:not(.open) .nav-link span:first-child {
+            font-size: 1.1rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: #64748b;
+            transition: all 0.3s ease;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sidebar:not(.open) .nav-link.active span:first-child {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            color: white;
+            position: relative;
+        }
+        
+        .sidebar:not(.open) .nav-link.active span:first-child::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -18px;
+            right: -18px;
+            height: calc(100% + 4px);
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            border-radius: 4px;
+            z-index: -1;
+        }
+        
+        .sidebar:not(.open) .nav-link:hover span:first-child {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        
+        @media (max-width: 768px) { 
+            .sidebar { width: 100%; right: -100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Logs de Erro FGTS</h1>
+            <p>Visualize e gerencie os logs de erro do sistema</p>
+        </div>
+
+        <div class="card">
+            <h3>🔍 Filtros de Log</h3>
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="tipoLog">Tipo de Log:</label>
+                    <select id="tipoLog">
+                        <option value="todos">Todos</option>
+                        <option value="error">Erro</option>
+                        <option value="warning">Aviso</option>
+                        <option value="info">Informação</option>
+                        <option value="success">Sucesso</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dataInicio">Data Início:</label>
+                    <input type="date" id="dataInicio">
+                </div>
+                <div class="filter-group">
+                    <label for="dataFim">Data Fim:</label>
+                    <input type="date" id="dataFim">
+                </div>
+                <div class="filter-group">
+                    <label for="buscaTexto">Buscar Texto:</label>
+                    <input type="text" id="buscaTexto" placeholder="Digite para buscar...">
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <button class="btn btn-primary" onclick="aplicarFiltros()">🔍 Aplicar Filtros</button>
+                <button class="btn btn-secondary" onclick="limparFiltros()">🗑️ Limpar Filtros</button>
+                <button class="btn btn-success" onclick="exportarLogs()">📥 Exportar Logs</button>
+                <button class="btn btn-danger" onclick="limparLogs()">🗑️ Limpar Logs</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Logs do Sistema</h3>
+            <div id="logsContainer" class="logs-container">
+                [2025-01-28 15:30:45] ❌ ERRO: Falha na autenticação V8 Sistema - CPF: 12345678901
+                [2025-01-28 15:30:42] ⚠️ AVISO: Rate limit detectado, trocando credencial
+                [2025-01-28 15:30:40] ✅ SUCESSO: CPF processado com sucesso - Valor: R$ 1.250,00
+                [2025-01-28 15:30:38] ℹ️ INFO: Iniciando processamento do lote 001
+                [2025-01-28 15:30:35] ❌ ERRO: Timeout na consulta API Lunas - CPF: 98765432100
+                [2025-01-28 15:30:32] ⚠️ AVISO: Cache V8 expirado, limpando para CPF: 11122233344
+                [2025-01-28 15:30:30] ✅ SUCESSO: Webhook recebido - Status: approved
+                [2025-01-28 15:30:28] ℹ️ INFO: Sistema iniciado - Versão 1.0.0
+                [2025-01-28 15:30:25] ❌ ERRO: Credencial inválida - Token expirado
+                [2025-01-28 15:30:22] ⚠️ AVISO: Delay aumentado para 2000ms devido a rate limit
+                [2025-01-28 15:30:20] ✅ SUCESSO: Arquivo CSV carregado - 150 registros
+                [2025-01-28 15:30:18] ℹ️ INFO: Configurações carregadas do cache
+                [2025-01-28 15:30:15] ❌ ERRO: Falha na conexão com banco de dados
+                [2025-01-28 15:30:12] ⚠️ AVISO: Memória alta - 85% utilizada
+                [2025-01-28 15:30:10] ✅ SUCESSO: Backup realizado com sucesso
+                [2025-01-28 15:30:08] ℹ️ INFO: Monitoramento ativo - 5 processos rodando
+                [2025-01-28 15:30:05] ❌ ERRO: Arquivo não encontrado - /logs/error.log
+                [2025-01-28 15:30:02] ⚠️ AVISO: Disco cheio - 90% utilizado
+                [2025-01-28 15:30:00] ✅ SUCESSO: Sistema reiniciado com sucesso
+            </div>
+        </div>
+    </div>
+
+    <!-- Zona de Hover para abrir menu -->
+    <div class="hover-zone" title="Passe o mouse aqui para abrir o menu"></div>
+
+    <!-- Barra Lateral de Navegação -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title" id="sidebarTitle">
+                <span id="sidebarIcon">📋</span>
+                <span id="sidebarText">Logs</span>
+            </h2>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-content">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/teste-menu" class="nav-link">
+                        🏠 <span class="nav-text">Página Inicial</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-dashboard" class="nav-link">
+                        📊 <span class="nav-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-configuracoes" class="nav-link">
+                        ⚙️ <span class="nav-text">Configurações</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-logs" class="nav-link active">
+                        📋 <span class="nav-text">Logs</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-cache" class="nav-link">
+                        💾 <span class="nav-text">Cache</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Função para atualizar header
+        function atualizarHeader(icon, text) {
+            const sidebarIcon = document.getElementById('sidebarIcon');
+            const sidebarText = document.getElementById('sidebarText');
+            
+            if (sidebarIcon) sidebarIcon.textContent = icon;
+            if (sidebarText) sidebarText.textContent = text;
+        }
+
+        // Função para adicionar log
+        function adicionarLog(mensagem) {
+            console.log(`[Logs] ${mensagem}`);
+        }
+
+        // Funções de filtro
+        function aplicarFiltros() {
+            const tipoLog = document.getElementById('tipoLog').value;
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const buscaTexto = document.getElementById('buscaTexto').value;
+            
+            adicionarLog(`Filtros aplicados: Tipo=${tipoLog}, Data=${dataInicio} a ${dataFim}, Busca="${buscaTexto}"`);
+            
+            // Simular aplicação de filtros
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = `Filtros aplicados:\n- Tipo: ${tipoLog}\n- Data: ${dataInicio} a ${dataFim}\n- Busca: "${buscaTexto}"\n\n[2025-01-28 15:30:45] ℹ️ INFO: Filtros aplicados com sucesso`;
+        }
+
+        function limparFiltros() {
+            document.getElementById('tipoLog').value = 'todos';
+            document.getElementById('dataInicio').value = '';
+            document.getElementById('dataFim').value = '';
+            document.getElementById('buscaTexto').value = '';
+            
+            adicionarLog('Filtros limpos');
+            carregarLogsCompletos();
+        }
+
+        function exportarLogs() {
+            adicionarLog('Exportando logs...');
+            // Simular exportação
+            const logs = document.getElementById('logsContainer').textContent;
+            const blob = new Blob([logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `logs-fgts-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function limparLogs() {
+            if (confirm('Tem certeza que deseja limpar todos os logs?')) {
+                document.getElementById('logsContainer').innerHTML = '[2025-01-28 15:30:00] ℹ️ INFO: Logs limpos pelo usuário';
+                adicionarLog('Logs limpos');
+            }
+        }
+
+        function carregarLogsCompletos() {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = `[2025-01-28 15:30:45] ❌ ERRO: Falha na autenticação V8 Sistema - CPF: 12345678901
+[2025-01-28 15:30:42] ⚠️ AVISO: Rate limit detectado, trocando credencial
+[2025-01-28 15:30:40] ✅ SUCESSO: CPF processado com sucesso - Valor: R$ 1.250,00
+[2025-01-28 15:30:38] ℹ️ INFO: Iniciando processamento do lote 001
+[2025-01-28 15:30:35] ❌ ERRO: Timeout na consulta API Lunas - CPF: 98765432100
+[2025-01-28 15:30:32] ⚠️ AVISO: Cache V8 expirado, limpando para CPF: 11122233344
+[2025-01-28 15:30:30] ✅ SUCESSO: Webhook recebido - Status: approved
+[2025-01-28 15:30:28] ℹ️ INFO: Sistema iniciado - Versão 1.0.0
+[2025-01-28 15:30:25] ❌ ERRO: Credencial inválida - Token expirado
+[2025-01-28 15:30:22] ⚠️ AVISO: Delay aumentado para 2000ms devido a rate limit
+[2025-01-28 15:30:20] ✅ SUCESSO: Arquivo CSV carregado - 150 registros
+[2025-01-28 15:30:18] ℹ️ INFO: Configurações carregadas do cache
+[2025-01-28 15:30:15] ❌ ERRO: Falha na conexão com banco de dados
+[2025-01-28 15:30:12] ⚠️ AVISO: Memória alta - 85% utilizada
+[2025-01-28 15:30:10] ✅ SUCESSO: Backup realizado com sucesso
+[2025-01-28 15:30:08] ℹ️ INFO: Monitoramento ativo - 5 processos rodando
+[2025-01-28 15:30:05] ❌ ERRO: Arquivo não encontrado - /logs/error.log
+[2025-01-28 15:30:02] ⚠️ AVISO: Disco cheio - 90% utilizado
+[2025-01-28 15:30:00] ✅ SUCESSO: Sistema reiniciado com sucesso`;
+        }
+
+        // Aguardar DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners do menu
+            const sidebarClose = document.getElementById('sidebarClose');
+            const sidebar = document.getElementById('sidebar');
+            const hoverZone = document.querySelector('.hover-zone');
+            
+            if (sidebarClose) {
+                sidebarClose.onclick = closeMenu;
+            }
+
+            // Hover para expandir menu
+            if (hoverZone && sidebar) {
+                hoverZone.addEventListener('mouseenter', () => {
+                    sidebar.classList.add('open');
+                    adicionarLog('Menu expandido por hover');
+                });
+                
+                sidebar.addEventListener('mouseleave', () => {
+                    sidebar.classList.remove('open');
+                    adicionarLog('Menu colapsado (saiu da área)');
+                });
+                
+                // Também manter aberto quando hover no sidebar
+                sidebar.addEventListener('mouseenter', () => {
+                    sidebar.classList.add('open');
+                });
+            }
+
+            // Event listeners para os links do menu
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Remover active de todos os links
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    // Adicionar active ao link clicado
+                    link.classList.add('active');
+                    
+                    // Atualizar header
+                    const icon = link.querySelector('span:first-child').textContent.trim();
+                    const text = link.querySelector('.nav-text').textContent.trim();
+                    atualizarHeader(icon, text);
+                    
+                    adicionarLog(`Link clicado: ${icon} ${text}`);
+                });
+            });
+
+            // Fechar ao clicar fora
+            document.addEventListener('click', (e) => {
+                if (sidebar && sidebar.classList.contains('open')) {
+                    if (!sidebar.contains(e.target) && !hoverZone.contains(e.target)) {
+                        sidebar.classList.remove('open');
+                        adicionarLog('Menu fechado (clique fora)');
+                    }
+                }
+            });
+
+            // Definir data atual nos filtros
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('dataInicio').value = hoje;
+            document.getElementById('dataFim').value = hoje;
+            
+            // Inicialização
+            adicionarLog('Página Logs carregada');
+        });
+
+        function closeMenu() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                adicionarLog('Menu fechado');
+            }
+        }
+    </script>
+</body>
+</html>

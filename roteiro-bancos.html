@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiros Bancos - Lunas Digital</title>
+    <script src="menu.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .header p { 
+            color: #64748b; 
+            font-size: 1.1rem; 
+        }
+        
+        
+        .main-content { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 1.5rem; 
+            margin-bottom: 2rem; 
+        }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.2rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+        }
+        
+        .card h3 { 
+            color: #1e293b; 
+            margin-bottom: 0.8rem; 
+            font-size: 1.1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+        }
+        
+        .search-section { 
+            border: 2px dashed #cbd5e1; 
+            border-radius: 8px; 
+            padding: 1.2rem; 
+            text-align: center; 
+            transition: all 0.3s ease; 
+        }
+        
+        .search-section:hover { 
+            border-color: #00d4aa; 
+            background: #f0fdfa; 
+        }
+        
+        .search-container { 
+            display: flex; 
+            gap: 0.8rem; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            margin-bottom: 1rem; 
+        }
+        
+        .search-input { 
+            flex: 1; 
+            min-width: 250px; 
+            padding: 0.75rem 1rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 8px; 
+            font-size: 0.875rem; 
+            transition: all 0.3s ease; 
+        }
+        
+        .search-input:focus { 
+            outline: none; 
+            border-color: #5a67d8; 
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.1); 
+        }
+        
+        .btn { 
+            padding: 0.6rem 1.2rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.85rem; 
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+        }
+        
+        .btn-secondary { 
+            background: #64748b; 
+            color: white; 
+        }
+        
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); 
+        }
+        
+        .btn:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            transform: none; 
+        }
+        
+        .category-filters { 
+            display: flex; 
+            gap: 0.5rem; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+        }
+        
+        .category-btn { 
+            padding: 0.5rem 1rem; 
+            background: white; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-size: 0.8rem; 
+            font-weight: 500; 
+            transition: all 0.3s ease; 
+        }
+        
+        .category-btn:hover, .category-btn.active { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border-color: #00d4aa; 
+        }
+        
+        .results-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); 
+            gap: 1rem; 
+            margin-top: 1rem; 
+        }
+        
+        .banco-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            border-left: 4px solid #00d4aa; 
+            min-width: 250px; 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 0.3s, box-shadow 0.3s; 
+        }
+        
+        .banco-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); 
+        }
+        
+        .card-header { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 1rem; 
+            border-bottom: 1px solid #e2e8f0; 
+            border-radius: 8px 8px 0 0; 
+            margin: -1rem -1rem 1rem -1rem; 
+        }
+        
+        .card-title { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .nome-banco { 
+            font-size: 1.2rem; 
+            font-weight: 600; 
+            color: #1e293b; 
+            margin-bottom: 0.25rem; 
+        }
+        
+        .regra-geral { 
+            color: #64748b; 
+            font-size: 0.9rem; 
+            line-height: 1.4; 
+        }
+        
+        .card-body { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .info-section { 
+            margin-bottom: 1rem; 
+        }
+        
+        .info-section h4 { 
+            color: #1e293b; 
+            margin-bottom: 0.5rem; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+        }
+        
+        .info-list { 
+            list-style: none; 
+            padding-left: 0; 
+            font-size: 0.8rem; 
+        }
+        
+        .info-list li { 
+            padding: 0.25rem 0; 
+            padding-left: 1.25rem; 
+            position: relative; 
+            color: #475569; 
+        }
+        
+        .info-list li:before { 
+            content: "•"; 
+            position: absolute; 
+            left: 0; 
+            color: #00d4aa; 
+            font-weight: bold; 
+        }
+        
+        .excecoes-list { 
+            list-style: none; 
+            padding-left: 0; 
+            font-size: 0.75rem; 
+            max-height: 150px; 
+            overflow-y: auto; 
+        }
+        
+        .excecoes-list li { 
+            padding: 0.2rem 0; 
+            padding-left: 1rem; 
+            position: relative; 
+            color: #475569; 
+            border-bottom: 1px solid #f1f5f9; 
+        }
+        
+        .excecoes-list li:before { 
+            content: "→"; 
+            position: absolute; 
+            left: 0; 
+            color: #5a67d8; 
+            font-weight: bold; 
+        }
+        
+        .nao-porta-list { 
+            list-style: none; 
+            padding-left: 0; 
+            font-size: 0.75rem; 
+            max-height: 100px; 
+            overflow-y: auto; 
+        }
+        
+        .nao-porta-list li { 
+            padding: 0.2rem 0; 
+            padding-left: 1rem; 
+            position: relative; 
+            color: #ef4444; 
+        }
+        
+        .nao-porta-list li:before { 
+            content: "✗"; 
+            position: absolute; 
+            left: 0; 
+            color: #ef4444; 
+            font-weight: bold; 
+        }
+        
+        .no-results { 
+            text-align: center; 
+            padding: 2rem; 
+            color: #64748b; 
+            font-size: 1rem; 
+            grid-column: 1 / -1; 
+        }
+        
+        /* Barra Lateral de Configurações */
+        .sidebar { 
+            position: fixed; 
+            top: 0; 
+            right: -400px; 
+            width: 400px; 
+            height: 100vh; 
+            background: white; 
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1); 
+            transition: right 0.3s ease; 
+            z-index: 1000; 
+            overflow-y: auto; 
+        }
+        
+        .sidebar.open { 
+            right: 0; 
+        }
+        
+        .sidebar-header { 
+            padding: 1.5rem; 
+            border-bottom: 1px solid #e2e8f0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        }
+        
+        .sidebar-title { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            color: white; 
+        }
+        
+        .sidebar-close { 
+            background: none; 
+            border: none; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            color: white; 
+        }
+        
+        .sidebar-content { 
+            padding: 1.5rem; 
+        }
+        
+        .config-section { 
+            margin-bottom: 2rem; 
+        }
+        
+        .config-section h3 { 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            color: #1e293b; 
+            margin-bottom: 1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+        }
+        
+        .config-group { 
+            margin-bottom: 1rem; 
+        }
+        
+        .config-group label { 
+            display: block; 
+            font-weight: 500; 
+            color: #374151; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .config-group input, .config-group select { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            font-size: 0.9rem; 
+        }
+        
+        .config-group input:focus, .config-group select:focus { 
+            outline: none; 
+            border-color: #00d4aa; 
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1); 
+        }
+        
+        .config-actions { 
+            display: flex; 
+            gap: 0.5rem; 
+            margin-top: 1rem; 
+        }
+        
+        .btn-test { 
+            background: #3b82f6; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-test:hover { 
+            background: #2563eb; 
+        }
+        
+        .btn-save { 
+            background: #10b981; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-save:hover { 
+            background: #059669; 
+        }
+        
+        .btn-cancel { 
+            background: #6b7280; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-cancel:hover { 
+            background: #4b5563; 
+        }
+        
+        /* Botão Toggle da Sidebar */
+        .sidebar-toggle { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 1001; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 50%; 
+            width: 50px; 
+            height: 50px; 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); 
+            transition: all 0.3s ease; 
+        }
+        
+        .sidebar-toggle:hover { 
+            transform: scale(1.1); 
+            box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4); 
+        }
+        
+        @media (max-width: 1200px) { 
+            .results-grid { 
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+            }
+        }
+        
+        @media (max-width: 768px) { 
+            .results-grid { 
+                grid-template-columns: 1fr; 
+            }
+            .search-container { 
+                flex-direction: column; 
+            }
+            .search-input { 
+                min-width: 100%; 
+            }
+            .card-title { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 0.5rem; 
+            }
+            .sidebar { 
+                width: 100%; 
+                right: -100%; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏦 Roteiros Bancos</h1>
+            <p>Sistema de consulta de regras e exceções bancárias</p>
+        </div>
+
+
+        <div class="main-content">
+            <div class="card">
+                <h3>🔍 Busca de Bancos</h3>
+                <div class="search-section">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Digite o nome do banco ou código...">
+                        <button id="searchBtn" class="btn btn-primary">🔍 Buscar</button>
+                        <button id="clearBtn" class="btn btn-secondary">🗑️ Limpar</button>
+                    </div>
+                    
+                    <div class="category-filters">
+                        <button class="category-btn active" data-category="all">Todos</button>
+                        <button class="category-btn" data-category="BRB">BRB</button>
+                        <button class="category-btn" data-category="DAYCOVAL">DAYCOVAL</button>
+                        <button class="category-btn" data-category="DIGIO">DIGIO</button>
+                        <button class="category-btn" data-category="FINANTO">FINANTO</button>
+                        <button class="category-btn" data-category="C6">C6</button>
+                        <button class="category-btn" data-category="FINTECH">FINTECH</button>
+                        <button class="category-btn" data-category="INBURSA">INBURSA</button>
+                        <button class="category-btn" data-category="FACTA">FACTA</button>
+                        <button class="category-btn" data-category="PICPAY">PICPAY</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Resultados</h3>
+                <div id="results" class="results-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão Toggle da Sidebar -->
+    <button class="sidebar-toggle" id="sidebarToggle" title="Configurações">
+        ⚙️
+    </button>
+
+    <!-- Barra Lateral de Configurações -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title">⚙️ Configurações Roteiros Bancos</h2>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-content">
+            <!-- Seção de Filtros Avançados -->
+            <div class="config-section">
+                <h3>🔍 Filtros Avançados</h3>
+                <div class="config-group">
+                    <label>Idade Mínima</label>
+                    <input type="number" id="idadeMin" min="18" max="80" placeholder="Ex: 21">
+                </div>
+                <div class="config-group">
+                    <label>Idade Máxima</label>
+                    <input type="number" id="idadeMax" min="18" max="80" placeholder="Ex: 73">
+                </div>
+                <div class="config-group">
+                    <label>Saldo Devedor Mínimo</label>
+                    <input type="number" id="saldoMin" min="0" placeholder="Ex: 1000">
+                </div>
+                <div class="config-group">
+                    <label>Parcela Mínima</label>
+                    <input type="number" id="parcelaMin" min="0" placeholder="Ex: 50">
+                </div>
+            </div>
+
+            <!-- Seção de Exportação -->
+            <div class="config-section">
+                <h3>📤 Exportação</h3>
+                <div class="config-actions">
+                    <button class="btn-test" id="exportCSV">📄 Exportar CSV</button>
+                    <button class="btn-test" id="exportPDF">📋 Gerar PDF</button>
+                </div>
+            </div>
+
+
+            <!-- Ações Gerais -->
+            <div class="config-actions">
+                <button class="btn-save" id="saveSettings">💾 Salvar</button>
+                <button class="btn-cancel" id="cancelSettings">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import RoteiroBancos from './RoteiroBancos.js';
+
+        let bancosFiltrados = Object.keys(RoteiroBancos);
+        let categoriaAtiva = 'all';
+        let filtrosAvancados = {
+            idadeMin: null,
+            idadeMax: null,
+            saldoMin: null,
+            parcelaMin: null
+        };
+
+        // Elementos DOM
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultsDiv = document.getElementById('results');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        // Elementos da Sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const idadeMin = document.getElementById('idadeMin');
+        const idadeMax = document.getElementById('idadeMax');
+        const saldoMin = document.getElementById('saldoMin');
+        const parcelaMin = document.getElementById('parcelaMin');
+        const exportCSV = document.getElementById('exportCSV');
+        const exportPDF = document.getElementById('exportPDF');
+
+        // Função para renderizar bancos
+        function renderizarBancos(bancos) {
+            if (bancos.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">Nenhum banco encontrado com os critérios de busca.</div>';
+                return;
+            }
+
+            const html = bancos.map(nomeBanco => {
+                const banco = RoteiroBancos[nomeBanco];
+                const excecoesCount = banco.excecoes ? banco.excecoes.length : 0;
+                const naoPortaCount = banco.naoPorta ? banco.naoPorta.length : 0;
+                const taxasCount = banco.taxas ? banco.taxas.length : 0;
+
+                return `
+                    <div class="banco-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div>
+                                    <div class="nome-banco">${nomeBanco}</div>
+                                    <div class="regra-geral">Regra Geral: ${banco.regraGeral}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-section">
+                                <h4>📊 Informações Gerais</h4>
+                                <ul class="info-list">
+                                    <li><strong>Idade:</strong> ${banco.idade || 'N/A'}</li>
+                                    <li><strong>Saldo Mínimo:</strong> R$ ${banco.saldoDevedorMinimo?.toLocaleString('pt-BR') || 'N/A'}</li>
+                                    <li><strong>Parcela Mínima:</strong> R$ ${banco.parcelaMinima || 'N/A'}</li>
+                                    <li><strong>Taxas:</strong> ${banco.taxas ? banco.taxas.join('%, ') + '%' : 'N/A'}</li>
+                                </ul>
+                            </div>
+
+                            <div class="info-section">
+                                <h4>✅ Exceções (${excecoesCount})</h4>
+                                <ul class="excecoes-list">
+                                    ${banco.excecoes ? banco.excecoes.map(exc => 
+                                        `<li><strong>${exc.codigo}</strong> - ${exc.nome}: ${exc.regra}${exc.detalhe ? ` (${exc.detalhe})` : ''}</li>`
+                                    ).join('') : '<li>Nenhuma exceção</li>'}
+                                </ul>
+                            </div>
+
+                            <div class="info-section">
+                                <h4>❌ Não Porta (${naoPortaCount})</h4>
+                                <ul class="nao-porta-list">
+                                    ${banco.naoPorta ? banco.naoPorta.map(np => 
+                                        `<li><strong>${np.codigo}</strong> - ${np.nome}</li>`
+                                    ).join('') : '<li>Nenhuma restrição</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = html;
+        }
+
+
+        // Função para aplicar filtros avançados
+        function aplicarFiltrosAvancados(bancos) {
+            return bancos.filter(nomeBanco => {
+                const banco = RoteiroBancos[nomeBanco];
+                
+                // Filtro de idade
+                if (filtrosAvancados.idadeMin || filtrosAvancados.idadeMax) {
+                    const idadeMatch = banco.idade ? banco.idade.match(/(\d+)\s*a\s*(\d+)/) : null;
+                    if (idadeMatch) {
+                        const idadeMinBanco = parseInt(idadeMatch[1]);
+                        const idadeMaxBanco = parseInt(idadeMatch[2]);
+                        
+                        if (filtrosAvancados.idadeMin && idadeMaxBanco < filtrosAvancados.idadeMin) return false;
+                        if (filtrosAvancados.idadeMax && idadeMinBanco > filtrosAvancados.idadeMax) return false;
+                    }
+                }
+                
+                // Filtro de saldo mínimo
+                if (filtrosAvancados.saldoMin && banco.saldoDevedorMinimo && banco.saldoDevedorMinimo < filtrosAvancados.saldoMin) return false;
+                
+                // Filtro de parcela mínima
+                if (filtrosAvancados.parcelaMin && banco.parcelaMinima && banco.parcelaMinima < filtrosAvancados.parcelaMin) return false;
+                
+                return true;
+            });
+        }
+
+        // Função de busca
+        function buscar() {
+            const termo = searchInput.value.trim().toLowerCase();
+            let resultados = Object.keys(RoteiroBancos);
+            
+            if (termo) {
+                resultados = resultados.filter(nomeBanco => {
+                    const banco = RoteiroBancos[nomeBanco];
+                    return nomeBanco.toLowerCase().includes(termo) ||
+                           (banco.excecoes && banco.excecoes.some(exc => 
+                               exc.nome.toLowerCase().includes(termo) || 
+                               exc.codigo.includes(termo)
+                           )) ||
+                           (banco.naoPorta && banco.naoPorta.some(np => 
+                               np.nome.toLowerCase().includes(termo) || 
+                               np.codigo.includes(termo)
+                           ));
+                });
+            }
+
+            // Aplicar filtros de categoria
+            if (categoriaAtiva !== 'all') {
+                resultados = resultados.filter(nomeBanco => {
+                    // Filtro por nome do banco
+                    return nomeBanco === categoriaAtiva;
+                });
+            }
+
+            // Aplicar filtros avançados
+            bancosFiltrados = aplicarFiltrosAvancados(resultados);
+            renderizarBancos(bancosFiltrados);
+        }
+
+        // Função para limpar busca
+        function limparBusca() {
+            searchInput.value = '';
+            categoriaAtiva = 'all';
+            categoryBtns.forEach(btn => btn.classList.remove('active'));
+            categoryBtns[0].classList.add('active'); // "Todos"
+            bancosFiltrados = Object.keys(RoteiroBancos);
+            renderizarBancos(bancosFiltrados);
+        }
+
+        // Função para exportar CSV
+        function exportarCSV() {
+            const csvContent = [
+                'Banco,Regra Geral,Idade,Saldo Minimo,Parcela Minima,Taxas,Excecoes,Nao Porta',
+                ...bancosFiltrados.map(nomeBanco => {
+                    const banco = RoteiroBancos[nomeBanco];
+                    return `"${nomeBanco}","${banco.regraGeral}","${banco.idade || ''}","${banco.saldoDevedorMinimo || ''}","${banco.parcelaMinima || ''}","${banco.taxas ? banco.taxas.join(';') : ''}","${banco.excecoes ? banco.excecoes.length : 0}","${banco.naoPorta ? banco.naoPorta.length : 0}"`;
+                })
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `roteiro_bancos_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            mostrarNotificacao('📄 CSV exportado com sucesso!', 'success');
+        }
+
+
+        // Função para mostrar notificações
+        function mostrarNotificacao(mensagem, tipo = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+
+            notification.style.background = colors[tipo] || colors.info;
+            notification.textContent = mensagem;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // Event listeners principais
+        searchBtn.addEventListener('click', buscar);
+        clearBtn.addEventListener('click', limparBusca);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') buscar();
+        });
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                categoriaAtiva = btn.dataset.category;
+                searchInput.value = '';
+                buscar();
+            });
+        });
+
+        // Event listeners da sidebar
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        sidebarClose.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+        });
+
+        // Filtros avançados
+        [idadeMin, idadeMax, saldoMin, parcelaMin].forEach(input => {
+            input.addEventListener('change', () => {
+                filtrosAvancados.idadeMin = idadeMin.value ? parseInt(idadeMin.value) : null;
+                filtrosAvancados.idadeMax = idadeMax.value ? parseInt(idadeMax.value) : null;
+                filtrosAvancados.saldoMin = saldoMin.value ? parseInt(saldoMin.value) : null;
+                filtrosAvancados.parcelaMin = parcelaMin.value ? parseInt(parcelaMin.value) : null;
+                buscar();
+            });
+        });
+
+        // Botões da sidebar
+        exportCSV.addEventListener('click', exportarCSV);
+        exportPDF.addEventListener('click', () => {
+            mostrarNotificacao('📋 Funcionalidade de PDF em desenvolvimento', 'info');
+        });
+
+        // Fechar sidebar ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (sidebar.classList.contains('open')) {
+                if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        // Inicialização
+        renderizarBancos(Object.keys(RoteiroBancos));
+        mostrarNotificacao('🏦 Roteiros Bancos carregado com sucesso!', 'success');
+    </script>
+</body>
+</html>

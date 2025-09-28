@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página Sem Menu - Teste Global</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 1.5rem;
+        }
+        
+        .highlight {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .highlight h4 {
+            color: #92400e;
+            margin-bottom: 0.5rem;
+        }
+        
+        .highlight p {
+            color: #92400e;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Página Sem Menu</h1>
+            <p>Esta página não tem menu implementado - teste do sistema global</p>
+        </div>
+
+        <div class="card">
+            <h3>🧪 Teste do Sistema Global</h3>
+            <p>Esta página foi criada <strong>sem menu</strong> para testar o sistema global.</p>
+            
+            <div class="highlight">
+                <h4>⚠️ Observação Importante</h4>
+                <p>Se você está vendo um menu na lateral esquerda, significa que o sistema global funcionou! O menu foi carregado automaticamente.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🔍 Como Funciona</h3>
+            <ol style="margin-left: 1.5rem; line-height: 1.8;">
+                <li>O script <code>menu-global.js</code> verifica se existe um menu na página</li>
+                <li>Se não existir, carrega automaticamente o menu padrão</li>
+                <li>Se já existir, não interfere na página</li>
+                <li>O menu fica disponível em todas as páginas automaticamente</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <h3>📋 Código da Página</h3>
+            <p>Esta página tem apenas o script global no final:</p>
+            <pre style="background: #f8fafc; padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+&lt;!-- Apenas este script no final da página --&gt;
+&lt;script src="/menu-global.js"&gt;&lt;/script&gt;
+            </pre>
+        </div>
+
+        <div class="card">
+            <h3>✅ Resultado</h3>
+            <p>Mesmo sem implementar menu manualmente, esta página tem:</p>
+            <ul style="margin-left: 1.5rem; line-height: 1.8;">
+                <li>✅ Menu lateral funcional</li>
+                <li>✅ Navegação entre páginas</li>
+                <li>✅ Hover para abrir/fechar</li>
+                <li>✅ Design consistente</li>
+                <li>✅ Responsivo</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ===== SISTEMA GLOBAL DE MENU ===== -->
+    <!-- Este script carrega o menu automaticamente -->
+    <script src="/menu-global.js"></script>
+</body>
+</html>

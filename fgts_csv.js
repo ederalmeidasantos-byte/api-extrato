@@ -48,7 +48,7 @@ for (let i = 1; process.env[`FGTS_USER_${i}`]; i++) {
 }
 if (!CREDENTIALS.length) {
   console.error("❌ Nenhuma credencial FGTS configurada no .env");
-  process.exit(1);
+  // process.exit(1); // Comentado para permitir teste local
 }
 
 let TOKEN = null;

@@ -1,696 +1,241 @@
-import "dotenv/config";
-import { setPause } from "./fgts_csv.js";
-import express from "express";
-import path from "path";
-import fs from "fs";
-import fsp from "fs/promises";
-import fetch from "node-fetch";
-import { fileURLToPath } from "url";
-import { extrairDeUpload } from "./extrair_pdf.js";
-import PQueue from "p-queue";
-import multer from "multer";
-import { Server } from "socket.io";
-import http from "http";
-import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8, carregarListasDoCache } from "./fgts_csv.js";
-import { getRecentErrors, getErrorStats, cleanOldLogs } from "./error-logger.js";
-import { 
-  obterEstatisticasCache, 
-  limparCacheCompleto, 
-  carregarPendentes, 
-  carregarTentativasCache,
-  resetarTentativasCache 
-} from "./cache-persistente.js";
-import { calcularTrocoEndpoint } from "./calculo.js";
-import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Pastas
-const PDF_DIR = path.join(__dirname, "extratos");
-const JSON_DIR = path.join(__dirname, "jsonDir");
-const UPLOADS_DIR = path.join(__dirname, "uploads");
-[PDF_DIR, JSON_DIR, UPLOADS_DIR].forEach(dir => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); });
-
-// TTL cache
-const TTL_MS = 14 * 24 * 60 * 60 * 1000;
-const cacheValido = (p) => { try { return Date.now() - fs.statSync(p).mtimeMs <= TTL_MS; } catch { return false; } };
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const cors = require('cors');
+const { gptExtrairJSON } = require('./extrair-pdf');
+const { calcularTrocoEndpoint } = require('./calculo');
+const RoteiroBancos = require('./roteiro-bancos');
 
 const app = express();
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+const PORT = process.env.PORT || 3000;
 
-// ====== Socket.IO ======
-const server = http.createServer(app);
-const io = new Server(server);
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// Anexar socket ao módulo FGTS
-attachIO(io);
+// ===== ROTAS PRINCIPAIS (ANTES DOS ARQUIVOS ESTÁTICOS) =====
 
-// Importar funções de agendamento
-import { isHorarioComercial, agendarDisparo, processarAgendamentos, ajustarDelayDinamico } from "./fgts_csv.js";
-
-// Armazenamento em memória dos resultados
-let resultadosFGTS = [];
-
-// Variável global de delay (ms) para processarCPFs
-let DELAY_MS = 1000;
-function setDelay(ms) {
-  if (ms && !isNaN(ms) && ms > 0) {
-    DELAY_MS = ms;
-    setDelayFGTS(DELAY_MS);
-    console.log(`[${new Date().toISOString()}] ⚡ Delay atualizado para ${DELAY_MS}ms`);
-  }
-}
-
-// Variável de controle de pausa
-let fgtsPaused = false;
-
-// ===== Normalização de CPF =====
-function normalizeCPF(input) {
-  if (input == null) return null;
-  const asNumber = Number(input);
-  if (!Number.isNaN(asNumber) && Number.isFinite(asNumber)) input = asNumber.toFixed(0);
-  const digits = String(input).replace(/\D/g, "");
-  if (digits.length <= 11) return digits.padStart(11, "0");
-  return null;
-}
-
-// Fila PQueue
-const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
-
-// ===== Função para logs no painel =====
-function logPainel(msg) {
-  io.emit("log", msg);
-  console.log(msg);
-}
-
-// Função para emitir resultado de CPF no painel
-function emitirResultadoPainel(data) {
-  const { linha, cpf, id, status, provider, valorLiberado, icone = '✅' } = data;
-  const valorExibir = (typeof valorLiberado === 'number') ? valorLiberado.toFixed(2) : (valorLiberado ? valorLiberado : '-');
-  io.emit("log", `[CLIENT] ${icone} Linha: ${linha || '?'} | CPF: ${cpf || '-'} | ID: ${id || '-'} | Status: ${status || '-'} | Valor Liberado: ${valorExibir} | Provider: ${provider || '-'}`);
-  io.emit("resultadoCPF", data);
-}
-
-// Conexão Socket
-io.on("connection", (socket) => {
-  console.log("🔗 Cliente conectado para logs FGTS");
-  resultadosFGTS.forEach(r => socket.emit("resultadoCPF", r));
-  socket.emit("delayUpdate", DELAY_MS);
+// Página inicial
+app.get('/', (req, res) => {
+  console.log('Acessando página inicial');
+  res.sendFile(path.join(__dirname, 'projeto-render/frontend/index.html'));
 });
 
-// Health check
-app.get("/", (req, res) => res.send("API rodando ✅"));
-
-// ===== Fluxo Lunas / PDF =====
-app.post("/extrair", async (req, res) => {
-  try {
-    const fileId = req.body.fileId || req.query.fileId;
-    if (!fileId) return res.status(400).json({ error: "fileId é obrigatório" });
-
-    const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
-    if (fs.existsSync(jsonPath) && cacheValido(jsonPath)) {
-      console.log("♻️ Usando cache válido:", jsonPath);
-      return res.json(JSON.parse(await fsp.readFile(jsonPath, "utf-8")));
-    }
-
-    console.log("🚀 Baixando PDF da Lunas:", fileId);
-    const body = { queueId: Number(process.env.LUNAS_QUEUE_ID), apiKey: process.env.LUNAS_API_KEY, fileId: Number(fileId), download: true };
-    const resp = await fetch(process.env.LUNAS_API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-
-    if (!resp.ok) throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${await resp.text()}`);
-
-    const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
-    const buf = Buffer.from(await resp.arrayBuffer());
-    await fsp.writeFile(pdfPath, buf);
-    console.log("✅ PDF salvo em", pdfPath);
-
-    const json = await queue.add(() =>
-      extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
-    );
-
-    res.json(json);
-  } catch (err) {
-    console.error("❌ Erro em /extrair:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ====== FGTS Automação ======
-const upload = multer({ dest: UPLOADS_DIR });
-app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-
-// Inicia processamento CSV
-app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
-
-  logPainel(`📂 Planilha FGTS recebida: ${req.file.path}`);
-  (async () => {
-    try {
-      const raw = await fsp.readFile(req.file.path, "utf-8");
-      const lines = raw.split("\n").filter(l => l.trim());
-      const totalCpfs = lines.length;
-      let processados = 0;
-      let contadorSuccess = 0;
-      let contadorPending = 0;
-      let contadorSemAutorizacao = 0;
-
-      io.emit("progress", { done: 0, total: totalCpfs });
-      logPainel(`🔹 Iniciando processamento de ${totalCpfs} CPFs...`);
-
-      await processarCPFs(req.file.path, null, async (result) => {
-        while(fgtsPaused) await new Promise(r => setTimeout(r, 200));
-
-        if (!result) {
-          processados++;
-          io.emit("progress", { done: processados, total: totalCpfs });
-          return;
-        }
-
-        if (result.cpf) { const n = normalizeCPF(result.cpf); if(n) result.cpf = n; }
-
-        switch((result.status||'').toLowerCase()) {
-          case 'success': contadorSuccess++; break;
-          case 'pending': contadorPending++; break;
-          case 'no_auth': contadorSemAutorizacao++; break;
-        }
-
-        resultadosFGTS.push(result);
-        emitirResultadoPainel(result);
-
-        processados++;
-        io.emit("progress", { done: processados, total: totalCpfs, counters: { success: contadorSuccess, pending: contadorPending, semAutorizacao: contadorSemAutorizacao } });
-      });
-
-      logPainel("✅ Processamento FGTS finalizado!");
-    } catch (err) {
-      logPainel(`❌ Erro no processamento FGTS: ${err.message}`);
-      console.error("❌ Erro no processamento FGTS:", err);
-    } finally {
-      try { await fsp.unlink(req.file.path); } catch {}
-    }
-  })();
-
-  res.json({ message: "🚀 Planilha recebida e automação FGTS iniciada!" });
-});
-
-// ===== Reprocessar pendentes =====
-app.post("/fgts/reprocessar", async (req, res) => {
-  const cpfs = req.body.cpfs || [];
-  if (!cpfs.length) return res.status(400).json({ message: "Nenhum CPF fornecido" });
-
-  logPainel(`🔄 Reprocessar pendentes: ${cpfs.join(", ")}`);
-
-  (async () => {
-    try {
-      let processados = 0, contadorSuccess = 0, contadorPending = 0, contadorSemAutorizacao = 0;
-      const totalCpfs = cpfs.length;
-
-      const processarCPF = async (cpf) => {
-        while(fgtsPaused) await new Promise(r => setTimeout(r, 200));
-        const result = await processarCPFs(null, [cpf]);
-        if(result && result[0]){
-          const r = result[0];
-          switch((r.status||'').toLowerCase()) {
-            case 'success': contadorSuccess++; break;
-            case 'pending': contadorPending++; break;
-            case 'no_auth': contadorSemAutorizacao++; break;
-          }
-          resultadosFGTS.push(r);
-          emitirResultadoPainel(r);
-          processados++;
-          io.emit("progress", { done: processados, total: totalCpfs, counters: { success: contadorSuccess, pending: contadorPending, semAutorizacao: contadorSemAutorizacao } });
-        }
-      };
-
-      cpfs.forEach(cpf => queue.add(() => processarCPF(cpf)));
-      await queue.onIdle();
-      logPainel(`✅ Reprocessamento finalizado para ${cpfs.length} CPFs`);
-    } catch(err) {
-      logPainel(`❌ Erro no reprocessamento: ${err.message}`);
-      console.error("❌ Erro no reprocessamento:", err);
-    }
-  })();
-
-  res.json({ message: `✅ Reprocesso iniciado para ${cpfs.length} CPFs` });
-});
-
-// ===== Mudar fase para não autorizados =====
-app.post("/fgts/mudarFaseNaoAutorizados", async (req, res) => {
-  const ids = req.body.ids || [];
-  if (!ids.length) return res.status(400).json({ message: "Nenhum ID fornecido" });
-  logPainel(`📌 Mudar fase no CRM para IDs: ${ids.join(", ")}`);
-  (async () => {
-    try { 
-      for(const id of ids) {
-        await disparaFluxo(id);
-      }
-      logPainel(`✅ Fase alterada para ${ids.length} registros`); 
-    }
-    catch(err){ 
-      logPainel(`❌ Erro ao mudar fase: ${err.message}`); 
-      console.error(err); 
-    }
-  })();
-  res.json({ message: `✅ Fase alterada para ${ids.length} registros` });
-});
-
-// ===== Atualizar delay dinamicamente =====
-app.post("/fgts/delay", (req,res) => {
-  const novoDelay = parseInt(req.body?.delay,10);
-  if(isNaN(novoDelay)||novoDelay<0) return res.status(400).json({ message: "Delay inválido" });
-  setDelay(novoDelay);
-  io.emit("delayUpdate", DELAY_MS);
-  res.json({ message: `Delay atualizado para ${DELAY_MS}ms` });
-});
-
-// ===== Processar reprocessamento rápido =====
-app.post("/fgts/reprocessar-rapido", async (req, res) => {
-  try {
-    console.log('⚡ Iniciando reprocessamento rápido...');
-    
-    await processarReprocessamentoRapido();
-    
-    res.json({ success: true, message: 'Reprocessamento rápido executado' });
-  } catch (error) {
-    console.error('❌ Erro no reprocessamento rápido:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Limpar cache de um CPF específico =====
-app.post("/fgts/limpar-cache/:cpf", async (req, res) => {
-  try {
-    const { cpf } = req.params;
-    console.log(`🧹 Limpando cache para CPF: ${cpf}`);
-    
-    const resultado = await limparCacheV8(cpf);
-    
-    if (resultado) {
-      res.json({ success: true, message: `Cache limpo para CPF: ${cpf}` });
-    } else {
-      res.status(500).json({ success: false, message: 'Erro ao limpar cache' });
-    }
-  } catch (error) {
-    console.error('❌ Erro ao limpar cache:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Carregar listas do cache =====
-app.get("/fgts/listas", (req, res) => {
-  try {
-    const listas = carregarListasDoCache();
-    res.json({ success: true, listas });
-  } catch (error) {
-    console.error('❌ Erro ao carregar listas:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Visualizar todos os caches =====
-app.get("/fgts/cache/visualizar", (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    
-    const cacheDir = path.join(__dirname, 'cache');
-    const caches = {};
-    
-    // Listar todos os arquivos de cache
-    if (fs.existsSync(cacheDir)) {
-      const arquivos = fs.readdirSync(cacheDir);
-      
-      for (const arquivo of arquivos) {
-        if (arquivo.endsWith('.json')) {
-          const caminhoCompleto = path.join(cacheDir, arquivo);
-          try {
-            const conteudo = fs.readFileSync(caminhoCompleto, 'utf8');
-            caches[arquivo] = {
-              tamanho: conteudo.length,
-              linhas: conteudo.split('\n').length,
-              conteudo: JSON.parse(conteudo)
-            };
-          } catch (err) {
-            caches[arquivo] = {
-              erro: 'Erro ao ler arquivo',
-              detalhes: err.message
-            };
-          }
-        }
-      }
-    }
-    
-    res.json({
-      success: true,
-      cacheDir: cacheDir,
-      arquivos: caches,
-      totalArquivos: Object.keys(caches).length
-    });
-  } catch (error) {
-    console.error('❌ Erro ao visualizar caches:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Visualizar logs de erro =====
-app.get("/fgts/logs/erros", (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 50;
-    const errors = getRecentErrors(limit);
-    
-    res.json({
-      success: true,
-      total: errors.length,
-      errors: errors
-    });
-  } catch (error) {
-    console.error('❌ Erro ao obter logs de erro:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Estatísticas de erros =====
-app.get("/fgts/logs/estatisticas", (req, res) => {
-  try {
-    const stats = getErrorStats();
-    
-    res.json({
-      success: true,
-      statistics: stats
-    });
-  } catch (error) {
-    console.error('❌ Erro ao obter estatísticas:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Limpar logs antigos =====
-app.post("/fgts/logs/limpar", (req, res) => {
-  try {
-    cleanOldLogs();
-    
-    res.json({
-      success: true,
-      message: 'Logs antigos removidos com sucesso'
-    });
-  } catch (error) {
-    console.error('❌ Erro ao limpar logs:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Estatísticas do Cache Persistente =====
-app.get("/fgts/cache/estatisticas", (req, res) => {
-  try {
-    const stats = obterEstatisticasCache();
-    
-    res.json({
-      success: true,
-      statistics: stats
-    });
-  } catch (error) {
-    console.error('❌ Erro ao obter estatísticas do cache:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Limpar Cache Persistente =====
-app.post("/fgts/cache/limpar", (req, res) => {
-  try {
-    const resultado = limparCacheCompleto();
-    
-    if (resultado) {
-      res.json({
-        success: true,
-        message: 'Cache persistente limpo com sucesso'
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao limpar cache persistente'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Erro ao limpar cache persistente:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Resetar Tentativas de Cache =====
-app.post("/fgts/cache/resetar-tentativas", (req, res) => {
-  try {
-    const { cpf } = req.body;
-    
-    if (cpf) {
-      resetarTentativasCache(cpf);
-      res.json({
-        success: true,
-        message: `Tentativas de cache resetadas para CPF: ${cpf}`
-      });
-    } else {
-      resetarTentativasCache();
-      res.json({
-        success: true,
-        message: 'Todas as tentativas de cache resetadas'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Erro ao resetar tentativas de cache:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== Listar Pendentes =====
-app.get("/fgts/cache/pendentes", (req, res) => {
-  try {
-    const pendentes = carregarPendentes();
-    
-    res.json({
-      success: true,
-      pendentes: pendentes,
-      total: pendentes.length
-    });
-  } catch (error) {
-    console.error('❌ Erro ao listar pendentes:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Pausar
-app.post("/fgts/pause", (req,res)=>{
-  fgtsPaused = true;
-  setPause(true);
-  logPainel("⏸️ Processamento pausado pelo usuário");
-  res.json({message:"Pausado"});
-});
-
-// Retomar
-app.post("/fgts/resume", (req,res)=>{
-  fgtsPaused = false;
-  setPause(false);
-  logPainel("▶️ Processamento retomado pelo usuário");
-  res.json({message:"Retomado"});
-});
-
-// ===== Cálculo =====
-app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
-
-// ===== Agendamentos =====
-app.get("/fgts/agendamentos", (req, res) => {
-  // Esta função seria implementada para retornar agendamentos pendentes
-  res.json({ message: "Endpoint de agendamentos - em desenvolvimento" });
-});
-
-// ===== Status do sistema =====
-app.get("/fgts/status", (req, res) => {
-  const agora = new Date();
-  const hora = agora.getHours();
-  const isComercial = hora >= 8 && hora < 22;
+// Simulador
+app.get('/simulador', (req, res) => {
+  console.log('Acessando simulador');
+  const filePath = path.join(__dirname, 'projeto-render/frontend/simulador.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
   
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo simulador.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
+});
+
+// Roteiros Bancos
+app.get('/roteiros', (req, res) => {
+  console.log('Acessando roteiros');
+  const filePath = path.join(__dirname, 'projeto-render/frontend/roteiros-bancos.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo roteiros-bancos.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
+});
+
+// Roteiros Bancos (alternativa)
+app.get('/roteiros-bancos', (req, res) => {
+  console.log('Acessando roteiros-bancos');
+  const filePath = path.join(__dirname, 'projeto-render/frontend/roteiros-bancos.html');
+  console.log('Caminho do arquivo:', filePath);
+  console.log('Arquivo existe:', fs.existsSync(filePath));
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    console.error('Arquivo roteiros-bancos.html não encontrado!');
+    res.status(404).send('Arquivo não encontrado');
+  }
+});
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'projeto-render/frontend')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configuração do Multer para upload de PDFs
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + '.pdf');
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos PDF são permitidos'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
+
+// ===== API ENDPOINTS =====
+
+// Upload e processamento de PDF
+app.post('/api/upload-pdf', upload.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Nenhum arquivo PDF enviado'
+      });
+    }
+
+    console.log('Processando PDF:', req.file.filename);
+    
+    // Processar PDF com GPT
+    const resultado = await gptExtrairJSON(req.file.path);
+    
+    // Limpar arquivo temporário após processamento
+    setTimeout(() => {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Erro ao deletar arquivo:', err);
+      });
+    }, 5000);
+
+    res.json({
+      status: 'success',
+      message: 'PDF processado com sucesso',
+      data: resultado,
+      filename: req.file.filename
+    });
+
+  } catch (error) {
+    console.error('Erro no processamento:', error);
+    
+    // Limpar arquivo em caso de erro
+    if (req.file) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Erro ao deletar arquivo:', err);
+      });
+    }
+
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao processar PDF',
+      error: error.message
+    });
+  }
+});
+
+// Simulação de troco
+app.post('/api/simular-troco', (req, res) => {
+  try {
+    const resultado = calcularTrocoEndpoint(req, res);
+    return resultado;
+  } catch (error) {
+    console.error('Erro na simulação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na simulação',
+      error: error.message
+    });
+  }
+});
+
+// Roteiros bancos
+app.get('/api/roteiros-bancos', (req, res) => {
   res.json({
-    horarioComercial: isComercial,
-    horaAtual: agora.toLocaleString('pt-BR'),
-    delayAtual: DELAY_MS,
-    status: "online"
+    status: 'success',
+    data: RoteiroBancos,
+    total: Object.keys(RoteiroBancos).length
   });
 });
 
-// ===== Configurações =====
-// Carregar configurações
-app.get("/fgts/config", (req, res) => {
-  try {
-    const config = loadConfig();
-    
-    // Adicionar status das credenciais (sem expor valores)
-    const configWithStatus = {
-      ...config,
-      fgtsUser1: process.env.FGTS_USER_1 ? "••••••••••••" : "",
-      fgtsUser2: process.env.FGTS_USER_2 ? "••••••••••••" : "",
-      v8ClientId: process.env.V8_CLIENT_ID ? "••••••••••••" : "",
-      v8Username: process.env.V8_USERNAME ? "••••••••••••" : "",
-      lunasApiKey: process.env.LUNAS_API_KEY ? "••••••••••••••••" : "",
-      lastUpdated: config.lastUpdated
-    };
-    
-    res.json(configWithStatus);
-  } catch (error) {
-    console.error('Erro ao carregar configurações:', error);
-    res.status(500).json({ error: "Erro ao carregar configurações" });
-  }
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'API funcionando',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
-// Salvar configurações
-app.post("/fgts/config", (req, res) => {
-  try {
-    const config = req.body;
-    
-    // Validar configurações
-    const validation = validateConfig(config);
-    if (!validation.valid) {
-      return res.status(400).json({ 
-        success: false, 
-        message: validation.errors.join(', ') 
-      });
-    }
-    
-    // Salvar configurações no arquivo
-    const saved = saveConfig(config);
-    if (!saved) {
-      return res.status(500).json({ 
-        success: false, 
-        message: "Erro ao salvar configurações no arquivo" 
-      });
-    }
-    
-    // Sincronizar com environment variables
-    syncWithEnv();
-    
-    // Atualizar delay se mudou
-    if (config.delayBase !== DELAY_MS) {
-      setDelay(config.delayBase);
-    }
-    
-    // Exportar para arquivo .env (para facilitar deploy no Render)
-    exportToEnv();
-    
-    logPainel(`⚙️ Configurações salvas: Horário ${config.horarioInicio}-${config.horarioFim}, Delay ${config.delayBase}ms`);
-    
-    res.json({ 
-      success: true, 
-      message: "Configurações salvas com sucesso",
-      lastUpdated: config.lastUpdated
-    });
-  } catch (error) {
-    console.error('Erro ao salvar configurações:', error);
-    res.status(500).json({ success: false, message: "Erro ao salvar configurações" });
-  }
-});
-
-// Testar conexões
-app.post("/fgts/test/:api", async (req, res) => {
-  const api = req.params.api;
+// Debug - verificar estrutura de arquivos
+app.get('/api/debug', (req, res) => {
+  const frontendPath = path.join(__dirname, '../frontend');
+  const files = fs.readdirSync(frontendPath);
   
-  try {
-    switch (api) {
-      case 'Fgts':
-        // Testar credenciais FGTS
-        const fgtsUser = process.env.FGTS_USER_1;
-        if (!fgtsUser) {
-          return res.json({ success: false, message: "Credenciais FGTS não configuradas" });
-        }
-        res.json({ success: true, message: "Credenciais FGTS configuradas" });
-        break;
-        
-      case 'V8':
-        // Testar credenciais V8
-        const v8ClientId = process.env.V8_CLIENT_ID;
-        if (!v8ClientId) {
-          return res.json({ success: false, message: "Credenciais V8 não configuradas" });
-        }
-        res.json({ success: true, message: "Credenciais V8 configuradas" });
-        break;
-        
-      case 'Lunas':
-        // Testar credenciais Lunas
-        const lunasKey = process.env.LUNAS_API_KEY;
-        if (!lunasKey) {
-          return res.json({ success: false, message: "Credenciais Lunas não configuradas" });
-        }
-        res.json({ success: true, message: "Credenciais Lunas configuradas" });
-        break;
-        
-      default:
-        res.status(400).json({ success: false, message: "API não reconhecida" });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Erro ao testar conexão" });
-  }
+  res.json({
+    status: 'success',
+    message: 'Debug info',
+    __dirname: __dirname,
+    frontendPath: frontendPath,
+    files: files,
+    simuladorExists: fs.existsSync(path.join(frontendPath, 'simulador.html')),
+    roteirosExists: fs.existsSync(path.join(frontendPath, 'roteiros-bancos.html'))
+  });
 });
 
-// Backup e Restore de configurações
-app.post("/fgts/config/backup", (req, res) => {
-  try {
-    const config = loadConfig();
-    const backupData = {
-      ...config,
-      backupDate: new Date().toISOString(),
-      version: "1.0"
-    };
-    
-    res.json({ 
-      success: true, 
-      message: "Backup criado com sucesso",
-      data: backupData
+// Fallback para rotas não encontradas
+app.get('*', (req, res) => {
+  console.log('Rota não encontrada:', req.path);
+  
+  // Se for uma rota de API, retornar 404
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'API endpoint não encontrado',
+      path: req.path
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Erro ao criar backup" });
   }
+  
+  // Para outras rotas, servir index.html
+  res.sendFile(path.join(__dirname, 'projeto-render/frontend/index.html'));
 });
 
-app.post("/fgts/config/restore", (req, res) => {
-  try {
-    const { config } = req.body;
-    
-    if (!config) {
-      return res.status(400).json({ success: false, message: "Configuração não fornecida" });
-    }
-    
-    const saved = saveConfig(config);
-    if (saved) {
-      syncWithEnv();
-      logPainel("🔄 Configurações restauradas do backup");
-      res.json({ success: true, message: "Configurações restauradas com sucesso" });
-    } else {
-      res.status(500).json({ success: false, message: "Erro ao restaurar configurações" });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Erro ao restaurar configurações" });
-  }
+// ===== INICIALIZAÇÃO =====
+
+app.listen(PORT, () => {
+  console.log('🚀 ===== SERVIDOR RENDER INICIADO =====');
+  console.log(`📡 Servidor rodando em: http://localhost:${PORT}`);
+  console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📁 Diretório: ${__dirname}`);
+  console.log('===============================================');
+  console.log('');
+  console.log('📋 Páginas disponíveis:');
+  console.log(`   🏠 Página Inicial: http://localhost:${PORT}/`);
+  console.log(`   🏛️ Simulador: http://localhost:${PORT}/simulador`);
+  console.log(`   🏦 Roteiros: http://localhost:${PORT}/roteiros`);
+  console.log('');
+  console.log('🔗 APIs disponíveis:');
+  console.log(`   📄 Upload PDF: POST http://localhost:${PORT}/api/upload-pdf`);
+  console.log(`   🧮 Simular Troco: POST http://localhost:${PORT}/api/simular-troco`);
+  console.log(`   🏦 Roteiros: GET http://localhost:${PORT}/api/roteiros-bancos`);
+  console.log(`   ❤️ Health: GET http://localhost:${PORT}/api/health`);
+  console.log('===============================================');
 });
 
-// Exportar configurações para Render
-app.get("/fgts/config/export", (req, res) => {
-  try {
-    const exported = exportToEnv();
-    if (exported) {
-      res.json({ 
-        success: true, 
-        message: "Configurações exportadas para config-export.env",
-        file: "config-export.env"
-      });
-    } else {
-      res.status(500).json({ success: false, message: "Erro ao exportar configurações" });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Erro ao exportar configurações" });
-  }
-});
-
-// ===== Inicializar Configurações =====
-initializeConfig();
-
-// ===== Servidor =====
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));
+module.exports = app;

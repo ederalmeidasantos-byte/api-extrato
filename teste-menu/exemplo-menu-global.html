@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo - Menu Global Automático</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .feature-item {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #00d4aa;
+        }
+        
+        .feature-item h4 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-item p {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 Menu Global Automático</h1>
+            <p>Sistema que carrega o menu automaticamente em qualquer página</p>
+        </div>
+
+        <div class="card">
+            <h3>🎯 Como Funciona</h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>🔍 Detecção Automática</h4>
+                    <p>Verifica se a página já tem menu. Se não tiver, carrega automaticamente.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>⚡ Carregamento Dinâmico</h4>
+                    <p>Carrega o HTML e CSS do menu sem modificar o código da página.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎨 Estilo Consistente</h4>
+                    <p>Mantém o mesmo visual em todas as páginas automaticamente.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📱 Responsivo</h4>
+                    <p>Adapta-se a diferentes tamanhos de tela automaticamente.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Como Usar</h3>
+            <p>Para usar o menu global em qualquer página, basta incluir este script:</p>
+            
+            <div class="code-block">
+&lt;!-- Incluir antes do &lt;/body&gt; --&gt;
+&lt;script src="/menu-global.js"&gt;&lt;/script&gt;
+            </div>
+            
+            <p><strong>Isso é tudo!</strong> O menu será carregado automaticamente.</p>
+        </div>
+
+        <div class="card">
+            <h3>✅ Vantagens</h3>
+            <ul style="margin-left: 1.5rem; line-height: 1.8;">
+                <li><strong>Zero configuração:</strong> Funciona em qualquer página</li>
+                <li><strong>Não interfere:</strong> Se a página já tem menu, não faz nada</li>
+                <li><strong>Manutenção fácil:</strong> Uma alteração afeta todas as páginas</li>
+                <li><strong>Performance:</strong> Carrega apenas quando necessário</li>
+                <li><strong>Compatível:</strong> Funciona com qualquer estrutura de página</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>🧪 Teste o Menu</h3>
+            <p>Passe o mouse na lateral esquerda da tela para ver o menu em ação!</p>
+            <p>O menu foi carregado automaticamente por este script.</p>
+        </div>
+    </div>
+
+    <!-- ===== SISTEMA GLOBAL DE MENU ===== -->
+    <!-- Este script carrega o menu automaticamente -->
+    <script src="/menu-global.js"></script>
+</body>
+</html>

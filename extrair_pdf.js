@@ -186,52 +186,56 @@ function extractJsonFromText(raw) {
 // ================== Prompt ==================
 function buildPrompt(isContingencia = false) {
   let base = `
-Você é um assistente que extrai **somente os empréstimos consignados ativos** de um extrato e retorna **JSON válido**.
+Você é um especialista em extrair dados de extratos do INSS. Extraia APENAS empréstimos consignados ATIVOS e retorne JSON válido.
 
-⚠️ Regras:
-- Retorne SOMENTE JSON.
-- Inclua todos os contratos ativos (exceto RMC/RCC).
-- Valores dentro de contratos devem vir crus (sem formatação BR).
-- O nome do benefício deve vir exatamente como está no documento.
-- O campo "banco" deve conter **somente o CÓDIGO do banco** (ex: "237"), nunca o nome.
-- Se não houver valores, use null ou 0.
-- Não invente chaves diferentes, siga o esquema fielmente.
+🔍 INSTRUÇÕES CRÍTICAS:
+1. Retorne APENAS JSON válido, sem texto adicional
+2. Inclua TODOS os contratos ativos (exceto RMC/RCC)
+3. Valores numéricos: use números puros (ex: 1500.50, não "R$ 1.500,50")
+4. Campo "banco": APENAS o código numérico (ex: "237", "104", "341")
+5. Se valor não existir, use 0 ou null
+6. Siga EXATAMENTE o esquema JSON fornecido
 
-⚠️ Atenção especial às datas:
-- **DATA INCLUSÃO** → salvar em \`data_inclusao\` no formato DD/MM/YYYY.
-- **INÍCIO DE DESCONTO** (competência MM/YYYY) → salvar em \`competencia_inicio_desconto\`.
-- **PRIMEIRO DESCONTO** (DD/MM/YYYY) → salvar em \`primeiro_desconto\`.
+📅 DATAS IMPORTANTES:
+- DATA INCLUSÃO → campo "data_inclusao" (DD/MM/AAAA)
+- INÍCIO DESCONTO → campo "competencia_inicio_desconto" (MM/AAAA)  
+- PRIMEIRO DESCONTO → campo "primeiro_desconto" (DD/MM/AAAA)
 
-❌ NÃO confundir "DATA INCLUSÃO" com "INÍCIO DE DESCONTO".
-❌ NÃO usar a coluna errada.
+⚠️ NÃO confunda "DATA INCLUSÃO" com "INÍCIO DE DESCONTO"
+⚠️ NÃO use formatação brasileira nos números
+⚠️ NÃO invente campos que não existem no esquema
+
 `;
 
   if (isContingencia) {
     base += `
-⚠️ Este extrato é de CONTINGÊNCIA (OffLine).
-Inclua no JSON: "origem": "CONTINGENCIA".
-⚠️ Para CONTINGÊNCIA: use exatamente o valor da coluna TAXA como taxa_juros_mensal. NÃO recalcule. IOF pode ser igual à taxa se indicado no extrato.
+🚨 EXTRATO DE CONTINGÊNCIA (OffLine):
+- origem: "CONTINGENCIA"
+- Use a taxa exata da coluna TAXA como taxa_juros_mensal
+- NÃO recalcule taxas
+- IOF pode ser igual à taxa se indicado
 `;
   } else {
     base += `
-⚠️ Este extrato é do INSS oficial.
-Inclua no JSON: "origem": "INSS".
+🏛️ EXTRATO OFICIAL INSS:
+- origem: "INSS"
+- Use taxas conforme extraídas do documento
 `;
   }
 
   return base + `
-Esquema esperado:
+📋 ESQUEMA JSON OBRIGATÓRIO:
 {
   "origem": "INSS|CONTINGENCIA",
-  "cliente": "Nome exato",
+  "cliente": "Nome completo do beneficiário",
   "beneficio": {
-    "nb": "string",
+    "nb": "Número do benefício (apenas números)",
     "bloqueio_beneficio": "SIM|NAO",
-    "meio_pagamento": "string",
-    "banco_pagamento": "string",
-    "agencia": "string",
-    "conta": "string",
-    "nomeBeneficio": "string",
+    "meio_pagamento": "PIX|TED|DOC|etc",
+    "banco_pagamento": "Nome do banco",
+    "agencia": "Número da agência",
+    "conta": "Número da conta",
+    "nomeBeneficio": "Nome exato do benefício",
     "codigoBeneficio": null
   },
   "margens": {
@@ -242,8 +246,8 @@ Esquema esperado:
   },
   "contratos": [
     {
-      "contrato": "string",
-      "banco": "string",
+      "contrato": "Número do contrato",
+      "banco": "Código do banco (apenas números)",
       "situacao": "ATIVO",
       "data_inclusao": "DD/MM/AAAA",
       "competencia_inicio_desconto": "MM/AAAA",
@@ -259,7 +263,9 @@ Esquema esperado:
     }
   ],
   "data_extrato": "DD/MM/AAAA"
-}`;
+}
+
+IMPORTANTE: Retorne APENAS o JSON, sem explicações ou texto adicional.`;
 }
 
 // ================== GPT Call ==================
@@ -276,36 +282,46 @@ async function gptExtrairJSON(pdfPath, isContingencia) {
 
   let response;
   try {
-    response = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
+    // Tentar primeiro com gpt-4o-mini (mais estável)
+    response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
         {
           role: "user",
           content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
-            { type: "input_file", file_id: uploaded.id }
+            { type: "text", text: buildPrompt(isContingencia) },
+            { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
           ]
         }
-      ]
+      ],
+      max_tokens: 4000,
+      temperature: 0.1
     });
   } catch (err) {
-    console.warn("⚠️ Falha no gpt-4.1-mini, tentando fallback gpt-4o-mini");
-    response = await openai.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: buildPrompt(isContingencia) },
-            { type: "input_file", file_id: uploaded.id }
-          ]
-        }
-      ]
-    });
+    console.warn("⚠️ Falha no gpt-4o-mini, tentando fallback com vision");
+    try {
+      response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: buildPrompt(isContingencia) },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${fs.readFileSync(pdfPath).toString('base64')}` } }
+            ]
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+    } catch (err2) {
+      console.error("❌ Falha em ambos os modelos:", err2.message);
+      throw new Error("Falha na extração com GPT: " + err2.message);
+    }
   }
 
   console.log("✅ [GPT] Resposta recebida.");
-  const raw = response.output_text;
+  const raw = response.choices[0]?.message?.content || "";
 
   let parsed;
   try {

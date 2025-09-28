@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel FGTS - Lunas Digital</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            margin-bottom: 1.5rem;
+        }
+        
+        .upload-section {
+            text-align: center;
+            padding: 2rem;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            background: #f9fafb;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-section.dragover {
+            border-color: #00d4aa;
+            background: #f0fdfa;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn { 
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.9rem;
+            margin: 0.25rem;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        
+        .progress-container {
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+        
+        .log-container { 
+            background: #1e293b; 
+            color: #e2e8f0; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            margin-top: 1rem;
+        }
+        
+        .log-entry { 
+            margin-bottom: 0.25rem; 
+            padding: 0.25rem 0; 
+            border-bottom: 1px solid #334155; 
+        }
+        
+        .status-online { color: #10b981; }
+        .status-offline { color: #ef4444; }
+        .status-warning { color: #f59e0b; }
+        
+        .file-info {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f0fdfa;
+            border-radius: 8px;
+            border: 1px solid #00d4aa;
+        }
+        
+        .file-info h4 {
+            color: #00d4aa;
+            margin-bottom: 0.5rem;
+        }
+        
+        .file-info p {
+            margin: 0.25rem 0;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Painel FGTS</h1>
+            <p>Sistema de consulta em lote para saldo FGTS</p>
+        </div>
+
+        <div class="card">
+            <h3>📂 Upload de Arquivo CSV</h3>
+            <div class="upload-section" id="uploadSection">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <h4>Arraste e solte seu arquivo CSV aqui</h4>
+                <p>ou clique para selecionar</p>
+                <input type="file" id="fileInput" class="file-input" accept=".csv">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    Selecionar Arquivo
+                </button>
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                <h4>📄 Informações do Arquivo</h4>
+                <p id="fileName">Nome: -</p>
+                <p id="fileSize">Tamanho: -</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎛️ Controles de Processamento</h3>
+            <div class="controls">
+                <button class="btn btn-success" id="startBtn" disabled onclick="iniciarProcessamento()">
+                    ▶️ Iniciar Processamento
+                </button>
+                <button class="btn btn-warning" onclick="pausarProcessamento()">
+                    ⏸️ Pausar
+                </button>
+                <button class="btn btn-danger" onclick="cancelarProcessamento()">
+                    ✖️ Cancelar
+                </button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0% - Aguardando início</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Resultados</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+                <div style="padding: 1rem; background: #f0fdfa; border-radius: 8px; border: 1px solid #10b981;">
+                    <h4 style="color: #10b981; margin-bottom: 0.5rem;">✅ Sucessos</h4>
+                    <div id="sucessos">0</div>
+                </div>
+                <div style="padding: 1rem; background: #fef3c7; border-radius: 8px; border: 1px solid #f59e0b;">
+                    <h4 style="color: #f59e0b; margin-bottom: 0.5rem;">⏳ Pendentes</h4>
+                    <div id="pendentes">0</div>
+                </div>
+                <div style="padding: 1rem; background: #fee2e2; border-radius: 8px; border: 1px solid #ef4444;">
+                    <h4 style="color: #ef4444; margin-bottom: 0.5rem;">❌ Erros</h4>
+                    <div id="erros">0</div>
+                </div>
+                <div style="padding: 1rem; background: #f3f4f6; border-radius: 8px; border: 1px solid #6b7280;">
+                    <h4 style="color: #6b7280; margin-bottom: 0.5rem;">🗑️ Descartados</h4>
+                    <div id="descartados">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Logs do Sistema</h3>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry status-online">[Sistema] Painel FGTS carregado</div>
+                <div class="log-entry status-warning">[Info] Selecione um arquivo CSV para começar</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MENU SEPARADO ===== -->
+    <!-- Zona de Hover para abrir menu -->
+    <div class="hover-zone" title="Passe o mouse aqui para abrir o menu"></div>
+
+    <!-- Barra Lateral de Navegação -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title" id="sidebarTitle">
+                <span id="sidebarIcon">📊</span>
+                <span id="sidebarText">Painel FGTS</span>
+            </h2>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-content">
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/teste-menu" class="nav-link">
+                        🏠 <span class="nav-text">Página Inicial</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-fgts" class="nav-link active">
+                        📊 <span class="nav-text">Painel FGTS</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-dashboard" class="nav-link">
+                        📈 <span class="nav-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-configuracoes" class="nav-link">
+                        ⚙️ <span class="nav-text">Configurações</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-logs" class="nav-link">
+                        📋 <span class="nav-text">Logs</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/pagina-cache" class="nav-link">
+                        💾 <span class="nav-text">Cache</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- CSS do Menu -->
+    <style>
+    /* Barra Lateral de Navegação */
+    .sidebar { 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 60px; 
+        height: 100vh; 
+        background: #ffffff; 
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); 
+        transition: all 0.3s ease; 
+        z-index: 1000; 
+        overflow-y: auto; 
+        border-right: 1px solid #e5e7eb;
+    }
+    .sidebar.open { 
+        left: 0; 
+        width: 400px; 
+    }
+
+    /* Zona de Hover para abrir menu */
+    .hover-zone {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 100vh;
+        z-index: 999;
+        background: transparent;
+    }
+
+    .hover-zone:hover + .sidebar {
+        width: 400px !important;
+    }
+
+    .hover-zone:hover + .sidebar .sidebar-header {
+        opacity: 1 !important;
+    }
+
+    .hover-zone:hover + .sidebar .nav-link .nav-text {
+        opacity: 1 !important;
+    }
+    .sidebar-header { 
+        padding: 1rem; 
+        border-bottom: 1px solid #e5e7eb; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 60px;
+    }
+
+    .sidebar-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -20%;
+        right: -20%;
+        height: 100%;
+        background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        z-index: -1;
+    }
+    .sidebar.open .sidebar-header {
+        opacity: 1;
+    }
+    .sidebar-title { 
+        font-size: 1.25rem; 
+        font-weight: 600; 
+        color: #ffffff; 
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #ffffff; }
+    .sidebar-close:hover { color: #f1f5f9; }
+    .sidebar-content { 
+        padding: 0.5rem 1rem; 
+        background: #ffffff;
+        margin-top: -0.5rem;
+    }
+    .nav-menu { 
+        list-style: none; 
+        padding: 0;
+        margin: 0;
+    }
+    .nav-item { 
+        margin-bottom: 0.5rem; 
+    }
+    .nav-link { 
+        display: flex; 
+        align-items: center;
+        padding: 0.75rem; 
+        color: #64748b; 
+        text-decoration: none; 
+        border-radius: 8px; 
+        transition: all 0.3s ease; 
+        border: 1px solid transparent;
+        white-space: nowrap;
+        margin-bottom: 0.25rem;
+    }
+
+    .nav-link .nav-text {
+        margin-left: 0.75rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    .sidebar.open .nav-link .nav-text {
+        opacity: 1;
+    }
+    .nav-link:hover { 
+        background: #f1f5f9; 
+        color: #1e293b; 
+        border: 1px solid #e2e8f0;
+    }
+    .nav-link.active { 
+        background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+        color: white; 
+        border: 1px solid #00d4aa;
+    }
+
+    /* Estilo dos ícones - apenas quando fechado */
+    .sidebar:not(.open) .nav-link {
+        justify-content: center;
+        padding: 0.75rem 0.5rem;
+        margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .sidebar:not(.open) .nav-link span:first-child {
+        font-size: 1.1rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        background: #f1f5f9;
+        color: #64748b;
+        transition: all 0.3s ease;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sidebar:not(.open) .nav-link.active span:first-child {
+        background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        color: white;
+        position: relative;
+    }
+
+    .sidebar:not(.open) .nav-link.active span:first-child::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -18px;
+        right: -18px;
+        height: calc(100% + 4px);
+        background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        border-radius: 4px;
+        z-index: -1;
+    }
+
+    .sidebar:not(.open) .nav-link:hover span:first-child {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    @media (max-width: 768px) { 
+        .sidebar { width: 100%; right: -100%; }
+    }
+    </style>
+
+    <!-- JavaScript do Menu -->
+    <script src="/menu.js"></script>
+    
+    <!-- JavaScript da Página -->
+    <script>
+        let currentFile = null;
+        let isProcessing = false;
+        let isPaused = false;
+
+        // Função para adicionar log
+        function adicionarLog(mensagem) {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry status-online';
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${mensagem}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Função para atualizar progresso
+        function atualizarProgresso(percentual, texto) {
+            document.getElementById('progressFill').style.width = percentual + '%';
+            document.getElementById('progressText').textContent = texto;
+        }
+
+        // Função para atualizar contadores
+        function atualizarContadores(sucessos, pendentes, erros, descartados) {
+            document.getElementById('sucessos').textContent = sucessos;
+            document.getElementById('pendentes').textContent = pendentes;
+            document.getElementById('erros').textContent = erros;
+            document.getElementById('descartados').textContent = descartados;
+        }
+
+        // Função para iniciar processamento
+        function iniciarProcessamento() {
+            if (!currentFile) {
+                alert('Por favor, selecione um arquivo CSV primeiro!');
+                return;
+            }
+            
+            isProcessing = true;
+            isPaused = false;
+            adicionarLog('🚀 Iniciando processamento do arquivo...');
+            atualizarProgresso(0, '0% - Processando...');
+            
+            // Simular processamento
+            let progresso = 0;
+            const intervalo = setInterval(() => {
+                if (!isProcessing || isPaused) return;
+                
+                progresso += Math.random() * 10;
+                if (progresso > 100) progresso = 100;
+                
+                atualizarProgresso(progresso, `${Math.round(progresso)}% - Processando...`);
+                
+                // Simular resultados
+                const sucessos = Math.floor(Math.random() * 50);
+                const pendentes = Math.floor(Math.random() * 20);
+                const erros = Math.floor(Math.random() * 10);
+                const descartados = Math.floor(Math.random() * 5);
+                
+                atualizarContadores(sucessos, pendentes, erros, descartados);
+                
+                if (progresso >= 100) {
+                    clearInterval(intervalo);
+                    isProcessing = false;
+                    adicionarLog('✅ Processamento concluído!');
+                    atualizarProgresso(100, '100% - Concluído');
+                }
+            }, 500);
+        }
+
+        // Função para pausar processamento
+        function pausarProcessamento() {
+            if (isProcessing) {
+                isPaused = !isPaused;
+                adicionarLog(isPaused ? '⏸️ Processamento pausado' : '▶️ Processamento retomado');
+            }
+        }
+
+        // Função para cancelar processamento
+        function cancelarProcessamento() {
+            isProcessing = false;
+            isPaused = false;
+            adicionarLog('❌ Processamento cancelado');
+            atualizarProgresso(0, '0% - Cancelado');
+            atualizarContadores(0, 0, 0, 0);
+        }
+
+        // Aguardar DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadSection = document.getElementById('uploadSection');
+            
+            // Event listener para seleção de arquivo
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && (file.type === 'text/csv' || file.name.endsWith('.csv'))) {
+                    currentFile = file;
+                    document.getElementById('fileName').textContent = `Nome: ${file.name}`;
+                    document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
+                    document.getElementById('fileInfo').style.display = 'block';
+                    document.getElementById('startBtn').disabled = false;
+                    adicionarLog(`📁 Arquivo selecionado: ${file.name}`);
+                } else {
+                    alert('Por favor, selecione um arquivo CSV válido!');
+                }
+            });
+            
+            // Drag and drop
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+            
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        currentFile = file;
+                        document.getElementById('fileName').textContent = `Nome: ${file.name}`;
+                        document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
+                        document.getElementById('fileInfo').style.display = 'block';
+                        document.getElementById('startBtn').disabled = false;
+                        adicionarLog(`📁 Arquivo arrastado: ${file.name}`);
+                    } else {
+                        alert('Por favor, selecione um arquivo CSV válido!');
+                    }
+                }
+            });
+            
+            // Inicialização
+            adicionarLog('📊 Painel FGTS carregado');
+            adicionarLog('💡 Selecione um arquivo CSV para começar');
+        });
+    </script>
+</body>
+</html>

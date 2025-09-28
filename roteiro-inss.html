@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro Operacional INSS - Lunas Digital</title>
+    <script src="menu.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .header p { 
+            color: #64748b; 
+            font-size: 1.1rem; 
+        }
+        
+        .stats-overview { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 1rem; 
+            margin-bottom: 2rem; 
+        }
+        
+        .stat-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            text-align: center; 
+            border-left: 4px solid #00d4aa; 
+        }
+        
+        .stat-card h3 { 
+            color: #1e293b; 
+            font-size: 1.5rem; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .stat-card p { 
+            color: #64748b; 
+            font-size: 0.9rem; 
+        }
+        
+        .main-content { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 1.5rem; 
+            margin-bottom: 2rem; 
+        }
+        
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1.2rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+        }
+        
+        .card h3 { 
+            color: #1e293b; 
+            margin-bottom: 0.8rem; 
+            font-size: 1.1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+        }
+        
+        .search-section { 
+            border: 2px dashed #cbd5e1; 
+            border-radius: 8px; 
+            padding: 1.2rem; 
+            text-align: center; 
+            transition: all 0.3s ease; 
+        }
+        
+        .search-section:hover { 
+            border-color: #00d4aa; 
+            background: #f0fdfa; 
+        }
+        
+        .search-container { 
+            display: flex; 
+            gap: 0.8rem; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            margin-bottom: 1rem; 
+        }
+        
+        .search-input { 
+            flex: 1; 
+            min-width: 250px; 
+            padding: 0.75rem 1rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 8px; 
+            font-size: 0.875rem; 
+            transition: all 0.3s ease; 
+        }
+        
+        .search-input:focus { 
+            outline: none; 
+            border-color: #5a67d8; 
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.1); 
+        }
+        
+        .btn { 
+            padding: 0.6rem 1.2rem; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.85rem; 
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+        }
+        
+        .btn-secondary { 
+            background: #64748b; 
+            color: white; 
+        }
+        
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); 
+        }
+        
+        .btn:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            transform: none; 
+        }
+        
+        .category-filters { 
+            display: flex; 
+            gap: 0.5rem; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+        }
+        
+        .category-btn { 
+            padding: 0.5rem 1rem; 
+            background: white; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-size: 0.8rem; 
+            font-weight: 500; 
+            transition: all 0.3s ease; 
+        }
+        
+        .category-btn:hover, .category-btn.active { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border-color: #00d4aa; 
+        }
+        
+        .results-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+            gap: 1rem; 
+            margin-top: 1rem; 
+        }
+        
+        .procedimento-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            border-left: 4px solid #00d4aa; 
+            min-width: 250px; 
+            max-height: 400px; 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 0.3s, box-shadow 0.3s; 
+        }
+        
+        .procedimento-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); 
+        }
+        
+        .card-header { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 1rem; 
+            border-bottom: 1px solid #e2e8f0; 
+            border-radius: 8px 8px 0 0; 
+            margin: -1rem -1rem 1rem -1rem; 
+        }
+        
+        .card-title { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .codigo { 
+            background: #5a67d8; 
+            color: white; 
+            padding: 0.25rem 0.75rem; 
+            border-radius: 15px; 
+            font-weight: bold; 
+            font-size: 0.75rem; 
+        }
+        
+        .prazo { 
+            background: #10b981; 
+            color: white; 
+            padding: 0.25rem 0.75rem; 
+            border-radius: 15px; 
+            font-size: 0.75rem; 
+        }
+        
+        .nome { 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            color: #1e293b; 
+            margin-bottom: 0.25rem; 
+        }
+        
+        .descricao { 
+            color: #64748b; 
+            font-size: 0.9rem; 
+            line-height: 1.4; 
+        }
+        
+        .card-body { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .documentos { 
+            margin-bottom: 1rem; 
+        }
+        
+        .documentos h4 { 
+            color: #1e293b; 
+            margin-bottom: 0.5rem; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+        }
+        
+        .documentos-list { 
+            list-style: none; 
+            padding-left: 0; 
+            font-size: 0.8rem; 
+        }
+        
+        .documentos-list li { 
+            padding: 0.25rem 0; 
+            padding-left: 1.25rem; 
+            position: relative; 
+            color: #475569; 
+        }
+        
+        .documentos-list li:before { 
+            content: "📄"; 
+            position: absolute; 
+            left: 0; 
+            font-size: 0.7rem; 
+        }
+        
+        .no-results { 
+            text-align: center; 
+            padding: 2rem; 
+            color: #64748b; 
+            font-size: 1rem; 
+            grid-column: 1 / -1; 
+        }
+        
+        /* Barra Lateral de Configurações */
+        .sidebar { 
+            position: fixed; 
+            top: 0; 
+            right: -400px; 
+            width: 400px; 
+            height: 100vh; 
+            background: white; 
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1); 
+            transition: right 0.3s ease; 
+            z-index: 1000; 
+            overflow-y: auto; 
+        }
+        
+        .sidebar.open { 
+            right: 0; 
+        }
+        
+        .sidebar-header { 
+            padding: 1.5rem; 
+            border-bottom: 1px solid #e2e8f0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+        }
+        
+        .sidebar-title { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            color: white; 
+        }
+        
+        .sidebar-close { 
+            background: none; 
+            border: none; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            color: white; 
+        }
+        
+        .sidebar-content { 
+            padding: 1.5rem; 
+        }
+        
+        .config-section { 
+            margin-bottom: 2rem; 
+        }
+        
+        .config-section h3 { 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            color: #1e293b; 
+            margin-bottom: 1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+        }
+        
+        .config-group { 
+            margin-bottom: 1rem; 
+        }
+        
+        .config-group label { 
+            display: block; 
+            font-weight: 500; 
+            color: #374151; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .config-group input, .config-group select { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            font-size: 0.9rem; 
+        }
+        
+        .config-group input:focus, .config-group select:focus { 
+            outline: none; 
+            border-color: #00d4aa; 
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1); 
+        }
+        
+        .config-actions { 
+            display: flex; 
+            gap: 0.5rem; 
+            margin-top: 1rem; 
+        }
+        
+        .btn-test { 
+            background: #3b82f6; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-test:hover { 
+            background: #2563eb; 
+        }
+        
+        .btn-save { 
+            background: #10b981; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-save:hover { 
+            background: #059669; 
+        }
+        
+        .btn-cancel { 
+            background: #6b7280; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+        }
+        
+        .btn-cancel:hover { 
+            background: #4b5563; 
+        }
+        
+        /* Botão Toggle da Sidebar */
+        .sidebar-toggle { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 1001; 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 50%; 
+            width: 50px; 
+            height: 50px; 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); 
+            transition: all 0.3s ease; 
+        }
+        
+        .sidebar-toggle:hover { 
+            transform: scale(1.1); 
+            box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4); 
+        }
+        
+        @media (max-width: 1200px) { 
+            .results-grid { 
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            }
+        }
+        
+        @media (max-width: 768px) { 
+            .results-grid { 
+                grid-template-columns: 1fr; 
+            }
+            .search-container { 
+                flex-direction: column; 
+            }
+            .search-input { 
+                min-width: 100%; 
+            }
+            .card-title { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 0.5rem; 
+            }
+            .sidebar { 
+                width: 100%; 
+                right: -100%; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Roteiro Operacional INSS</h1>
+            <p>Sistema de consulta de procedimentos e benefícios do INSS</p>
+        </div>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3 id="totalProcedimentos">20</h3>
+                <p>Total de Procedimentos</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="procedimentosEncontrados">20</h3>
+                <p>Encontrados</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="aposentadorias">8</h3>
+                <p>Aposentadorias</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="auxilios">6</h3>
+                <p>Auxílios</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="pensoes">3</h3>
+                <p>Pensões</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="bpc">3</h3>
+                <p>BPC</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="card">
+                <h3>🔍 Busca de Procedimentos</h3>
+                <div class="search-section">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Digite o código, nome ou descrição do procedimento...">
+                        <button id="searchBtn" class="btn btn-primary">🔍 Buscar</button>
+                        <button id="clearBtn" class="btn btn-secondary">🗑️ Limpar</button>
+                    </div>
+                    
+                    <div class="category-filters">
+                        <button class="category-btn active" data-category="all">Todos</button>
+                        <button class="category-btn" data-category="aposentadoria">Aposentadorias</button>
+                        <button class="category-btn" data-category="auxilio">Auxílios</button>
+                        <button class="category-btn" data-category="pensao">Pensões</button>
+                        <button class="category-btn" data-category="bpc">BPC</button>
+                        <button class="category-btn" data-category="rural">Rural</button>
+                        <button class="category-btn" data-category="revisao">Revisões</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Resultados</h3>
+                <div id="results" class="results-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão Toggle da Sidebar -->
+    <button class="sidebar-toggle" id="sidebarToggle" title="Configurações">
+        ⚙️
+    </button>
+
+    <!-- Barra Lateral de Configurações -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title">⚙️ Configurações INSS</h2>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-content">
+            <!-- Seção de Filtros Avançados -->
+            <div class="config-section">
+                <h3>🔍 Filtros Avançados</h3>
+                <div class="config-group">
+                    <label>Prazo Mínimo (dias)</label>
+                    <input type="number" id="prazoMin" min="1" max="365" placeholder="Ex: 5">
+                </div>
+                <div class="config-group">
+                    <label>Prazo Máximo (dias)</label>
+                    <input type="number" id="prazoMax" min="1" max="365" placeholder="Ex: 90">
+                </div>
+                <div class="config-group">
+                    <label>Documentos Mínimos</label>
+                    <input type="number" id="docsMin" min="1" max="20" placeholder="Ex: 3">
+                </div>
+            </div>
+
+            <!-- Seção de Exportação -->
+            <div class="config-section">
+                <h3>📤 Exportação</h3>
+                <div class="config-actions">
+                    <button class="btn-test" id="exportCSV">📄 Exportar CSV</button>
+                    <button class="btn-test" id="exportPDF">📋 Gerar PDF</button>
+                </div>
+            </div>
+
+            <!-- Seção de Estatísticas -->
+            <div class="config-section">
+                <h3>📊 Estatísticas</h3>
+                <div class="config-actions">
+                    <button class="btn-test" id="showStats">📈 Ver Estatísticas</button>
+                    <button class="btn-test" id="resetStats">🔄 Resetar</button>
+                </div>
+                <div id="statsDetails" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b; display: none;">
+                    <!-- Estatísticas detalhadas aparecerão aqui -->
+                </div>
+            </div>
+
+            <!-- Ações Gerais -->
+            <div class="config-actions">
+                <button class="btn-save" id="saveSettings">💾 Salvar</button>
+                <button class="btn-cancel" id="cancelSettings">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { procedimentosINSS, encontrarProcedimento, buscarPorCategoria, listarTodosProcedimentos } from './roteiro-inss.js';
+
+        let procedimentosFiltrados = procedimentosINSS;
+        let categoriaAtiva = 'all';
+        let filtrosAvancados = {
+            prazoMin: null,
+            prazoMax: null,
+            docsMin: null
+        };
+
+        // Elementos DOM
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultsDiv = document.getElementById('results');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+        const totalProcedimentos = document.getElementById('totalProcedimentos');
+        const procedimentosEncontrados = document.getElementById('procedimentosEncontrados');
+        const aposentadorias = document.getElementById('aposentadorias');
+        const auxilios = document.getElementById('auxilios');
+        const pensoes = document.getElementById('pensoes');
+        const bpc = document.getElementById('bpc');
+
+        // Elementos da Sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const prazoMin = document.getElementById('prazoMin');
+        const prazoMax = document.getElementById('prazoMax');
+        const docsMin = document.getElementById('docsMin');
+        const exportCSV = document.getElementById('exportCSV');
+        const exportPDF = document.getElementById('exportPDF');
+        const showStats = document.getElementById('showStats');
+        const resetStats = document.getElementById('resetStats');
+        const statsDetails = document.getElementById('statsDetails');
+
+        // Função para renderizar procedimentos
+        function renderizarProcedimentos(procedimentos) {
+            if (procedimentos.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">Nenhum procedimento encontrado com os critérios de busca.</div>';
+                return;
+            }
+
+            const html = procedimentos.map(proc => `
+                <div class="procedimento-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div>
+                                <div class="nome">${proc.nome}</div>
+                                <div class="descricao">${proc.descricao}</div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                <span class="codigo">${proc.codigo}</span>
+                                <span class="prazo">${proc.prazo}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="documentos">
+                            <h4>📋 Documentos Necessários:</h4>
+                            <ul class="documentos-list">
+                                ${proc.documentos.map(doc => `<li>${doc}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Função para atualizar estatísticas
+        function atualizarEstatisticas() {
+            const total = procedimentosINSS.length;
+            const encontrados = procedimentosFiltrados.length;
+            
+            totalProcedimentos.textContent = total;
+            procedimentosEncontrados.textContent = encontrados;
+            
+            // Contar por categoria
+            const aposentadoriasCount = procedimentosINSS.filter(p => 
+                p.nome.toLowerCase().includes('aposentadoria')
+            ).length;
+            const auxiliosCount = procedimentosINSS.filter(p => 
+                p.nome.toLowerCase().includes('auxílio')
+            ).length;
+            const pensoesCount = procedimentosINSS.filter(p => 
+                p.nome.toLowerCase().includes('pensão')
+            ).length;
+            const bpcCount = procedimentosINSS.filter(p => 
+                p.nome.toLowerCase().includes('bpc')
+            ).length;
+            
+            aposentadorias.textContent = aposentadoriasCount;
+            auxilios.textContent = auxiliosCount;
+            pensoes.textContent = pensoesCount;
+            bpc.textContent = bpcCount;
+        }
+
+        // Função para aplicar filtros avançados
+        function aplicarFiltrosAvancados(procedimentos) {
+            return procedimentos.filter(proc => {
+                // Filtro de prazo
+                const prazoNum = parseInt(proc.prazo.replace(/\D/g, ''));
+                if (filtrosAvancados.prazoMin && prazoNum < filtrosAvancados.prazoMin) return false;
+                if (filtrosAvancados.prazoMax && prazoNum > filtrosAvancados.prazoMax) return false;
+                
+                // Filtro de documentos mínimos
+                if (filtrosAvancados.docsMin && proc.documentos.length < filtrosAvancados.docsMin) return false;
+                
+                return true;
+            });
+        }
+
+        // Função de busca
+        function buscar() {
+            const termo = searchInput.value.trim();
+            let resultados = procedimentosINSS;
+            
+            if (!termo) {
+                if (categoriaAtiva === 'all') {
+                    resultados = procedimentosINSS;
+                } else {
+                    resultados = buscarPorCategoria(categoriaAtiva);
+                }
+            } else {
+                const resultado = encontrarProcedimento(termo);
+                if (resultado.codigo) {
+                    resultados = [resultado];
+                } else {
+                    // Busca por termo em todos os campos
+                    resultados = procedimentosINSS.filter(proc => {
+                        const termoLower = termo.toLowerCase();
+                        return proc.nome.toLowerCase().includes(termoLower) ||
+                               proc.descricao.toLowerCase().includes(termoLower) ||
+                               proc.codigo.includes(termo) ||
+                               proc.documentos.some(doc => doc.toLowerCase().includes(termoLower));
+                    });
+                }
+            }
+
+            // Aplicar filtros avançados
+            procedimentosFiltrados = aplicarFiltrosAvancados(resultados);
+            renderizarProcedimentos(procedimentosFiltrados);
+            atualizarEstatisticas();
+        }
+
+        // Função para limpar busca
+        function limparBusca() {
+            searchInput.value = '';
+            categoriaAtiva = 'all';
+            categoryBtns.forEach(btn => btn.classList.remove('active'));
+            categoryBtns[0].classList.add('active'); // "Todos"
+            procedimentosFiltrados = procedimentosINSS;
+            renderizarProcedimentos(procedimentosFiltrados);
+            atualizarEstatisticas();
+        }
+
+        // Função para exportar CSV
+        function exportarCSV() {
+            const csvContent = [
+                'Código,Nome,Descrição,Prazo,Documentos',
+                ...procedimentosFiltrados.map(proc => 
+                    `${proc.codigo},"${proc.nome}","${proc.descricao}","${proc.prazo}","${proc.documentos.join('; ')}"`
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `procedimentos_inss_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            mostrarNotificacao('📄 CSV exportado com sucesso!', 'success');
+        }
+
+        // Função para mostrar estatísticas detalhadas
+        function mostrarEstatisticas() {
+            const stats = {
+                total: procedimentosINSS.length,
+                encontrados: procedimentosFiltrados.length,
+                porPrazo: {},
+                porDocumentos: {}
+            };
+
+            // Estatísticas por prazo
+            procedimentosFiltrados.forEach(proc => {
+                const prazo = proc.prazo;
+                stats.porPrazo[prazo] = (stats.porPrazo[prazo] || 0) + 1;
+            });
+
+            // Estatísticas por quantidade de documentos
+            procedimentosFiltrados.forEach(proc => {
+                const docs = proc.documentos.length;
+                stats.porDocumentos[docs] = (stats.porDocumentos[docs] || 0) + 1;
+            });
+
+            const html = `
+                <div style="margin-bottom: 1rem;">
+                    <strong>📊 Estatísticas Detalhadas</strong>
+                </div>
+                <div><strong>Total:</strong> ${stats.total} procedimentos</div>
+                <div><strong>Encontrados:</strong> ${stats.encontrados} procedimentos</div>
+                <br>
+                <div><strong>Por Prazo:</strong></div>
+                ${Object.entries(stats.porPrazo).map(([prazo, count]) => 
+                    `<div style="margin-left: 1rem;">• ${prazo}: ${count}</div>`
+                ).join('')}
+                <br>
+                <div><strong>Por Documentos:</strong></div>
+                ${Object.entries(stats.porDocumentos).map(([docs, count]) => 
+                    `<div style="margin-left: 1rem;">• ${docs} docs: ${count}</div>`
+                ).join('')}
+            `;
+
+            statsDetails.innerHTML = html;
+            statsDetails.style.display = 'block';
+        }
+
+        // Função para mostrar notificações
+        function mostrarNotificacao(mensagem, tipo = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+
+            notification.style.background = colors[tipo] || colors.info;
+            notification.textContent = mensagem;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // Event listeners principais
+        searchBtn.addEventListener('click', buscar);
+        clearBtn.addEventListener('click', limparBusca);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') buscar();
+        });
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                categoriaAtiva = btn.dataset.category;
+                searchInput.value = '';
+                buscar();
+            });
+        });
+
+        // Event listeners da sidebar
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        sidebarClose.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+        });
+
+        // Filtros avançados
+        [prazoMin, prazoMax, docsMin].forEach(input => {
+            input.addEventListener('change', () => {
+                filtrosAvancados.prazoMin = prazoMin.value ? parseInt(prazoMin.value) : null;
+                filtrosAvancados.prazoMax = prazoMax.value ? parseInt(prazoMax.value) : null;
+                filtrosAvancados.docsMin = docsMin.value ? parseInt(docsMin.value) : null;
+                buscar();
+            });
+        });
+
+        // Botões da sidebar
+        exportCSV.addEventListener('click', exportarCSV);
+        exportPDF.addEventListener('click', () => {
+            mostrarNotificacao('📋 Funcionalidade de PDF em desenvolvimento', 'info');
+        });
+        showStats.addEventListener('click', mostrarEstatisticas);
+        resetStats.addEventListener('click', () => {
+            statsDetails.style.display = 'none';
+            mostrarNotificacao('🔄 Estatísticas resetadas', 'info');
+        });
+
+        // Fechar sidebar ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (sidebar.classList.contains('open')) {
+                if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        // Inicialização
+        renderizarProcedimentos(procedimentosINSS);
+        atualizarEstatisticas();
+        mostrarNotificacao('🏛️ Roteiro INSS carregado com sucesso!', 'success');
+    </script>
+</body>
+</html>

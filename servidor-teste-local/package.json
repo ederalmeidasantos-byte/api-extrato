@@ -1,0 +1,29 @@
+{
+  "name": "servidor-teste-local-lunas",
+  "version": "1.0.0",
+  "description": "Servidor local de teste com Design System Lunas Digital",
+  "main": "servidor-local.js",
+  "scripts": {
+    "start": "node servidor-local.js",
+    "dev": "nodemon servidor-local.js",
+    "test": "echo \"Servidor de teste iniciado\" && node servidor-local.js"
+  },
+  "keywords": [
+    "servidor",
+    "teste",
+    "local",
+    "lunas-digital",
+    "design-system"
+  ],
+  "author": "Lunas Digital",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

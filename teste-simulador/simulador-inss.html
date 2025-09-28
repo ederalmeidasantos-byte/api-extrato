@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador INSS - Lunas Digital</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            color: #334155; 
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .header h1 { 
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            background-clip: text; 
+            font-size: 2rem; 
+            font-weight: 700; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .header p { 
+            color: #64748b; 
+            font-size: 1rem; 
+        }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* Informações do Cliente - Compacto */
+        .client-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.8rem;
+            font-size: 0.9rem;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #64748b;
+        }
+        
+        .info-value {
+            color: #1e293b;
+        }
+        
+        /* Margens - Compacto */
+        .margins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.8rem;
+        }
+        
+        .margin-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #00d4aa;
+        }
+        
+        .margin-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .margin-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        /* Contratos */
+        .contrato-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafafa;
+        }
+        
+        .contrato-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+        
+        .contrato-title {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        .contrato-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #00d4aa;
+        }
+        
+        .contrato-info {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .contrato-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .detail-input {
+            padding: 0.4rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+        
+        .detail-input:focus {
+            outline: none;
+            border-color: #00d4aa;
+            box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.1);
+        }
+        
+        .contrato-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Simulação */
+        .simulacao {
+            margin-top: 0.8rem;
+            padding: 0.8rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .simulacao-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .simulacao-results {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        
+        .result-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .result-approved {
+            color: #059669;
+        }
+        
+        .result-rejected {
+            color: #dc2626;
+        }
+        
+        .result-icon {
+            font-size: 1rem;
+        }
+        
+        /* Resumo */
+        .resumo-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .resumo-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .resumo-bancos {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .banco-item {
+            padding: 0.3rem 0.8rem;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .resumo-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .client-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .margins-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .contrato-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .resumo-grid {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .resumo-bancos {
+                justify-content: center;
+            }
+        }
+        
+        /* Estados de edição */
+        .editing .detail-input {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+        
+        .simulando {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f4f6;
+            border-radius: 50%;
+            border-top-color: #00d4aa;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Simulador INSS</h1>
+            <p>Sistema de simulação de contratos e troco</p>
+        </div>
+
+        <!-- Informações do Cliente -->
+        <div class="section">
+            <div class="section-title">📋 Informações do Cliente</div>
+            <div class="client-info">
+                <div class="info-item">
+                    <span class="info-label">Nome:</span>
+                    <span class="info-value" id="clienteNome">João Silva Santos</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">NB:</span>
+                    <span class="info-value" id="clienteNB">1234567890</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Espécie:</span>
+                    <span class="info-value" id="clienteEspecie">32</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Origem:</span>
+                    <span class="info-value" id="clienteOrigem">INSS</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Data Extrato:</span>
+                    <span class="info-value" id="clienteData">28/09/2025</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Margens do Cliente -->
+        <div class="section">
+            <div class="section-title">💰 Margens do Cliente</div>
+            <div class="margins-grid">
+                <div class="margin-item">
+                    <div class="margin-label">Disponível</div>
+                    <div class="margin-value" id="margemDisponivel">R$ 1.500,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">Extrapolada</div>
+                    <div class="margin-value" id="margemExtrapolada">R$ 500,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">RMC</div>
+                    <div class="margin-value" id="margemRMC">R$ 200,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">RCC</div>
+                    <div class="margin-value" id="margemRCC">R$ 100,00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contratos Ativos -->
+        <div class="section">
+            <div class="section-title">📄 Contratos Ativos</div>
+            <div id="contratosLista">
+                <!-- Contratos serão inseridos aqui via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Resumo da Simulação -->
+        <div class="section">
+            <div class="section-title">📊 Resumo da Simulação</div>
+            <div class="resumo-grid">
+                <div>
+                    <div class="resumo-total" id="totalTroco">R$ 0,00</div>
+                    <div class="resumo-bancos" id="bancosResumo">
+                        <!-- Bancos serão inseridos aqui -->
+                    </div>
+                </div>
+                <div class="resumo-actions">
+                    <button class="btn btn-primary" onclick="exportarResultados()">📄 Exportar</button>
+                    <button class="btn btn-secondary" onclick="novaSimulacao()">🔄 Nova Simulação</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        console.log('Iniciando script...');
+        
+        let contratos = [];
+        let cliente = {};
+        let margens = {};
+        let simularContrato, simularTodosContratos, calcularResumo, formatBRNumber;
+
+        async function inicializar() {
+            try {
+                const logicModule = await import('./simulador-logic.js');
+                const dadosModule = await import('./dados-exemplo.js');
+                
+                simularContrato = logicModule.simularContrato;
+                simularTodosContratos = logicModule.simularTodosContratos;
+                calcularResumo = logicModule.calcularResumo;
+                formatBRNumber = logicModule.formatBRNumber;
+                
+                console.log('Módulos carregados:', { simularContrato, dadosModule });
+                
+                // Dados de exemplo
+                contratos = [...dadosModule.dadosExemplo.contratos];
+                cliente = { ...dadosModule.dadosExemplo.cliente };
+                margens = { ...dadosModule.dadosExemplo.margens };
+                
+                console.log('Dados carregados:', { contratos, cliente, margens });
+                
+                // Inicializar interface
+                atualizarDadosCliente();
+                atualizarMargens();
+                renderizarContratos();
+                atualizarResumo();
+                
+            } catch (error) {
+                console.error('Erro ao carregar módulos:', error);
+            }
+        }
+
+        // Inicializar quando a página carregar
+        inicializar();
+
+        function renderizarContratos() {
+            console.log('Renderizando contratos:', contratos);
+            const container = document.getElementById('contratosLista');
+            if (!container) {
+                console.error('Container contratosLista não encontrado!');
+                return;
+            }
+            container.innerHTML = '';
+
+            contratos.forEach(contrato => {
+                const contratoDiv = document.createElement('div');
+                contratoDiv.className = 'contrato-item';
+                contratoDiv.innerHTML = `
+                    <div class="contrato-header">
+                        <div class="contrato-title">
+                            <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
+                                   onchange="toggleContrato(${contrato.id})">
+                            <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco}</span>
+                        </div>
+                        <div class="contrato-actions">
+                            <button class="btn btn-primary" onclick="simularContratoIndividual(${contrato.id})">
+                                🔄 Simular
+                            </button>
+                            <button class="btn btn-secondary" onclick="editarContrato(${contrato.id})">
+                                ✏️ Editar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contrato-details">
+                        <div class="detail-item">
+                            <label class="detail-label">Prazo</label>
+                            <input type="number" class="detail-input" value="${contrato.prazo}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'prazo', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Pagas</label>
+                            <input type="number" class="detail-input" value="${contrato.pagas}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'pagas', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Parcela</label>
+                            <input type="number" class="detail-input" value="${contrato.parcela}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'parcela', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Saldo</label>
+                            <input type="number" class="detail-input" value="${contrato.saldo}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'saldo', this.value)">
+                        </div>
+                        <div class="detail-item">
+                            <label class="detail-label">Taxa (%)</label>
+                            <input type="number" class="detail-input" step="0.01" value="${contrato.taxa}" 
+                                   onchange="atualizarContrato(${contrato.id}, 'taxa', this.value)">
+                        </div>
+                    </div>
+                    
+                    ${contrato.simulacao ? `
+                        <div class="simulacao">
+                            <div class="simulacao-title">📊 SIMULAÇÃO:</div>
+                            <div class="simulacao-results">
+                                ${contrato.simulacao.map(result => `
+                                    <div class="result-item ${result.aprovado ? 'result-approved' : 'result-rejected'}">
+                                        <span class="result-icon">${result.aprovado ? '✅' : '❌'}</span>
+                                        <span>${result.banco}: ${result.aprovado ? `R$ ${formatBRNumber(result.troco)} (Taxa: ${result.taxa}%)` : result.motivo}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(contratoDiv);
+            });
+        }
+
+        function simularContratoIndividual(contratoId) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (!contrato) return;
+
+            // Simular loading
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> Simulando...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                // Usar lógica robusta de simulação
+                const resultados = simularContrato(contrato, cliente.especie, "15");
+                contrato.simulacao = resultados;
+                
+                renderizarContratos();
+                atualizarResumo();
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        function toggleContrato(contratoId) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (contrato) {
+                contrato.selecionado = !contrato.selecionado;
+                atualizarResumo();
+            }
+        }
+
+        function atualizarContrato(contratoId, campo, valor) {
+            const contrato = contratos.find(c => c.id === contratoId);
+            if (contrato) {
+                contrato[campo] = parseFloat(valor) || 0;
+                // Limpar simulação quando dados mudam
+                contrato.simulacao = null;
+            }
+        }
+
+        function editarContrato(contratoId) {
+            // Implementar modo de edição se necessário
+            console.log('Editando contrato:', contratoId);
+        }
+
+        function atualizarResumo() {
+            const resumo = calcularResumo(contratos);
+            
+            document.getElementById('totalTroco').textContent = `R$ ${formatBRNumber(resumo.totalTroco)}`;
+            
+            const bancosHtml = Object.entries(resumo.bancosAgrupados)
+                .map(([banco, valor]) => `<span class="banco-item">${banco}: R$ ${formatBRNumber(valor)}</span>`)
+                .join('');
+            
+            document.getElementById('bancosResumo').innerHTML = bancosHtml;
+        }
+
+        function exportarResultados() {
+            const contratosSelecionados = contratos.filter(c => c.selecionado && c.simulacao);
+            const dados = contratosSelecionados.map(c => ({
+                contrato: c.contrato,
+                banco_origem: c.banco,
+                simulacoes: c.simulacao
+            }));
+            
+            const csv = [
+                'Contrato,Banco Origem,Simulações',
+                ...dados.map(d => `${d.contrato},${d.banco_origem},"${JSON.stringify(d.simulacoes)}"`)
+            ].join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'simulacao_inss.csv';
+            a.click();
+        }
+
+        function novaSimulacao() {
+            contratos.forEach(c => {
+                c.simulacao = null;
+                c.selecionado = true;
+            });
+            renderizarContratos();
+            atualizarResumo();
+        }
+
+        // Função para atualizar dados do cliente
+        function atualizarDadosCliente() {
+            document.getElementById('clienteNome').textContent = cliente.nome;
+            document.getElementById('clienteNB').textContent = cliente.nb;
+            document.getElementById('clienteEspecie').textContent = cliente.especie;
+            document.getElementById('clienteOrigem').textContent = cliente.origem;
+            document.getElementById('clienteData').textContent = cliente.dataExtrato;
+        }
+
+        // Função para atualizar margens
+        function atualizarMargens() {
+            document.getElementById('margemDisponivel').textContent = `R$ ${formatBRNumber(margens.disponivel)}`;
+            document.getElementById('margemExtrapolada').textContent = `R$ ${formatBRNumber(margens.extrapolada)}`;
+            document.getElementById('margemRMC').textContent = `R$ ${formatBRNumber(margens.rmc)}`;
+            document.getElementById('margemRCC').textContent = `R$ ${formatBRNumber(margens.rcc)}`;
+        }
+
+        // Inicialização movida para função async inicializar()
+    </script>
+</body>
+</html>
