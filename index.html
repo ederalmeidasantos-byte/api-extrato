@@ -54,7 +54,41 @@
         .log-warning { color: #f59e0b; }
         .log-info { color: #06b6d4; }
         .right-panel { display: flex; flex-direction: column; gap: 1.5rem; }
-        @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } .results-grid { grid-template-columns: 1fr; } }
+        
+        /* Barra Lateral de Configurações */
+        .sidebar { position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; background: white; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1); transition: right 0.3s ease; z-index: 1000; overflow-y: auto; }
+        .sidebar.open { right: 0; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-title { font-size: 1.25rem; font-weight: 600; color: #1e293b; }
+        .sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
+        .sidebar-content { padding: 1.5rem; }
+        .config-section { margin-bottom: 2rem; }
+        .config-section h3 { font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .config-group { margin-bottom: 1rem; }
+        .config-group label { display: block; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+        .config-group input, .config-group select { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; }
+        .config-group input:focus, .config-group select:focus { outline: none; border-color: #00d4aa; box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1); }
+        .config-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .btn-test { background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-test:hover { background: #2563eb; }
+        .btn-save { background: #10b981; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-save:hover { background: #059669; }
+        .btn-cancel { background: #6b7280; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-cancel:hover { background: #4b5563; }
+        .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; }
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        .status-testing { background: #f59e0b; }
+        
+        /* Botão Toggle da Sidebar */
+        .sidebar-toggle { position: fixed; top: 20px; right: 20px; z-index: 1001; background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); transition: all 0.3s ease; }
+        .sidebar-toggle:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4); }
+        
+        @media (max-width: 1024px) { 
+            .main-content { grid-template-columns: 1fr; } 
+            .results-grid { grid-template-columns: 1fr; }
+            .sidebar { width: 100%; right: -100%; }
+        }
   </style>
 </head>
 <body>
@@ -233,7 +267,148 @@
     </div>
   </div>
     </div>
-  </div>
+    </div>
+</div>
+
+<!-- Botão Toggle da Sidebar -->
+<button class="sidebar-toggle" id="sidebarToggle" title="Configurações">
+    ⚙️
+</button>
+
+<!-- Barra Lateral de Configurações -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2 class="sidebar-title">⚙️ Configurações</h2>
+        <button class="sidebar-close" id="sidebarClose">×</button>
+    </div>
+    <div class="sidebar-content">
+        <!-- Seção de Horário Comercial -->
+        <div class="config-section">
+            <h3>⏰ Horário Comercial</h3>
+            <div class="config-group">
+                <label>Horário de Início</label>
+                <input type="time" id="horarioInicio" value="08:00">
+            </div>
+            <div class="config-group">
+                <label>Horário de Fim</label>
+                <input type="time" id="horarioFim" value="22:00">
+            </div>
+            <div class="config-group">
+                <label>Fuso Horário</label>
+                <select id="fusoHorario">
+                    <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
+                    <option value="America/New_York">Nova York (GMT-5)</option>
+                    <option value="Europe/London">Londres (GMT+0)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais FGTS -->
+        <div class="config-section">
+            <h3>🔑 Credenciais FGTS</h3>
+            <div class="config-group">
+                <label>Usuário 1</label>
+                <input type="text" id="fgtsUser1" placeholder="usuario1@email.com">
+            </div>
+            <div class="config-group">
+                <label>Senha 1</label>
+                <input type="password" id="fgtsPass1" placeholder="••••••••">
+            </div>
+            <div class="config-group">
+                <label>Usuário 2</label>
+                <input type="text" id="fgtsUser2" placeholder="usuario2@email.com">
+            </div>
+            <div class="config-group">
+                <label>Senha 2</label>
+                <input type="password" id="fgtsPass2" placeholder="••••••••">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testFgts">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais V8 Sistema -->
+        <div class="config-section">
+            <h3>🔑 Credenciais V8 Sistema</h3>
+            <div class="config-group">
+                <label>Client ID</label>
+                <input type="text" id="v8ClientId" placeholder="seu_client_id">
+            </div>
+            <div class="config-group">
+                <label>Audience</label>
+                <input type="text" id="v8Audience" placeholder="https://bff.v8sistema.com">
+            </div>
+            <div class="config-group">
+                <label>Username</label>
+                <input type="text" id="v8Username" placeholder="usuario@email.com">
+            </div>
+            <div class="config-group">
+                <label>Password</label>
+                <input type="password" id="v8Password" placeholder="••••••••">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testV8">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais Lunas -->
+        <div class="config-section">
+            <h3>🔑 Credenciais Lunas CRM</h3>
+            <div class="config-group">
+                <label>API Key</label>
+                <input type="password" id="lunasApiKey" placeholder="••••••••••••••••">
+            </div>
+            <div class="config-group">
+                <label>Queue ID</label>
+                <input type="number" id="lunasQueueId" placeholder="25">
+            </div>
+            <div class="config-group">
+                <label>Stage ID</label>
+                <input type="number" id="lunasStageId" placeholder="4">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testLunas">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Performance -->
+        <div class="config-section">
+            <h3>⚡ Performance</h3>
+            <div class="config-group">
+                <label>Delay Base (ms)</label>
+                <input type="number" id="delayBase" placeholder="1000" min="100" max="10000">
+            </div>
+            <div class="config-group">
+                <label>Delay Mínimo (ms)</label>
+                <input type="number" id="delayMin" placeholder="500" min="100" max="5000">
+            </div>
+            <div class="config-group">
+                <label>Delay Máximo (ms)</label>
+                <input type="number" id="delayMax" placeholder="5000" min="1000" max="10000">
+            </div>
+            <div class="config-group">
+                <label>Taxa de Erro para Ajuste (%)</label>
+                <input type="number" id="taxaErro" placeholder="10" min="1" max="50">
+            </div>
+        </div>
+
+        <!-- Ações Gerais -->
+        <div class="config-actions">
+            <button class="btn-save" id="saveConfig">💾 Salvar</button>
+            <button class="btn-cancel" id="cancelConfig">❌ Cancelar</button>
+        </div>
+        
+        <!-- Backup e Restore -->
+        <div class="config-section">
+            <h3>💾 Backup e Restore</h3>
+            <div class="config-actions">
+                <button class="btn-test" id="backupConfig">📦 Backup</button>
+                <button class="btn-test" id="exportConfig">📤 Exportar</button>
+                <button class="btn-test" id="restoreConfig">🔄 Restaurar</button>
+            </div>
+            <div id="backupStatus" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b;"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -256,6 +431,13 @@ const logs = document.getElementById('logs');
         const btnExportarCSV = document.getElementById('btnExportarCSV');
         const btnReprocessar = document.getElementById('btnReprocessar');
         const btnMudarFase = document.getElementById('btnMudarFase');
+        
+        // Elementos da Sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const saveConfig = document.getElementById('saveConfig');
+        const cancelConfig = document.getElementById('cancelConfig');
 
         // Tabelas
         const successTable = document.getElementById('successTable').querySelector('tbody');
@@ -662,6 +844,284 @@ const logs = document.getElementById('logs');
 
         socket.on('delayUpdate', (delay) => {
             delayInput.value = delay;
+        });
+
+        // Funções da Sidebar
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+        }
+
+        function loadConfig() {
+            // Carregar configurações do servidor
+            fetch('/fgts/config')
+                .then(response => response.json())
+                .then(config => {
+                    // Preencher campos com valores atuais
+                    document.getElementById('horarioInicio').value = config.horarioInicio || '08:00';
+                    document.getElementById('horarioFim').value = config.horarioFim || '22:00';
+                    document.getElementById('fusoHorario').value = config.fusoHorario || 'America/Sao_Paulo';
+                    document.getElementById('delayBase').value = config.delayBase || 1000;
+                    document.getElementById('delayMin').value = config.delayMin || 500;
+                    document.getElementById('delayMax').value = config.delayMax || 5000;
+                    document.getElementById('taxaErro').value = config.taxaErro || 10;
+                    
+                    // Credenciais (apenas mostrar se existem, não os valores)
+                    document.getElementById('fgtsUser1').placeholder = config.fgtsUser1 ? '••••••••••••' : 'usuario1@email.com';
+                    document.getElementById('fgtsUser2').placeholder = config.fgtsUser2 ? '••••••••••••' : 'usuario2@email.com';
+                    document.getElementById('v8ClientId').placeholder = config.v8ClientId ? '••••••••••••' : 'seu_client_id';
+                    document.getElementById('v8Username').placeholder = config.v8Username ? '••••••••••••' : 'usuario@email.com';
+                    document.getElementById('lunasApiKey').placeholder = config.lunasApiKey ? '••••••••••••••••' : '••••••••••••••••';
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar configurações:', error);
+                    adicionarLog('❌ Erro ao carregar configurações', 'error');
+                });
+        }
+
+        function saveConfigToServer() {
+            const config = {
+                horarioInicio: document.getElementById('horarioInicio').value,
+                horarioFim: document.getElementById('horarioFim').value,
+                fusoHorario: document.getElementById('fusoHorario').value,
+                delayBase: parseInt(document.getElementById('delayBase').value),
+                delayMin: parseInt(document.getElementById('delayMin').value),
+                delayMax: parseInt(document.getElementById('delayMax').value),
+                taxaErro: parseInt(document.getElementById('taxaErro').value),
+                fgtsUser1: document.getElementById('fgtsUser1').value,
+                fgtsPass1: document.getElementById('fgtsPass1').value,
+                fgtsUser2: document.getElementById('fgtsUser2').value,
+                fgtsPass2: document.getElementById('fgtsPass2').value,
+                v8ClientId: document.getElementById('v8ClientId').value,
+                v8Audience: document.getElementById('v8Audience').value,
+                v8Username: document.getElementById('v8Username').value,
+                v8Password: document.getElementById('v8Password').value,
+                lunasApiKey: document.getElementById('lunasApiKey').value,
+                lunasQueueId: parseInt(document.getElementById('lunasQueueId').value),
+                lunasStageId: parseInt(document.getElementById('lunasStageId').value)
+            };
+
+            fetch('/fgts/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    adicionarLog('✅ Configurações salvas com sucesso', 'success');
+                    closeSidebar();
+                } else {
+                    adicionarLog(`❌ Erro ao salvar: ${result.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao salvar configurações:', error);
+                adicionarLog('❌ Erro ao salvar configurações', 'error');
+            });
+        }
+
+        function testConnection(api) {
+            const button = document.getElementById(`test${api}`);
+            const originalText = button.textContent;
+            
+            button.textContent = '🔄 Testando...';
+            button.disabled = true;
+
+            fetch(`/fgts/test/${api}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        button.textContent = '✅ Conectado';
+                        button.style.background = '#10b981';
+                        adicionarLog(`✅ ${api} conectado com sucesso`, 'success');
+                    } else {
+                        button.textContent = '❌ Erro';
+                        button.style.background = '#ef4444';
+                        adicionarLog(`❌ Erro na conexão ${api}: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    button.textContent = '❌ Erro';
+                    button.style.background = '#ef4444';
+                    adicionarLog(`❌ Erro na conexão ${api}`, 'error');
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = '#3b82f6';
+                        button.disabled = false;
+                    }, 3000);
+                });
+        }
+
+        // Event Listeners da Sidebar
+        sidebarToggle.addEventListener('click', () => {
+            toggleSidebar();
+            loadConfig();
+        });
+
+        sidebarClose.addEventListener('click', closeSidebar);
+
+        saveConfig.addEventListener('click', saveConfigToServer);
+
+        cancelConfig.addEventListener('click', () => {
+            closeSidebar();
+            loadConfig(); // Recarregar valores originais
+        });
+
+        // Testes de conexão
+        document.getElementById('testFgts').addEventListener('click', () => testConnection('Fgts'));
+        document.getElementById('testV8').addEventListener('click', () => testConnection('V8'));
+        document.getElementById('testLunas').addEventListener('click', () => testConnection('Lunas'));
+        
+        // Backup e Restore
+        document.getElementById('backupConfig').addEventListener('click', createBackup);
+        document.getElementById('exportConfig').addEventListener('click', exportConfig);
+        document.getElementById('restoreConfig').addEventListener('click', restoreConfig);
+
+        // Funções de Backup e Restore
+        function createBackup() {
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Criando backup...';
+            
+            fetch('/fgts/config/backup', { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        statusDiv.textContent = `✅ Backup criado: ${new Date().toLocaleString('pt-BR')}`;
+                        statusDiv.style.color = '#10b981';
+                        
+                        // Salvar backup no localStorage
+                        localStorage.setItem('fgts_config_backup', JSON.stringify(result.data));
+                        
+                        adicionarLog('📦 Backup das configurações criado', 'success');
+                    } else {
+                        statusDiv.textContent = `❌ Erro: ${result.message}`;
+                        statusDiv.style.color = '#ef4444';
+                        adicionarLog(`❌ Erro ao criar backup: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = '❌ Erro ao criar backup';
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog('❌ Erro ao criar backup', 'error');
+                });
+        }
+        
+        function exportConfig() {
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Exportando configurações...';
+            
+            fetch('/fgts/config/export')
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        statusDiv.innerHTML = `
+                            ✅ Exportado: ${result.file}<br>
+                            <small style="color: #64748b;">
+                                📋 Copie as variáveis do arquivo e cole no painel do Render
+                            </small>
+                        `;
+                        statusDiv.style.color = '#10b981';
+                        adicionarLog(`📤 Configurações exportadas para ${result.file}`, 'success');
+                        
+                        // Mostrar instruções detalhadas
+                        showDeployInstructions();
+                    } else {
+                        statusDiv.textContent = `❌ Erro: ${result.message}`;
+                        statusDiv.style.color = '#ef4444';
+                        adicionarLog(`❌ Erro ao exportar: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = '❌ Erro ao exportar';
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog('❌ Erro ao exportar configurações', 'error');
+                });
+        }
+        
+        function showDeployInstructions() {
+            const instructions = `
+                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                    <h4 style="color: #0c4a6e; margin-bottom: 0.5rem;">🚀 Instruções para Deploy no Render</h4>
+                    <ol style="color: #0c4a6e; font-size: 0.9rem; line-height: 1.6;">
+                        <li>Abra o arquivo <code>config-export.env</code> no servidor</li>
+                        <li>Copie todas as variáveis (HORARIO_INICIO, DELAY_BASE, etc.)</li>
+                        <li>No painel do Render, vá em <strong>Environment</strong></li>
+                        <li>Cole as variáveis uma por uma</li>
+                        <li>Faça o deploy da aplicação</li>
+                    </ol>
+                    <p style="color: #0c4a6e; font-size: 0.8rem; margin-top: 0.5rem;">
+                        💡 <strong>Dica:</strong> As credenciais (FGTS_USER_1, V8_CLIENT_ID, etc.) devem ser configuradas separadamente no Render
+                    </p>
+                </div>
+            `;
+            
+            // Adicionar instruções ao painel
+            const sidebar = document.getElementById('sidebar');
+            const existingInstructions = sidebar.querySelector('.deploy-instructions');
+            if (existingInstructions) {
+                existingInstructions.remove();
+            }
+            
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.className = 'deploy-instructions';
+            instructionsDiv.innerHTML = instructions;
+            sidebar.querySelector('.sidebar-content').appendChild(instructionsDiv);
+        }
+        
+        function restoreConfig() {
+            const backupData = localStorage.getItem('fgts_config_backup');
+            if (!backupData) {
+                const statusDiv = document.getElementById('backupStatus');
+                statusDiv.textContent = '❌ Nenhum backup encontrado';
+                statusDiv.style.color = '#ef4444';
+                adicionarLog('❌ Nenhum backup encontrado no localStorage', 'error');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Restaurando configurações...';
+            
+            const config = JSON.parse(backupData);
+            
+            fetch('/fgts/config/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    statusDiv.textContent = `✅ Restaurado: ${config.backupDate}`;
+                    statusDiv.style.color = '#10b981';
+                    
+                    // Recarregar configurações na sidebar
+                    loadConfig();
+                    
+                    adicionarLog('🔄 Configurações restauradas do backup', 'success');
+                } else {
+                    statusDiv.textContent = `❌ Erro: ${result.message}`;
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog(`❌ Erro ao restaurar: ${result.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '❌ Erro ao restaurar';
+                statusDiv.style.color = '#ef4444';
+                adicionarLog('❌ Erro ao restaurar configurações', 'error');
+            });
+        }
+
+        // Fechar sidebar ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+                closeSidebar();
+            }
         });
 
         // Inicializar

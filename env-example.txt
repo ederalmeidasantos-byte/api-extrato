@@ -28,5 +28,14 @@ PORT=3000
 # Delay padrão (em milissegundos)
 DEFAULT_DELAY=1000
 
+# Configurações do Sistema (via painel)
+HORARIO_INICIO=08:00
+HORARIO_FIM=22:00
+FUSO_HORARIO=America/Sao_Paulo
+DELAY_BASE=1000
+DELAY_MIN=500
+DELAY_MAX=5000
+TAXA_ERRO=10
+
 # OpenAI (opcional - apenas se usar extração de PDF)
 OPENAI_API_KEY=sua_chave_openai

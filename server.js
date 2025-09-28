@@ -13,6 +13,7 @@ import { Server } from "socket.io";
 import http from "http";
 import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO } from "./fgts_csv.js";
 import { calcularTrocoEndpoint } from "./calculo.js";
+import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -294,6 +295,180 @@ app.get("/fgts/status", (req, res) => {
     status: "online"
   });
 });
+
+// ===== Configurações =====
+// Carregar configurações
+app.get("/fgts/config", (req, res) => {
+  try {
+    const config = loadConfig();
+    
+    // Adicionar status das credenciais (sem expor valores)
+    const configWithStatus = {
+      ...config,
+      fgtsUser1: process.env.FGTS_USER_1 ? "••••••••••••" : "",
+      fgtsUser2: process.env.FGTS_USER_2 ? "••••••••••••" : "",
+      v8ClientId: process.env.V8_CLIENT_ID ? "••••••••••••" : "",
+      v8Username: process.env.V8_USERNAME ? "••••••••••••" : "",
+      lunasApiKey: process.env.LUNAS_API_KEY ? "••••••••••••••••" : "",
+      lastUpdated: config.lastUpdated
+    };
+    
+    res.json(configWithStatus);
+  } catch (error) {
+    console.error('Erro ao carregar configurações:', error);
+    res.status(500).json({ error: "Erro ao carregar configurações" });
+  }
+});
+
+// Salvar configurações
+app.post("/fgts/config", (req, res) => {
+  try {
+    const config = req.body;
+    
+    // Validar configurações
+    const validation = validateConfig(config);
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: validation.errors.join(', ') 
+      });
+    }
+    
+    // Salvar configurações no arquivo
+    const saved = saveConfig(config);
+    if (!saved) {
+      return res.status(500).json({ 
+        success: false, 
+        message: "Erro ao salvar configurações no arquivo" 
+      });
+    }
+    
+    // Sincronizar com environment variables
+    syncWithEnv();
+    
+    // Atualizar delay se mudou
+    if (config.delayBase !== DELAY_MS) {
+      setDelay(config.delayBase);
+    }
+    
+    // Exportar para arquivo .env (para facilitar deploy no Render)
+    exportToEnv();
+    
+    logPainel(`⚙️ Configurações salvas: Horário ${config.horarioInicio}-${config.horarioFim}, Delay ${config.delayBase}ms`);
+    
+    res.json({ 
+      success: true, 
+      message: "Configurações salvas com sucesso",
+      lastUpdated: config.lastUpdated
+    });
+  } catch (error) {
+    console.error('Erro ao salvar configurações:', error);
+    res.status(500).json({ success: false, message: "Erro ao salvar configurações" });
+  }
+});
+
+// Testar conexões
+app.post("/fgts/test/:api", async (req, res) => {
+  const api = req.params.api;
+  
+  try {
+    switch (api) {
+      case 'Fgts':
+        // Testar credenciais FGTS
+        const fgtsUser = process.env.FGTS_USER_1;
+        if (!fgtsUser) {
+          return res.json({ success: false, message: "Credenciais FGTS não configuradas" });
+        }
+        res.json({ success: true, message: "Credenciais FGTS configuradas" });
+        break;
+        
+      case 'V8':
+        // Testar credenciais V8
+        const v8ClientId = process.env.V8_CLIENT_ID;
+        if (!v8ClientId) {
+          return res.json({ success: false, message: "Credenciais V8 não configuradas" });
+        }
+        res.json({ success: true, message: "Credenciais V8 configuradas" });
+        break;
+        
+      case 'Lunas':
+        // Testar credenciais Lunas
+        const lunasKey = process.env.LUNAS_API_KEY;
+        if (!lunasKey) {
+          return res.json({ success: false, message: "Credenciais Lunas não configuradas" });
+        }
+        res.json({ success: true, message: "Credenciais Lunas configuradas" });
+        break;
+        
+      default:
+        res.status(400).json({ success: false, message: "API não reconhecida" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erro ao testar conexão" });
+  }
+});
+
+// Backup e Restore de configurações
+app.post("/fgts/config/backup", (req, res) => {
+  try {
+    const config = loadConfig();
+    const backupData = {
+      ...config,
+      backupDate: new Date().toISOString(),
+      version: "1.0"
+    };
+    
+    res.json({ 
+      success: true, 
+      message: "Backup criado com sucesso",
+      data: backupData
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erro ao criar backup" });
+  }
+});
+
+app.post("/fgts/config/restore", (req, res) => {
+  try {
+    const { config } = req.body;
+    
+    if (!config) {
+      return res.status(400).json({ success: false, message: "Configuração não fornecida" });
+    }
+    
+    const saved = saveConfig(config);
+    if (saved) {
+      syncWithEnv();
+      logPainel("🔄 Configurações restauradas do backup");
+      res.json({ success: true, message: "Configurações restauradas com sucesso" });
+    } else {
+      res.status(500).json({ success: false, message: "Erro ao restaurar configurações" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erro ao restaurar configurações" });
+  }
+});
+
+// Exportar configurações para Render
+app.get("/fgts/config/export", (req, res) => {
+  try {
+    const exported = exportToEnv();
+    if (exported) {
+      res.json({ 
+        success: true, 
+        message: "Configurações exportadas para config-export.env",
+        file: "config-export.env"
+      });
+    } else {
+      res.status(500).json({ success: false, message: "Erro ao exportar configurações" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erro ao exportar configurações" });
+  }
+});
+
+// ===== Inicializar Configurações =====
+initializeConfig();
 
 // ===== Servidor =====
 const PORT = process.env.PORT || 3000;
