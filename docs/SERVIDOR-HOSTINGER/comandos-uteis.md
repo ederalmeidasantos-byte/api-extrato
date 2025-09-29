@@ -245,6 +245,133 @@ rm -rf /tmp/*
 
 ---
 
+## 🔑 **CONFIGURAÇÃO SSH E DEPLOY AUTOMÁTICO**
+
+### **🔐 Configurar SSH sem senha:**
+
+#### **1. Gerar chave SSH local (Windows):**
+```bash
+# Gerar chave SSH
+ssh-keygen -t rsa -b 4096 -C "seu-email@exemplo.com" -f "C:\Users\seu-usuario\.ssh\id_rsa" -N '""'
+
+# Mostrar chave pública
+type C:\Users\seu-usuario\.ssh\id_rsa.pub
+```
+
+#### **2. Adicionar chave na Hostinger:**
+1. Acesse o painel da Hostinger
+2. Vá em "Chaves SSH"
+3. Clique em "Adicionar chave SSH"
+4. Cole a chave pública completa
+5. Nome: "Meu PC - Deploy Automático"
+6. Salve
+
+#### **3. Testar conexão:**
+```bash
+# Testar SSH sem senha
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "echo 'SSH funcionando!'"
+```
+
+### **🚀 Deploy automático via SSH:**
+
+#### **Deploy rápido:**
+```bash
+# Atualizar e reiniciar
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "cd /root/api-extrato && git pull origin main && pm2 restart api-extrato"
+```
+
+#### **Deploy completo:**
+```bash
+# Deploy com verificação
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "cd /root/api-extrato && git pull origin main && npm install && pm2 restart api-extrato && pm2 status"
+```
+
+#### **Verificar logs:**
+```bash
+# Ver logs em tempo real
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "pm2 logs api-extrato --lines 20"
+```
+
+#### **Status do servidor:**
+```bash
+# Verificar status completo
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "pm2 status && systemctl status nginx && curl -s http://localhost:3000/api/health"
+```
+
+### **🔧 Comandos úteis via SSH:**
+
+#### **Gerenciar aplicação:**
+```bash
+# Status
+ssh root@72.60.159.149 "pm2 status"
+
+# Reiniciar
+ssh root@72.60.159.149 "pm2 restart api-extrato"
+
+# Logs
+ssh root@72.60.159.149 "pm2 logs api-extrato --lines 50"
+
+# Parar
+ssh root@72.60.159.149 "pm2 stop api-extrato"
+
+# Iniciar
+ssh root@72.60.159.149 "pm2 start api-extrato"
+```
+
+#### **Gerenciar Nginx:**
+```bash
+# Status Nginx
+ssh root@72.60.159.149 "systemctl status nginx"
+
+# Reiniciar Nginx
+ssh root@72.60.159.149 "systemctl restart nginx"
+
+# Testar configuração
+ssh root@72.60.159.149 "nginx -t"
+```
+
+#### **Monitoramento:**
+```bash
+# Uso de recursos
+ssh root@72.60.159.149 "htop"
+
+# Espaço em disco
+ssh root@72.60.159.149 "df -h"
+
+# Memória
+ssh root@72.60.159.149 "free -h"
+
+# Processos Node
+ssh root@72.60.159.149 "ps aux | grep node"
+```
+
+### **📋 Script de deploy automático:**
+
+#### **Criar script local (deploy.bat):**
+```batch
+@echo off
+echo 🚀 Iniciando deploy automático...
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "cd /root/api-extrato && git pull origin main && pm2 restart api-extrato && pm2 status"
+echo ✅ Deploy concluído!
+pause
+```
+
+#### **Criar script PowerShell (deploy.ps1):**
+```powershell
+Write-Host "🚀 Iniciando deploy automático..." -ForegroundColor Green
+ssh -o StrictHostKeyChecking=no root@72.60.159.149 "cd /root/api-extrato && git pull origin main && pm2 restart api-extrato && pm2 status"
+Write-Host "✅ Deploy concluído!" -ForegroundColor Green
+```
+
+### **🎯 Vantagens do SSH sem senha:**
+- ✅ **Deploy instantâneo** - Um comando atualiza tudo
+- ✅ **Sem interrupção** - Não precisa digitar senha
+- ✅ **Automação** - Pode ser integrado em scripts
+- ✅ **Segurança** - Chave SSH é mais segura que senha
+- ✅ **Produtividade** - Deploy em segundos
+
+---
+
 ## 🚀 **COMANDOS DE DEPLOY**
 
 ### **📥 Atualizar código:**
