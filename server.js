@@ -259,8 +259,8 @@ app.post("/extrair", async (req, res) => {
     );
 
     // Fazer backup do JSON processado
-    const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
-    await fazerBackup(jsonPath, 'extrato');
+    const backupJsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
+    await fazerBackup(backupJsonPath, 'extrato');
 
     // Adicionar link único para o simulador
     json.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
