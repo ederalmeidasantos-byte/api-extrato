@@ -256,20 +256,6 @@
             font-size: 0.9rem;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #007bff, #0056b3);
-            transition: width 0.3s ease;
-        }
 
         .table-container {
             padding: 30px;
@@ -491,7 +477,7 @@
             </button>
         </div>
 
-        <!-- Cards de Status Detalhados -->
+        <!-- Cards de Status Simplificados -->
         <div class="status-cards" id="statusCards">
             <div class="status-card sucesso">
                 <div class="status-header">
@@ -499,10 +485,6 @@
                     <div class="status-title">Sucessos</div>
                 </div>
                 <div class="status-count" id="cardSucessos">0</div>
-                <div class="status-description">CPFs com saldo FGTS encontrado</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressSucessos" style="width: 0%"></div>
-                </div>
             </div>
 
             <div class="status-card nao-autorizado">
@@ -511,10 +493,6 @@
                     <div class="status-title">Não Autorizados</div>
                 </div>
                 <div class="status-count" id="cardNaoAutorizados">0</div>
-                <div class="status-description">CPFs sem saldo FGTS</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressNaoAutorizados" style="width: 0%"></div>
-                </div>
             </div>
 
             <div class="status-card pendente">
@@ -523,10 +501,6 @@
                     <div class="status-title">Pendentes</div>
                 </div>
                 <div class="status-count" id="cardPendentes">0</div>
-                <div class="status-description">Aguardando retorno da API</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressPendentes" style="width: 0%"></div>
-                </div>
             </div>
 
             <div class="status-card reprocessar">
@@ -535,22 +509,14 @@
                     <div class="status-title">Reprocessar</div>
                 </div>
                 <div class="status-count" id="cardReprocessar">0</div>
-                <div class="status-description">Falharam e precisam ser reprocessados</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressReprocessar" style="width: 0%"></div>
-                </div>
             </div>
 
             <div class="status-card limite">
                 <div class="status-header">
                     <div class="status-icon">⚠️</div>
-                    <div class="status-title">Limite Excedido</div>
+                    <div class="status-title">Limite</div>
                 </div>
                 <div class="status-count" id="cardLimite">0</div>
-                <div class="status-description">Atingiram limite de tentativas</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressLimite" style="width: 0%"></div>
-                </div>
             </div>
 
             <div class="status-card novo">
@@ -559,10 +525,6 @@
                     <div class="status-title">Novos</div>
                 </div>
                 <div class="status-count" id="cardNovos">0</div>
-                <div class="status-description">Nunca foram processados</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressNovos" style="width: 0%"></div>
-                </div>
             </div>
         </div>
 
@@ -603,7 +565,7 @@
         let dadosCPFs = [];
         let dadosFiltrados = [];
         let paginaAtual = 1;
-        const itensPorPagina = 50;
+        const itensPorPagina = 20;
         let alteracoesPendentes = {};
 
         // Carregar dados iniciais
@@ -625,6 +587,8 @@
                     dadosCPFs = data.cpfs || [];
                     dadosFiltrados = [...dadosCPFs];
                     atualizarEstatisticas();
+                    
+                    // Renderizar apenas a primeira página para economizar memória
                     renderizarTabela();
                     document.getElementById('loadingMessage').style.display = 'none';
                     document.getElementById('cpfsTable').style.display = 'table';
@@ -699,18 +663,9 @@
             document.getElementById('cardReprocessar').textContent = stats.reprocessar;
             document.getElementById('cardLimite').textContent = stats.limite;
             document.getElementById('cardNovos').textContent = stats.novos;
-
-            // Atualizar barras de progresso
-            const total = stats.totalCPFs || 1;
-            document.getElementById('progressSucessos').style.width = `${(stats.sucessos / total) * 100}%`;
-            document.getElementById('progressNaoAutorizados').style.width = `${(stats.naoAutorizados / total) * 100}%`;
-            document.getElementById('progressPendentes').style.width = `${(stats.pendentes / total) * 100}%`;
-            document.getElementById('progressReprocessar').style.width = `${(stats.reprocessar / total) * 100}%`;
-            document.getElementById('progressLimite').style.width = `${(stats.limite / total) * 100}%`;
-            document.getElementById('progressNovos').style.width = `${(stats.novos / total) * 100}%`;
         }
 
-        // Renderizar tabela
+        // Renderizar tabela (otimizada)
         function renderizarTabela() {
             const tbody = document.getElementById('cpfsTableBody');
             tbody.innerHTML = '';
@@ -719,37 +674,54 @@
             const fim = inicio + itensPorPagina;
             const dadosPagina = dadosFiltrados.slice(inicio, fim);
 
+            // Usar DocumentFragment para melhor performance
+            const fragment = document.createDocumentFragment();
+
             dadosPagina.forEach(cpf => {
                 const row = document.createElement('tr');
+                
+                // Simplificar o HTML para reduzir processamento
+                const statusOptions = [
+                    'NA FILA NOVO PROCESSAR',
+                    'REPROCESSAR RAPIDO', 
+                    'PENDING',
+                    'LIMITE EXCEDIDO',
+                    'SUCESSO',
+                    'NÃO AUTORIZADO'
+                ];
+                
+                const statusSelect = statusOptions.map(opt => 
+                    `<option value="${opt}" ${cpf.status === opt ? 'selected' : ''}>${opt}</option>`
+                ).join('');
+                
+                const tabuladorOptions = ['PENDENTE', 'SUCESSO', 'NÃO AUTORIZADO'];
+                const tabuladorSelect = tabuladorOptions.map(opt => 
+                    `<option value="${opt}" ${cpf.tabulador === opt ? 'selected' : ''}>${opt}</option>`
+                ).join('');
+
                 row.innerHTML = `
                     <td>${cpf.cpf || ''}</td>
                     <td>${cpf.telefone || ''}</td>
                     <td>${cpf.id || ''}</td>
                     <td>
                         <select class="select-status" onchange="atualizarStatus('${cpf.cpf}', 'status', this.value)">
-                            <option value="NA FILA NOVO PROCESSAR" ${cpf.status === 'NA FILA NOVO PROCESSAR' ? 'selected' : ''}>NA FILA NOVO PROCESSAR</option>
-                            <option value="REPROCESSAR RAPIDO" ${cpf.status === 'REPROCESSAR RAPIDO' ? 'selected' : ''}>REPROCESSAR RAPIDO</option>
-                            <option value="PENDING" ${cpf.status === 'PENDING' ? 'selected' : ''}>PENDING</option>
-                            <option value="LIMITE EXCEDIDO" ${cpf.status === 'LIMITE EXCEDIDO' ? 'selected' : ''}>LIMITE EXCEDIDO</option>
-                            <option value="SUCESSO" ${cpf.status === 'SUCESSO' ? 'selected' : ''}>SUCESSO</option>
-                            <option value="NÃO AUTORIZADO" ${cpf.status === 'NÃO AUTORIZADO' ? 'selected' : ''}>NÃO AUTORIZADO</option>
+                            ${statusSelect}
                         </select>
                     </td>
                     <td>
                         <select class="select-tabulador" onchange="atualizarStatus('${cpf.cpf}', 'tabulador', this.value)">
-                            <option value="PENDENTE" ${cpf.tabulador === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
-                            <option value="SUCESSO" ${cpf.tabulador === 'SUCESSO' ? 'selected' : ''}>SUCESSO</option>
-                            <option value="NÃO AUTORIZADO" ${cpf.tabulador === 'NÃO AUTORIZADO' ? 'selected' : ''}>NÃO AUTORIZADO</option>
+                            ${tabuladorSelect}
                         </select>
                     </td>
-                    <td>${cpf.atualizadoEm ? new Date(cpf.atualizadoEm).toLocaleString('pt-BR') : 'Nunca'}</td>
+                    <td>${cpf.atualizadoEm ? new Date(cpf.atualizadoEm).toLocaleDateString('pt-BR') : 'Nunca'}</td>
                     <td>
                         <button class="btn btn-primary" onclick="salvarCPF('${cpf.cpf}')" style="padding: 5px 10px; font-size: 0.8rem;">💾</button>
                     </td>
                 `;
-                tbody.appendChild(row);
+                fragment.appendChild(row);
             });
 
+            tbody.appendChild(fragment);
             atualizarPaginacao();
         }
 
