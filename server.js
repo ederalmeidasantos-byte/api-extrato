@@ -291,11 +291,10 @@ async function continuarProcessamento() {
       console.log(`   - Estrutura listas:`, Object.keys(listas || {}));
       console.log(`   - Estrutura pendentes:`, Array.isArray(pendentes) ? 'array' : typeof pendentes);
       
-      // Calcular total de CPFs processados
+      // Calcular total de CPFs processados (sem incluir pendentes)
       const totalProcessados = (listas.sucessos?.length || 0) + 
                               (listas.naoAutorizados?.length || 0) + 
-                              (listas.descartados?.length || 0) + 
-                              (pendentes?.length || 0);
+                              (listas.descartados?.length || 0);
       
       console.log(`📊 Cálculo detalhado:`);
       console.log(`   - Sucessos: ${listas.sucessos?.length || 0}`);
@@ -1270,6 +1269,92 @@ app.post('/fgts/continuar', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao continuar processamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API para forçar processamento e corrigir contadores
+app.post('/fgts/forcar-processamento', async (req, res) => {
+  try {
+    console.log('🚀 FORÇANDO PROCESSAMENTO E CORRIGINDO CONTADORES...');
+    
+    // Carregar dados atuais
+    const pendentes = await carregarPendentes();
+    const cpfsAnexados = await carregarCPFsAnexados();
+    const listas = await carregarListas();
+    
+    console.log(`📊 Dados encontrados:`);
+    console.log(`   - Pendentes: ${pendentes?.length || 0}`);
+    console.log(`   - Lista completa: ${cpfsAnexados?.totalCPFs || 0}`);
+    console.log(`   - Sucessos: ${listas?.sucessos?.length || 0}`);
+    console.log(`   - Não Autorizados: ${listas?.naoAutorizados?.length || 0}`);
+    console.log(`   - Descartados: ${listas?.descartados?.length || 0}`);
+    
+    // Corrigir contadores
+    const contadoresCorretos = {
+      timestamp: new Date().toISOString(),
+      totalCPFs: cpfsAnexados?.totalCPFs || 0,
+      processados: (listas?.sucessos?.length || 0) + (listas?.naoAutorizados?.length || 0) + (listas?.descartados?.length || 0),
+      sucessos: listas?.sucessos?.length || 0,
+      pendentes: pendentes?.length || 0,
+      naoAutorizados: listas?.naoAutorizados?.length || 0,
+      descartados: listas?.descartados?.length || 0,
+      agendados: listas?.agendados?.length || 0,
+      processando: true,
+      ultimaAtualizacao: new Date().toISOString()
+    };
+    
+    // Salvar contadores corrigidos
+    await fsp.writeFile(CONTADORES_TEMPO_REAL_FILE, JSON.stringify(contadoresCorretos, null, 2));
+    console.log(`📊 Contadores corrigidos salvos: ${contadoresCorretos.processados}/${contadoresCorretos.totalCPFs}`);
+    
+    // Emitir contadores corrigidos
+    if (ioInstance) {
+      ioInstance.emit("totalCPFs", contadoresCorretos.totalCPFs);
+      ioInstance.emit("contadoresTempoReal", contadoresCorretos);
+      ioInstance.emit("progress", {
+        done: contadoresCorretos.processados,
+        total: contadoresCorretos.totalCPFs,
+        pendentes: contadoresCorretos.pendentes,
+        counters: {
+          success: contadoresCorretos.sucessos,
+          pending: contadoresCorretos.pendentes,
+          no_auth: contadoresCorretos.naoAutorizados,
+          descartados: contadoresCorretos.descartados
+        }
+      });
+    }
+    
+    // Iniciar processamento se há CPFs pendentes
+    if (pendentes && pendentes.length > 0) {
+      console.log(`🚀 Iniciando processamento de ${pendentes.length} CPFs pendentes...`);
+      setTimeout(async () => {
+        try {
+          await processarCPFs(null, pendentes);
+        } catch (error) {
+          console.error('❌ Erro ao processar CPFs pendentes:', error);
+        }
+      }, 2000);
+    } else if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
+      console.log(`🚀 Iniciando processamento da lista completa de ${cpfsAnexados.totalCPFs} CPFs...`);
+      setTimeout(async () => {
+        try {
+          await processarCPFs(cpfsAnexados.fileName);
+        } catch (error) {
+          console.error('❌ Erro ao processar lista completa:', error);
+        }
+      }, 2000);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: "Processamento forçado e contadores corrigidos",
+      contadores: contadoresCorretos,
+      processando: pendentes?.length > 0 || (cpfsAnexados?.totalCPFs > 0 && contadoresCorretos.processados < cpfsAnexados.totalCPFs)
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao forçar processamento:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2271,6 +2356,27 @@ server.listen(PORT, async () => {
   } catch (error) {
     console.error('❌ Erro ao verificar processamento pendente:', error);
   }
+  
+  // ====== FORÇAR PROCESSAMENTO SE HÁ CPFs PENDENTES ======
+  setTimeout(async () => {
+    try {
+      console.log('🔍 Verificando se há CPFs pendentes para processar...');
+      const pendentes = await carregarPendentes();
+      const cpfsAnexados = await carregarCPFsAnexados();
+      
+      if (pendentes && pendentes.length > 0) {
+        console.log(`🚀 FORÇANDO PROCESSAMENTO: ${pendentes.length} CPFs pendentes encontrados`);
+        await processarCPFs(null, pendentes);
+      } else if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
+        console.log(`🚀 FORÇANDO PROCESSAMENTO: Lista completa encontrada com ${cpfsAnexados.totalCPFs} CPFs`);
+        await processarCPFs(cpfsAnexados.fileName);
+      } else {
+        console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao forçar processamento:', error);
+    }
+  }, 10000); // Aguardar 10 segundos após inicialização
   
   console.log('✅ Sistema de estado persistente ativo');
   console.log('===============================================');
