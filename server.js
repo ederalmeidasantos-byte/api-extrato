@@ -264,11 +264,13 @@ async function continuarProcessamento() {
       
       // Processar CPFs pendentes
       const cpfsParaProcessar = paraProcessar.map(cpf => cpf.cpf);
-      processarCPFs(null, cpfsParaProcessar, (resultado) => {
+      
+      // Callback simplificado e confiável
+      const callbackProcessamento = async (resultado) => {
         if (resultado) {
-          console.log(`✅ CPF processado: ${resultado.cpf} - ${resultado.status}`);
+          console.log(`🔄 CALLBACK CHAMADO: CPF ${resultado.cpf} - Status: ${resultado.status}`);
           
-          // Atualizar status do CPF baseado no resultado
+          // Mapear status do processamento para status do sistema
           let novoStatus = 'NA FILA NOVO PROCESSAR';
           let tabulador = 'PENDENTE';
           
@@ -295,15 +297,20 @@ async function continuarProcessamento() {
               break;
           }
           
+          console.log(`📝 ATUALIZANDO: CPF ${resultado.cpf} -> ${novoStatus}`);
+          
           // Atualizar status do CPF
-          atualizarStatusCPF(resultado.cpf, novoStatus, {
+          await atualizarStatusCPF(resultado.cpf, novoStatus, {
             tabulador: tabulador,
             id: resultado.id || '',
             valor: resultado.valorLiberado || 0,
             provider: resultado.provider || 'sistema'
           });
         }
-      });
+      };
+      
+      // Processar CPFs com callback
+      processarCPFs(null, cpfsParaProcessar, callbackProcessamento);
     } else {
       console.log('✅ Nenhum CPF pendente para processar');
     }
@@ -529,56 +536,50 @@ async function salvarStatusCPFs(statusData) {
   }
 }
 
-// Atualizar status de um CPF (OTIMIZADO PARA MEMÓRIA)
+// Atualizar status de um CPF (SISTEMA SIMPLIFICADO)
 async function atualizarStatusCPF(cpf, status, dados = {}) {
   try {
-    console.log(`🔧 DEBUG: Iniciando atualização de status para CPF ${cpf}:`, { status, dados });
+    console.log(`📝 ATUALIZANDO STATUS: CPF ${cpf} -> ${status}`);
     
-    const statusData = await carregarStatusCPFs();
-    console.log(`🔧 DEBUG: Status data carregado:`, { 
-      temCpfs: !!statusData.cpfs, 
-      totalCpfs: Object.keys(statusData.cpfs || {}).length 
-    });
-    
-    if (!statusData.cpfs) {
-      statusData.cpfs = {};
-      console.log(`🔧 DEBUG: Inicializando objeto cpfs`);
+    // Carregar dados atuais
+    let statusData = { cpfs: {} };
+    try {
+      if (fs.existsSync(STATUS_CPFS_FILE)) {
+        const fileContent = await fsp.readFile(STATUS_CPFS_FILE, 'utf-8');
+        statusData = JSON.parse(fileContent);
+        if (!statusData.cpfs) statusData.cpfs = {};
+      }
+    } catch (error) {
+      console.log(`⚠️ Erro ao carregar status, criando novo:`, error.message);
+      statusData = { cpfs: {} };
     }
     
-    const novoStatus = {
-      status,
+    // Atualizar status do CPF
+    statusData.cpfs[cpf] = {
+      cpf: cpf,
+      status: status,
       ...dados,
       atualizadoEm: new Date().toISOString()
     };
     
-    statusData.cpfs[cpf] = novoStatus;
-    console.log(`🔧 DEBUG: Status atualizado para CPF ${cpf}:`, novoStatus);
+    // Salvar arquivo
+    await fsp.writeFile(STATUS_CPFS_FILE, JSON.stringify(statusData, null, 2));
+    console.log(`✅ STATUS SALVO: CPF ${cpf} -> ${status}`);
     
-    const resultadoSalvamento = await salvarStatusCPFs(statusData);
-    console.log(`🔧 DEBUG: Resultado do salvamento:`, resultadoSalvamento);
-    
-    // OTIMIZAÇÃO: Emitir contadores apenas a cada 10 atualizações
-    if (!global.contadorAtualizacoes) {
-      global.contadorAtualizacoes = 0;
-    }
-    global.contadorAtualizacoes++;
-    
-    if (global.contadorAtualizacoes % 10 === 0 || status === 'SUCESSO' || status === 'NÃO AUTORIZADO') {
-      const contadores = await calcularContadoresPorStatus();
-      if (ioInstance) {
-        ioInstance.emit("contadoresTempoReal", {
-          ...contadores,
-          timestamp: new Date().toISOString(),
-          processando: true,
-          ultimaAtualizacao: new Date().toISOString()
-        });
-      }
+    // Emitir contadores atualizados
+    const contadores = await calcularContadoresPorStatus();
+    if (ioInstance) {
+      ioInstance.emit("contadoresTempoReal", {
+        ...contadores,
+        timestamp: new Date().toISOString(),
+        processando: true,
+        ultimaAtualizacao: new Date().toISOString()
+      });
     }
     
-    console.log(`🔧 DEBUG: Atualização de status concluída para CPF ${cpf}`);
     return true;
   } catch (error) {
-    console.error('❌ Erro ao atualizar status do CPF:', error);
+    console.error('❌ ERRO ao atualizar status:', error);
     return false;
   }
 }
@@ -1638,90 +1639,47 @@ app.post('/fgts/debug-atualizar-status/:cpf', async (req, res) => {
   }
 });
 
-// API para testar callback de processamento
-app.post('/fgts/debug-testar-callback/:cpf', async (req, res) => {
+// API para testar sistema de status (SIMPLIFICADA)
+app.post('/fgts/testar-status/:cpf', async (req, res) => {
   try {
     const { cpf } = req.params;
+    const { status } = req.body;
     
-    console.log(`🔧 DEBUG: Testando callback para CPF ${cpf}`);
+    console.log(`🧪 TESTE: Atualizando CPF ${cpf} para status ${status || 'SUCESSO'}`);
     
-    // Simular resultado de processamento
-    const resultado = {
-      cpf: cpf,
+    // Testar atualização direta
+    const resultado = await atualizarStatusCPF(cpf, status || 'SUCESSO', {
+      tabulador: 'TESTE',
       id: 'teste_123',
-      status: 'success',
-      valorLiberado: 2000.00,
-      provider: 'teste',
-      linha: 999
-    };
-    
-    console.log(`🔧 DEBUG: Resultado simulado:`, resultado);
-    
-    // Chamar callback como se fosse do processarCPFs
-    const callback = (resultado) => {
-      console.log(`🔧 DEBUG: Callback chamado com:`, resultado);
-      
-      if (resultado) {
-        console.log(`✅ CPF processado: ${resultado.cpf} - ${resultado.status}`);
-        
-        // Atualizar status do CPF baseado no resultado
-        let novoStatus = 'NA FILA NOVO PROCESSAR';
-        let tabulador = 'PENDENTE';
-        
-        switch (resultado.status) {
-          case 'success':
-            novoStatus = 'SUCESSO';
-            tabulador = 'SUCESSO';
-            break;
-          case 'no_auth':
-            novoStatus = 'NÃO AUTORIZADO';
-            tabulador = 'NÃO AUTORIZADO';
-            break;
-          case 'pending':
-            novoStatus = 'PENDING';
-            tabulador = 'PENDENTE';
-            break;
-          case 'reprocessar_rapido':
-            novoStatus = 'REPROCESSAR RAPIDO';
-            tabulador = 'PENDENTE';
-            break;
-          case 'limite_excedido':
-            novoStatus = 'LIMITE EXCEDIDO';
-            tabulador = 'PENDENTE';
-            break;
-        }
-        
-        console.log(`🔧 DEBUG: Novo status calculado:`, { novoStatus, tabulador });
-        
-        // Atualizar status do CPF
-        atualizarStatusCPF(resultado.cpf, novoStatus, {
-          tabulador: tabulador,
-          id: resultado.id || '',
-          valor: resultado.valorLiberado || 0,
-          provider: resultado.provider || 'sistema'
-        });
-      }
-    };
-    
-    // Chamar callback
-    callback(resultado);
+      valor: 1500.00,
+      provider: 'teste'
+    });
     
     // Verificar se foi salvo
-    const statusData = await carregarStatusCPFs();
-    const statusAtualizado = statusData?.cpfs?.[cpf];
+    let statusAtualizado = null;
+    try {
+      if (fs.existsSync(STATUS_CPFS_FILE)) {
+        const fileContent = await fsp.readFile(STATUS_CPFS_FILE, 'utf-8');
+        const statusData = JSON.parse(fileContent);
+        statusAtualizado = statusData.cpfs?.[cpf];
+      }
+    } catch (error) {
+      console.log('Erro ao verificar status:', error.message);
+    }
     
     res.json({
       success: true,
-      debug: {
+      teste: {
         cpf,
-        resultadoSimulado: resultado,
+        statusSolicitado: status || 'SUCESSO',
+        resultadoAtualizacao: resultado,
         statusAtualizado,
         arquivoExiste: fs.existsSync(STATUS_CPFS_FILE),
         timestamp: new Date().toISOString()
       }
     });
   } catch (error) {
-    console.error('❌ Erro ao testar callback:', error);
+    console.error('❌ Erro no teste de status:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
