@@ -1488,6 +1488,15 @@ app.post('/fgts/status-cpfs/inicializar', async (req, res) => {
   }
 });
 
+// API de teste simples
+app.get('/teste', (req, res) => {
+  res.json({ 
+    message: 'API funcionando!', 
+    timestamp: new Date().toISOString(),
+    memory: process.memoryUsage()
+  });
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
