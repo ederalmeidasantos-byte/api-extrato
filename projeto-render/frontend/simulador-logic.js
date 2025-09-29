@@ -1780,14 +1780,27 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
         
         for (const tx of taxasPermitidas) {
             const coefNovo = getCoeficiente(tx, diaAverbacao);
-            if (!coefNovo) continue;
+            console.log(`🔍 Taxa ${tx}% - Coeficiente encontrado: ${coefNovo}`);
+            
+            if (!coefNovo) {
+                console.log(`❌ Coeficiente não encontrado para taxa ${tx}%`);
+                continue;
+            }
 
             const valorEmprestimo = parcelaOriginal / coefNovo;
             const troco = valorEmprestimo - saldoDevedor;
 
-            console.log(`📊 ${banco} TX ${tx}: parcela=${parcelaOriginal}, coef=${coefNovo}, emprestimo=${valorEmprestimo}, saldo=${saldoDevedor}, troco=${troco}`);
+            console.log(`💵 Cálculo detalhado para ${banco} (${tx}%):`);
+            console.log(`   Parcela Original: R$ ${formatBRNumber(parcelaOriginal)}`);
+            console.log(`   Coeficiente: ${coefNovo}`);
+            console.log(`   Valor Empréstimo: R$ ${formatBRNumber(valorEmprestimo)}`);
+            console.log(`   Saldo Devedor: R$ ${formatBRNumber(saldoDevedor)}`);
+            console.log(`   Troco Calculado: R$ ${formatBRNumber(troco)}`);
+            console.log(`   Troco Mínimo: R$ ${formatBRNumber(TROCO_MINIMO)}`);
+            console.log(`   Troco >= Mínimo: ${troco >= TROCO_MINIMO}`);
 
             if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
+                console.log(`✅ ${banco} APROVADO com troco R$ ${formatBRNumber(troco)}`);
                 escolhido = {
                     bancoNovo: banco,
                     taxaSelecionada: tx,
@@ -1796,12 +1809,11 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
                     valorEmprestimo,
                     troco,
                 };
-                console.log(`✅ ${banco} aprovado com troco ${troco}`);
                 break; // banco válido encontrado
             } else {
+                console.log(`❌ ${banco} rejeitado - Troco insuficiente: R$ ${formatBRNumber(troco)} < R$ ${formatBRNumber(TROCO_MINIMO)}`);
                 // Sobrescreve apenas a última taxa testada para esse banco
                 motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) TX ${tx}`;
-                console.log(`❌ ${banco} TX ${tx} rejeitado: troco ${troco} < ${TROCO_MINIMO}`);
             }
         }
         if (escolhido) break;
