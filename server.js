@@ -532,19 +532,30 @@ async function salvarStatusCPFs(statusData) {
 // Atualizar status de um CPF (OTIMIZADO PARA MEMÓRIA)
 async function atualizarStatusCPF(cpf, status, dados = {}) {
   try {
+    console.log(`🔧 DEBUG: Iniciando atualização de status para CPF ${cpf}:`, { status, dados });
+    
     const statusData = await carregarStatusCPFs();
+    console.log(`🔧 DEBUG: Status data carregado:`, { 
+      temCpfs: !!statusData.cpfs, 
+      totalCpfs: Object.keys(statusData.cpfs || {}).length 
+    });
     
     if (!statusData.cpfs) {
       statusData.cpfs = {};
+      console.log(`🔧 DEBUG: Inicializando objeto cpfs`);
     }
     
-    statusData.cpfs[cpf] = {
+    const novoStatus = {
       status,
       ...dados,
       atualizadoEm: new Date().toISOString()
     };
     
-    await salvarStatusCPFs(statusData);
+    statusData.cpfs[cpf] = novoStatus;
+    console.log(`🔧 DEBUG: Status atualizado para CPF ${cpf}:`, novoStatus);
+    
+    const resultadoSalvamento = await salvarStatusCPFs(statusData);
+    console.log(`🔧 DEBUG: Resultado do salvamento:`, resultadoSalvamento);
     
     // OTIMIZAÇÃO: Emitir contadores apenas a cada 10 atualizações
     if (!global.contadorAtualizacoes) {
@@ -564,6 +575,7 @@ async function atualizarStatusCPF(cpf, status, dados = {}) {
       }
     }
     
+    console.log(`🔧 DEBUG: Atualização de status concluída para CPF ${cpf}`);
     return true;
   } catch (error) {
     console.error('❌ Erro ao atualizar status do CPF:', error);
