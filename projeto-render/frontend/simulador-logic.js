@@ -1628,12 +1628,19 @@ function aplicarRoteiro(c, banco) {
     const roteiro = RoteiroBancos[banco];
     if (!roteiro) return { valido: false, motivo: "Banco não encontrado" };
 
+    console.log(`🔍 Aplicando roteiro ${banco} para contrato ${c.contrato}:`);
+    console.log(`   Banco contrato: ${c.banco?.nome} (${c.banco?.codigo})`);
+    console.log(`   Parcelas pagas: ${c.parcelas_pagas}`);
+    console.log(`   Saldo devedor: ${c.saldo_devedor}`);
+
     const saldo = toNumber(c.saldo_devedor);
     if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
+        console.log(`❌ Saldo insuficiente: ${saldo} < ${roteiro.saldoDevedorMinimo}`);
         return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
     }
 
     if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
+        console.log(`❌ Espécie não permitida: ${c.especie}`);
         return { valido: false, motivo: `Banco ${banco} não permitido esp ${c.especie}` };
     }
 
@@ -1644,6 +1651,7 @@ function aplicarRoteiro(c, banco) {
         const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(c.banco?.codigo));
         if (excecao && typeof excecao.regra === "string") {
             regraParcelas = Number(excecao.regra.split(" ")[0]);
+            console.log(`📋 Exceção específica encontrada: ${excecao.nome} = ${regraParcelas} pagas`);
         }
     }
 
@@ -1651,14 +1659,19 @@ function aplicarRoteiro(c, banco) {
         const demais = roteiro.excecoes.find((e) => e.nome.toLowerCase().includes("demais bancos"));
         if (demais && demais.regra) {
             regraParcelas = Number(demais.regra.split(" ")[0]);
+            console.log(`📋 Regra demais bancos: ${regraParcelas} pagas`);
         }
     }
 
     if (regraParcelas === null) {
         regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+        console.log(`📋 Regra geral: ${regraParcelas} pagas`);
     }
 
+    console.log(`📊 Comparação: ${parcelasPagas} pagas >= ${regraParcelas} pagas`);
+
     if (parcelasPagas < regraParcelas) {
+        console.log(`❌ Parcelas insuficientes: ${parcelasPagas} < ${regraParcelas}`);
         return {
             valido: false,
             motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
@@ -1666,9 +1679,11 @@ function aplicarRoteiro(c, banco) {
     }
 
     if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
+        console.log(`❌ Banco não permitido: ${c.banco?.nome} (${c.banco?.codigo})`);
         return { valido: false, motivo: `Banco não permitido (${c.banco?.nome || "N/A"})` };
     }
 
+    console.log(`✅ ${banco} APROVADO!`);
     return { valido: true, motivo: null };
 }
 
