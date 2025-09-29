@@ -700,7 +700,7 @@ async function enviarParaFila(cpf, provider) {
         await delay(delayMs * 2);
         continue;
       } else if (erroCompleto.status === 400) {
-        // Erro 400 - Verificar se é "Tente novamente" e se é BMS
+        // Erro 400 - Verificar tipo de erro
         if (erroCompleto.data?.error === "Tente novamente" && provider === "bms") {
           retryCount++;
           console.log(`${LOG_PREFIX()} 🔄 BMS "Tente novamente" - Tentativa ${retryCount}/4 para CPF ${cpf}`);
@@ -711,13 +711,20 @@ async function enviarParaFila(cpf, provider) {
             continue;
           } else {
             console.log(`${LOG_PREFIX()} ⚠️ BMS "Tente novamente" - 4 tentativas esgotadas para CPF ${cpf}`);
-            return "erro400";
+            console.log(`${LOG_PREFIX()} 📋 CPF ${cpf} será marcado para reprocessar (não descartado)`);
+            return "reprocessar";
           }
+        } else if (erroCompleto.data?.error?.toLowerCase().includes("inválido") || 
+                   erroCompleto.data?.error?.toLowerCase().includes("invalid")) {
+          // CPF inválido - descartar permanentemente
+          console.log(`${LOG_PREFIX()} 🗑️ CPF ${cpf} inválido - descartando permanentemente`);
+          console.log(`${LOG_PREFIX()} 📋 Detalhes do erro:`, erroCompleto);
+          return "descartar";
         } else {
-          // Outros erros 400 - marcar como erro permanente
-          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando como erro`);
+          // Outros erros 400 - marcar para reprocessar
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando para reprocessar`);
           console.log(`${LOG_PREFIX()} 📋 Detalhes do erro 400:`, erroCompleto);
-          return "erro400";
+          return "reprocessar";
         }
       } else {
         // Outros erros - tentar novamente
@@ -1117,11 +1124,28 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         if (enviado === true) {
           resultadoFila = await tentarConsultaComRetry(cpf, linha);
           break; // Se conseguiu enviar, para o loop
-        } else if (enviado === "erro400") {
-          // CPF com erro 400 - marcar como erro e pular para próximo
-          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - pulando para próximo`);
-          console.log(`${LOG_PREFIX()} 📋 CPF ${cpf} será marcado como erro permanente`);
-          return "erro400";
+        } else if (enviado === "reprocessar") {
+          // CPF com erro 400 - marcar para reprocessar
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando para reprocessar`);
+          console.log(`${LOG_PREFIX()} 📋 CPF ${cpf} será adicionado à lista de reprocessamento`);
+          
+          // Adicionar à lista de reprocessamento
+          pendentesParaReprocessar.push({ cpf, id: idOriginal, linha });
+          emitirResultado({ cpf, id: idOriginal, status: "reprocessar", provider: "sistema", valorLiberado: 0, linha }, callback);
+          processed++;
+          atualizarProgresso();
+          continue;
+        } else if (enviado === "descartar") {
+          // CPF inválido - descartar permanentemente
+          console.log(`${LOG_PREFIX()} 🗑️ CPF ${cpf} inválido - descartando permanentemente`);
+          console.log(`${LOG_PREFIX()} 📋 CPF ${cpf} será removido da lista de processamento`);
+          
+          // Descartar permanentemente
+          contadorDescartados++;
+          emitirResultado({ cpf, id: idOriginal, status: "descartado", provider: "sistema", valorLiberado: 0, linha }, callback);
+          processed++;
+          atualizarProgresso();
+          continue;
         }
       }
     }
