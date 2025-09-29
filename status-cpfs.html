@@ -586,7 +586,7 @@
                 if (data.success) {
                     dadosCPFs = data.cpfs || [];
                     dadosFiltrados = [...dadosCPFs];
-                    atualizarEstatisticas();
+                    await atualizarEstatisticas();
                     
                     // Renderizar apenas a primeira página para economizar memória
                     renderizarTabela();
@@ -602,67 +602,114 @@
             }
         }
 
-        // Atualizar estatísticas
-        function atualizarEstatisticas() {
-            const stats = {
-                totalCPFs: dadosCPFs.length,
-                processados: 0,
-                sucessos: 0,
-                naoAutorizados: 0,
-                pendentes: 0,
-                descartados: 0,
-                reprocessar: 0,
-                limite: 0,
-                novos: 0
-            };
-
-            dadosCPFs.forEach(cpf => {
-                const status = cpf.status || 'NA FILA NOVO PROCESSAR';
+        // Atualizar estatísticas usando API de contadores
+        async function atualizarEstatisticas() {
+            try {
+                const response = await fetch('/fgts/contadores-status');
+                const data = await response.json();
                 
-                switch (status) {
-                    case 'SUCESSO':
-                        stats.sucessos++;
-                        stats.processados++;
-                        break;
-                    case 'NÃO AUTORIZADO':
-                        stats.naoAutorizados++;
-                        stats.processados++;
-                        break;
-                    case 'REPROCESSAR RAPIDO':
-                        stats.reprocessar++;
-                        stats.pendentes++;
-                        break;
-                    case 'PENDING':
-                        stats.pendentes++;
-                        break;
-                    case 'LIMITE EXCEDIDO':
-                        stats.limite++;
-                        stats.pendentes++;
-                        break;
-                    case 'NA FILA NOVO PROCESSAR':
-                        stats.novos++;
-                        stats.pendentes++;
-                        break;
-                    default:
-                        stats.descartados++;
+                if (data.success && data.contadores) {
+                    const stats = data.contadores;
+                    
+                    // Atualizar cards principais
+                    document.getElementById('totalCPFs').textContent = stats.totalCPFs;
+                    document.getElementById('processados').textContent = stats.processados;
+                    document.getElementById('sucessos').textContent = stats.sucessos;
+                    document.getElementById('naoAutorizados').textContent = stats.naoAutorizados;
+                    document.getElementById('pendentes').textContent = stats.pendentes;
+                    document.getElementById('descartados').textContent = stats.descartados;
+
+                    // Calcular contadores detalhados localmente
+                    let reprocessar = 0;
+                    let limite = 0;
+                    let novos = 0;
+                    
+                    dadosCPFs.forEach(cpf => {
+                        const status = cpf.status || 'NA FILA NOVO PROCESSAR';
+                        switch (status) {
+                            case 'REPROCESSAR RAPIDO':
+                                reprocessar++;
+                                break;
+                            case 'LIMITE EXCEDIDO':
+                                limite++;
+                                break;
+                            case 'NA FILA NOVO PROCESSAR':
+                                novos++;
+                                break;
+                        }
+                    });
+
+                    // Atualizar cards detalhados
+                    document.getElementById('cardSucessos').textContent = stats.sucessos;
+                    document.getElementById('cardNaoAutorizados').textContent = stats.naoAutorizados;
+                    document.getElementById('cardPendentes').textContent = stats.pendentes;
+                    document.getElementById('cardReprocessar').textContent = reprocessar;
+                    document.getElementById('cardLimite').textContent = limite;
+                    document.getElementById('cardNovos').textContent = novos;
                 }
-            });
+            } catch (error) {
+                console.error('Erro ao carregar contadores:', error);
+                // Fallback para cálculo local se API falhar
+                const stats = {
+                    totalCPFs: dadosCPFs.length,
+                    processados: 0,
+                    sucessos: 0,
+                    naoAutorizados: 0,
+                    pendentes: 0,
+                    descartados: 0,
+                    reprocessar: 0,
+                    limite: 0,
+                    novos: 0
+                };
 
-            // Atualizar cards principais
-            document.getElementById('totalCPFs').textContent = stats.totalCPFs;
-            document.getElementById('processados').textContent = stats.processados;
-            document.getElementById('sucessos').textContent = stats.sucessos;
-            document.getElementById('naoAutorizados').textContent = stats.naoAutorizados;
-            document.getElementById('pendentes').textContent = stats.pendentes;
-            document.getElementById('descartados').textContent = stats.descartados;
+                dadosCPFs.forEach(cpf => {
+                    const status = cpf.status || 'NA FILA NOVO PROCESSAR';
+                    
+                    switch (status) {
+                        case 'SUCESSO':
+                            stats.sucessos++;
+                            stats.processados++;
+                            break;
+                        case 'NÃO AUTORIZADO':
+                            stats.naoAutorizados++;
+                            stats.processados++;
+                            break;
+                        case 'REPROCESSAR RAPIDO':
+                            stats.reprocessar++;
+                            stats.pendentes++;
+                            break;
+                        case 'PENDING':
+                            stats.pendentes++;
+                            break;
+                        case 'LIMITE EXCEDIDO':
+                            stats.limite++;
+                            stats.pendentes++;
+                            break;
+                        case 'NA FILA NOVO PROCESSAR':
+                            stats.novos++;
+                            stats.pendentes++;
+                            break;
+                        default:
+                            stats.descartados++;
+                    }
+                });
 
-            // Atualizar cards detalhados
-            document.getElementById('cardSucessos').textContent = stats.sucessos;
-            document.getElementById('cardNaoAutorizados').textContent = stats.naoAutorizados;
-            document.getElementById('cardPendentes').textContent = stats.pendentes;
-            document.getElementById('cardReprocessar').textContent = stats.reprocessar;
-            document.getElementById('cardLimite').textContent = stats.limite;
-            document.getElementById('cardNovos').textContent = stats.novos;
+                // Atualizar cards principais
+                document.getElementById('totalCPFs').textContent = stats.totalCPFs;
+                document.getElementById('processados').textContent = stats.processados;
+                document.getElementById('sucessos').textContent = stats.sucessos;
+                document.getElementById('naoAutorizados').textContent = stats.naoAutorizados;
+                document.getElementById('pendentes').textContent = stats.pendentes;
+                document.getElementById('descartados').textContent = stats.descartados;
+
+                // Atualizar cards detalhados
+                document.getElementById('cardSucessos').textContent = stats.sucessos;
+                document.getElementById('cardNaoAutorizados').textContent = stats.naoAutorizados;
+                document.getElementById('cardPendentes').textContent = stats.pendentes;
+                document.getElementById('cardReprocessar').textContent = stats.reprocessar;
+                document.getElementById('cardLimite').textContent = stats.limite;
+                document.getElementById('cardNovos').textContent = stats.novos;
+            }
         }
 
         // Renderizar tabela (otimizada)

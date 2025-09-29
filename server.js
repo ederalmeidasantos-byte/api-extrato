@@ -545,6 +545,18 @@ async function atualizarStatusCPF(cpf, status, dados = {}) {
     };
     
     await salvarStatusCPFs(statusData);
+    
+    // Emitir atualização dos contadores via Socket.IO
+    const contadores = await calcularContadoresPorStatus();
+    if (ioInstance) {
+      ioInstance.emit("contadoresTempoReal", {
+        ...contadores,
+        timestamp: new Date().toISOString(),
+        processando: true,
+        ultimaAtualizacao: new Date().toISOString()
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Erro ao atualizar status do CPF:', error);
