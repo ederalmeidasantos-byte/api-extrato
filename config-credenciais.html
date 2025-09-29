@@ -349,6 +349,10 @@
                 <button type="button" id="adicionarUsuario" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 15px;">
                     ➕ Adicionar Usuário V8
                 </button>
+                
+                <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); margin-top: 15px;">
+                    💾 Salvar Usuários V8
+                </button>
             </div>
 
             <!-- Seção de Configurações do Sistema -->
@@ -603,6 +607,33 @@
         // Event listener para adicionar usuário
         adicionarUsuario.addEventListener('click', () => {
             adicionarUsuarioV8();
+        });
+
+        // Event listener para salvar usuários V8
+        document.getElementById('salvarUsuariosV8').addEventListener('click', async () => {
+            try {
+                const usuarios = obterUsuariosV8();
+                
+                const response = await fetch('/api/credenciais', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        usuariosV8: usuarios
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Usuários V8 salvos com sucesso!', 'success');
+                } else {
+                    showStatus('❌ Erro ao salvar usuários V8: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            }
         });
 
         // Carregar credenciais ao inicializar
