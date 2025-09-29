@@ -361,6 +361,26 @@ async function continuarProcessamento() {
               console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
             }
           }, 5000);
+        } else {
+          // Se não há pendentes mas há lista completa, verificar se precisa processar
+          const cpfsAnexados = await carregarCPFsAnexados();
+          if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
+            const totalProcessados = contadoresCalculados.processados;
+            if (totalProcessados < cpfsAnexados.totalCPFs) {
+              console.log(`📋 Lista completa encontrada: ${cpfsAnexados.totalCPFs} CPFs`);
+              console.log(`📊 Processados até agora: ${totalProcessados}`);
+              console.log(`🚀 Iniciando processamento automático da lista completa...`);
+              
+              setTimeout(async () => {
+                try {
+                  console.log(`🚀 Processando lista completa de ${cpfsAnexados.totalCPFs} CPFs...`);
+                  await processarCPFs(cpfsAnexados.fileName);
+                } catch (error) {
+                  console.error('❌ Erro ao processar lista completa:', error);
+                }
+              }, 5000);
+            }
+          }
         }
       } else {
         console.log('✅ Nenhum CPF encontrado no cache - sistema limpo');
@@ -571,21 +591,25 @@ async function inicializarContadoresTempoReal() {
     const cpfsAnexados = await carregarCPFsAnexados();
     
     if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
+      // Calcular contadores reais baseados nos dados existentes
+      const listas = await carregarListas();
+      const pendentes = await carregarPendentes();
+      
       const contadores = {
         timestamp: new Date().toISOString(),
         totalCPFs: cpfsAnexados.totalCPFs,
-        processados: 0,
-        sucessos: 0,
-        pendentes: cpfsAnexados.totalCPFs,
-        naoAutorizados: 0,
-        descartados: 0,
-        agendados: 0,
+        processados: (listas?.sucessos?.length || 0) + (listas?.naoAutorizados?.length || 0) + (listas?.descartados?.length || 0),
+        sucessos: listas?.sucessos?.length || 0,
+        pendentes: pendentes?.length || 0, // Apenas CPFs realmente pendentes
+        naoAutorizados: listas?.naoAutorizados?.length || 0,
+        descartados: listas?.descartados?.length || 0,
+        agendados: listas?.agendados?.length || 0,
         processando: true,
         ultimaAtualizacao: new Date().toISOString()
       };
 
       await fsp.writeFile(CONTADORES_TEMPO_REAL_FILE, JSON.stringify(contadores, null, 2));
-      console.log(`📊 Contadores inicializados: ${contadores.totalCPFs} CPFs`);
+      console.log(`📊 Contadores inicializados corretamente: ${contadores.processados}/${contadores.totalCPFs} processados, ${contadores.pendentes} pendentes`);
       
       return contadores;
     }
