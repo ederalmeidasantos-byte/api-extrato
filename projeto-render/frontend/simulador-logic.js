@@ -1700,6 +1700,14 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
     const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
     let taxaAtualMes = parseFloat(contrato.taxa_juros_mensal || 0);
 
+    console.log(`💰 Cálculo do saldo devedor para contrato ${contrato.contrato}:`);
+    console.log(`   Parcela: ${contrato.valor_parcela}`);
+    console.log(`   Taxa: ${contrato.taxa_juros_mensal}%`);
+    console.log(`   Prazo Total: ${contrato.prazo_total}`);
+    console.log(`   Parcelas Pagas: ${contrato.parcelas_pagas}`);
+    console.log(`   Prazo Restante: ${calcularPrazoRestante(contrato.prazo_total || 0, contrato.parcelas_pagas || 0)}`);
+    console.log(`   Saldo Calculado: R$ ${formatBRNumber(saldoDevedor)}`);
+
     if (!(taxaAtualMes > 0)) {
         const estimada = estimarTaxaPorValorPago(contrato.valor_liberado, totalParcelas, parcelaOriginal);
         if (estimada > 0) {
