@@ -1334,9 +1334,56 @@ const logs = document.getElementById('logs');
             adicionarLog('✅ Processamento finalizado', 'success');
         });
 
+        // Listeners para contadores individuais
+        socket.on('contadorSucesso', (count) => {
+            countSuccess.textContent = count;
+            successCPFs.textContent = count;
+        });
+
+        socket.on('contadorPending', (count) => {
+            countPending.textContent = count;
+            pendingCPFs.textContent = count;
+        });
+
+        socket.on('contadorNaoAutorizado', (count) => {
+            countNoAuth.textContent = count;
+        });
+
+        socket.on('contadorDescartados', (count) => {
+            countDiscarded.textContent = count;
+        });
+
+        // Listener para contadores em tempo real
+        socket.on('contadoresTempoReal', (contadores) => {
+            if (contadores) {
+                totalCPFs.textContent = contadores.totalCPFs;
+                processedCPFs.textContent = contadores.processados;
+                countSuccess.textContent = contadores.sucessos;
+                countPending.textContent = contadores.pendentes;
+                countNoAuth.textContent = contadores.naoAutorizados;
+                countDiscarded.textContent = contadores.descartados;
+                
+                // Atualizar progresso
+                const pct = contadores.totalCPFs > 0 ? Math.round((contadores.processados/contadores.totalCPFs)*100) : 0;
+                setProgress(pct, contadores.processados, contadores.totalCPFs);
+                
+                console.log('📊 Contadores atualizados via Socket.IO:', contadores);
+            }
+        });
+
         // ===== FUNÇÕES DO MENU MOVIDAS PARA menu.js =====
         // Todo o código do menu/sidebar foi movido para o arquivo menu.js
         // para evitar conflitos e facilitar manutenção
+
+        // Função para definir progresso
+        function setProgress(percentage, done, total) {
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${percentage}% - ${done}/${total} CPFs processados`;
+            
+            // Atualizar contadores gerais
+            totalCPFs.textContent = total;
+            processedCPFs.textContent = done;
+        }
 
         // Função para carregar contadores em tempo real
         async function carregarContadoresTempoReal() {
@@ -1348,8 +1395,7 @@ const logs = document.getElementById('logs');
                     const contadores = data.contadores;
                     
                     // Atualizar total de CPFs
-                    totalCPFsSpan.textContent = contadores.totalCPFs;
-                    totalToProcess = contadores.totalCPFs;
+                    totalCPFs.textContent = contadores.totalCPFs;
                     
                     // Atualizar contadores individuais
                     document.getElementById('countSuccess').textContent = contadores.sucessos;
