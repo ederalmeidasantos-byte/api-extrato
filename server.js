@@ -1422,6 +1422,45 @@ app.post('/fgts/atualizar-contadores', async (req, res) => {
   }
 });
 
+// API para forçar emissão de totalCPFs
+app.post('/fgts/emitir-total-cpfs', async (req, res) => {
+  try {
+    console.log('📡 Forçando emissão de totalCPFs...');
+    
+    const contadores = await carregarContadoresTempoReal();
+    
+    if (contadores && contadores.totalCPFs > 0) {
+      if (ioInstance) {
+        ioInstance.emit("totalCPFs", contadores.totalCPFs);
+        console.log(`📡 totalCPFs emitido: ${contadores.totalCPFs}`);
+        
+        res.json({ 
+          success: true, 
+          message: `totalCPFs emitido: ${contadores.totalCPFs}`,
+          totalCPFs: contadores.totalCPFs
+        });
+      } else {
+        res.json({
+          success: false,
+          message: "Socket.IO não disponível"
+        });
+      }
+    } else {
+      res.json({
+        success: false,
+        message: "Nenhum contador encontrado"
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao emitir totalCPFs:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // API para limpar contadores em tempo real
 app.post('/fgts/limpar-contadores', async (req, res) => {
   try {
@@ -2229,6 +2268,7 @@ server.listen(PORT, async () => {
   console.log(`   🧹 Limpar CPFs Inválidos: POST http://localhost:${PORT}/fgts/limpar-cpfs-invalidos`);
   console.log(`   📊 Contadores Tempo Real: GET http://localhost:${PORT}/fgts/contadores-tempo-real`);
   console.log(`   🔄 Atualizar Contadores: POST http://localhost:${PORT}/fgts/atualizar-contadores`);
+  console.log(`   📡 Emitir Total CPFs: POST http://localhost:${PORT}/fgts/emitir-total-cpfs`);
   console.log(`   🗑️ Limpar Contadores: POST http://localhost:${PORT}/fgts/limpar-contadores`);
   console.log(`   📅 Agendamentos: GET http://localhost:${PORT}/fgts/agendamentos`);
   console.log(`   🧪 Testar Agendamento: POST http://localhost:${PORT}/fgts/testar-agendamento`);
