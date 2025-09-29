@@ -696,3 +696,4 @@ curl https://seu-projeto.onrender.com/api/extratos/list
 
 **Sistema completo e otimizado!** 🚀✨
 
+

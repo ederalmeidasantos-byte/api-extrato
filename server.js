@@ -705,6 +705,7 @@ async function calcularContadoresPorStatus() {
     let sucessos = 0;
     let naoAutorizados = 0;
     let pendentes = 0;
+    let emProcessamento = 0; // Status especiais com tratamentos específicos
     let descartados = 0;
     
     // OTIMIZAÇÃO: Processar em lotes para economizar memória
@@ -719,7 +720,7 @@ async function calcularContadoresPorStatus() {
         const status = statusData.cpfs[cpf]?.status;
         
         if (!status) {
-          pendentes++; // CPF sem status
+          pendentes++; // CPF sem status = pendente
         } else {
           switch (status) {
             case 'SUCESSO':
@@ -728,11 +729,14 @@ async function calcularContadoresPorStatus() {
             case 'NÃO AUTORIZADO':
               naoAutorizados++;
               break;
-            case 'REPROCESSAR RAPIDO':
             case 'PENDING':
+              pendentes++; // Apenas PENDING é realmente pendente
+              break;
+            case 'REPROCESSAR RAPIDO':
             case 'LIMITE EXCEDIDO':
             case 'NA FILA NOVO PROCESSAR':
-              pendentes++;
+              // Estes têm tratamentos especiais, não são "pendentes"
+              emProcessamento++;
               break;
             default:
               descartados++;
@@ -754,6 +758,7 @@ async function calcularContadoresPorStatus() {
       sucessos,
       naoAutorizados,
       pendentes,
+      emProcessamento,
       descartados
     };
   } catch (error) {
@@ -764,6 +769,7 @@ async function calcularContadoresPorStatus() {
       sucessos: 0,
       naoAutorizados: 0,
       pendentes: 0,
+      emProcessamento: 0,
       descartados: 0
     };
   }
@@ -1521,6 +1527,7 @@ app.get('/fgts/debug-contadores', async (req, res) => {
     let sucessos = 0;
     let naoAutorizados = 0;
     let pendentes = 0;
+    let emProcessamento = 0;
     let descartados = 0;
     
     if (cpfsAnexados?.cpfs && statusData?.cpfs) {
@@ -1530,7 +1537,7 @@ app.get('/fgts/debug-contadores', async (req, res) => {
         const status = statusData.cpfs[cpf]?.status;
         
         if (!status) {
-          pendentes++;
+          pendentes++; // CPF sem status = pendente
         } else {
           switch (status) {
             case 'SUCESSO':
@@ -1539,11 +1546,13 @@ app.get('/fgts/debug-contadores', async (req, res) => {
             case 'NÃO AUTORIZADO':
               naoAutorizados++;
               break;
-            case 'REPROCESSAR RAPIDO':
             case 'PENDING':
+              pendentes++; // Apenas PENDING é realmente pendente
+              break;
+            case 'REPROCESSAR RAPIDO':
             case 'LIMITE EXCEDIDO':
             case 'NA FILA NOVO PROCESSAR':
-              pendentes++;
+              emProcessamento++; // Status especiais
               break;
             default:
               descartados++;
@@ -1563,6 +1572,7 @@ app.get('/fgts/debug-contadores', async (req, res) => {
           sucessos,
           naoAutorizados,
           pendentes,
+          emProcessamento,
           descartados
         },
         statusKeys: Object.keys(statusData?.cpfs || {}).slice(0, 10),

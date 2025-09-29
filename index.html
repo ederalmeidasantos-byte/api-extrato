@@ -171,6 +171,10 @@
                 <p>Pendentes</p>
             </div>
             <div class="stat-card">
+                <h3 id="emProcessamentoCPFs">0</h3>
+                <p>Em Processamento</p>
+            </div>
+            <div class="stat-card">
                 <h3 id="agendadosCPFs">0</h3>
                 <p>Agendados</p>
             </div>
@@ -548,6 +552,7 @@ const logs = document.getElementById('logs');
         const processedCPFs = document.getElementById('processedCPFs');
         const successCPFs = document.getElementById('successCPFs');
         const pendingCPFs = document.getElementById('pendingCPFs');
+        const emProcessamentoCPFs = document.getElementById('emProcessamentoCPFs');
         const agendadosCPFs = document.getElementById('agendadosCPFs');
         const delayAtual = document.getElementById('delayAtual');
 
@@ -1041,6 +1046,7 @@ const logs = document.getElementById('logs');
             processedCPFs.textContent = '0';
             successCPFs.textContent = '0';
             pendingCPFs.textContent = '0';
+            emProcessamentoCPFs.textContent = '0';
             agendadosCPFs.textContent = '0';
             
             // Resetar progresso
@@ -1450,11 +1456,13 @@ const logs = document.getElementById('logs');
                     processedCPFs.textContent = contadores.processados;
                     successCPFs.textContent = contadores.sucessos;
                     pendingCPFs.textContent = contadores.pendentes;
+                    emProcessamentoCPFs.textContent = contadores.emProcessamento || 0;
                     
                     console.log('📝 Contadores principais atualizados:');
                     console.log('  - Processados:', contadores.processados);
                     console.log('  - Sucessos:', contadores.sucessos);
                     console.log('  - Pendentes:', contadores.pendentes);
+                    console.log('  - Em Processamento:', contadores.emProcessamento || 0);
                     
                     // Atualizar progresso
                     const pct = contadores.totalCPFs > 0 ? Math.round((contadores.processados/contadores.totalCPFs)*100) : 0;
