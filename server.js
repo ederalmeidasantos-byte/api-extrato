@@ -2208,6 +2208,10 @@ app.get('/otimizado', (req, res) => {
     res.sendFile(path.join(__dirname, 'index-otimizado.html'));
 });
 
+app.get('/contadores-fix', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index-contadores-fix.html'));
+});
+
 app.get('/menu-otimizado.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'menu-otimizado.js'));
 });
@@ -2218,6 +2222,10 @@ app.get('/styles-otimizado.css', (req, res) => {
 
 app.get('/script-otimizado.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'script-otimizado.js'));
+});
+
+app.get('/sistema-contadores-unificado.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'sistema-contadores-unificado.js'));
 });
 
 // ====== Simulador ======
