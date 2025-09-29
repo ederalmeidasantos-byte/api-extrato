@@ -133,17 +133,61 @@
             color: #1e293b;
         }
         
+        .contrato-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .troco-value {
+            font-weight: 600;
+            color: #059669;
+            font-size: 1.1rem;
+        }
+        
+        .troco-zero {
+            color: #64748b;
+        }
+        
         .contrato-details {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .contrato-details.expanded {
+            display: block;
+        }
+        
+        .details-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 0.8rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .detail-group {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .detail-group-title {
+            font-weight: 600;
+            color: #1e293b;
             margin-bottom: 0.8rem;
+            font-size: 0.9rem;
         }
         
         .detail-item {
             display: flex;
             flex-direction: column;
-            gap: 0.2rem;
+            gap: 0.3rem;
+            margin-bottom: 0.8rem;
         }
         
         .detail-label {
@@ -164,6 +208,80 @@
             outline: none;
             border-color: #00d4aa;
             box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.1);
+        }
+        
+        .detail-value {
+            font-size: 0.9rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+        
+        .simulacao-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f0f9ff;
+            border-radius: 6px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .simulacao-approved {
+            border-left-color: #059669;
+            background: #f0fdf4;
+        }
+        
+        .simulacao-rejected {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+        
+        .simulacao-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .simulacao-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.8rem;
+            font-size: 0.85rem;
+        }
+        
+        .simulacao-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        
+        .simulacao-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .simulacao-value {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        .motivo-rejeicao {
+            margin-top: 0.8rem;
+            padding: 0.8rem;
+            background: #fef2f2;
+            border-radius: 4px;
+            border-left: 3px solid #dc2626;
+        }
+        
+        .motivo-title {
+            font-weight: 600;
+            color: #dc2626;
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .motivo-text {
+            color: #7f1d1d;
+            font-size: 0.85rem;
         }
         
         .btn {
@@ -191,50 +309,22 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
-        .simulacao {
-            margin-top: 0.8rem;
-            padding: 0.8rem;
-            background: #f8fafc;
-            border-radius: 6px;
-            border-left: 4px solid #3b82f6;
-        }
-        
-        .simulacao-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }
-        
-        .simulacao-results {
-            display: flex;
-            flex-direction: column;
-            gap: 0.3rem;
-        }
-        
-        .result-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-        }
-        
-        .result-approved {
-            color: #059669;
-        }
-        
-        .result-rejected {
-            color: #dc2626;
-        }
-        
-        .result-icon {
-            font-size: 1rem;
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .resumo-grid {
             display: grid;
             grid-template-columns: 1fr auto;
             gap: 1rem;
+            align-items: center;
+        }
+        
+        .resumo-totals {
+            display: flex;
+            gap: 2rem;
             align-items: center;
         }
         
@@ -246,16 +336,37 @@
         
         .resumo-bancos {
             display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 0.5rem;
         }
         
         .banco-item {
-            padding: 0.3rem 0.8rem;
-            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
-            color: white;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border-left: 4px solid #00d4aa;
+            font-size: 0.9rem;
+        }
+        
+        .banco-nome {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .banco-valores {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .banco-parcela {
+            color: #64748b;
+        }
+        
+        .banco-troco {
+            color: #059669;
             font-weight: 600;
         }
         
@@ -290,6 +401,23 @@
             margin-bottom: 1rem;
         }
         
+        .expand-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #64748b;
+            transition: transform 0.3s;
+        }
+        
+        .expand-btn:hover {
+            color: #00d4aa;
+        }
+        
+        .expand-btn.expanded {
+            transform: rotate(90deg);
+        }
+        
         @media (max-width: 768px) {
             .client-info {
                 grid-template-columns: 1fr;
@@ -299,7 +427,18 @@
                 grid-template-columns: repeat(2, 1fr);
             }
             
-            .contrato-details {
+            .contrato-header {
+                flex-direction: column;
+                gap: 0.8rem;
+                align-items: flex-start;
+            }
+            
+            .contrato-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .details-grid {
                 grid-template-columns: 1fr;
             }
             
@@ -308,8 +447,9 @@
                 text-align: center;
             }
             
-            .resumo-bancos {
-                justify-content: center;
+            .resumo-totals {
+                flex-direction: column;
+                gap: 1rem;
             }
         }
     </style>
@@ -329,9 +469,9 @@
             </div>
         </div>
 
-        <!-- Informações do Cliente -->
-        <div class="section" id="clienteSection" style="display: none;">
-            <div class="section-title">📋 Informações do Cliente</div>
+        <!-- Seção Cliente -->
+        <div id="clienteSection" class="section" style="display: none;">
+            <div class="section-title">👤 Informações do Cliente</div>
             <div class="client-info">
                 <div class="info-item">
                     <span class="info-label">Nome:</span>
@@ -356,8 +496,8 @@
             </div>
         </div>
 
-        <!-- Margens do Cliente -->
-        <div class="section" id="margensSection" style="display: none;">
+        <!-- Seção Margens -->
+        <div id="margensSection" class="section" style="display: none;">
             <div class="section-title">💰 Margens do Cliente</div>
             <div class="margins-grid">
                 <div class="margin-item">
@@ -379,27 +519,28 @@
             </div>
         </div>
 
-        <!-- Contratos Ativos -->
-        <div class="section">
-            <div class="section-title">📄 Contratos Ativos</div>
-            <div id="contratosLista">
-                <div class="no-data">
-                    <div class="no-data-icon">📄</div>
-                    <h3>Nenhum contrato carregado</h3>
-                    <p>Faça upload de um extrato INSS na página inicial para começar a simular</p>
-                    <a href="/" class="btn btn-primary" style="margin-top: 1rem;">Fazer Upload</a>
-                </div>
-            </div>
+        <!-- Seção Contratos Ativos -->
+        <div id="contratosAtivosSection" class="section" style="display: none;">
+            <div class="section-title">✅ Contratos Ativos (<span id="contadorAtivos">0</span> contratos)</div>
+            <div id="contratosAtivosList"></div>
         </div>
 
-        <!-- Resumo da Simulação -->
-        <div class="section" id="resumoSection" style="display: none;">
-            <div class="section-title">📊 Resumo da Simulação</div>
+        <!-- Seção Contratos Não Aprovados -->
+        <div id="contratosNaoAprovadosSection" class="section" style="display: none;">
+            <div class="section-title">❌ Contratos Não Aprovados (<span id="contadorNaoAprovados">0</span> contratos) - Editáveis</div>
+            <div id="contratosNaoAprovadosList"></div>
+        </div>
+
+        <!-- Seção Resumo -->
+        <div id="resumoSection" class="section" style="display: none;">
+            <div class="section-title">📊 Resumo de Simulação</div>
             <div class="resumo-grid">
                 <div>
-                    <div class="resumo-total" id="totalTroco">R$ 0,00</div>
-                    <div class="resumo-bancos" id="bancosResumo">
-                        <!-- Bancos serão inseridos aqui -->
+                    <div class="resumo-totals">
+                        <div class="resumo-total" id="totalTroco">R$ 0,00</div>
+                        <div class="resumo-bancos" id="bancosResumo">
+                            <!-- Bancos serão inseridos aqui -->
+                        </div>
                     </div>
                 </div>
                 <div class="resumo-actions">
@@ -410,477 +551,6 @@
         </div>
     </div>
 
-    <script>
-        let contratos = [];
-        let cliente = {};
-        let margens = {};
-
-        function formatBRNumber(n) {
-            return Number(n).toLocaleString("pt-BR", { 
-                minimumFractionDigits: 2, 
-                maximumFractionDigits: 2 
-            });
-        }
-
-        function renderizarContratos() {
-            const container = document.getElementById('contratosLista');
-            
-            if (contratos.length === 0) {
-                container.innerHTML = `
-                    <div class="no-data">
-                        <div class="no-data-icon">📄</div>
-                        <h3>Nenhum contrato carregado</h3>
-                        <p>Faça upload de um extrato INSS na página inicial para começar a simular</p>
-                        <a href="/" class="btn btn-primary" style="margin-top: 1rem;">Fazer Upload</a>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = '';
-
-            contratos.forEach(contrato => {
-                const contratoDiv = document.createElement('div');
-                contratoDiv.className = 'contrato-item';
-                contratoDiv.innerHTML = `
-                    <div class="contrato-header">
-                        <div class="contrato-title">
-                            <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
-                                   onchange="toggleContrato(${contrato.id})">
-                            <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco}</span>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary" onclick="simularContrato(${contrato.id})">
-                                🔄 Simular
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="contrato-details">
-                        <div class="detail-item">
-                            <label class="detail-label">Prazo</label>
-                            <input type="number" class="detail-input" value="${contrato.prazo}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'prazo', this.value)">
-                        </div>
-                        <div class="detail-item">
-                            <label class="detail-label">Pagas</label>
-                            <input type="number" class="detail-input" value="${contrato.pagas}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'pagas', this.value)">
-                        </div>
-                        <div class="detail-item">
-                            <label class="detail-label">Parcela</label>
-                            <input type="number" class="detail-input" value="${contrato.parcela}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'parcela', this.value)">
-                        </div>
-                        <div class="detail-item">
-                            <label class="detail-label">Saldo</label>
-                            <input type="number" class="detail-input" value="${contrato.saldo}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'saldo', this.value)">
-                        </div>
-                        <div class="detail-item">
-                            <label class="detail-label">Taxa (%)</label>
-                            <input type="number" class="detail-input" step="0.01" value="${contrato.taxa}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'taxa', this.value)">
-                        </div>
-                    </div>
-                    
-                    ${contrato.simulacao ? `
-                        <div class="simulacao">
-                            <div class="simulacao-title">📊 SIMULAÇÃO:</div>
-                            <div class="simulacao-results">
-                                ${contrato.simulacao.map(result => `
-                                    <div class="result-item ${result.aprovado ? 'result-approved' : 'result-rejected'}">
-                                        <span class="result-icon">${result.aprovado ? '✅' : '❌'}</span>
-                                        <span>${result.banco}: ${result.aprovado ? `R$ ${formatBRNumber(result.troco)} (Taxa: ${result.taxa}%)` : result.motivo}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                `;
-                container.appendChild(contratoDiv);
-            });
-        }
-
-        function simularContrato(contratoId) {
-            const contrato = contratos.find(c => c.id === contratoId);
-            if (!contrato) return;
-
-            // Simular loading
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="loading"></span> Simulando...';
-            btn.disabled = true;
-
-            // Simular com API
-            fetch('/api/simular-troco', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    contratos: [contrato],
-                    especie: cliente.especie,
-                    diaAverbacao: "15"
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success' && data.dados.contratos.length > 0) {
-                    contrato.simulacao = data.dados.contratos[0].simulacao;
-                    renderizarContratos();
-                    atualizarResumo();
-                } else {
-                    alert('Erro na simulação: ' + (data.message || 'Erro desconhecido'));
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro de conexão na simulação');
-            })
-            .finally(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            });
-        }
-
-        function toggleContrato(contratoId) {
-            const contrato = contratos.find(c => c.id === contratoId);
-            if (contrato) {
-                contrato.selecionado = !contrato.selecionado;
-                atualizarResumo();
-            }
-        }
-
-        function atualizarContrato(contratoId, campo, valor) {
-            const contrato = contratos.find(c => c.id === contratoId);
-            if (contrato) {
-                contrato[campo] = parseFloat(valor) || 0;
-                // Limpar simulação quando dados mudam
-                contrato.simulacao = null;
-            }
-        }
-
-        function atualizarResumo() {
-            const contratosSelecionados = contratos.filter(c => c.selecionado && c.simulacao);
-            let totalTroco = 0;
-            const bancosAgrupados = {};
-
-            contratosSelecionados.forEach(contrato => {
-                contrato.simulacao.forEach(result => {
-                    if (result.aprovado) {
-                        totalTroco += result.troco;
-                        if (!bancosAgrupados[result.banco]) {
-                            bancosAgrupados[result.banco] = 0;
-                        }
-                        bancosAgrupados[result.banco] += result.troco;
-                    }
-                });
-            });
-
-            document.getElementById('totalTroco').textContent = `R$ ${formatBRNumber(totalTroco)}`;
-            
-            const bancosHtml = Object.entries(bancosAgrupados)
-                .map(([banco, valor]) => `<span class="banco-item">${banco}: R$ ${formatBRNumber(valor)}</span>`)
-                .join('');
-            
-            document.getElementById('bancosResumo').innerHTML = bancosHtml;
-        }
-
-        function exportarResultados() {
-            const contratosSelecionados = contratos.filter(c => c.selecionado && c.simulacao);
-            const dados = contratosSelecionados.map(c => ({
-                contrato: c.contrato,
-                banco_origem: c.banco,
-                simulacoes: c.simulacao
-            }));
-            
-            const csv = [
-                'Contrato,Banco Origem,Simulações',
-                ...dados.map(d => `${d.contrato},${d.banco_origem},"${JSON.stringify(d.simulacoes)}"`)
-            ].join('\n');
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'simulacao_inss.csv';
-            a.click();
-        }
-
-        function novaSimulacao() {
-            contratos.forEach(c => {
-                c.simulacao = null;
-                c.selecionado = true;
-            });
-            renderizarContratos();
-            atualizarResumo();
-        }
-
-        function atualizarDadosCliente() {
-            document.getElementById('clienteNome').textContent = cliente.nome || '-';
-            document.getElementById('clienteNB').textContent = cliente.nb || '-';
-            document.getElementById('clienteEspecie').textContent = cliente.especie || '-';
-            document.getElementById('clienteOrigem').textContent = cliente.origem || '-';
-            document.getElementById('clienteData').textContent = cliente.dataExtrato || '-';
-        }
-
-        function atualizarMargens() {
-            document.getElementById('margemDisponivel').textContent = `R$ ${formatBRNumber(margens.disponivel || 0)}`;
-            document.getElementById('margemExtrapolada').textContent = `R$ ${formatBRNumber(margens.extrapolada || 0)}`;
-            document.getElementById('margemRMC').textContent = `R$ ${formatBRNumber(margens.rmc || 0)}`;
-            document.getElementById('margemRCC').textContent = `R$ ${formatBRNumber(margens.rcc || 0)}`;
-        }
-
-        function carregarDados() {
-            const dadosSalvos = localStorage.getItem('extratoData');
-            if (dadosSalvos) {
-                try {
-                    const dados = JSON.parse(dadosSalvos);
-                    contratos = dados.contratos || [];
-                    cliente = dados.cliente || {};
-                    margens = dados.margens || {};
-                    
-                    // Adicionar IDs únicos aos contratos se não existirem
-                    contratos.forEach((contrato, index) => {
-                        if (!contrato.id) {
-                            contrato.id = index + 1;
-                        }
-                        if (contrato.selecionado === undefined) {
-                            contrato.selecionado = true;
-                        }
-                    });
-                    
-                    atualizarDadosCliente();
-                    atualizarMargens();
-                    renderizarContratos();
-                    atualizarResumo();
-                    
-                    // Mostrar seções se há dados
-                    if (contratos.length > 0) {
-                        document.getElementById('clienteSection').style.display = 'block';
-                        document.getElementById('margensSection').style.display = 'block';
-                        document.getElementById('resumoSection').style.display = 'block';
-                    }
-                } catch (error) {
-                    console.error('Erro ao carregar dados:', error);
-                }
-            }
-        }
-
-        function carregarDadosTeste() {
-            const dadosTeste = {
-                "cliente": {
-                    "nome": "ISABEL DE FATIMA DE FARIAS",
-                    "nb": "6043215431",
-                    "especie": "APOSENTADORIA POR INVALIDEZ PREVIDENCIARIA",
-                    "origem": "INSS",
-                    "dataExtrato": "17/07/2025"
-                },
-                "margens": {
-                    "disponivel": 0,
-                    "extrapolada": 0,
-                    "rmc": 0,
-                    "rcc": 0
-                },
-                "contratos": [
-                    {
-                        "contrato": "2666838921",
-                        "banco": {
-                            "codigo": "341",
-                            "nome": "Itaú"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "09/04/2025",
-                        "competencia_inicio_desconto": "05/2025",
-                        "qtde_parcelas": 96,
-                        "valor_parcela": "12,14",
-                        "valor_liberado": "528,71",
-                        "iof": "13,67",
-                        "cet_mensal": "192,00",
-                        "cet_anual": "2.570,00",
-                        "taxa_juros_mensal": "1,85",
-                        "taxa_juros_anual": "24,60",
-                        "valor_pago": "120,94",
-                        "primeiro_desconto": "07/06/2025",
-                        "status_taxa": "INFORMADA_EXTRATO",
-                        "prazo_total": 96,
-                        "parcelas_pagas": 2,
-                        "prazo_restante": 94
-                    },
-                    {
-                        "contrato": "0144406604IDF",
-                        "banco": {
-                            "codigo": "329",
-                            "nome": "QI Sociedade de Crédito"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "17/03/2025",
-                        "competencia_inicio_desconto": "04/2025",
-                        "qtde_parcelas": 96,
-                        "valor_parcela": "27,98",
-                        "valor_liberado": "1.249,28",
-                        "iof": "41,92",
-                        "cet_mensal": "260,00",
-                        "cet_anual": "3.602,00",
-                        "taxa_juros_mensal": "1,79",
-                        "taxa_juros_anual": "23,73",
-                        "valor_pago": "957,50",
-                        "primeiro_desconto": "19/05/2025",
-                        "status_taxa": "INFORMADA_EXTRATO",
-                        "prazo_total": 96,
-                        "parcelas_pagas": 3,
-                        "prazo_restante": 93
-                    },
-                    {
-                        "contrato": "90138107120",
-                        "banco": {
-                            "codigo": "626",
-                            "nome": "C6"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "14/10/2024",
-                        "competencia_inicio_desconto": "11/2024",
-                        "qtde_parcelas": 84,
-                        "valor_parcela": "48,29",
-                        "valor_liberado": "2.179,48",
-                        "iof": "12,37",
-                        "cet_mensal": "162,00",
-                        "cet_anual": "2.153,00",
-                        "taxa_juros_mensal": "1,60",
-                        "taxa_juros_anual": "20,98",
-                        "valor_pago": "1.777,73",
-                        "primeiro_desconto": "07/12/2024",
-                        "status_taxa": "INFORMADA_EXTRATO",
-                        "prazo_total": 84,
-                        "parcelas_pagas": 8,
-                        "prazo_restante": 76
-                    },
-                    {
-                        "contrato": "90135819879",
-                        "banco": {
-                            "codigo": "626",
-                            "nome": "C6"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "15/07/2024",
-                        "competencia_inicio_desconto": "08/2024",
-                        "qtde_parcelas": 84,
-                        "valor_parcela": "23,20",
-                        "valor_liberado": "1.022,93",
-                        "iof": "31,43",
-                        "cet_mensal": "176,00",
-                        "cet_anual": "2.368,00",
-                        "taxa_juros_mensal": "1,66",
-                        "taxa_juros_anual": "21,84",
-                        "valor_pago": "991,50",
-                        "primeiro_desconto": "07/09/2024",
-                        "status_taxa": "INFORMADA_EXTRATO",
-                        "prazo_total": 84,
-                        "parcelas_pagas": 11,
-                        "prazo_restante": 73
-                    },
-                    {
-                        "contrato": "140184493",
-                        "banco": {
-                            "codigo": "001",
-                            "nome": "Banco do Brasil"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "26/09/2023",
-                        "competencia_inicio_desconto": "10/2023",
-                        "qtde_parcelas": 77,
-                        "valor_parcela": "29,94",
-                        "valor_liberado": "1.219,85",
-                        "iof": "0,00",
-                        "cet_mensal": "184,00",
-                        "cet_anual": "2.444,00",
-                        "taxa_juros_mensal": "1,84",
-                        "taxa_juros_anual": "24,46",
-                        "valor_pago": "1.219,85",
-                        "primeiro_desconto": "05/11/2023",
-                        "status_taxa": "INFORMADA_EXTRATO",
-                        "prazo_total": 77,
-                        "parcelas_pagas": 21,
-                        "prazo_restante": 56
-                    },
-                    {
-                        "contrato": "0063476189",
-                        "banco": {
-                            "codigo": "935",
-                            "nome": "Facta"
-                        },
-                        "situacao": "ATIVO",
-                        "data_inclusao": "29/08/2023",
-                        "competencia_inicio_desconto": "09/2023",
-                        "qtde_parcelas": 84,
-                        "valor_parcela": "470,64",
-                        "valor_liberado": "20.413,71",
-                        "iof": "692,27",
-                        "cet_mensal": "2.045,00",
-                        "cet_anual": "1.886,00",
-                        "taxa_juros_mensal": "1,78",
-                        "taxa_juros_anual": "23,63",
-                        "valor_pago": "0,00",
-                        "primeiro_desconto": null,
-                        "status_taxa": "RECALCULADA",
-                        "prazo_total": 84,
-                        "parcelas_pagas": 22,
-                        "prazo_restante": 62
-                    }
-                ]
-            };
-
-            // Carregar dados de teste
-            contratos = dadosTeste.contratos || [];
-            cliente = dadosTeste.cliente || {};
-            margens = dadosTeste.margens || {};
-            
-            // Adicionar IDs únicos aos contratos
-            contratos.forEach((contrato, index) => {
-                contrato.id = index + 1;
-                contrato.selecionado = true;
-            });
-            
-            // Salvar no localStorage
-            localStorage.setItem('extratoData', JSON.stringify(dadosTeste));
-            
-            // Atualizar interface
-            atualizarDadosCliente();
-            atualizarMargens();
-            renderizarContratos();
-            atualizarResumo();
-            
-            // Mostrar seções
-            document.getElementById('clienteSection').style.display = 'block';
-            document.getElementById('margensSection').style.display = 'block';
-            document.getElementById('resumoSection').style.display = 'block';
-            
-            alert('✅ Dados de teste carregados com sucesso!');
-        }
-
-        function limparDados() {
-            if (confirm('Tem certeza que deseja limpar todos os dados?')) {
-                localStorage.removeItem('extratoData');
-                contratos = [];
-                cliente = {};
-                margens = {};
-                
-                // Ocultar seções
-                document.getElementById('clienteSection').style.display = 'none';
-                document.getElementById('margensSection').style.display = 'none';
-                document.getElementById('resumoSection').style.display = 'none';
-                
-                // Limpar renderização
-                document.getElementById('contratosList').innerHTML = '';
-                document.getElementById('resumoContent').innerHTML = '';
-                
-                alert('🗑️ Dados limpos com sucesso!');
-            }
-        }
-
-        // Inicialização
-        carregarDados();
-    </script>
+    <script src="simulador-logic.js"></script>
 </body>
 </html>
