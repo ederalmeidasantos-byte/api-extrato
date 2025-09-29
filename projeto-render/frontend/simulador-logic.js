@@ -27,6 +27,37 @@ function formatarValorReal(input) {
     input.value = formatBRNumber(numero);
 }
 
+function formatarTaxa(input) {
+    // Remove tudo que não é número ou vírgula/ponto
+    let valor = input.value.replace(/[^\d,.]/g, '');
+    
+    // Se vazio, deixa vazio
+    if (valor === '') {
+        input.value = '';
+        return;
+    }
+    
+    // Se tem vírgula e ponto, manter apenas o último
+    const ultimaVirgula = valor.lastIndexOf(',');
+    const ultimoPonto = valor.lastIndexOf('.');
+    
+    if (ultimaVirgula > ultimoPonto) {
+        // Vírgula é o separador decimal
+        valor = valor.replace(/\./g, '').replace(',', '.');
+    } else if (ultimoPonto > ultimaVirgula) {
+        // Ponto é o separador decimal
+        valor = valor.replace(/,/g, '');
+    } else if (ultimaVirgula !== -1) {
+        // Só tem vírgula
+        valor = valor.replace(',', '.');
+    }
+    
+    const numero = parseFloat(valor);
+    if (!isNaN(numero)) {
+        input.value = numero.toFixed(2).replace('.', ',');
+    }
+}
+
 function calcularPrazoRestante(prazoTotal, parcelasPagas) {
     return Math.max(0, prazoTotal - parcelasPagas);
 }
@@ -109,7 +140,7 @@ function atualizarCamposEdicao(contratoId) {
     // Atualizar botão
     const btn = document.querySelector(`#detalhes-${contratoId} .btn-secondary`);
     if (btn) {
-        btn.innerHTML = contrato.editando ? '🔒 Bloquear' : '✏️ Editar';
+        btn.innerHTML = contrato.editando ? '💾 Salvar' : '✏️ Editar';
     }
 }
 
@@ -369,7 +400,7 @@ function renderizarContratosNaoAprovados() {
                         <div class="detail-group-title">
                             💰 DADOS FINANCEIROS (EDITÁVEIS)
                             <button class="btn btn-secondary" onclick="toggleEdicao(${contrato.id})" style="margin-left: 1rem; padding: 0.3rem 0.8rem; font-size: 0.8rem;">
-                                ${contrato.editando ? '🔒 Bloquear' : '✏️ Editar'}
+                                ${contrato.editando ? '💾 Salvar' : '✏️ Editar'}
                             </button>
                         </div>
                         <div class="detail-item">
@@ -410,6 +441,7 @@ function renderizarContratosNaoAprovados() {
                                    ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)"
                                    onfocus="this.select()"
+                                   oninput="formatarTaxa(this)"
                                    placeholder="Ex: 1,85">
                         </div>
                     </div>
