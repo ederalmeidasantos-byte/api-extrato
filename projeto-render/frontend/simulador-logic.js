@@ -3,6 +3,7 @@ let cliente = {};
 let margens = {};
 let contratosAtivos = [];
 let contratosNaoAprovados = [];
+let codigoExtrato = null; // Para identificar múltiplas simulações
 
 function formatBRNumber(n) {
     return Number(n).toLocaleString("pt-BR", { 
@@ -27,8 +28,47 @@ function calcularSaldoDevedor(contrato) {
 function toggleEdicao(contratoId) {
     const contrato = contratos.find(c => c.id === contratoId);
     if (contrato) {
+        if (contrato.editando) {
+            // Salvando dados editados antes de bloquear
+            salvarDadosEditados(contratoId);
+        }
         contrato.editando = !contrato.editando;
-        renderizarContratos();
+        // Não renderizar completamente para não minimizar
+        atualizarCamposEdicao(contratoId);
+    }
+}
+
+function atualizarCamposEdicao(contratoId) {
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (!contrato) return;
+    
+    // Atualizar apenas os campos de input sem re-renderizar tudo
+    const inputs = document.querySelectorAll(`#detalhes-${contratoId} .detail-input`);
+    inputs.forEach(input => {
+        input.disabled = !contrato.editando;
+    });
+    
+    // Atualizar botão
+    const btn = document.querySelector(`#detalhes-${contratoId} .btn-secondary`);
+    if (btn) {
+        btn.innerHTML = contrato.editando ? '🔒 Bloquear' : '✏️ Editar';
+    }
+}
+
+function salvarDadosEditados(contratoId) {
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (!contrato) return;
+    
+    // Salvar no localStorage com código do extrato
+    if (codigoExtrato) {
+        const dadosCompletos = {
+            codigoExtrato: codigoExtrato,
+            cliente: cliente,
+            margens: margens,
+            contratos: contratos,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(`extratoData_${codigoExtrato}`, JSON.stringify(dadosCompletos));
     }
 }
 
@@ -179,21 +219,25 @@ function renderizarContratosNaoAprovados() {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Valor Parcela</span>
-                            <input type="number" class="detail-input" step="0.01" value="${contrato.valor_parcela || 0}" 
+                            <input type="text" class="detail-input" value="${formatBRNumber(parseFloat(contrato.valor_parcela || 0))}" 
                                    ${contrato.editando ? '' : 'disabled'}
-                                   onchange="atualizarContrato(${contrato.id}, 'valor_parcela', this.value)">
+                                   onchange="atualizarContrato(${contrato.id}, 'valor_parcela', this.value)"
+                                   onfocus="this.select()">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Saldo Devedor</span>
-                            <input type="number" class="detail-input" step="0.01" value="${contrato.saldo_devedor || calcularSaldoDevedor(contrato)}" 
+                            <input type="text" class="detail-input" value="${formatBRNumber(contrato.saldo_devedor || calcularSaldoDevedor(contrato))}" 
                                    ${contrato.editando ? '' : 'disabled'}
-                                   onchange="atualizarContrato(${contrato.id}, 'saldo_devedor', this.value)">
+                                   onchange="atualizarContrato(${contrato.id}, 'saldo_devedor', this.value)"
+                                   onfocus="this.select()">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Taxa Mensal (%)</span>
-                            <input type="number" class="detail-input" step="0.01" value="${contrato.taxa_juros_mensal || 0}" 
+                            <input type="text" class="detail-input" value="${contrato.taxa_juros_mensal || ''}" 
                                    ${contrato.editando ? '' : 'disabled'}
-                                   onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)">
+                                   onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)"
+                                   onfocus="this.select()"
+                                   placeholder="Ex: 1,85">
                         </div>
                     </div>
                     
@@ -276,11 +320,29 @@ function simularContrato(contratoId) {
     const contrato = contratos.find(c => c.id === contratoId);
     if (!contrato) return;
 
+    // Simular automaticamente taxa e saldo se estiverem em branco
+    if (!contrato.taxa_juros_mensal || contrato.taxa_juros_mensal === 0) {
+        contrato.taxa_juros_mensal = 1.85; // Taxa padrão
+    }
+    if (!contrato.saldo_devedor || contrato.saldo_devedor === 0) {
+        contrato.saldo_devedor = calcularSaldoDevedor(contrato);
+    }
+
     // Simular loading
     const btn = event.target;
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="loading"></span> Simulando...';
     btn.disabled = true;
+
+    // Preparar dados para simulação
+    const contratoSimulacao = {
+        ...contrato,
+        taxa: contrato.taxa_juros_mensal,
+        saldo: contrato.saldo_devedor,
+        parcela: contrato.valor_parcela,
+        prazo: contrato.prazo_total,
+        pagas: contrato.parcelas_pagas
+    };
 
     // Simular com API
     fetch('/api/simular-troco', {
@@ -289,14 +351,16 @@ function simularContrato(contratoId) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            contratos: [contrato],
+            contratos: [contratoSimulacao],
             especie: cliente.especie,
             diaAverbacao: "15"
         })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.status === 'success' && data.dados.contratos.length > 0) {
+        console.log('Resposta da API:', data);
+        
+        if (data.status === 'success' && data.dados && data.dados.contratos && data.dados.contratos.length > 0) {
             const resultado = data.dados.contratos[0].simulacao[0];
             contrato.simulacao = resultado;
             contrato.troco = resultado.troco || 0;
@@ -306,14 +370,18 @@ function simularContrato(contratoId) {
                 contrato.aprovado = true;
             }
             
+            // Salvar dados com código do extrato
+            salvarDadosEditados(contratoId);
+            
             renderizarContratos();
         } else {
-            alert('Erro na simulação: ' + (data.message || 'Erro desconhecido'));
+            console.error('Erro na resposta:', data);
+            alert('Erro na simulação: ' + (data.message || 'Resposta inválida da API'));
         }
     })
     .catch(error => {
         console.error('Erro:', error);
-        alert('Erro de conexão na simulação');
+        alert('Erro de conexão na simulação: ' + error.message);
     })
     .finally(() => {
         btn.innerHTML = originalText;
@@ -332,11 +400,25 @@ function toggleContrato(contratoId) {
 function atualizarContrato(contratoId, campo, valor) {
     const contrato = contratos.find(c => c.id === contratoId);
     if (contrato) {
-        contrato[campo] = parseFloat(valor) || 0;
+        // Converter valor brasileiro para número
+        let valorNumerico = 0;
+        if (valor && valor !== '') {
+            // Remove pontos e substitui vírgula por ponto
+            const valorLimpo = valor.toString().replace(/\./g, '').replace(',', '.');
+            valorNumerico = parseFloat(valorLimpo) || 0;
+        }
+        
+        contrato[campo] = valorNumerico;
+        
         // Limpar simulação quando dados mudam
         contrato.simulacao = null;
         contrato.troco = 0;
         contrato.aprovado = false;
+        
+        // Atualizar saldo devedor se necessário
+        if (campo === 'valor_parcela' || campo === 'parcelas_pagas') {
+            contrato.saldo_devedor = calcularSaldoDevedor(contrato);
+        }
     }
 }
 
@@ -448,6 +530,11 @@ function carregarDados() {
             cliente = dados.cliente || {};
             margens = dados.margens || {};
             
+            // Gerar código único do extrato se não existir
+            if (!codigoExtrato) {
+                codigoExtrato = `extrato_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            
             // Adicionar IDs únicos aos contratos se não existirem
             contratos.forEach((contrato, index) => {
                 if (!contrato.id) {
@@ -461,6 +548,14 @@ function carregarDados() {
                 contrato.troco = 0;
                 contrato.aprovado = false;
                 contrato.editando = false;
+                
+                // Garantir que valores estão preenchidos corretamente
+                if (!contrato.valor_parcela) {
+                    contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
+                }
+                if (!contrato.taxa_juros_mensal) {
+                    contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+                }
             });
             
             atualizarDadosCliente();
@@ -649,6 +744,9 @@ function carregarDadosTeste() {
     cliente = dadosTeste.cliente || {};
     margens = dadosTeste.margens || {};
     
+    // Gerar código único do extrato
+    codigoExtrato = `extrato_teste_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     // Adicionar IDs únicos aos contratos
     contratos.forEach((contrato, index) => {
         contrato.id = index + 1;
@@ -657,6 +755,13 @@ function carregarDadosTeste() {
         contrato.troco = 0;
         contrato.aprovado = false;
         contrato.editando = false;
+        
+        // Converter valores para números
+        contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
+        contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+        contrato.valor_liberado = parseFloat(contrato.valor_liberado || 0);
+        contrato.iof = parseFloat(contrato.iof || 0);
+        contrato.valor_pago = parseFloat(contrato.valor_pago || 0);
     });
     
     // Salvar no localStorage
