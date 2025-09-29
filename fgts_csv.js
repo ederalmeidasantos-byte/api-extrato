@@ -700,10 +700,25 @@ async function enviarParaFila(cpf, provider) {
         await delay(delayMs * 2);
         continue;
       } else if (erroCompleto.status === 400) {
-        // Erro 400 - CPF inválido ou problema com dados
-        console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando como erro`);
-        console.log(`${LOG_PREFIX()} 📋 Detalhes do erro 400:`, erroCompleto);
-        return "erro400";
+        // Erro 400 - Verificar se é "Tente novamente" e se é BMS
+        if (erroCompleto.data?.error === "Tente novamente" && provider === "bms") {
+          retryCount++;
+          console.log(`${LOG_PREFIX()} 🔄 BMS "Tente novamente" - Tentativa ${retryCount}/4 para CPF ${cpf}`);
+          
+          if (retryCount < 4) {
+            // Aguardar mais tempo antes de tentar novamente
+            await delay(delayMs * 2);
+            continue;
+          } else {
+            console.log(`${LOG_PREFIX()} ⚠️ BMS "Tente novamente" - 4 tentativas esgotadas para CPF ${cpf}`);
+            return "erro400";
+          }
+        } else {
+          // Outros erros 400 - marcar como erro permanente
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando como erro`);
+          console.log(`${LOG_PREFIX()} 📋 Detalhes do erro 400:`, erroCompleto);
+          return "erro400";
+        }
       } else {
         // Outros erros - tentar novamente
         retryCount++;
