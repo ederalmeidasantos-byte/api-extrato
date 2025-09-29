@@ -1067,12 +1067,12 @@ function atualizarMargens() {
     const margemRCC = document.getElementById('margemRCC');
     
     if (margemDisponivel) {
-        margemDisponivel.textContent = `R$ ${formatBRNumber(margens.disponivel || 0)}`;
+        margemDisponivel.textContent = `R$ ${margens.disponivel || '0,00'}`;
         console.log('💰 Margem disponível:', margens.disponivel);
     }
     
     if (margemExtrapolada) {
-        margemExtrapolada.textContent = `R$ ${formatBRNumber(margens.extrapolada || 0)}`;
+        margemExtrapolada.textContent = `R$ ${margens.extrapolada || '0,00'}`;
         
         // Aplicar cor vermelha se margem extrapolada tem valor
         const valorExtrapolada = parseFloat((margens.extrapolada || '0').replace(',', '.'));
@@ -1087,12 +1087,12 @@ function atualizarMargens() {
     }
     
     if (margemRMC) {
-        margemRMC.textContent = `R$ ${formatBRNumber(margens.rmc || 0)}`;
+        margemRMC.textContent = `R$ ${margens.rmc || '0,00'}`;
         console.log('💰 Margem RMC:', margens.rmc);
     }
     
     if (margemRCC) {
-        margemRCC.textContent = `R$ ${formatBRNumber(margens.rcc || 0)}`;
+        margemRCC.textContent = `R$ ${margens.rcc || '0,00'}`;
         console.log('💰 Margem RCC:', margens.rcc);
     }
     
