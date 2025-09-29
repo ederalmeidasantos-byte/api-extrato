@@ -12,6 +12,21 @@ function formatBRNumber(n) {
     });
 }
 
+function formatarValorReal(input) {
+    // Remove tudo que não é número
+    let valor = input.value.replace(/\D/g, '');
+    
+    // Se vazio, deixa vazio
+    if (valor === '') {
+        input.value = '';
+        return;
+    }
+    
+    // Converte para número e formata
+    const numero = parseFloat(valor) / 100;
+    input.value = formatBRNumber(numero);
+}
+
 function calcularPrazoRestante(prazoTotal, parcelasPagas) {
     return Math.max(0, prazoTotal - parcelasPagas);
 }
@@ -66,9 +81,122 @@ function salvarDadosEditados(contratoId) {
             cliente: cliente,
             margens: margens,
             contratos: contratos,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            linkUnico: gerarLinkUnico()
         };
         localStorage.setItem(`extratoData_${codigoExtrato}`, JSON.stringify(dadosCompletos));
+    }
+}
+
+function gerarLinkUnico() {
+    if (!codigoExtrato) return null;
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?extrato=${codigoExtrato}`;
+}
+
+function carregarSimulacaoPorId(extratoId) {
+    const dadosSalvos = localStorage.getItem(`extratoData_${extratoId}`);
+    if (dadosSalvos) {
+        try {
+            const dados = JSON.parse(dadosSalvos);
+            codigoExtrato = dados.codigoExtrato || extratoId;
+            contratos = dados.contratos || [];
+            cliente = dados.cliente || {};
+            margens = dados.margens || {};
+            
+            // Processar contratos
+            contratos.forEach((contrato, index) => {
+                if (!contrato.id) {
+                    contrato.id = index + 1;
+                }
+                if (contrato.selecionado === undefined) {
+                    contrato.selecionado = true;
+                }
+                contrato.simulacao = contrato.simulacao || null;
+                contrato.troco = contrato.troco || 0;
+                contrato.aprovado = contrato.aprovado || false;
+                contrato.editando = contrato.editando || false;
+                
+                // Garantir que valores estão preenchidos corretamente
+                if (!contrato.valor_parcela) {
+                    contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
+                }
+                if (!contrato.taxa_juros_mensal) {
+                    contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+                }
+            });
+            
+            atualizarDadosCliente();
+            atualizarMargens();
+            renderizarContratos();
+            
+            // Mostrar seções se há dados
+            if (contratos.length > 0) {
+                document.getElementById('clienteSection').style.display = 'block';
+                document.getElementById('margensSection').style.display = 'block';
+                document.getElementById('contratosAtivosSection').style.display = 'block';
+                document.getElementById('contratosNaoAprovadosSection').style.display = 'block';
+                document.getElementById('resumoSection').style.display = 'block';
+            }
+            
+            // Mostrar link único
+            mostrarLinkUnico();
+            
+        } catch (error) {
+            console.error('Erro ao carregar simulação:', error);
+            alert('Erro ao carregar simulação específica');
+        }
+    } else {
+        alert('Simulação não encontrada');
+    }
+}
+
+function mostrarLinkUnico() {
+    const linkUnico = gerarLinkUnico();
+    if (linkUnico) {
+        // Adicionar link único no header
+        const header = document.querySelector('.header');
+        if (header && !document.getElementById('linkUnico')) {
+            const linkDiv = document.createElement('div');
+            linkDiv.id = 'linkUnico';
+            linkDiv.style.cssText = `
+                margin-top: 1rem;
+                padding: 0.8rem;
+                background: #f0f9ff;
+                border-radius: 8px;
+                border-left: 4px solid #3b82f6;
+            `;
+            linkDiv.innerHTML = `
+                <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">
+                    🔗 Link Único da Simulação:
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" value="${linkUnico}" readonly 
+                           style="flex: 1; padding: 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9rem;">
+                    <button class="btn btn-primary" onclick="copiarLinkUnico()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                        📋 Copiar
+                    </button>
+                </div>
+            `;
+            header.appendChild(linkDiv);
+        }
+    }
+}
+
+function copiarLinkUnico() {
+    const linkUnico = gerarLinkUnico();
+    if (linkUnico) {
+        navigator.clipboard.writeText(linkUnico).then(() => {
+            alert('✅ Link copiado para a área de transferência!');
+        }).catch(() => {
+            // Fallback para navegadores mais antigos
+            const input = document.querySelector('#linkUnico input');
+            if (input) {
+                input.select();
+                document.execCommand('copy');
+                alert('✅ Link copiado para a área de transferência!');
+            }
+        });
     }
 }
 
@@ -222,14 +350,16 @@ function renderizarContratosNaoAprovados() {
                             <input type="text" class="detail-input" value="${formatBRNumber(parseFloat(contrato.valor_parcela || 0))}" 
                                    ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'valor_parcela', this.value)"
-                                   onfocus="this.select()">
+                                   onfocus="this.select()"
+                                   oninput="formatarValorReal(this)">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Saldo Devedor</span>
                             <input type="text" class="detail-input" value="${formatBRNumber(contrato.saldo_devedor || calcularSaldoDevedor(contrato))}" 
                                    ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'saldo_devedor', this.value)"
-                                   onfocus="this.select()">
+                                   onfocus="this.select()"
+                                   oninput="formatarValorReal(this)">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Taxa Mensal (%)</span>
@@ -336,7 +466,8 @@ function simularContrato(contratoId) {
 
     // Preparar dados para simulação
     const contratoSimulacao = {
-        ...contrato,
+        contrato: contrato.contrato,
+        bancoCodigo: contrato.banco.codigo,
         taxa: contrato.taxa_juros_mensal,
         saldo: contrato.saldo_devedor,
         parcela: contrato.valor_parcela,
@@ -522,6 +653,16 @@ function atualizarMargens() {
 }
 
 function carregarDados() {
+    // Verificar se há código de extrato na URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const extratoId = urlParams.get('extrato');
+    
+    if (extratoId) {
+        // Carregar simulação específica
+        carregarSimulacaoPorId(extratoId);
+        return;
+    }
+    
     const dadosSalvos = localStorage.getItem('extratoData');
     if (dadosSalvos) {
         try {
@@ -756,12 +897,20 @@ function carregarDadosTeste() {
         contrato.aprovado = false;
         contrato.editando = false;
         
-        // Converter valores para números
+        // Converter valores para números e processar dados
         contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
         contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
         contrato.valor_liberado = parseFloat(contrato.valor_liberado || 0);
-        contrato.iof = parseFloat(contrato.iof || 0);
         contrato.valor_pago = parseFloat(contrato.valor_pago || 0);
+        
+        // Remover campos desnecessários
+        delete contrato.iof;
+        delete contrato.cet_anual;
+        
+        // Garantir que taxa está correta
+        if (!contrato.taxa_juros_mensal || contrato.taxa_juros_mensal === 0) {
+            contrato.taxa_juros_mensal = 1.85; // Taxa padrão
+        }
     });
     
     // Salvar no localStorage
@@ -778,6 +927,9 @@ function carregarDadosTeste() {
     document.getElementById('contratosAtivosSection').style.display = 'block';
     document.getElementById('contratosNaoAprovadosSection').style.display = 'block';
     document.getElementById('resumoSection').style.display = 'block';
+    
+    // Mostrar link único
+    mostrarLinkUnico();
     
     alert('✅ Dados de teste carregados com sucesso!');
 }
