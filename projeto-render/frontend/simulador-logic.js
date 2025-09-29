@@ -400,7 +400,6 @@ async function carregarSimulacaoPorId(extratoId) {
             
             alert('Erro ao carregar simulação específica');
         }
-    }
 }
 
 function mostrarLinkUnico() {
