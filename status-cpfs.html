@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Status - CPFs FGTS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .table th {
+            background: #007bff;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-sucesso {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-nao-autorizado {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pendente {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-reprocessar {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-limite {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+
+        .status-novo {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .select-status {
+            padding: 5px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .select-tabulador {
+            padding: 5px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button:hover {
+            background: #e9ecef;
+        }
+
+        .pagination button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                min-width: auto;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .table-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Gerenciamento de Status - CPFs FGTS</h1>
+            <p>Classifique e gerencie o status de todos os CPFs processados</p>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar por CPF, telefone ou ID...">
+            </div>
+            <button class="btn btn-primary" onclick="carregarDados()">🔄 Atualizar</button>
+            <button class="btn btn-success" onclick="salvarAlteracoes()">💾 Salvar Alterações</button>
+            <button class="btn btn-warning" onclick="exportarCSV()">📤 Exportar CSV</button>
+            <button class="btn btn-danger" onclick="limparFiltros()">🧹 Limpar Filtros</button>
+        </div>
+
+        <div class="stats" id="statsContainer">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCPFs">0</div>
+                <div class="stat-label">Total de CPFs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="processados">0</div>
+                <div class="stat-label">Processados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="sucessos">0</div>
+                <div class="stat-label">Sucessos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="naoAutorizados">0</div>
+                <div class="stat-label">Não Autorizados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendentes">0</div>
+                <div class="stat-label">Pendentes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="descartados">0</div>
+                <div class="stat-label">Descartados</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loadingMessage" class="loading">
+                <p>🔄 Carregando dados...</p>
+            </div>
+
+            <div id="errorMessage" class="error" style="display: none;">
+                <p>❌ Erro ao carregar dados. Tente novamente.</p>
+            </div>
+
+            <table class="table" id="cpfsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>CPF</th>
+                        <th>Telefone</th>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Tabulador</th>
+                        <th>Última Atualização</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="cpfsTableBody">
+                </tbody>
+            </table>
+
+            <div class="pagination" id="pagination" style="display: none;">
+                <button onclick="mudarPagina(-1)">« Anterior</button>
+                <span id="pageInfo">Página 1 de 1</span>
+                <button onclick="mudarPagina(1)">Próxima »</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dadosCPFs = [];
+        let dadosFiltrados = [];
+        let paginaAtual = 1;
+        const itensPorPagina = 50;
+        let alteracoesPendentes = {};
+
+        // Carregar dados iniciais
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarDados();
+        });
+
+        // Carregar dados do servidor
+        async function carregarDados() {
+            try {
+                document.getElementById('loadingMessage').style.display = 'block';
+                document.getElementById('errorMessage').style.display = 'none';
+                document.getElementById('cpfsTable').style.display = 'none';
+
+                const response = await fetch('/fgts/status-cpfs');
+                const data = await response.json();
+
+                if (data.success) {
+                    dadosCPFs = data.cpfs || [];
+                    dadosFiltrados = [...dadosCPFs];
+                    atualizarEstatisticas();
+                    renderizarTabela();
+                    document.getElementById('loadingMessage').style.display = 'none';
+                    document.getElementById('cpfsTable').style.display = 'table';
+                } else {
+                    throw new Error(data.message || 'Erro ao carregar dados');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        }
+
+        // Atualizar estatísticas
+        function atualizarEstatisticas() {
+            const stats = {
+                totalCPFs: dadosCPFs.length,
+                processados: 0,
+                sucessos: 0,
+                naoAutorizados: 0,
+                pendentes: 0,
+                descartados: 0
+            };
+
+            dadosCPFs.forEach(cpf => {
+                const status = cpf.status || 'NA FILA NOVO PROCESSAR';
+                
+                switch (status) {
+                    case 'SUCESSO':
+                        stats.sucessos++;
+                        stats.processados++;
+                        break;
+                    case 'NÃO AUTORIZADO':
+                        stats.naoAutorizados++;
+                        stats.processados++;
+                        break;
+                    case 'REPROCESSAR RAPIDO':
+                    case 'PENDING':
+                    case 'LIMITE EXCEDIDO':
+                    case 'NA FILA NOVO PROCESSAR':
+                        stats.pendentes++;
+                        break;
+                    default:
+                        stats.descartados++;
+                }
+            });
+
+            document.getElementById('totalCPFs').textContent = stats.totalCPFs;
+            document.getElementById('processados').textContent = stats.processados;
+            document.getElementById('sucessos').textContent = stats.sucessos;
+            document.getElementById('naoAutorizados').textContent = stats.naoAutorizados;
+            document.getElementById('pendentes').textContent = stats.pendentes;
+            document.getElementById('descartados').textContent = stats.descartados;
+        }
+
+        // Renderizar tabela
+        function renderizarTabela() {
+            const tbody = document.getElementById('cpfsTableBody');
+            tbody.innerHTML = '';
+
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            const fim = inicio + itensPorPagina;
+            const dadosPagina = dadosFiltrados.slice(inicio, fim);
+
+            dadosPagina.forEach(cpf => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${cpf.cpf || ''}</td>
+                    <td>${cpf.telefone || ''}</td>
+                    <td>${cpf.id || ''}</td>
+                    <td>
+                        <select class="select-status" onchange="atualizarStatus('${cpf.cpf}', 'status', this.value)">
+                            <option value="NA FILA NOVO PROCESSAR" ${cpf.status === 'NA FILA NOVO PROCESSAR' ? 'selected' : ''}>NA FILA NOVO PROCESSAR</option>
+                            <option value="REPROCESSAR RAPIDO" ${cpf.status === 'REPROCESSAR RAPIDO' ? 'selected' : ''}>REPROCESSAR RAPIDO</option>
+                            <option value="PENDING" ${cpf.status === 'PENDING' ? 'selected' : ''}>PENDING</option>
+                            <option value="LIMITE EXCEDIDO" ${cpf.status === 'LIMITE EXCEDIDO' ? 'selected' : ''}>LIMITE EXCEDIDO</option>
+                            <option value="SUCESSO" ${cpf.status === 'SUCESSO' ? 'selected' : ''}>SUCESSO</option>
+                            <option value="NÃO AUTORIZADO" ${cpf.status === 'NÃO AUTORIZADO' ? 'selected' : ''}>NÃO AUTORIZADO</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="select-tabulador" onchange="atualizarStatus('${cpf.cpf}', 'tabulador', this.value)">
+                            <option value="PENDENTE" ${cpf.tabulador === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
+                            <option value="SUCESSO" ${cpf.tabulador === 'SUCESSO' ? 'selected' : ''}>SUCESSO</option>
+                            <option value="NÃO AUTORIZADO" ${cpf.tabulador === 'NÃO AUTORIZADO' ? 'selected' : ''}>NÃO AUTORIZADO</option>
+                        </select>
+                    </td>
+                    <td>${cpf.atualizadoEm ? new Date(cpf.atualizadoEm).toLocaleString('pt-BR') : 'Nunca'}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="salvarCPF('${cpf.cpf}')" style="padding: 5px 10px; font-size: 0.8rem;">💾</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            atualizarPaginacao();
+        }
+
+        // Atualizar status de um CPF
+        function atualizarStatus(cpf, campo, valor) {
+            if (!alteracoesPendentes[cpf]) {
+                alteracoesPendentes[cpf] = {};
+            }
+            alteracoesPendentes[cpf][campo] = valor;
+        }
+
+        // Salvar alterações de um CPF específico
+        async function salvarCPF(cpf) {
+            try {
+                const alteracoes = alteracoesPendentes[cpf];
+                if (!alteracoes) return;
+
+                const response = await fetch(`/fgts/status-cpfs/${cpf}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(alteracoes)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Atualizar dados locais
+                    const cpfIndex = dadosCPFs.findIndex(c => c.cpf === cpf);
+                    if (cpfIndex !== -1) {
+                        dadosCPFs[cpfIndex] = { ...dadosCPFs[cpfIndex], ...alteracoes };
+                    }
+                    
+                    // Remover das alterações pendentes
+                    delete alteracoesPendentes[cpf];
+                    
+                    // Atualizar exibição
+                    atualizarEstatisticas();
+                    renderizarTabela();
+                    
+                    alert('✅ CPF atualizado com sucesso!');
+                } else {
+                    alert('❌ Erro ao atualizar CPF: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Erro ao salvar CPF:', error);
+                alert('❌ Erro ao salvar CPF');
+            }
+        }
+
+        // Salvar todas as alterações
+        async function salvarAlteracoes() {
+            try {
+                const response = await fetch('/fgts/status-cpfs/batch', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(alteracoesPendentes)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Atualizar dados locais
+                    Object.keys(alteracoesPendentes).forEach(cpf => {
+                        const cpfIndex = dadosCPFs.findIndex(c => c.cpf === cpf);
+                        if (cpfIndex !== -1) {
+                            dadosCPFs[cpfIndex] = { ...dadosCPFs[cpfIndex], ...alteracoesPendentes[cpf] };
+                        }
+                    });
+                    
+                    // Limpar alterações pendentes
+                    alteracoesPendentes = {};
+                    
+                    // Atualizar exibição
+                    atualizarEstatisticas();
+                    renderizarTabela();
+                    
+                    alert('✅ Todas as alterações foram salvas!');
+                } else {
+                    alert('❌ Erro ao salvar alterações: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Erro ao salvar alterações:', error);
+                alert('❌ Erro ao salvar alterações');
+            }
+        }
+
+        // Filtrar dados
+        function filtrarDados() {
+            const termo = document.getElementById('searchInput').value.toLowerCase();
+            dadosFiltrados = dadosCPFs.filter(cpf => 
+                (cpf.cpf && cpf.cpf.toLowerCase().includes(termo)) ||
+                (cpf.telefone && cpf.telefone.toLowerCase().includes(termo)) ||
+                (cpf.id && cpf.id.toLowerCase().includes(termo))
+            );
+            paginaAtual = 1;
+            renderizarTabela();
+        }
+
+        // Limpar filtros
+        function limparFiltros() {
+            document.getElementById('searchInput').value = '';
+            dadosFiltrados = [...dadosCPFs];
+            paginaAtual = 1;
+            renderizarTabela();
+        }
+
+        // Mudar página
+        function mudarPagina(direcao) {
+            const totalPaginas = Math.ceil(dadosFiltrados.length / itensPorPagina);
+            const novaPagina = paginaAtual + direcao;
+            
+            if (novaPagina >= 1 && novaPagina <= totalPaginas) {
+                paginaAtual = novaPagina;
+                renderizarTabela();
+            }
+        }
+
+        // Atualizar paginação
+        function atualizarPaginacao() {
+            const totalPaginas = Math.ceil(dadosFiltrados.length / itensPorPagina);
+            const pagination = document.getElementById('pagination');
+            
+            if (totalPaginas > 1) {
+                pagination.style.display = 'flex';
+                document.getElementById('pageInfo').textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+
+        // Exportar CSV
+        function exportarCSV() {
+            const headers = ['CPF', 'TELEFONE', 'ID', 'STATUS', 'TABULADOR'];
+            const csvContent = [
+                headers.join(','),
+                ...dadosFiltrados.map(cpf => [
+                    cpf.cpf || '',
+                    cpf.telefone || '',
+                    cpf.id || '',
+                    cpf.status || '',
+                    cpf.tabulador || ''
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `status-cpfs-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', filtrarDados);
+    </script>
+</body>
+</html>
