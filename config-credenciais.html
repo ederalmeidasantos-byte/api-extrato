@@ -338,6 +338,82 @@
             border: 1px solid #fecaca;
         }
 
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .api-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .api-status:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .api-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+        }
+
+        .expand-icon {
+            font-size: 0.8em;
+            color: #64748b;
+            transition: transform 0.3s ease;
+            margin-left: 15px;
+        }
+
+        .api-details {
+            margin-top: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .details-content {
+            padding: 15px 20px;
+        }
+
+        .v8-results {
+            margin-top: 10px;
+        }
+
+        .v8-result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .v8-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .v8-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -386,12 +462,7 @@
                         <input type="url" id="lunasApiUrl" placeholder="https://api.lunas.com.br" value="https://api.lunas.com.br">
                     </div>
 
-                    <div class="form-row">
-                        <button type="submit" class="btn">💾 Salvar Credenciais</button>
-                        <button type="button" id="testarTodasAPIs" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
-                            🧪 Testar Todas as APIs
-                        </button>
-                    </div>
+                    <button type="submit" class="btn">💾 Salvar Credenciais</button>
                 </form>
             </div>
 
@@ -419,19 +490,51 @@
 
             <!-- Seção de Status das APIs -->
             <div class="section">
-                <h2>🔍 Status das APIs</h2>
+                <div class="section-header">
+                    <h2>🔍 Status das APIs</h2>
+                    <button type="button" id="testarTodasAPIs" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); margin: 0;">
+                        🧪 Testar Todas as APIs
+                    </button>
+                </div>
                 <div id="statusAPIs" class="status-apis">
-                    <div class="api-status">
-                        <span class="api-name">🤖 OpenAI</span>
-                        <span class="api-status-badge" id="openai-status">⏳ Aguardando teste</span>
+                    <div class="api-status" onclick="toggleDetails('openai')">
+                        <div class="api-info">
+                            <span class="api-name">🤖 OpenAI</span>
+                            <span class="api-status-badge" id="openai-status">⏳ Aguardando teste</span>
+                        </div>
+                        <span class="expand-icon" id="openai-icon">▼</span>
                     </div>
-                    <div class="api-status">
-                        <span class="api-name">🏢 Lunas CRM</span>
-                        <span class="api-status-badge" id="lunas-status">⏳ Aguardando teste</span>
+                    <div class="api-details" id="openai-details" style="display: none;">
+                        <div class="details-content">
+                            <p id="openai-message">Nenhum teste realizado ainda.</p>
+                        </div>
                     </div>
-                    <div class="api-status">
-                        <span class="api-name">💰 V8 Sistema</span>
-                        <span class="api-status-badge" id="v8-status">⏳ Aguardando teste</span>
+                    
+                    <div class="api-status" onclick="toggleDetails('lunas')">
+                        <div class="api-info">
+                            <span class="api-name">🏢 Lunas CRM</span>
+                            <span class="api-status-badge" id="lunas-status">⏳ Aguardando teste</span>
+                        </div>
+                        <span class="expand-icon" id="lunas-icon">▼</span>
+                    </div>
+                    <div class="api-details" id="lunas-details" style="display: none;">
+                        <div class="details-content">
+                            <p id="lunas-message">Nenhum teste realizado ainda.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="api-status" onclick="toggleDetails('v8')">
+                        <div class="api-info">
+                            <span class="api-name">💰 V8 Sistema</span>
+                            <span class="api-status-badge" id="v8-status">⏳ Aguardando teste</span>
+                        </div>
+                        <span class="expand-icon" id="v8-icon">▼</span>
+                    </div>
+                    <div class="api-details" id="v8-details" style="display: none;">
+                        <div class="details-content">
+                            <p id="v8-message">Nenhum teste realizado ainda.</p>
+                            <div id="v8-results" class="v8-results"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -729,10 +832,30 @@
         });
 
         // Função para atualizar status da API
-        function atualizarStatusAPI(api, status, mensagem) {
+        function atualizarStatusAPI(api, status, mensagem, detalhes = null) {
             const elemento = document.getElementById(api + '-status');
             elemento.textContent = mensagem;
             elemento.className = 'api-status-badge status-' + status;
+            
+            // Atualizar mensagem de detalhes
+            const messageElement = document.getElementById(api + '-message');
+            if (messageElement) {
+                messageElement.textContent = detalhes || 'Teste concluído.';
+            }
+        }
+
+        // Função para alternar detalhes
+        function toggleDetails(api) {
+            const details = document.getElementById(api + '-details');
+            const icon = document.getElementById(api + '-icon');
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                icon.textContent = '▲';
+            } else {
+                details.style.display = 'none';
+                icon.textContent = '▼';
+            }
         }
 
         // Testar todas as APIs
@@ -803,15 +926,31 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        atualizarStatusAPI('v8', 'sucesso', `✅ ${data.sucessos}/${data.testados} OK`);
+                        atualizarStatusAPI('v8', 'sucesso', `✅ ${data.sucessos}/${data.testados} OK`, `Testados ${data.testados} usuários: ${data.sucessos} sucessos, ${data.falhas} falhas`);
+                        
+                        // Mostrar detalhes dos resultados V8
+                        const v8Results = document.getElementById('v8-results');
+                        v8Results.innerHTML = '';
+                        
+                        if (data.resultados) {
+                            data.resultados.forEach(resultado => {
+                                const item = document.createElement('div');
+                                item.className = `v8-result-item ${resultado.status === 'OK' ? 'v8-success' : 'v8-error'}`;
+                                item.innerHTML = `
+                                    <span>${resultado.usuario}</span>
+                                    <span>${resultado.status}</span>
+                                `;
+                                v8Results.appendChild(item);
+                            });
+                        }
                     } else {
-                        atualizarStatusAPI('v8', 'erro', '❌ Erro');
+                        atualizarStatusAPI('v8', 'erro', '❌ Erro', data.error || 'Erro desconhecido');
                     }
                 } catch (error) {
-                    atualizarStatusAPI('v8', 'erro', '❌ Erro');
+                    atualizarStatusAPI('v8', 'erro', '❌ Erro', error.message);
                 }
             } else {
-                atualizarStatusAPI('v8', 'erro', '❌ Nenhum usuário');
+                atualizarStatusAPI('v8', 'erro', '❌ Nenhum usuário', 'Adicione pelo menos um usuário V8 para testar');
             }
             
             showStatus('✅ Teste de todas as APIs concluído!', 'success');
