@@ -418,6 +418,34 @@
             border: 1px solid #fecaca;
         }
 
+        .status-message {
+            margin-top: 10px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -468,6 +496,7 @@
 
                     <button type="submit" class="btn">Salvar Credenciais</button>
                 </form>
+                <div id="status-credenciais" class="status-message" style="display: none;"></div>
             </div>
 
             <!-- Seção de Usuários V8 -->
@@ -490,6 +519,7 @@
                     Salvar Usuários V8
                 </button>
                 </div>
+                <div id="status-usuarios-v8" class="status-message" style="display: none;"></div>
             </div>
 
             <!-- Seção de Status das APIs -->
@@ -610,6 +640,18 @@
             }, 5000);
         }
 
+        // Função para mostrar status específico
+        function showSpecificStatus(elementId, message, type) {
+            const statusElement = document.getElementById(elementId);
+            statusElement.textContent = message;
+            statusElement.className = `status-message status-${type}`;
+            statusElement.style.display = 'block';
+            
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+
         // Adicionar usuário V8
         function adicionarUsuarioV8(usuario = null) {
             usuarioCounter++;
@@ -626,21 +668,22 @@
                     <div class="usuario-form">
                         <div class="form-group">
                             <label for="${usuarioId}_login">📧 Login</label>
-                            <input type="text" id="${usuarioId}_login" placeholder="usuario@exemplo.com" value="${usuario?.login || ''}">
+                            <input type="text" id="${usuarioId}_login" placeholder="usuario@exemplo.com" value="${usuario?.login || ''}" data-field="login">
                         </div>
                         <div class="form-group">
                             <label for="${usuarioId}_senha">🔒 Senha</label>
-                            <input type="password" id="${usuarioId}_senha" placeholder="Sua senha" value="${usuario?.senha || ''}">
+                            <input type="password" id="${usuarioId}_senha" placeholder="Sua senha" value="${usuario?.senha || ''}" data-field="senha">
                         </div>
                         <div class="form-group full-width">
                             <label for="${usuarioId}_nome">👤 Nome (opcional)</label>
-                            <input type="text" id="${usuarioId}_nome" placeholder="Nome do usuário" value="${usuario?.nome || ''}">
+                            <input type="text" id="${usuarioId}_nome" placeholder="Nome do usuário" value="${usuario?.nome || ''}" data-field="nome">
                         </div>
                     </div>
                 </div>
             `;
             
             usuariosV8.insertAdjacentHTML('beforeend', usuarioHTML);
+            console.log(`Usuário V8 #${usuarioCounter} adicionado com ID: ${usuarioId}`);
         }
 
         // Remover usuário V8
@@ -657,9 +700,21 @@
             const usuarioElements = document.querySelectorAll('.usuario-v8');
             
             usuarioElements.forEach((element, index) => {
-                const login = element.querySelector('input[type="text"]').value;
-                const senha = element.querySelector('input[type="password"]').value;
-                const nome = element.querySelectorAll('input[type="text"]')[1].value;
+                // Buscar campos pelos atributos data-field
+                const loginField = element.querySelector('input[data-field="login"]');
+                const senhaField = element.querySelector('input[data-field="senha"]');
+                const nomeField = element.querySelector('input[data-field="nome"]');
+                
+                const login = loginField ? loginField.value.trim() : '';
+                const senha = senhaField ? senhaField.value.trim() : '';
+                const nome = nomeField ? nomeField.value.trim() : '';
+                
+                console.log(`Usuário ${index + 1}:`, { 
+                    login, 
+                    senha: senha ? '***' : 'vazio', 
+                    nome,
+                    elementId: element.id
+                });
                 
                 if (login && senha) {
                     usuarios.push({
@@ -668,9 +723,12 @@
                         senha: senha,
                         nome: nome || `Usuário ${index + 1}`
                     });
+                } else {
+                    console.warn(`Usuário ${index + 1} ignorado - login ou senha vazios:`, { login: !!login, senha: !!senha });
                 }
             });
             
+            console.log('Usuários V8 coletados:', usuarios);
             return usuarios;
         }
 
@@ -761,10 +819,10 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showStatus('✅ Credenciais salvas com sucesso!', 'success');
+                    showSpecificStatus('status-credenciais', '✅ Credenciais salvas com sucesso!', 'success');
                     loadCurrentCredentials();
                 } else {
-                    showStatus('❌ Erro ao salvar credenciais: ' + data.error, 'error');
+                    showSpecificStatus('status-credenciais', '❌ Erro ao salvar credenciais: ' + data.error, 'error');
                 }
             } catch (error) {
                 showStatus('❌ Erro de conexão: ' + error.message, 'error');
@@ -826,9 +884,9 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showStatus('✅ Usuários V8 salvos com sucesso!', 'success');
+                    showSpecificStatus('status-usuarios-v8', '✅ Usuários V8 salvos com sucesso!', 'success');
                 } else {
-                    showStatus('❌ Erro ao salvar usuários V8: ' + data.error, 'error');
+                    showSpecificStatus('status-usuarios-v8', '❌ Erro ao salvar usuários V8: ' + data.error, 'error');
                 }
             } catch (error) {
                 showStatus('❌ Erro de conexão: ' + error.message, 'error');
