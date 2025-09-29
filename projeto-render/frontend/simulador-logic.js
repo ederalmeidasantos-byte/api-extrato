@@ -203,9 +203,9 @@ function pvFromParcela(parcela, taxaPercentMes, n) {
 
 // Função para estimar taxa de juros por valor pago
 function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
-    const pv = parseFloat(valorLiberado || 0);
-    const n = parseFloat(prazoTotal || 0);
-    const pmt = parseFloat(valorParcela || 0);
+    const pv = toNumber(valorLiberado || 0);
+    const n = toNumber(prazoTotal || 0);
+    const pmt = toNumber(valorParcela || 0);
     if (!(pv > 0) || !(n > 0) || !(pmt > 0)) return 0;
 
     let i = 0.02;
