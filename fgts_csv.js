@@ -775,7 +775,7 @@ async function disparaFluxo(opportunityId) {
 let atualizarEstadoPersistente = null;
 
 // Registrar função de atualização de estado
-export function registrarAtualizadorEstado(callback) {
+function registrarAtualizadorEstado(callback) {
   atualizarEstadoPersistente = callback;
 }
 
