@@ -4,9 +4,27 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
+      - key: LUNAS_API_KEY
+        sync: false
+      - key: QUEUE_ID
+        value: 25
+      - key: DEST_STAGE_ID
+        value: 4
+      - key: FGTS_USER_1
+        sync: false
+      - key: FGTS_PASS_1
+        sync: false
+      - key: FGTS_USER_2
+        sync: false
+      - key: FGTS_PASS_2
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
+    branch: main
+    rootDir: .

@@ -1,144 +1,227 @@
 #!/bin/bash
 
-# ===== SCRIPT DE DEPLOY AUTOMÁTICO - RENDER =====
-# Script para facilitar o deploy de projetos no Render
+# ===== SCRIPT DE DEPLOY PARA RENDER - PAINEL FGTS =====
+# Este script automatiza o processo de deploy no Render
 
-echo "🚀 ===== DEPLOY AUTOMÁTICO - RENDER ====="
+echo "🚀 ===== INICIANDO DEPLOY PAINEL FGTS ====="
 echo ""
 
-# Cores para output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ===== VERIFICAÇÕES PRÉ-DEPLOY =====
+echo "📋 Verificando arquivos necessários..."
 
-# Função para imprimir mensagens coloridas
-print_message() {
-    echo -e "${2}${1}${NC}"
-}
+# Verificar se os arquivos principais existem
+required_files=(
+    "server-fgts.js"
+    "package.json"
+    "render.yaml"
+    "fgts_csv.js"
+    "cache-persistente.js"
+    "error-logger.js"
+    "index.html"
+    "menu.js"
+)
 
-# Verificar se está em um repositório Git
-if [ ! -d ".git" ]; then
-    print_message "❌ Erro: Este não é um repositório Git!" $RED
-    print_message "Execute 'git init' primeiro." $YELLOW
-    exit 1
-fi
-
-# Verificar se está no branch correto
-CURRENT_BRANCH=$(git branch --show-current)
-if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
-    print_message "⚠️ Aviso: Você está no branch '$CURRENT_BRANCH'" $YELLOW
-    print_message "Recomendamos usar 'main' ou 'master' para deploy." $YELLOW
-    read -p "Continuar mesmo assim? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_message "❌ Deploy cancelado." $RED
+for file in "${required_files[@]}"; do
+    if [ -f "$file" ]; then
+        echo "✅ $file encontrado"
+    else
+        echo "❌ $file NÃO encontrado!"
+        echo "   Execute este script na raiz do projeto"
         exit 1
     fi
-fi
+done
 
-# Verificar se há mudanças não commitadas
-if [ -n "$(git status --porcelain)" ]; then
-    print_message "⚠️ Há mudanças não commitadas:" $YELLOW
-    git status --short
-    echo ""
-    read -p "Deseja fazer commit das mudanças? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        read -p "Digite a mensagem do commit: " commit_message
-        if [ -z "$commit_message" ]; then
-            commit_message="Deploy automático - $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+# ===== VERIFICAÇÃO DE DEPENDÊNCIAS =====
+echo "📦 Verificando dependências..."
+
+if [ -f "package.json" ]; then
+    echo "✅ package.json encontrado"
+    
+    # Verificar se as dependências necessárias estão listadas
+    required_deps=(
+        "express"
+        "socket.io"
+        "multer"
+        "csv-parse"
+        "axios"
+        "dotenv"
+        "cors"
+    )
+    
+    for dep in "${required_deps[@]}"; do
+        if grep -q "\"$dep\"" package.json; then
+            echo "✅ $dep encontrado no package.json"
+        else
+            echo "⚠️ $dep não encontrado no package.json"
         fi
-        git add .
-        git commit -m "$commit_message"
-        print_message "✅ Commit realizado: $commit_message" $GREEN
-    else
-        print_message "❌ Deploy cancelado. Faça commit das mudanças primeiro." $RED
-        exit 1
-    fi
-fi
-
-# Verificar se package.json existe
-if [ ! -f "package.json" ]; then
-    print_message "❌ Erro: package.json não encontrado!" $RED
-    print_message "Crie um package.json antes de fazer deploy." $YELLOW
-    exit 1
-fi
-
-# Verificar se server.js existe
-if [ ! -f "server.js" ]; then
-    print_message "❌ Erro: server.js não encontrado!" $RED
-    print_message "Crie um server.js antes de fazer deploy." $YELLOW
-    exit 1
-fi
-
-# Verificar se .env.example existe
-if [ ! -f ".env.example" ]; then
-    print_message "⚠️ Aviso: .env.example não encontrado!" $YELLOW
-    print_message "Recomendamos criar um .env.example com as variáveis necessárias." $YELLOW
-fi
-
-# Verificar se .gitignore existe
-if [ ! -f ".gitignore" ]; then
-    print_message "⚠️ Aviso: .gitignore não encontrado!" $YELLOW
-    print_message "Recomendamos criar um .gitignore para ignorar arquivos desnecessários." $YELLOW
-fi
-
-# Mostrar informações do projeto
-print_message "📋 Informações do Projeto:" $BLUE
-echo "   Branch: $CURRENT_BRANCH"
-echo "   Último commit: $(git log -1 --pretty=format:'%h - %s (%cr)')"
-echo "   Arquivos modificados: $(git diff --name-only HEAD~1 2>/dev/null | wc -l)"
-echo ""
-
-# Verificar se há remote configurado
-if [ -z "$(git remote -v)" ]; then
-    print_message "⚠️ Aviso: Nenhum remote configurado!" $YELLOW
-    print_message "Configure um remote GitHub antes de fazer deploy." $YELLOW
-    read -p "Digite a URL do repositório GitHub: " github_url
-    if [ -n "$github_url" ]; then
-        git remote add origin "$github_url"
-        print_message "✅ Remote configurado: $github_url" $GREEN
-    else
-        print_message "❌ Deploy cancelado. Configure um remote primeiro." $RED
-        exit 1
-    fi
-fi
-
-# Mostrar remote configurado
-print_message "🔗 Remote configurado:" $BLUE
-git remote -v
-echo ""
-
-# Fazer push para o repositório
-print_message "📤 Fazendo push para o repositório..." $BLUE
-if git push origin "$CURRENT_BRANCH"; then
-    print_message "✅ Push realizado com sucesso!" $GREEN
+    done
 else
-    print_message "❌ Erro ao fazer push!" $RED
-    print_message "Verifique se o repositório existe e se você tem permissão." $YELLOW
+    echo "❌ package.json não encontrado!"
     exit 1
 fi
 
 echo ""
-print_message "🎉 Deploy iniciado com sucesso!" $GREEN
+
+# ===== VERIFICAÇÃO DE VARIÁVEIS DE AMBIENTE =====
+echo "🔐 Verificando configuração de variáveis de ambiente..."
+
+if [ -f "env-example.txt" ]; then
+    echo "✅ env-example.txt encontrado"
+    echo "   Configure as variáveis no painel do Render:"
+    echo ""
+    echo "   📋 Variáveis obrigatórias:"
+    echo "   • LUNAS_API_KEY"
+    echo "   • FGTS_USER_1"
+    echo "   • FGTS_PASS_1"
+    echo "   • FGTS_USER_2 (opcional)"
+    echo "   • FGTS_PASS_2 (opcional)"
+    echo ""
+    echo "   📋 Variáveis opcionais:"
+    echo "   • QUEUE_ID (padrão: 25)"
+    echo "   • DEST_STAGE_ID (padrão: 4)"
+    echo "   • PORT (padrão: 3000)"
+    echo "   • NODE_ENV (padrão: production)"
+else
+    echo "⚠️ env-example.txt não encontrado"
+fi
+
 echo ""
-print_message "📋 Próximos passos:" $BLUE
-echo "   1. Acesse https://render.com"
-echo "   2. Vá em 'Dashboard' > 'New +' > 'Web Service'"
-echo "   3. Conecte seu repositório GitHub"
-echo "   4. Configure:"
-echo "      - Name: seu-projeto-render"
-echo "      - Runtime: Node"
-echo "      - Build Command: npm install"
-echo "      - Start Command: npm start"
-echo "   5. Configure as variáveis de ambiente"
-echo "   6. Clique em 'Create Web Service'"
+
+# ===== VERIFICAÇÃO DO RENDER.YAML =====
+echo "⚙️ Verificando render.yaml..."
+
+if [ -f "render.yaml" ]; then
+    echo "✅ render.yaml encontrado"
+    
+    # Verificar configurações importantes
+    if grep -q "server-fgts.js" render.yaml; then
+        echo "✅ Servidor FGTS configurado corretamente"
+    else
+        echo "⚠️ Verifique se o startCommand está apontando para server-fgts.js"
+    fi
+    
+    if grep -q "healthCheckPath" render.yaml; then
+        echo "✅ Health check configurado"
+    else
+        echo "⚠️ Health check não configurado"
+    fi
+else
+    echo "❌ render.yaml não encontrado!"
+    exit 1
+fi
+
 echo ""
-print_message "🌐 Após o deploy, sua URL será:" $BLUE
-echo "   https://seu-projeto-render.onrender.com"
+
+# ===== TESTE LOCAL (OPCIONAL) =====
+echo "🧪 Deseja testar localmente antes do deploy? (y/n)"
+read -r test_local
+
+if [ "$test_local" = "y" ] || [ "$test_local" = "Y" ]; then
+    echo ""
+    echo "🔧 Testando servidor localmente..."
+    
+    # Verificar se Node.js está instalado
+    if command -v node &> /dev/null; then
+        echo "✅ Node.js encontrado: $(node --version)"
+        
+        # Verificar se npm está instalado
+        if command -v npm &> /dev/null; then
+            echo "✅ npm encontrado: $(npm --version)"
+            
+            # Instalar dependências
+            echo "📦 Instalando dependências..."
+            npm install
+            
+            if [ $? -eq 0 ]; then
+                echo "✅ Dependências instaladas com sucesso"
+                
+                # Testar se o servidor inicia
+                echo "🚀 Testando inicialização do servidor..."
+                timeout 10s node server-fgts.js &
+                server_pid=$!
+                sleep 3
+                
+                if kill -0 $server_pid 2>/dev/null; then
+                    echo "✅ Servidor iniciou com sucesso!"
+                    kill $server_pid
+                else
+                    echo "❌ Erro ao iniciar servidor"
+                    echo "   Verifique os logs acima"
+                fi
+            else
+                echo "❌ Erro ao instalar dependências"
+            fi
+        else
+            echo "❌ npm não encontrado"
+        fi
+    else
+        echo "❌ Node.js não encontrado"
+    fi
+fi
+
 echo ""
-print_message "💡 Dica: O Render fará deploy automático a cada push!" $YELLOW
+
+# ===== INSTRUÇÕES DE DEPLOY =====
+echo "📋 ===== INSTRUÇÕES DE DEPLOY ====="
 echo ""
-print_message "🚀 ===== DEPLOY CONCLUÍDO =====" $GREEN
+echo "1. 🌐 Acesse: https://render.com"
+echo "2. 🔐 Faça login na sua conta"
+echo "3. ➕ Clique em 'New +' → 'Web Service'"
+echo "4. 🔗 Conecte seu repositório GitHub"
+echo "5. ⚙️ Configure o serviço:"
+echo ""
+echo "   📝 Nome: painel-fgts"
+echo "   🏷️ Runtime: Node"
+echo "   📦 Build Command: npm install"
+echo "   🚀 Start Command: npm start"
+echo "   💰 Plan: Free"
+echo "   🌿 Branch: main"
+echo "   📁 Root Directory: ."
+echo "   🔄 Auto-Deploy: Yes"
+echo ""
+echo "6. 🔐 Configure as variáveis de ambiente:"
+echo "   • LUNAS_API_KEY=sua_chave_aqui"
+echo "   • FGTS_USER_1=seu_usuario@email.com"
+echo "   • FGTS_PASS_1=sua_senha"
+echo "   • FGTS_USER_2=segundo_usuario@email.com (opcional)"
+echo "   • FGTS_PASS_2=segunda_senha (opcional)"
+echo ""
+echo "7. 💾 Clique em 'Create Web Service'"
+echo "8. ⏳ Aguarde o deploy (pode levar alguns minutos)"
+echo "9. 🎉 Acesse seu painel em: https://painel-fgts.onrender.com"
+echo ""
+
+# ===== VERIFICAÇÃO FINAL =====
+echo "✅ ===== CHECKLIST FINAL ====="
+echo ""
+echo "📋 Arquivos prontos para deploy:"
+echo "✅ server-fgts.js (servidor principal)"
+echo "✅ package.json (dependências)"
+echo "✅ render.yaml (configuração Render)"
+echo "✅ fgts_csv.js (lógica FGTS)"
+echo "✅ cache-persistente.js (cache)"
+echo "✅ error-logger.js (logs)"
+echo "✅ index.html (painel frontend)"
+echo "✅ menu.js (menu lateral)"
+echo ""
+echo "🔐 Variáveis de ambiente necessárias:"
+echo "✅ LUNAS_API_KEY"
+echo "✅ FGTS_USER_1"
+echo "✅ FGTS_PASS_1"
+echo "✅ FGTS_USER_2 (opcional)"
+echo "✅ FGTS_PASS_2 (opcional)"
+echo ""
+echo "🚀 Seu projeto está pronto para deploy!"
+echo ""
+echo "📞 Suporte: Se encontrar problemas, verifique:"
+echo "   • Logs do Render no painel"
+echo "   • Variáveis de ambiente configuradas"
+echo "   • Conectividade com APIs externas"
+echo "   • Credenciais FGTS válidas"
+echo ""
+echo "🎯 URL do painel após deploy:"
+echo "   https://painel-fgts.onrender.com"
+echo ""
+echo "✨ Deploy concluído! Boa sorte! 🚀"

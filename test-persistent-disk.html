@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Persistent Disk - API Extrato</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste Persistent Disk - API Extrato</h1>
+    
+    <div class="container">
+        <h2>📊 Status do Persistent Disk</h2>
+        <button onclick="checkStatus()">Verificar Status</button>
+        <div id="statusResult"></div>
+    </div>
+
+    <div class="container">
+        <h2>🧪 Teste Completo</h2>
+        <button onclick="runFullTest()">Executar Teste Completo</button>
+        <div id="testResult"></div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h2>💾 Cache</h2>
+            <div class="section">
+                <h3>Salvar Cache</h3>
+                <input type="text" id="cacheFileName" placeholder="Nome do arquivo (ex: cache_teste.json)" value="cache_teste.json">
+                <textarea id="cacheData" placeholder="Dados JSON">{"teste": "dados de cache", "timestamp": "2024-01-01T00:00:00Z"}</textarea>
+                <button onclick="saveCache()">Salvar Cache</button>
+            </div>
+            <div class="section">
+                <h3>Carregar Cache</h3>
+                <input type="text" id="loadCacheFileName" placeholder="Nome do arquivo" value="cache_teste.json">
+                <button onclick="loadCache()">Carregar Cache</button>
+            </div>
+            <div class="section">
+                <h3>Listar Cache</h3>
+                <button onclick="listCache()">Listar Arquivos</button>
+            </div>
+            <div id="cacheResult"></div>
+        </div>
+
+        <div class="container">
+            <h2>📄 Extratos</h2>
+            <div class="section">
+                <h3>Salvar Extrato</h3>
+                <input type="text" id="extratoId" placeholder="ID do extrato" value="12345">
+                <textarea id="extratoData" placeholder="Dados do extrato">{"banco": "Banco do Brasil", "conta": "12345-6", "saldo": 1000.50}</textarea>
+                <button onclick="saveExtrato()">Salvar Extrato</button>
+            </div>
+            <div class="section">
+                <h3>Carregar Extrato</h3>
+                <input type="text" id="loadExtratoId" placeholder="ID do extrato" value="12345">
+                <button onclick="loadExtrato()">Carregar Extrato</button>
+            </div>
+            <div class="section">
+                <h3>Listar Extratos</h3>
+                <button onclick="listExtratos()">Listar Extratos</button>
+            </div>
+            <div id="extratoResult"></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h2>📁 Uploads</h2>
+            <div class="section">
+                <h3>Salvar Upload</h3>
+                <input type="text" id="uploadFileName" placeholder="Nome do arquivo" value="dados_teste.csv">
+                <select id="uploadType">
+                    <option value="csv">CSV</option>
+                    <option value="json">JSON</option>
+                    <option value="text">Texto</option>
+                </select>
+                <textarea id="uploadContent" placeholder="Conteúdo do arquivo">nome,idade,cidade
+João,30,São Paulo
+Maria,25,Rio de Janeiro</textarea>
+                <button onclick="saveUpload()">Salvar Upload</button>
+            </div>
+            <div class="section">
+                <h3>Listar Uploads</h3>
+                <button onclick="listUploads()">Listar Uploads</button>
+            </div>
+            <div id="uploadResult"></div>
+        </div>
+
+        <div class="container">
+            <h2>📝 Logs</h2>
+            <div class="section">
+                <h3>Salvar Log</h3>
+                <input type="text" id="logFileName" placeholder="Nome do arquivo de log" value="app.log">
+                <textarea id="logData" placeholder="Dados do log">{"level": "info", "message": "Teste de log", "user": "admin"}</textarea>
+                <button onclick="saveLog()">Salvar Log</button>
+            </div>
+            <div class="section">
+                <h3>Listar Logs</h3>
+                <button onclick="listLogs()">Listar Logs</button>
+            </div>
+            <div id="logResult"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>⚙️ Configurações</h2>
+        <div class="grid">
+            <div class="section">
+                <h3>Salvar Config</h3>
+                <input type="text" id="configFileName" placeholder="Nome do arquivo de config" value="app_config.json">
+                <textarea id="configData" placeholder="Dados de configuração">{"theme": "dark", "language": "pt-BR", "notifications": true}</textarea>
+                <button onclick="saveConfig()">Salvar Config</button>
+            </div>
+            <div class="section">
+                <h3>Carregar Config</h3>
+                <input type="text" id="loadConfigFileName" placeholder="Nome do arquivo" value="app_config.json">
+                <button onclick="loadConfig()">Carregar Config</button>
+            </div>
+        </div>
+        <div class="section">
+            <h3>Listar Configs</h3>
+            <button onclick="listConfigs()">Listar Configurações</button>
+        </div>
+        <div id="configResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            const className = isError ? 'error' : 'success';
+            element.innerHTML = `<div class="${className}"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+        }
+
+        function showInfo(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="info">${message}</div>`;
+        }
+
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro na requisição');
+                }
+                
+                return data;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Status
+        async function checkStatus() {
+            try {
+                showInfo('statusResult', 'Verificando status...');
+                const data = await makeRequest(`${API_BASE}/api/status/persistent-disk`);
+                showResult('statusResult', data);
+            } catch (error) {
+                showResult('statusResult', { error: error.message }, true);
+            }
+        }
+
+        // Teste completo
+        async function runFullTest() {
+            try {
+                showInfo('testResult', 'Executando teste completo...');
+                const data = await makeRequest(`${API_BASE}/api/test/persistent-disk`);
+                showResult('testResult', data);
+            } catch (error) {
+                showResult('testResult', { error: error.message }, true);
+            }
+        }
+
+        // Cache
+        async function saveCache() {
+            try {
+                const fileName = document.getElementById('cacheFileName').value;
+                const data = JSON.parse(document.getElementById('cacheData').value);
+                
+                const result = await makeRequest(`${API_BASE}/api/cache/save`, 'POST', {
+                    fileName,
+                    data
+                });
+                showResult('cacheResult', result);
+            } catch (error) {
+                showResult('cacheResult', { error: error.message }, true);
+            }
+        }
+
+        async function loadCache() {
+            try {
+                const fileName = document.getElementById('loadCacheFileName').value;
+                const data = await makeRequest(`${API_BASE}/api/cache/load/${fileName}`);
+                showResult('cacheResult', data);
+            } catch (error) {
+                showResult('cacheResult', { error: error.message }, true);
+            }
+        }
+
+        async function listCache() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/cache/list`);
+                showResult('cacheResult', data);
+            } catch (error) {
+                showResult('cacheResult', { error: error.message }, true);
+            }
+        }
+
+        // Extratos
+        async function saveExtrato() {
+            try {
+                const id = document.getElementById('extratoId').value;
+                const extratoData = JSON.parse(document.getElementById('extratoData').value);
+                
+                const result = await makeRequest(`${API_BASE}/api/extratos/save`, 'POST', {
+                    id,
+                    extratoData
+                });
+                showResult('extratoResult', result);
+            } catch (error) {
+                showResult('extratoResult', { error: error.message }, true);
+            }
+        }
+
+        async function loadExtrato() {
+            try {
+                const id = document.getElementById('loadExtratoId').value;
+                const data = await makeRequest(`${API_BASE}/api/extratos/${id}`);
+                showResult('extratoResult', data);
+            } catch (error) {
+                showResult('extratoResult', { error: error.message }, true);
+            }
+        }
+
+        async function listExtratos() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/extratos/list`);
+                showResult('extratoResult', data);
+            } catch (error) {
+                showResult('extratoResult', { error: error.message }, true);
+            }
+        }
+
+        // Uploads
+        async function saveUpload() {
+            try {
+                const fileName = document.getElementById('uploadFileName').value;
+                const content = document.getElementById('uploadContent').value;
+                const type = document.getElementById('uploadType').value;
+                
+                const result = await makeRequest(`${API_BASE}/api/uploads/save`, 'POST', {
+                    fileName,
+                    content,
+                    type
+                });
+                showResult('uploadResult', result);
+            } catch (error) {
+                showResult('uploadResult', { error: error.message }, true);
+            }
+        }
+
+        async function listUploads() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/uploads/list`);
+                showResult('uploadResult', data);
+            } catch (error) {
+                showResult('uploadResult', { error: error.message }, true);
+            }
+        }
+
+        // Logs
+        async function saveLog() {
+            try {
+                const fileName = document.getElementById('logFileName').value;
+                const logData = JSON.parse(document.getElementById('logData').value);
+                
+                const result = await makeRequest(`${API_BASE}/api/logs/save`, 'POST', {
+                    fileName,
+                    logData
+                });
+                showResult('logResult', result);
+            } catch (error) {
+                showResult('logResult', { error: error.message }, true);
+            }
+        }
+
+        async function listLogs() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/logs/list`);
+                showResult('logResult', data);
+            } catch (error) {
+                showResult('logResult', { error: error.message }, true);
+            }
+        }
+
+        // Config
+        async function saveConfig() {
+            try {
+                const fileName = document.getElementById('configFileName').value;
+                const configData = JSON.parse(document.getElementById('configData').value);
+                
+                const result = await makeRequest(`${API_BASE}/api/config/save`, 'POST', {
+                    fileName,
+                    configData
+                });
+                showResult('configResult', result);
+            } catch (error) {
+                showResult('configResult', { error: error.message }, true);
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const fileName = document.getElementById('loadConfigFileName').value;
+                const data = await makeRequest(`${API_BASE}/api/config/load/${fileName}`);
+                showResult('configResult', data);
+            } catch (error) {
+                showResult('configResult', { error: error.message }, true);
+            }
+        }
+
+        async function listConfigs() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/config/list`);
+                showResult('configResult', data);
+            } catch (error) {
+                showResult('configResult', { error: error.message }, true);
+            }
+        }
+
+        // Verificar status ao carregar a página
+        window.onload = function() {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

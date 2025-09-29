@@ -1,15 +1,18 @@
 {
-  "name": "extrato-api",
+  "name": "painel-fgts-api",
   "version": "1.0.0",
-  "description": "API para extrair dados de extratos INSS em PDF",
-  "main": "server.js",
+  "description": "API para Painel de Consulta FGTS com processamento em lote",
+  "main": "server-fgts.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server-fgts.js",
+    "dev": "node server-fgts.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "axios": "^1.12.2",
     "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
     "csv-stringify": "^6.6.0",
     "dotenv": "^16.6.1",
@@ -24,12 +27,24 @@
     "qs": "^6.14.0",
     "socket.io": "^4.8.1"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ederalmeidasantos-byte/api-extrato.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "fgts",
+    "consignado",
+    "painel",
+    "api",
+    "socket.io",
+    "csv",
+    "processamento"
+  ],
+  "author": "Lunas Digital",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/ederalmeidasantos-byte/api-extrato/issues"
