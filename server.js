@@ -2838,6 +2838,11 @@ app.post('/fgts/logs/limpar', async (req, res) => {
 // ====== Arquivos estáticos ======
 app.use("/static", express.static(path.join(__dirname, "projeto-render", "frontend")));
 
+// Rota específica para logs.html
+app.get('/logs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'logs.html'));
+});
+
 // Servir arquivos otimizados
 app.get('/otimizado', (req, res) => {
     res.sendFile(path.join(__dirname, 'index-otimizado.html'));
