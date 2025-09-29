@@ -830,9 +830,7 @@ function atualizarContrato(contratoId, campo, valor) {
         // Converter valor brasileiro para número
         let valorNumerico = 0;
         if (valor && valor !== '') {
-            // Remove pontos e substitui vírgula por ponto
-            const valorLimpo = valor.toString().replace(/\./g, '').replace(',', '.');
-            valorNumerico = parseFloat(valorLimpo) || 0;
+            valorNumerico = toNumber(valor);
         }
         
         contrato[campo] = valorNumerico;
