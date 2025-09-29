@@ -286,12 +286,22 @@ async function continuarProcessamento() {
       console.log(`   - Descartados: ${listas.descartados?.length || 0}`);
       console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
       
+      // Debug das listas
+      console.log(`📋 Detalhes das listas:`);
+      console.log(`   - Estrutura listas:`, Object.keys(listas || {}));
+      console.log(`   - Estrutura pendentes:`, Array.isArray(pendentes) ? 'array' : typeof pendentes);
+      
       // Calcular total de CPFs processados
       const totalProcessados = (listas.sucessos?.length || 0) + 
                               (listas.naoAutorizados?.length || 0) + 
                               (listas.descartados?.length || 0) + 
                               (pendentes?.length || 0);
       
+      console.log(`📊 Cálculo detalhado:`);
+      console.log(`   - Sucessos: ${listas.sucessos?.length || 0}`);
+      console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
+      console.log(`   - Descartados: ${listas.descartados?.length || 0}`);
+      console.log(`   - Pendentes: ${pendentes?.length || 0}`);
       console.log(`📊 Total calculado de CPFs: ${totalProcessados}`);
       
       if (totalProcessados > 0) {
@@ -489,7 +499,22 @@ async function atualizarContadoresTempoReal(tipo, incremento = 1) {
 
     // Fazer backup antes de salvar
     if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
-      await fazerBackup(CONTADORES_TEMPO_REAL_FILE, 'contadores');
+      try {
+        const backupDir = `${PERSISTENT_DIRS.cache}/backups`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${backupDir}/contadores-tempo-real-${timestamp}.json`;
+        
+        // Criar diretório de backup se não existir
+        if (!fs.existsSync(backupDir)) {
+          await fsp.mkdir(backupDir, { recursive: true });
+        }
+        
+        // Copiar arquivo atual para backup
+        await fsp.copyFile(CONTADORES_TEMPO_REAL_FILE, backupPath);
+        console.log(`💾 Backup criado: ${backupPath}`);
+      } catch (backupError) {
+        console.log('⚠️ Erro ao criar backup, continuando sem backup:', backupError.message);
+      }
     }
 
     // Salvar contadores atualizados
@@ -1390,7 +1415,22 @@ app.post('/fgts/limpar-contadores', async (req, res) => {
     
     if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
       // Fazer backup antes de deletar
-      await fazerBackup(CONTADORES_TEMPO_REAL_FILE, 'contadores');
+      try {
+        const backupDir = `${PERSISTENT_DIRS.cache}/backups`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${backupDir}/contadores-tempo-real-${timestamp}.json`;
+        
+        // Criar diretório de backup se não existir
+        if (!fs.existsSync(backupDir)) {
+          await fsp.mkdir(backupDir, { recursive: true });
+        }
+        
+        // Copiar arquivo atual para backup
+        await fsp.copyFile(CONTADORES_TEMPO_REAL_FILE, backupPath);
+        console.log(`💾 Backup criado: ${backupPath}`);
+      } catch (backupError) {
+        console.log('⚠️ Erro ao criar backup, continuando sem backup:', backupError.message);
+      }
       
       // Deletar arquivo
       await fsp.unlink(CONTADORES_TEMPO_REAL_FILE);
