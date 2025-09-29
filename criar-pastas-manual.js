@@ -90,3 +90,4 @@ async function criarPastasUsandoRotasExistentes() {
 
 // Executar
 criarPastasUsandoRotasExistentes();
+

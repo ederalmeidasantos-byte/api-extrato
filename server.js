@@ -2203,6 +2203,23 @@ app.post('/fgts/logs/limpar', async (req, res) => {
 // ====== Arquivos estáticos ======
 app.use("/static", express.static(path.join(__dirname, "projeto-render", "frontend")));
 
+// Servir arquivos otimizados
+app.get('/otimizado', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index-otimizado.html'));
+});
+
+app.get('/menu-otimizado.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'menu-otimizado.js'));
+});
+
+app.get('/styles-otimizado.css', (req, res) => {
+    res.sendFile(path.join(__dirname, 'styles-otimizado.css'));
+});
+
+app.get('/script-otimizado.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'script-otimizado.js'));
+});
+
 // ====== Simulador ======
 app.get("/simulador", async (req, res) => {
   const simuladorPath = path.join(__dirname, "projeto-render", "frontend", "simulador.html");

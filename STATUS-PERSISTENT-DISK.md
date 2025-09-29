@@ -122,3 +122,4 @@ Após o deploy funcionar:
 - ✅ Sistema completo funcionando
 
 **Aguarde o deploy ou faça deploy manual no Render!** 🚀
+

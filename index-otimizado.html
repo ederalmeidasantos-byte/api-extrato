@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel FGTS - Lunas Digital</title>
+    
+    <!-- Scripts externos -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="menu-otimizado.js"></script>
+    
+    <!-- CSS externo -->
+    <link rel="stylesheet" href="styles-otimizado.css">
+    
+    <style>
+        /* CSS específico do painel (otimizado) */
+        .main-layout {
+            display: flex;
+            gap: 1.5rem;
+            min-height: 100vh;
+        }
+        
+        .content-area {
+            flex: 1;
+            padding-left: 20px; /* Espaço para o menu */
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #00d4aa;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #00d4aa;
+            background: #f0fdfa;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
+        }
+        
+        .controls-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-section {
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .results-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #00d4aa;
+        }
+        
+        .result-card h4 {
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        
+        .result-table th,
+        .result-table td {
+            padding: 0.4rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .result-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+        }
+        
+        .status-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .status-no-auth {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .status-discarded {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .logs-container {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.3rem;
+            padding: 0.2rem 0;
+        }
+        
+        .log-info { color: #60a5fa; }
+        .log-success { color: #34d399; }
+        .log-error { color: #f87171; }
+        .log-warning { color: #fbbf24; }
+        
+        @media (max-width: 768px) {
+            .content-area {
+                padding-left: 0;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <div class="content-area">
+            <!-- Header -->
+            <div class="header">
+                <h1>Painel FGTS - Lunas Digital</h1>
+                <p>Monitoramento em tempo real das consultas de saldo FGTS</p>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCPFs">0</div>
+                    <div class="stat-label">Total de CPFs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="processedCPFs">0</div>
+                    <div class="stat-label">Processados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="successCPFs">0</div>
+                    <div class="stat-label">Sucessos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pendingCPFs">0</div>
+                    <div class="stat-label">Pendentes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="countNoAuth">0</div>
+                    <div class="stat-label">Não Autorizados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="countDiscarded">0</div>
+                    <div class="stat-label">Descartados</div>
+                </div>
+            </div>
+
+            <!-- Painel de Controle -->
+            <div class="control-panel">
+                <h3>📊 Controles de Processamento</h3>
+                
+                <!-- Upload de Arquivo -->
+                <div class="upload-area">
+                    <input type="file" id="fileInput" class="file-input" accept=".csv">
+                    <label for="fileInput" class="file-label" id="fileLabel">
+                        📁 Escolher Arquivo CSV
+                    </label>
+                </div>
+                
+                <!-- Controles -->
+                <div class="controls-row">
+                    <button class="btn btn-primary" id="btnIniciar">
+                        ▶️ Iniciar Processamento
+                    </button>
+                    <button class="btn btn-secondary" id="btnLimpar">
+                        🗑️ Limpar
+                    </button>
+                    <button class="btn btn-danger" id="btnPause" disabled>
+                        ⏸️ Pausar
+                    </button>
+                    <button class="btn btn-success" id="btnResume" disabled>
+                        ▶️ Retomar
+                    </button>
+                    <button class="btn btn-danger" id="btnCancel" disabled>
+                        ❌ Cancelar
+                    </button>
+                    <button class="btn btn-primary" id="btnAtualizar">
+                        🔄 Atualizar Dados
+                    </button>
+                </div>
+                
+                <!-- Delay Control -->
+                <div class="controls-row">
+                    <label for="delayInput">Delay (ms):</label>
+                    <input type="number" id="delayInput" value="1000" min="100" max="10000" step="100">
+                    <button class="btn btn-secondary" id="btnAtualizarDelay">
+                        ⏱️ Atualizar
+                    </button>
+                </div>
+                
+                <!-- Progresso -->
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0% - 0/0 CPFs processados</div>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div class="results-section">
+                <!-- Sucessos -->
+                <div class="result-card">
+                    <h4>✅ Sucessos (<span id="countSuccess">0</span>)</h4>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Linha</th>
+                                    <th>CPF</th>
+                                    <th>ID</th>
+                                    <th>Valor</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="successTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pendentes -->
+                <div class="result-card">
+                    <h4>⏳ Pendentes (<span id="countPending">0</span>)</h4>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Linha</th>
+                                    <th>CPF</th>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Provider</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Não Autorizados -->
+                <div class="result-card">
+                    <h4>❌ Não Autorizados (<span id="countNoAuth">0</span>)</h4>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Linha</th>
+                                    <th>CPF</th>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Provider</th>
+                                </tr>
+                            </thead>
+                            <tbody id="noAuthTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Descartados -->
+                <div class="result-card">
+                    <h4>🗑️ Descartados (<span id="countDiscarded">0</span>)</h4>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>Linha</th>
+                                    <th>CPF</th>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Provider</th>
+                                </tr>
+                            </thead>
+                            <tbody id="discardedTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="control-panel">
+                <h3>📝 Logs do Sistema</h3>
+                <div class="logs-container" id="logs">
+                    <div class="log-entry log-info">[Sistema] Aguardando conexão...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript externo -->
+    <script src="script-otimizado.js"></script>
+</body>
+</html>

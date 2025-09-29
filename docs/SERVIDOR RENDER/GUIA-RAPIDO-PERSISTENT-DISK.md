@@ -208,3 +208,4 @@ curl -X POST https://seu-projeto.onrender.com/fgts/cache/limpar
 ```
 
 **Sistema funcionando perfeitamente!** 🚀✨
+
