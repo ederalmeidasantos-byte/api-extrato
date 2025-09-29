@@ -1422,15 +1422,23 @@ const logs = document.getElementById('logs');
         // Função para carregar contadores em tempo real
         async function carregarContadoresTempoReal() {
             try {
+                console.log('🔄 CARREGANDO CONTADORES...');
+                
                 // Usar sistema de status em vez do sistema antigo
                 const response = await fetch('/fgts/contadores-status');
+                console.log('📡 Resposta da API:', response.status);
+                
                 const data = await response.json();
+                console.log('📊 Dados recebidos:', data);
                 
                 if (data.success && data.contadores) {
                     const contadores = data.contadores;
                     
+                    console.log('✅ Contadores válidos:', contadores);
+                    
                     // Atualizar total de CPFs
                     totalCPFs.textContent = contadores.totalCPFs;
+                    console.log('📝 Total CPFs atualizado:', contadores.totalCPFs);
                     
                     // Atualizar contadores individuais
                     document.getElementById('countSuccess').textContent = contadores.sucessos;
@@ -1443,15 +1451,24 @@ const logs = document.getElementById('logs');
                     successCPFs.textContent = contadores.sucessos;
                     pendingCPFs.textContent = contadores.pendentes;
                     
+                    console.log('📝 Contadores principais atualizados:');
+                    console.log('  - Processados:', contadores.processados);
+                    console.log('  - Sucessos:', contadores.sucessos);
+                    console.log('  - Pendentes:', contadores.pendentes);
+                    
                     // Atualizar progresso
                     const pct = contadores.totalCPFs > 0 ? Math.round((contadores.processados/contadores.totalCPFs)*100) : 0;
                     setProgress(pct, contadores.processados, contadores.totalCPFs);
                     
                     console.log('📊 Contadores carregados do status:', contadores);
                     adicionarLog(`📊 Contadores carregados: ${contadores.processados}/${contadores.totalCPFs} processados`, 'info');
+                } else {
+                    console.error('❌ Dados inválidos recebidos:', data);
+                    adicionarLog('❌ Erro ao carregar contadores: dados inválidos', 'error');
                 }
             } catch (error) {
                 console.error('❌ Erro ao carregar contadores:', error);
+                adicionarLog(`❌ Erro ao carregar contadores: ${error.message}`, 'error');
             }
         }
 
@@ -1560,9 +1577,10 @@ const logs = document.getElementById('logs');
 
         // Inicializar
         init();
-        carregarListasDoCache().then(() => {
-            carregarContadoresTempoReal();
-        });
+        
+        // Carregar contadores apenas uma vez na inicialização
+        carregarContadoresTempoReal();
+        
         adicionarLog('🚀 Painel FGTS iniciado', 'info');
 </script>
 </body>
