@@ -25,7 +25,8 @@ import {
   ajustarDelayDinamico,
   processarReprocessamentoRapido,
   limparCacheV8,
-  registrarAtualizadorEstado
+  registrarAtualizadorEstado,
+  registrarAtualizadorContadores
 } from "./fgts_csv.js";
 
 import { 
