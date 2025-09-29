@@ -1917,6 +1917,85 @@ app.get('/api/configuracoes', async (req, res) => {
   }
 });
 
+// API para obter logs do servidor
+app.get('/api/logs', async (req, res) => {
+  try {
+    const logFile = '/root/api-extrato/logs/out-0.log';
+    const errorLogFile = '/root/api-extrato/logs/err-0.log';
+    
+    let logs = [];
+    
+    // Ler logs de saída
+    if (fs.existsSync(logFile)) {
+      const content = await fsp.readFile(logFile, 'utf-8');
+      const lines = content.split('\n').filter(line => line.trim());
+      
+      lines.forEach(line => {
+        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/);
+        if (match) {
+          logs.push({
+            timestamp: new Date().toISOString(),
+            level: 'INFO',
+            message: match[2],
+            source: 'stdout'
+          });
+        }
+      });
+    }
+    
+    // Ler logs de erro
+    if (fs.existsSync(errorLogFile)) {
+      const content = await fsp.readFile(errorLogFile, 'utf-8');
+      const lines = content.split('\n').filter(line => line.trim());
+      
+      lines.forEach(line => {
+        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/);
+        if (match) {
+          logs.push({
+            timestamp: new Date().toISOString(),
+            level: 'ERROR',
+            message: match[2],
+            source: 'stderr'
+          });
+        }
+      });
+    }
+    
+    // Ordenar por timestamp (mais recentes primeiro)
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Limitar a 100 logs mais recentes
+    logs = logs.slice(0, 100);
+    
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('❌ Erro ao obter logs:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API para reiniciar o servidor
+app.post('/api/restart', async (req, res) => {
+  try {
+    // Executar comando PM2 para reiniciar
+    const { exec } = require('child_process');
+    
+    exec('pm2 restart api-extrato', (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ Erro ao reiniciar servidor:', error);
+        res.status(500).json({ success: false, error: error.message });
+        return;
+      }
+      
+      console.log('✅ Servidor reiniciado via API');
+      res.json({ success: true, message: 'Servidor reiniciado com sucesso' });
+    });
+  } catch (error) {
+    console.error('❌ Erro ao reiniciar servidor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // API para salvar configurações do sistema
 app.post('/api/configuracoes', async (req, res) => {
   try {
