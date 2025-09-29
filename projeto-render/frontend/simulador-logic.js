@@ -992,11 +992,49 @@ function novaSimulacao() {
 }
 
 function atualizarDadosCliente() {
-    document.getElementById('clienteNome').textContent = cliente.nome || '-';
-    document.getElementById('clienteNB').textContent = cliente.nb || '-';
-    document.getElementById('clienteEspecie').textContent = formatarEspecie(cliente.especie);
-    document.getElementById('clienteOrigem').textContent = cliente.origem || '-';
-    document.getElementById('clienteData').textContent = cliente.dataExtrato || '-';
+    console.log('👤 Atualizando dados do cliente...');
+    console.log('👤 Dados do cliente:', cliente);
+    
+    const nomeElement = document.getElementById('clienteNome');
+    const nbElement = document.getElementById('clienteNB');
+    const especieElement = document.getElementById('clienteEspecie');
+    const origemElement = document.getElementById('clienteOrigem');
+    const dataElement = document.getElementById('clienteData');
+    
+    console.log('👤 Elementos encontrados:', {
+        nome: nomeElement ? 'SIM' : 'NÃO',
+        nb: nbElement ? 'SIM' : 'NÃO',
+        especie: especieElement ? 'SIM' : 'NÃO',
+        origem: origemElement ? 'SIM' : 'NÃO',
+        data: dataElement ? 'SIM' : 'NÃO'
+    });
+    
+    if (nomeElement) {
+        nomeElement.textContent = cliente.nome || '-';
+        console.log('👤 Nome definido:', cliente.nome || '-');
+    }
+    
+    if (nbElement) {
+        nbElement.textContent = cliente.nb || '-';
+        console.log('👤 NB definido:', cliente.nb || '-');
+    }
+    
+    if (especieElement) {
+        especieElement.textContent = formatarEspecie(cliente.especie);
+        console.log('👤 Espécie definida:', formatarEspecie(cliente.especie));
+    }
+    
+    if (origemElement) {
+        origemElement.textContent = cliente.origem || '-';
+        console.log('👤 Origem definida:', cliente.origem || '-');
+    }
+    
+    if (dataElement) {
+        dataElement.textContent = cliente.dataExtrato || '-';
+        console.log('👤 Data definida:', cliente.dataExtrato || '-');
+    }
+    
+    console.log('✅ Dados do cliente atualizados!');
 }
 
 function atualizarMargens() {
