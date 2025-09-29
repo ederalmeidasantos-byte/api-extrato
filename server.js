@@ -1561,6 +1561,32 @@ app.get('/fgts/debug-contadores', async (req, res) => {
   }
 });
 
+// API de debug para verificar processamento de CPF específico
+app.get('/fgts/debug-cpf/:cpf', async (req, res) => {
+  try {
+    const { cpf } = req.params;
+    const statusData = await carregarStatusCPFs();
+    const cpfsAnexados = await carregarCPFsAnexados();
+    
+    const cpfData = cpfsAnexados?.cpfs?.find(c => c.cpf === cpf);
+    const status = statusData?.cpfs?.[cpf];
+    
+    res.json({
+      success: true,
+      debug: {
+        cpf,
+        cpfData,
+        status,
+        existeNaLista: !!cpfData,
+        temStatus: !!status,
+        statusAtual: status?.status || 'SEM STATUS'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
