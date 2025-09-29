@@ -221,10 +221,13 @@ async function verificarProcessamentoPendente() {
 // Continuar processamento de onde parou
 async function continuarProcessamento() {
   try {
+    console.log('🔍 ===== VERIFICANDO PROCESSAMENTO PENDENTE =====');
+    
     const estado = await verificarProcessamentoPendente();
     
     if (estado) {
       console.log(`🚀 Continuando processamento de onde parou...`);
+      console.log(`📊 Estado encontrado: ${estado.processados}/${estado.total} processados`);
       
       // Se há CPFs para reprocessar, iniciar reprocessamento
       if (estado.reprocessar?.length > 0) {
@@ -247,21 +250,43 @@ async function continuarProcessamento() {
         }, 5000); // Aguardar 5 segundos para o sistema estabilizar
       }
     } else {
+      console.log('📂 Nenhum estado completo encontrado, verificando cache-persistente...');
+      
       // Verificar se há CPFs pendentes no cache-persistente.js
       const pendentes = await carregarPendentes();
+      const listas = await carregarListas();
+      
+      console.log(`📋 Cache carregado:`);
+      console.log(`   - Pendentes: ${pendentes?.length || 0}`);
+      console.log(`   - Sucessos: ${listas.sucessos?.length || 0}`);
+      console.log(`   - Erros: ${listas.erros?.length || 0}`);
+      console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
+      console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
+      
       if (pendentes && pendentes.length > 0) {
         console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
         console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
         
+        // Emitir total de CPFs para o frontend
+        if (ioInstance) {
+          ioInstance.emit("totalCPFs", pendentes.length);
+          console.log(`📡 Total de CPFs emitido para frontend: ${pendentes.length}`);
+        }
+        
         setTimeout(async () => {
           try {
+            console.log(`🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
             await processarCPFs(null, pendentes);
           } catch (error) {
             console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
           }
         }, 5000); // Aguardar 5 segundos para o sistema estabilizar
+      } else {
+        console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
       }
     }
+    
+    console.log('✅ ===== VERIFICAÇÃO DE PROCESSAMENTO CONCLUÍDA =====');
     
   } catch (error) {
     console.error('❌ Erro ao continuar processamento:', error);

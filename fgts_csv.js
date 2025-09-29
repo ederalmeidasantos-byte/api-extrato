@@ -699,8 +699,16 @@ async function enviarParaFila(cpf, provider) {
         retryCount++;
         await delay(delayMs * 2);
         continue;
+      } else if (erroCompleto.status === 400) {
+        // Erro 400 - CPF inválido ou problema com dados
+        console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando como erro`);
+        return "erro400";
+      } else {
+        // Outros erros - tentar novamente
+        retryCount++;
+        await delay(delayMs);
+        continue;
       }
-      return false;
     }
   }
   return "pending429";
@@ -1088,6 +1096,10 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         if (enviado === true) {
           resultadoFila = await tentarConsultaComRetry(cpf, linha);
           break; // Se conseguiu enviar, para o loop
+        } else if (enviado === "erro400") {
+          // CPF com erro 400 - marcar como erro e pular para próximo
+          console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - pulando para próximo`);
+          return "erro400";
         }
       }
     }
