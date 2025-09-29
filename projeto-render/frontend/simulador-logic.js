@@ -958,9 +958,26 @@ function atualizarMargens() {
 async function carregarDados() {
     console.log('🚀 Iniciando carregamento de dados...');
     
-    // Verificar se há dados pré-carregados do servidor
+    // SEMPRE verificar ID da URL primeiro
+    const urlParams = new URLSearchParams(window.location.search);
+    const extratoId = urlParams.get('extrato') || urlParams.get('id');
+    
+    console.log(`🔍 Parâmetros da URL:`, {
+        extrato: urlParams.get('extrato'),
+        id: urlParams.get('id'),
+        extratoId: extratoId
+    });
+    
+    if (extratoId) {
+        console.log(`📋 Carregando simulação específica para ID: ${extratoId}`);
+        // Carregar simulação específica via API
+        await carregarSimulacaoPorId(extratoId);
+        return;
+    }
+    
+    // Verificar se há dados pré-carregados do servidor (fallback)
     if (window.DADOS_PRE_CARREGADOS && window.EXTRATO_ID) {
-        console.log('📋 Usando dados pré-carregados do servidor');
+        console.log('📋 Usando dados pré-carregados do servidor (fallback)');
         console.log('📋 Dados:', window.DADOS_PRE_CARREGADOS);
         
         const dados = window.DADOS_PRE_CARREGADOS;
@@ -1001,23 +1018,6 @@ async function carregarDados() {
         atualizarResumo();
         
         console.log('✅ Dados pré-carregados processados com sucesso!');
-        return;
-    }
-    
-    // Verificar se há código de extrato na URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const extratoId = urlParams.get('extrato') || urlParams.get('id');
-    
-    console.log(`🔍 Parâmetros da URL:`, {
-        extrato: urlParams.get('extrato'),
-        id: urlParams.get('id'),
-        extratoId: extratoId
-    });
-    
-    if (extratoId) {
-        console.log(`📋 Carregando simulação específica para ID: ${extratoId}`);
-        // Carregar simulação específica
-        await carregarSimulacaoPorId(extratoId);
         return;
     }
     
