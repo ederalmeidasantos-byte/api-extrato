@@ -283,6 +283,61 @@
             border-radius: 10px;
         }
 
+        .status-apis {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .api-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .api-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1em;
+        }
+
+        .api-status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .status-aguardando {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .status-testando {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+
+        .status-sucesso {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-erro {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -333,11 +388,8 @@
 
                     <div class="form-row">
                         <button type="submit" class="btn">💾 Salvar Credenciais</button>
-                        <button type="button" id="testarOpenAI" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            🧪 Testar OpenAI
-                        </button>
-                        <button type="button" id="testarLunas" class="btn" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
-                            🧪 Testar Lunas API
+                        <button type="button" id="testarTodasAPIs" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                            🧪 Testar Todas as APIs
                         </button>
                     </div>
                 </form>
@@ -362,9 +414,25 @@
                     <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);">
                         💾 Salvar Usuários V8
                     </button>
-                    <button type="button" id="testarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                        🧪 Testar Usuários V8
-                    </button>
+                </div>
+            </div>
+
+            <!-- Seção de Status das APIs -->
+            <div class="section">
+                <h2>🔍 Status das APIs</h2>
+                <div id="statusAPIs" class="status-apis">
+                    <div class="api-status">
+                        <span class="api-name">🤖 OpenAI</span>
+                        <span class="api-status-badge" id="openai-status">⏳ Aguardando teste</span>
+                    </div>
+                    <div class="api-status">
+                        <span class="api-name">🏢 Lunas CRM</span>
+                        <span class="api-status-badge" id="lunas-status">⏳ Aguardando teste</span>
+                    </div>
+                    <div class="api-status">
+                        <span class="api-name">💰 V8 Sistema</span>
+                        <span class="api-status-badge" id="v8-status">⏳ Aguardando teste</span>
+                    </div>
                 </div>
             </div>
 
@@ -649,104 +717,93 @@
             }
         });
 
-        // Testar OpenAI
-        document.getElementById('testarOpenAI').addEventListener('click', async () => {
-            const openaiKey = document.getElementById('openaiKey').value;
-            
-            if (!openaiKey) {
-                showStatus('❌ Digite a chave da API OpenAI primeiro', 'error');
-                return;
-            }
-            
-            try {
-                showStatus('🔄 Testando OpenAI...', 'success');
-                
-                const response = await fetch('/api/testar-openai', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ openaiKey })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showStatus('✅ OpenAI funcionando! Resposta: ' + data.resposta, 'success');
-                } else {
-                    showStatus('❌ Erro OpenAI: ' + data.error, 'error');
-                }
-            } catch (error) {
-                showStatus('❌ Erro de conexão: ' + error.message, 'error');
-            }
-        });
+        // Função para atualizar status da API
+        function atualizarStatusAPI(api, status, mensagem) {
+            const elemento = document.getElementById(api + '-status');
+            elemento.textContent = mensagem;
+            elemento.className = 'api-status-badge status-' + status;
+        }
 
-        // Testar Lunas API
-        document.getElementById('testarLunas').addEventListener('click', async () => {
+        // Testar todas as APIs
+        document.getElementById('testarTodasAPIs').addEventListener('click', async () => {
+            // Resetar status
+            atualizarStatusAPI('openai', 'testando', '🔄 Testando...');
+            atualizarStatusAPI('lunas', 'testando', '🔄 Testando...');
+            atualizarStatusAPI('v8', 'testando', '🔄 Testando...');
+            
+            showStatus('🔄 Testando todas as APIs...', 'success');
+            
+            // Testar OpenAI
+            const openaiKey = document.getElementById('openaiKey').value;
+            if (openaiKey) {
+                try {
+                    const response = await fetch('/api/testar-openai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ openaiKey })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        atualizarStatusAPI('openai', 'sucesso', '✅ Funcionando');
+                    } else {
+                        atualizarStatusAPI('openai', 'erro', '❌ Erro');
+                    }
+                } catch (error) {
+                    atualizarStatusAPI('openai', 'erro', '❌ Erro');
+                }
+            } else {
+                atualizarStatusAPI('openai', 'erro', '❌ Não configurado');
+            }
+            
+            // Testar Lunas API
             const lunasApiKey = document.getElementById('lunasApiKey').value;
             const lunasApiUrl = document.getElementById('lunasApiUrl').value;
-            
-            if (!lunasApiKey || !lunasApiUrl) {
-                showStatus('❌ Digite a chave e URL da API Lunas primeiro', 'error');
-                return;
-            }
-            
-            try {
-                showStatus('🔄 Testando Lunas API...', 'success');
-                
-                const response = await fetch('/api/testar-lunas', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        lunasApiKey, 
-                        lunasApiUrl 
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showStatus('✅ Lunas API funcionando! Status: ' + data.status, 'success');
-                } else {
-                    showStatus('❌ Erro Lunas API: ' + data.error, 'error');
+            if (lunasApiKey && lunasApiUrl) {
+                try {
+                    const response = await fetch('/api/testar-lunas', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lunasApiKey, lunasApiUrl })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        atualizarStatusAPI('lunas', 'sucesso', '✅ Funcionando');
+                    } else {
+                        atualizarStatusAPI('lunas', 'erro', '❌ Erro');
+                    }
+                } catch (error) {
+                    atualizarStatusAPI('lunas', 'erro', '❌ Erro');
                 }
-            } catch (error) {
-                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            } else {
+                atualizarStatusAPI('lunas', 'erro', '❌ Não configurado');
             }
-        });
-
-        // Testar Usuários V8
-        document.getElementById('testarUsuariosV8').addEventListener('click', async () => {
+            
+            // Testar V8 Sistema
             const usuarios = obterUsuariosV8();
-            
-            if (usuarios.length === 0) {
-                showStatus('❌ Adicione pelo menos um usuário V8 primeiro', 'error');
-                return;
-            }
-            
-            try {
-                showStatus('🔄 Testando Usuários V8...', 'success');
-                
-                const response = await fetch('/api/testar-v8', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ usuarios })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showStatus('✅ Usuários V8 funcionando! Testados: ' + data.testados + ' usuários', 'success');
-                } else {
-                    showStatus('❌ Erro Usuários V8: ' + data.error, 'error');
+            if (usuarios.length > 0) {
+                try {
+                    const response = await fetch('/api/testar-v8', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ usuarios })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        atualizarStatusAPI('v8', 'sucesso', `✅ ${data.sucessos}/${data.testados} OK`);
+                    } else {
+                        atualizarStatusAPI('v8', 'erro', '❌ Erro');
+                    }
+                } catch (error) {
+                    atualizarStatusAPI('v8', 'erro', '❌ Erro');
                 }
-            } catch (error) {
-                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            } else {
+                atualizarStatusAPI('v8', 'erro', '❌ Nenhum usuário');
             }
+            
+            showStatus('✅ Teste de todas as APIs concluído!', 'success');
         });
 
         // Carregar credenciais ao inicializar
