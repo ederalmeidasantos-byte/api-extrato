@@ -240,6 +240,25 @@ async function continuarProcessamento() {
         erros: estado.erros?.length || 0
       });
       
+      // Emitir dados corretos para o frontend IMEDIATAMENTE
+      if (ioInstance) {
+        ioInstance.emit("totalCPFs", estado.total);
+        console.log(`📡 Total de CPFs emitido para frontend: ${estado.total}`);
+        
+        // Emitir contadores atuais
+        ioInstance.emit("progress", {
+          done: estado.processados,
+          total: estado.total,
+          pendentes: estado.pendentes?.length || 0,
+          counters: {
+            success: estado.sucessos,
+            pending: estado.pendentes?.length || 0,
+            no_auth: 0,
+            descartados: 0
+          }
+        });
+      }
+      
       // Se há CPFs para reprocessar, iniciar reprocessamento
       if (estado.reprocessar?.length > 0) {
         console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
@@ -282,10 +301,23 @@ async function continuarProcessamento() {
         
         console.log(`🚀 Iniciando processamento da lista completa do cache...`);
         
-        // Emitir total de CPFs para o frontend
+        // Emitir total de CPFs para o frontend IMEDIATAMENTE
         if (ioInstance) {
           ioInstance.emit("totalCPFs", cpfsAnexados.totalCPFs);
           console.log(`📡 Total de CPFs emitido para frontend: ${cpfsAnexados.totalCPFs}`);
+          
+          // Emitir contadores iniciais
+          ioInstance.emit("progress", {
+            done: 0,
+            total: cpfsAnexados.totalCPFs,
+            pendentes: cpfsAnexados.totalCPFs,
+            counters: {
+              success: 0,
+              pending: cpfsAnexados.totalCPFs,
+              no_auth: 0,
+              descartados: 0
+            }
+          });
         }
         
         setTimeout(async () => {
