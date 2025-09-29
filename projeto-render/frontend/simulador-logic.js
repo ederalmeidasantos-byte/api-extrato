@@ -281,18 +281,28 @@ function gerarLinkUnico() {
 }
 
 async function carregarSimulacaoPorId(extratoId) {
+    console.log(`🔄 Carregando simulação para ID: ${extratoId}`);
+    
     try {
         // Buscar dados da API
+        console.log(`📡 Fazendo requisição para: https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`);
         const response = await fetch(`https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`);
+        
+        console.log(`📡 Resposta recebida: ${response.status} ${response.statusText}`);
+        
         if (!response.ok) {
             throw new Error(`Erro ao carregar dados: ${response.status}`);
         }
         
         const dados = await response.json();
+        console.log(`✅ Dados carregados:`, dados);
+        
         codigoExtrato = extratoId;
         contratos = dados.contratos || [];
         cliente = dados.cliente || {};
         margens = dados.margens || {};
+        
+        console.log(`📊 Processando ${contratos.length} contratos`);
         
         // Processar contratos
         contratos.forEach((contrato, index) => {
@@ -946,11 +956,20 @@ function atualizarMargens() {
 }
 
 async function carregarDados() {
+    console.log('🚀 Iniciando carregamento de dados...');
+    
     // Verificar se há código de extrato na URL
     const urlParams = new URLSearchParams(window.location.search);
     const extratoId = urlParams.get('extrato') || urlParams.get('id');
     
+    console.log(`🔍 Parâmetros da URL:`, {
+        extrato: urlParams.get('extrato'),
+        id: urlParams.get('id'),
+        extratoId: extratoId
+    });
+    
     if (extratoId) {
+        console.log(`📋 Carregando simulação específica para ID: ${extratoId}`);
         // Carregar simulação específica
         await carregarSimulacaoPorId(extratoId);
         return;
