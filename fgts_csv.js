@@ -990,6 +990,8 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   });
 
   const atualizarProgresso = () => {
+    console.log(`${LOG_PREFIX()} 📊 Atualizando progresso: ${processed}/${total} | Sucessos: ${contadorSucesso} | Pendentes: ${contadorPending} | Não Autorizados: ${contadorSemAutorizacao} | Descartados: ${contadorDescartados}`);
+    
     if (ioInstance) {
       ioInstance.emit("progress", {
         done: processed,
@@ -1002,6 +1004,12 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
           descartados: contadorDescartados
         }
       });
+      
+      // Emitir contadores individuais para garantir atualização
+      ioInstance.emit("contadorSucesso", contadorSucesso);
+      ioInstance.emit("contadorPending", contadorPending);
+      ioInstance.emit("contadorNaoAutorizado", contadorSemAutorizacao);
+      ioInstance.emit("contadorDescartados", contadorDescartados);
     }
     
     // Atualizar estado persistente
