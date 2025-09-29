@@ -769,6 +769,27 @@ async function disparaFluxo(opportunityId) {
   }
 }
 
+// ====== SISTEMA DE ESTADO PERSISTENTE ======
+
+// Função para atualizar estado persistente (será chamada do server.js)
+let atualizarEstadoPersistente = null;
+
+// Registrar função de atualização de estado
+export function registrarAtualizadorEstado(callback) {
+  atualizarEstadoPersistente = callback;
+}
+
+// Atualizar estado quando há mudanças
+async function atualizarEstadoCompleto(dados) {
+  if (atualizarEstadoPersistente) {
+    try {
+      await atualizarEstadoPersistente(dados);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar estado persistente:', error);
+    }
+  }
+}
+
 // 🔹 Processar CPFs
 async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = null) {
   let registros = [];
@@ -793,6 +814,17 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
 
+  // Atualizar estado inicial
+  await atualizarEstadoCompleto({
+    processando: true,
+    total: total,
+    processados: 0,
+    sucessos: 0,
+    pendentes: registros.length,
+    reprocessar: cpfsReprocess?.length || 0,
+    ultimaAtualizacao: new Date().toISOString()
+  });
+
   const atualizarProgresso = () => {
     if (ioInstance) {
       ioInstance.emit("progress", {
@@ -807,6 +839,16 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         }
       });
     }
+    
+    // Atualizar estado persistente
+    atualizarEstadoCompleto({
+      processando: true,
+      total: total,
+      processados: processed,
+      sucessos: contadorSucesso,
+      pendentes: pendentesParaReprocessar.length,
+      ultimaAtualizacao: new Date().toISOString()
+    });
   };
 
   // Função interna de retry com tratamento de 429
@@ -1240,5 +1282,6 @@ export {
   processarAgendamentos,
   ajustarDelayDinamico,
   processarReprocessamentoRapido,
-  limparCacheV8
+  limparCacheV8,
+  registrarAtualizadorEstado
 };

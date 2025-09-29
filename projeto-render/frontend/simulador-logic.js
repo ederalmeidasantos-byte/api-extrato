@@ -400,8 +400,6 @@ async function carregarSimulacaoPorId(extratoId) {
             
             alert('Erro ao carregar simulação específica');
         }
-    } else {
-        alert('Simulação não encontrada');
     }
 }
 

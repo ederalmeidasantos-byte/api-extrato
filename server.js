@@ -24,7 +24,8 @@ import {
   processarAgendamentos,
   ajustarDelayDinamico,
   processarReprocessamentoRapido,
-  limparCacheV8
+  limparCacheV8,
+  registrarAtualizadorEstado
 } from "./fgts_csv.js";
 
 import { 
@@ -143,8 +144,111 @@ async function limparBackupsAntigos(backupDir, nomeArquivo, tipo) {
   }
 }
 
+// ====== SISTEMA DE ESTADO PERSISTENTE FGTS ======
+
+// Salvar estado completo do processamento FGTS
+async function salvarEstadoFGTS(estado) {
+  try {
+    const estadoFile = path.join(PERSISTENT_DIRS.cache, 'estado-fgts-completo.json');
+    
+    // Fazer backup antes de salvar
+    await fazerBackup(estadoFile, 'estado-fgts');
+    
+    // Salvar estado atualizado
+    await fsp.writeFile(estadoFile, JSON.stringify(estado, null, 2));
+    console.log(`💾 Estado FGTS salvo: ${estadoFile}`);
+    
+  } catch (error) {
+    console.error('❌ Erro ao salvar estado FGTS:', error);
+  }
+}
+
+// Carregar estado completo do processamento FGTS
+async function carregarEstadoFGTS() {
+  try {
+    const estadoFile = path.join(PERSISTENT_DIRS.cache, 'estado-fgts-completo.json');
+    
+    if (fs.existsSync(estadoFile)) {
+      const estado = JSON.parse(await fsp.readFile(estadoFile, 'utf-8'));
+      console.log(`📂 Estado FGTS carregado: ${estadoFile}`);
+      return estado;
+    } else {
+      console.log(`📂 Nenhum estado FGTS encontrado, iniciando novo`);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar estado FGTS:', error);
+    return null;
+  }
+}
+
+// Verificar se há processamento pendente ao iniciar
+async function verificarProcessamentoPendente() {
+  try {
+    const estado = await carregarEstadoFGTS();
+    
+    if (estado && estado.processando) {
+      console.log(`🔄 Processamento pendente encontrado!`);
+      console.log(`📊 Estado: ${estado.processados}/${estado.total} processados`);
+      console.log(`⏳ Pendentes: ${estado.pendentes?.length || 0}`);
+      console.log(`🔄 Reprocessar: ${estado.reprocessar?.length || 0}`);
+      
+      // Restaurar estado nos módulos FGTS
+      if (estado.pendentes?.length > 0) {
+        await salvarPendentes(estado.pendentes);
+        console.log(`✅ ${estado.pendentes.length} CPFs pendentes restaurados`);
+      }
+      
+      if (estado.reprocessar?.length > 0) {
+        // Salvar lista de reprocessar em arquivo separado
+        const reprocessarFile = path.join(PERSISTENT_DIRS.cache, 'reprocessar-pendentes.json');
+        await fsp.writeFile(reprocessarFile, JSON.stringify(estado.reprocessar, null, 2));
+        console.log(`✅ ${estado.reprocessar.length} CPFs para reprocessar restaurados`);
+      }
+      
+      return estado;
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar processamento pendente:', error);
+    return null;
+  }
+}
+
+// Continuar processamento de onde parou
+async function continuarProcessamento() {
+  try {
+    const estado = await verificarProcessamentoPendente();
+    
+    if (estado) {
+      console.log(`🚀 Continuando processamento de onde parou...`);
+      
+      // Se há CPFs para reprocessar, iniciar reprocessamento
+      if (estado.reprocessar?.length > 0) {
+        console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
+        await processarCPFs(null, estado.reprocessar);
+      }
+      
+      // Se há CPFs pendentes, continuar processamento normal
+      if (estado.pendentes?.length > 0) {
+        console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
+        // O processamento continuará automaticamente via cache-persistente.js
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao continuar processamento:', error);
+  }
+}
+
 // Inicializar diretórios persistentes
 ensurePersistentDirectories();
+
+// Registrar função de atualização de estado no módulo FGTS
+registrarAtualizadorEstado(salvarEstadoFGTS);
 
 // TTL de cache (14 dias)
 const TTL_DIAS = 14;
@@ -177,7 +281,7 @@ app.use(express.json({ limit: "10mb" }));
 attachIO(io);
 
 // ====== Configuração Multer para upload de PDF ======
-const upload = multer({ 
+const upload = multer({
   dest: PDF_DIR,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
@@ -206,8 +310,138 @@ const uploadCSV = multer({
   }
 });
 
-// ====== Fila: até 2 jobs em paralelo, 2 por segundo ======
-const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
+// ====== SISTEMA DE CACHE DE CPFs ANEXADOS ======
+const CPFS_CACHE_FILE = `${PERSISTENT_DIRS.cache}/cpfs-anexados.json`;
+
+// Salvar lista de CPFs anexados
+async function salvarCPFsAnexados(cpfs, metadata = {}) {
+  try {
+    const cacheData = {
+      timestamp: new Date().toISOString(),
+      totalCPFs: cpfs.length,
+      metadata: {
+        fileName: metadata.fileName || 'unknown',
+        uploadTime: metadata.uploadTime || new Date().toISOString(),
+        ...metadata
+      },
+      cpfs: cpfs.map((cpf, index) => ({
+        id: `cpf_${index + 1}`,
+        cpf: cpf.CPF || cpf.cpf || cpf,
+        linha: index + 1,
+        status: 'pendente',
+        processado: false,
+        resultado: null,
+        tentativas: 0,
+        ultimaTentativa: null
+      }))
+    };
+
+    // Fazer backup antes de salvar
+    if (fs.existsSync(CPFS_CACHE_FILE)) {
+      await fazerBackup(CPFS_CACHE_FILE, 'cpfs');
+    }
+
+    await fsp.writeFile(CPFS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+    console.log(`💾 Cache de CPFs salvo: ${cpfs.length} CPFs em ${CPFS_CACHE_FILE}`);
+    
+    return cacheData;
+  } catch (error) {
+    console.error('❌ Erro ao salvar cache de CPFs:', error);
+    throw error;
+  }
+}
+
+// Carregar lista de CPFs anexados
+async function carregarCPFsAnexados() {
+  try {
+    if (!fs.existsSync(CPFS_CACHE_FILE)) {
+      console.log('📋 Nenhum cache de CPFs encontrado');
+      return null;
+    }
+
+    const data = JSON.parse(await fsp.readFile(CPFS_CACHE_FILE, 'utf-8'));
+    console.log(`📋 Cache de CPFs carregado: ${data.totalCPFs} CPFs`);
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Erro ao carregar cache de CPFs:', error);
+    return null;
+  }
+}
+
+// Atualizar status de um CPF específico
+async function atualizarStatusCPF(cpf, status, resultado = null) {
+  try {
+    const cacheData = await carregarCPFsAnexados();
+    if (!cacheData) return false;
+
+    const cpfIndex = cacheData.cpfs.findIndex(c => c.cpf === cpf);
+    if (cpfIndex === -1) return false;
+
+    cacheData.cpfs[cpfIndex].status = status;
+    cacheData.cpfs[cpfIndex].resultado = resultado;
+    cacheData.cpfs[cpfIndex].processado = true;
+    cacheData.cpfs[cpfIndex].ultimaTentativa = new Date().toISOString();
+
+    // Fazer backup antes de atualizar
+    await fazerBackup(CPFS_CACHE_FILE, 'cpfs');
+
+    await fsp.writeFile(CPFS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
+    console.log(`✅ Status atualizado para CPF ${cpf}: ${status}`);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao atualizar status do CPF:', error);
+    return false;
+  }
+}
+
+// Limpar cache de CPFs
+async function limparCacheCPFs() {
+  try {
+    if (fs.existsSync(CPFS_CACHE_FILE)) {
+      await fazerBackup(CPFS_CACHE_FILE, 'cpfs');
+      await fsp.unlink(CPFS_CACHE_FILE);
+      console.log('🗑️ Cache de CPFs limpo');
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao limpar cache de CPFs:', error);
+    return false;
+  }
+}
+
+// Obter estatísticas do cache de CPFs
+async function obterEstatisticasCPFs() {
+  try {
+    const cacheData = await carregarCPFsAnexados();
+    if (!cacheData) {
+      return {
+        totalCPFs: 0,
+        processados: 0,
+        pendentes: 0,
+        sucessos: 0,
+        erros: 0,
+        ultimaAtualizacao: null
+      };
+    }
+
+    const stats = {
+      totalCPFs: cacheData.totalCPFs,
+      processados: cacheData.cpfs.filter(c => c.processado).length,
+      pendentes: cacheData.cpfs.filter(c => c.status === 'pendente').length,
+      sucessos: cacheData.cpfs.filter(c => c.status === 'sucesso').length,
+      erros: cacheData.cpfs.filter(c => c.status === 'erro').length,
+      ultimaAtualizacao: cacheData.timestamp,
+      metadata: cacheData.metadata
+    };
+
+    return stats;
+  } catch (error) {
+    console.error('❌ Erro ao obter estatísticas de CPFs:', error);
+    return null;
+  }
+}
 
 // ====== Health ======
 app.get("/", (req, res) => res.send("API rodando ✅"));
@@ -351,13 +585,132 @@ app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
 
     console.log('📄 Processando CSV:', req.file.filename);
     
+    // Ler CPFs do CSV
+    const csvContent = fs.readFileSync(req.file.path, 'utf-8');
+    const { parse } = await import('csv-parse/sync');
+    const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+    
+    // Criar estado inicial completo
+    const estadoInicial = {
+      processando: true,
+      iniciadoEm: new Date().toISOString(),
+      arquivoOriginal: req.file.filename,
+      total: registros.length,
+      processados: 0,
+      sucessos: 0,
+      pendentes: registros.map((reg, i) => ({
+        cpf: reg.CPF,
+        linha: i + 1,
+        id: reg.ID || `linha_${i + 1}`,
+        tentativas: 0,
+        ultimaTentativa: null,
+        status: 'pendente'
+      })),
+      reprocessar: [],
+      erros: [],
+      ultimaAtualizacao: new Date().toISOString()
+    };
+    
+    // Salvar estado inicial
+    await salvarEstadoFGTS(estadoInicial);
+    
     // Processar CPFs
     await processarCPFs(req.file.path);
     
-    res.json({ success: true, message: "Processamento iniciado" });
+    res.json({ 
+      success: true, 
+      message: "Processamento iniciado",
+      total: registros.length,
+      estado: "iniciado"
+    });
     
   } catch (error) {
     console.error('❌ Erro no processamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verificar estado atual do processamento
+app.get('/fgts/estado', async (req, res) => {
+  try {
+    const estado = await carregarEstadoFGTS();
+    
+    if (!estado) {
+      return res.json({
+        processando: false,
+        message: "Nenhum processamento ativo"
+      });
+    }
+    
+    // Carregar dados atuais dos módulos FGTS
+    const pendentes = await carregarPendentes();
+    const listas = await carregarListas();
+    
+    const estadoAtualizado = {
+      ...estado,
+      pendentes: pendentes,
+      sucessos: listas.sucessos?.length || 0,
+      erros: listas.erros?.length || 0,
+      naoAutorizados: listas.naoAutorizados?.length || 0,
+      ultimaAtualizacao: new Date().toISOString()
+    };
+    
+    res.json(estadoAtualizado);
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar estado:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Continuar processamento de onde parou
+app.post('/fgts/continuar', async (req, res) => {
+  try {
+    console.log('🚀 Tentando continuar processamento...');
+    
+    await continuarProcessamento();
+    
+    res.json({ 
+      success: true, 
+      message: "Processamento continuado" 
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao continuar processamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Limpar estado de processamento
+app.post('/fgts/limpar-estado', async (req, res) => {
+  try {
+    const estadoFile = path.join(PERSISTENT_DIRS.cache, 'estado-fgts-completo.json');
+    const reprocessarFile = path.join(PERSISTENT_DIRS.cache, 'reprocessar-pendentes.json');
+    
+    // Fazer backup antes de limpar
+    if (fs.existsSync(estadoFile)) {
+      await fazerBackup(estadoFile, 'estado-fgts-limpeza');
+      await fsp.unlink(estadoFile);
+    }
+    
+    if (fs.existsSync(reprocessarFile)) {
+      await fazerBackup(reprocessarFile, 'reprocessar-limpeza');
+      await fsp.unlink(reprocessarFile);
+    }
+    
+    // Limpar cache dos módulos FGTS
+    await limparLista('sucessos');
+    await limparLista('erros');
+    await limparLista('naoAutorizados');
+    await salvarPendentes([]);
+    
+    res.json({ 
+      success: true, 
+      message: "Estado de processamento limpo" 
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar estado:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1061,7 +1414,7 @@ io.on('connection', (socket) => {
 
 // ====== Start ======
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log('🚀 ===== SERVIDOR PRINCIPAL INICIADO =====');
   console.log(`📡 Servidor rodando em: http://localhost:${PORT}`);
   console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'production'}`);
@@ -1073,6 +1426,18 @@ server.listen(PORT, () => {
   console.log(`   📊 Painel FGTS: http://localhost:${PORT}/fgts`);
   console.log(`   🏛️ Simulador: http://localhost:${PORT}/simulador`);
   console.log('');
+  
+  // ====== VERIFICAR PROCESSAMENTO PENDENTE ======
+  console.log('🔍 Verificando processamento pendente...');
+  try {
+    await continuarProcessamento();
+  } catch (error) {
+    console.error('❌ Erro ao verificar processamento pendente:', error);
+  }
+  
+  console.log('✅ Sistema de estado persistente ativo');
+  console.log('===============================================');
+  console.log('');
   console.log('🔗 APIs disponíveis:');
   console.log(`   📄 Upload PDF: POST http://localhost:${PORT}/extrairpdf`);
   console.log(`   📄 Upload CSV: POST http://localhost:${PORT}/fgts/run`);
@@ -1080,6 +1445,9 @@ server.listen(PORT, () => {
   console.log(`   ⏸️ Pausar: POST http://localhost:${PORT}/fgts/pause`);
   console.log(`   ▶️ Retomar: POST http://localhost:${PORT}/fgts/resume`);
   console.log(`   ⚡ Delay: POST http://localhost:${PORT}/fgts/delay`);
+  console.log(`   📊 Estado: GET http://localhost:${PORT}/fgts/estado`);
+  console.log(`   🚀 Continuar: POST http://localhost:${PORT}/fgts/continuar`);
+  console.log(`   🧹 Limpar: POST http://localhost:${PORT}/fgts/limpar-estado`);
   console.log(`   📊 Cache: GET http://localhost:${PORT}/fgts/cache/estatisticas`);
   console.log(`   📋 Logs: GET http://localhost:${PORT}/fgts/logs/erros`);
   console.log(`   ❤️ Health: GET http://localhost:${PORT}/api/health`);
