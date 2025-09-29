@@ -1497,6 +1497,70 @@ app.get('/teste', (req, res) => {
   });
 });
 
+// API de debug para contadores
+app.get('/fgts/debug-contadores', async (req, res) => {
+  try {
+    const statusData = await carregarStatusCPFs();
+    const cpfsAnexados = await carregarCPFsAnexados();
+    
+    // Contar apenas os primeiros 100 CPFs para debug
+    const sampleSize = Math.min(100, cpfsAnexados?.cpfs?.length || 0);
+    let sucessos = 0;
+    let naoAutorizados = 0;
+    let pendentes = 0;
+    let descartados = 0;
+    
+    if (cpfsAnexados?.cpfs && statusData?.cpfs) {
+      for (let i = 0; i < sampleSize; i++) {
+        const cpfData = cpfsAnexados.cpfs[i];
+        const cpf = cpfData.cpf;
+        const status = statusData.cpfs[cpf]?.status;
+        
+        if (!status) {
+          pendentes++;
+        } else {
+          switch (status) {
+            case 'SUCESSO':
+              sucessos++;
+              break;
+            case 'NÃO AUTORIZADO':
+              naoAutorizados++;
+              break;
+            case 'REPROCESSAR RAPIDO':
+            case 'PENDING':
+            case 'LIMITE EXCEDIDO':
+            case 'NA FILA NOVO PROCESSAR':
+              pendentes++;
+              break;
+            default:
+              descartados++;
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        sampleSize,
+        totalCPFs: cpfsAnexados?.totalCPFs || 0,
+        statusFileExists: !!statusData,
+        cpfsFileExists: !!cpfsAnexados,
+        contadores: {
+          sucessos,
+          naoAutorizados,
+          pendentes,
+          descartados
+        },
+        statusKeys: Object.keys(statusData?.cpfs || {}).slice(0, 10),
+        sampleStatuses: Object.entries(statusData?.cpfs || {}).slice(0, 5)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
