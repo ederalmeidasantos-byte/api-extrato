@@ -1684,6 +1684,50 @@ app.post('/fgts/testar-status/:cpf', async (req, res) => {
   }
 });
 
+// API para forçar atualização dos contadores no painel
+app.post('/fgts/forcar-atualizacao-painel', async (req, res) => {
+  try {
+    console.log('🔄 FORÇANDO ATUALIZAÇÃO DO PAINEL...');
+    
+    // Calcular contadores atuais
+    const contadores = await calcularContadoresPorStatus();
+    
+    // Emitir via Socket.IO para todos os clientes conectados
+    if (ioInstance) {
+      ioInstance.emit("totalCPFs", contadores.totalCPFs);
+      ioInstance.emit("contadoresTempoReal", {
+        ...contadores,
+        timestamp: new Date().toISOString(),
+        processando: true,
+        ultimaAtualizacao: new Date().toISOString()
+      });
+      ioInstance.emit("progress", {
+        done: contadores.processados,
+        total: contadores.totalCPFs,
+        pendentes: contadores.pendentes,
+        counters: {
+          success: contadores.sucessos,
+          pending: contadores.pendentes,
+          no_auth: contadores.naoAutorizados,
+          descartados: contadores.descartados
+        }
+      });
+      
+      console.log('📡 Contadores emitidos via Socket.IO:', contadores);
+    }
+    
+    res.json({
+      success: true,
+      message: "Contadores atualizados no painel",
+      contadores: contadores,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao forçar atualização do painel:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
