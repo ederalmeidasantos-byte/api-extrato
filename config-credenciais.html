@@ -588,6 +588,17 @@
                     }
                     
                     currentCredentials.innerHTML = html;
+                    
+                    // Preencher campos do formulário com as credenciais salvas
+                    if (credentials.openaiKey) {
+                        document.getElementById('openaiKey').value = credentials.openaiKey;
+                    }
+                    if (credentials.lunasApiKey) {
+                        document.getElementById('lunasApiKey').value = credentials.lunasApiKey;
+                    }
+                    if (credentials.lunasApiUrl) {
+                        document.getElementById('lunasApiUrl').value = credentials.lunasApiUrl;
+                    }
                 } else {
                     currentCredentials.innerHTML = '<p>Erro ao carregar credenciais</p>';
                 }

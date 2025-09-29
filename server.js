@@ -1802,10 +1802,10 @@ app.get('/api/credenciais', async (req, res) => {
     res.json({
       success: true,
       credenciais: {
-        openaiKey: credenciais.openaiKey ? '••••••••' : null,
-        lunasApiKey: credenciais.lunasApiKey ? '••••••••' : null,
+        openaiKey: credenciais.openaiKey || null,
+        lunasApiKey: credenciais.lunasApiKey || null,
         lunasApiUrl: credenciais.lunasApiUrl || null,
-        v8ApiKey: credenciais.v8ApiKey ? '••••••••' : null,
+        v8ApiKey: credenciais.v8ApiKey || null,
         v8ApiUrl: credenciais.v8ApiUrl || null
       }
     });
