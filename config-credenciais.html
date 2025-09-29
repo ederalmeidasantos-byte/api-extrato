@@ -836,7 +836,7 @@
         });
 
         // Função para atualizar status da API
-        function atualizarStatusAPI(api, status, mensagem, detalhes = null) {
+        function atualizarStatusAPI(api, status, mensagem, detalhes = null, erro = null) {
             const elemento = document.getElementById(api + '-status');
             elemento.textContent = mensagem;
             elemento.className = 'api-status-badge status-' + status;
@@ -844,7 +844,18 @@
             // Atualizar mensagem de detalhes
             const messageElement = document.getElementById(api + '-message');
             if (messageElement) {
-                messageElement.textContent = detalhes || 'Teste concluído.';
+                if (erro) {
+                    messageElement.innerHTML = `
+                        <div style="color: #dc2626; font-weight: 600; margin-bottom: 10px;">
+                            ❌ Erro: ${erro}
+                        </div>
+                        <div style="color: #6b7280; font-size: 0.9em;">
+                            ${detalhes || 'Detalhes do erro disponíveis acima.'}
+                        </div>
+                    `;
+                } else {
+                    messageElement.textContent = detalhes || 'Teste concluído.';
+                }
             }
         }
 
@@ -883,15 +894,15 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        atualizarStatusAPI('openai', 'sucesso', '✅ Funcionando');
+                        atualizarStatusAPI('openai', 'sucesso', '✅ Funcionando', 'API Key válida e funcionando corretamente.');
                     } else {
-                        atualizarStatusAPI('openai', 'erro', '❌ Erro');
+                        atualizarStatusAPI('openai', 'erro', '❌ Erro', data.error || 'Erro desconhecido', data.error || 'Falha na validação da API Key');
                     }
                 } catch (error) {
-                    atualizarStatusAPI('openai', 'erro', '❌ Erro');
+                    atualizarStatusAPI('openai', 'erro', '❌ Erro de Conexão', 'Não foi possível conectar ao servidor', error.message);
                 }
             } else {
-                atualizarStatusAPI('openai', 'erro', '❌ Não configurado');
+                atualizarStatusAPI('openai', 'erro', '❌ Não configurado', 'Adicione uma API Key para testar', 'Campo OpenAI API Key está vazio');
             }
             
             // Testar Lunas API
@@ -907,15 +918,15 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        atualizarStatusAPI('lunas', 'sucesso', '✅ Funcionando');
+                        atualizarStatusAPI('lunas', 'sucesso', '✅ Funcionando', 'Conexão com Lunas CRM estabelecida com sucesso.');
                     } else {
-                        atualizarStatusAPI('lunas', 'erro', '❌ Erro');
+                        atualizarStatusAPI('lunas', 'erro', '❌ Erro', data.error || 'Erro desconhecido', data.error || 'Falha na autenticação ou conexão');
                     }
                 } catch (error) {
-                    atualizarStatusAPI('lunas', 'erro', '❌ Erro');
+                    atualizarStatusAPI('lunas', 'erro', '❌ Erro de Conexão', 'Não foi possível conectar ao servidor Lunas', error.message);
                 }
             } else {
-                atualizarStatusAPI('lunas', 'erro', '❌ Não configurado');
+                atualizarStatusAPI('lunas', 'erro', '❌ Não configurado', 'Configure API Key e URL da Lunas', 'Campos Lunas API Key ou URL estão vazios');
             }
             
             // Testar V8 Sistema
@@ -948,13 +959,13 @@
                             });
                         }
                     } else {
-                        atualizarStatusAPI('v8', 'erro', '❌ Erro', data.error || 'Erro desconhecido');
+                        atualizarStatusAPI('v8', 'erro', '❌ Erro', data.error || 'Erro desconhecido', data.error || 'Falha na autenticação dos usuários V8');
                     }
                 } catch (error) {
-                    atualizarStatusAPI('v8', 'erro', '❌ Erro', error.message);
+                    atualizarStatusAPI('v8', 'erro', '❌ Erro de Conexão', 'Não foi possível conectar ao servidor V8', error.message);
                 }
             } else {
-                atualizarStatusAPI('v8', 'erro', '❌ Nenhum usuário', 'Adicione pelo menos um usuário V8 para testar');
+                atualizarStatusAPI('v8', 'erro', '❌ Nenhum usuário', 'Adicione pelo menos um usuário V8 para testar', 'Lista de usuários V8 está vazia');
             }
             
             showStatus('✅ Teste de todas as APIs concluído!', 'success');
