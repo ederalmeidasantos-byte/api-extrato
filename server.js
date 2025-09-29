@@ -1765,6 +1765,130 @@ app.get('/fgts/contadores-status', async (req, res) => {
   }
 });
 
+// ====== GERENCIAMENTO DE CREDENCIAIS ======
+const CREDENCIAIS_FILE = `${PERSISTENT_DIRS.cache}/credenciais.json`;
+
+// Carregar credenciais
+async function carregarCredenciais() {
+  try {
+    if (fs.existsSync(CREDENCIAIS_FILE)) {
+      const content = await fsp.readFile(CREDENCIAIS_FILE, 'utf-8');
+      return JSON.parse(content);
+    }
+    return {};
+  } catch (error) {
+    console.error('❌ Erro ao carregar credenciais:', error);
+    return {};
+  }
+}
+
+// Salvar credenciais
+async function salvarCredenciais(credenciais) {
+  try {
+    await fsp.writeFile(CREDENCIAIS_FILE, JSON.stringify(credenciais, null, 2));
+    console.log('✅ Credenciais salvas com sucesso');
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao salvar credenciais:', error);
+    return false;
+  }
+}
+
+// API para obter credenciais
+app.get('/api/credenciais', async (req, res) => {
+  try {
+    const credenciais = await carregarCredenciais();
+    
+    res.json({
+      success: true,
+      credenciais: {
+        openaiKey: credenciais.openaiKey ? '••••••••' : null,
+        lunasApiKey: credenciais.lunasApiKey ? '••••••••' : null,
+        lunasApiUrl: credenciais.lunasApiUrl || null,
+        v8ApiKey: credenciais.v8ApiKey ? '••••••••' : null,
+        v8ApiUrl: credenciais.v8ApiUrl || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter credenciais:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API para salvar credenciais
+app.post('/api/credenciais', async (req, res) => {
+  try {
+    const { openaiKey, lunasApiKey, lunasApiUrl, v8ApiKey, v8ApiUrl } = req.body;
+    
+    const credenciais = await carregarCredenciais();
+    
+    // Atualizar apenas as credenciais fornecidas
+    if (openaiKey) credenciais.openaiKey = openaiKey;
+    if (lunasApiKey) credenciais.lunasApiKey = lunasApiKey;
+    if (lunasApiUrl) credenciais.lunasApiUrl = lunasApiUrl;
+    if (v8ApiKey) credenciais.v8ApiKey = v8ApiKey;
+    if (v8ApiUrl) credenciais.v8ApiUrl = v8ApiUrl;
+    
+    const sucesso = await salvarCredenciais(credenciais);
+    
+    if (sucesso) {
+      // Atualizar variáveis de ambiente
+      if (openaiKey) process.env.OPENAI_API_KEY = openaiKey;
+      if (lunasApiKey) process.env.LUNAS_API_KEY = lunasApiKey;
+      if (lunasApiUrl) process.env.LUNAS_API_URL = lunasApiUrl;
+      if (v8ApiKey) process.env.V8_API_KEY = v8ApiKey;
+      if (v8ApiUrl) process.env.V8_API_URL = v8ApiUrl;
+      
+      res.json({ success: true, message: 'Credenciais salvas com sucesso' });
+    } else {
+      res.status(500).json({ success: false, error: 'Erro ao salvar credenciais' });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao salvar credenciais:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API para obter configurações do sistema
+app.get('/api/configuracoes', async (req, res) => {
+  try {
+    const config = {
+      maxMemory: process.env.MAX_MEMORY || '2048',
+      maxCpus: process.env.MAX_CPUS || '2',
+      delayMs: process.env.DELAY_MS || '1000',
+      maxRetries: process.env.MAX_RETRIES || '3'
+    };
+    
+    res.json({ success: true, configuracoes: config });
+  } catch (error) {
+    console.error('❌ Erro ao obter configurações:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API para salvar configurações do sistema
+app.post('/api/configuracoes', async (req, res) => {
+  try {
+    const { maxMemory, maxCpus, delayMs, maxRetries } = req.body;
+    
+    // Atualizar variáveis de ambiente
+    if (maxMemory) process.env.MAX_MEMORY = maxMemory.toString();
+    if (maxCpus) process.env.MAX_CPUS = maxCpus.toString();
+    if (delayMs) process.env.DELAY_MS = delayMs.toString();
+    if (maxRetries) process.env.MAX_RETRIES = maxRetries.toString();
+    
+    res.json({ success: true, message: 'Configurações salvas com sucesso' });
+  } catch (error) {
+    console.error('❌ Erro ao salvar configurações:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Servir página de configuração de credenciais
+app.get('/config-credenciais', (req, res) => {
+  res.sendFile(path.join(__dirname, 'config-credenciais.html'));
+});
+
 // Filtrar CPFs para processamento
 app.get('/fgts/cpfs-para-processar', async (req, res) => {
   try {
