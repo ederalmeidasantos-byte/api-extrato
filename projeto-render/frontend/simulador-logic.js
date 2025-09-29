@@ -435,7 +435,7 @@ function renderizarContratosAtivos() {
                 <div class="contrato-title">
                     <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
                            onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) | R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} | ${contrato.parcelas_pagas || 0} pagas</span>
                     <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
                 </div>
                 <div class="contrato-actions">
@@ -585,7 +585,7 @@ function renderizarContratosNaoAprovados() {
                 <div class="contrato-title">
                     <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
                            onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) | R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} | ${contrato.parcelas_pagas || 0} pagas</span>
                     <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
                 </div>
                 <div class="contrato-actions">
@@ -877,29 +877,21 @@ function atualizarResumo() {
     const bancosHtml = Object.entries(bancosAgrupados)
         .map(([banco, valores]) => `
             <div class="banco-item">
-                <span class="banco-nome">🏦 Banco: ${banco}</span>
+                <span class="banco-nome">🏦 ${banco}</span>
                 <div class="banco-valores">
-                    <span class="banco-parcela">Parcela: R$ ${formatBRNumber(valores.parcela)}</span>
-                    <span class="banco-troco">Troco: R$ ${formatBRNumber(valores.troco)}</span>
+                    <span class="banco-parcela">R$ ${formatBRNumber(valores.parcela)}</span>
+                    <span class="banco-troco">R$ ${formatBRNumber(valores.troco)}</span>
                 </div>
             </div>
         `)
         .join('');
     
-    const resumoContent = `
-        <div class="resumo-totals">
-            <div class="resumo-bancos">
-                ${bancosHtml}
-                <div style="margin-top: 1rem; padding: 0.8rem; background: #f8fafc; border-radius: 6px; text-align: center;">
-                    <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">
-                        📊 CONTRATOS: ${contratosAprovados.length} | 💰 TROCO: R$ ${formatBRNumber(totalTroco)}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    // Atualizar totais
+    document.getElementById('totalContratos').textContent = contratosAprovados.length;
+    document.getElementById('totalTroco').textContent = formatBRNumber(totalTroco);
     
-    document.getElementById('bancosResumo').innerHTML = resumoContent;
+    // Atualizar lista de bancos
+    document.getElementById('bancosResumo').innerHTML = bancosHtml;
 }
 
 function exportarResultados() {
@@ -1970,6 +1962,20 @@ function abrirDigitar() {
 function abrirUploadExtrato() {
     // Redirecionar para a página principal onde está o upload
     window.location.href = '/';
+}
+
+// Função para alternar exibição dos bancos no resumo
+function toggleResumoBancos() {
+    const bancosResumo = document.getElementById('bancosResumo');
+    const toggle = document.querySelector('.resumo-toggle');
+    
+    if (bancosResumo.classList.contains('expandida')) {
+        bancosResumo.classList.remove('expandida');
+        toggle.textContent = '📋 Ver detalhes';
+    } else {
+        bancosResumo.classList.add('expandida');
+        toggle.textContent = '📋 Ocultar detalhes';
+    }
 }
 
 // Função para simular todos os contratos automaticamente
