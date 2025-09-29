@@ -829,32 +829,6 @@ async function carregarCPFsAnexados() {
   }
 }
 
-// Atualizar status de um CPF específico
-async function atualizarStatusCPF(cpf, status, resultado = null) {
-  try {
-    const cacheData = await carregarCPFsAnexados();
-    if (!cacheData) return false;
-
-    const cpfIndex = cacheData.cpfs.findIndex(c => c.cpf === cpf);
-    if (cpfIndex === -1) return false;
-
-    cacheData.cpfs[cpfIndex].status = status;
-    cacheData.cpfs[cpfIndex].resultado = resultado;
-    cacheData.cpfs[cpfIndex].processado = true;
-    cacheData.cpfs[cpfIndex].ultimaTentativa = new Date().toISOString();
-
-    // Fazer backup antes de atualizar
-    await fazerBackup(CPFS_CACHE_FILE, 'cpfs');
-
-    await fsp.writeFile(CPFS_CACHE_FILE, JSON.stringify(cacheData, null, 2));
-    console.log(`✅ Status atualizado para CPF ${cpf}: ${status}`);
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Erro ao atualizar status do CPF:', error);
-    return false;
-  }
-}
 
 // Limpar cache de CPFs
 async function limparCacheCPFs() {
