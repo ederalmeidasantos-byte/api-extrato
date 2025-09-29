@@ -1930,14 +1930,19 @@ app.get('/api/logs', async (req, res) => {
       const content = await fsp.readFile(logFile, 'utf-8');
       const lines = content.split('\n').filter(line => line.trim());
       
-      lines.forEach(line => {
-        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/);
+      lines.forEach((line, index) => {
+        // Regex mais flexível para capturar logs do PM2
+        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/) || 
+                     line.match(/^(\d+)\|api-extrato\s*\|\s*(.+)$/) ||
+                     line.match(/^(.+)$/);
+        
         if (match) {
           logs.push({
             timestamp: new Date().toISOString(),
             level: 'INFO',
-            message: match[2],
-            source: 'stdout'
+            message: match[2] || match[1] || line,
+            source: 'stdout',
+            lineNumber: index + 1
           });
         }
       });
@@ -1948,17 +1953,43 @@ app.get('/api/logs', async (req, res) => {
       const content = await fsp.readFile(errorLogFile, 'utf-8');
       const lines = content.split('\n').filter(line => line.trim());
       
-      lines.forEach(line => {
-        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/);
+      lines.forEach((line, index) => {
+        const match = line.match(/^(\d+)\|api-extr\s*\|\s*(.+)$/) || 
+                     line.match(/^(\d+)\|api-extrato\s*\|\s*(.+)$/) ||
+                     line.match(/^(.+)$/);
+        
         if (match) {
           logs.push({
             timestamp: new Date().toISOString(),
             level: 'ERROR',
-            message: match[2],
-            source: 'stderr'
+            message: match[2] || match[1] || line,
+            source: 'stderr',
+            lineNumber: index + 1
           });
         }
       });
+    }
+    
+    // Se não encontrou logs com regex, pegar as últimas 50 linhas
+    if (logs.length === 0) {
+      const allFiles = [logFile, errorLogFile];
+      for (const file of allFiles) {
+        if (fs.existsSync(file)) {
+          const content = await fsp.readFile(file, 'utf-8');
+          const lines = content.split('\n').filter(line => line.trim());
+          const lastLines = lines.slice(-50); // Últimas 50 linhas
+          
+          lastLines.forEach((line, index) => {
+            logs.push({
+              timestamp: new Date().toISOString(),
+              level: file.includes('err') ? 'ERROR' : 'INFO',
+              message: line,
+              source: file.includes('err') ? 'stderr' : 'stdout',
+              lineNumber: lines.length - lastLines.length + index + 1
+            });
+          });
+        }
+      }
     }
     
     // Ordenar por timestamp (mais recentes primeiro)
@@ -1966,6 +1997,8 @@ app.get('/api/logs', async (req, res) => {
     
     // Limitar a 100 logs mais recentes
     logs = logs.slice(0, 100);
+    
+    console.log(`📊 API Logs: Retornando ${logs.length} logs`);
     
     res.json({ success: true, logs });
   } catch (error) {
