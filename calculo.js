@@ -63,6 +63,39 @@ function getCoeficiente(taxa, dia) {
   );
 }
 
+// Função para calcular PV (Valor Presente) de uma série uniforme
+function pvFromParcela(parcela, taxaPercentMes, n) {
+  const i = Number(taxaPercentMes) / 100;
+  if (!(i > 0) || !(n > 0)) return 0;
+  const fator = (1 - Math.pow(1 + i, -n)) / i;
+  return parcela * fator;
+}
+
+// Função para estimar taxa de juros por valor pago
+function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
+  const pv = toNumber(valorLiberado);
+  const n = toNumber(prazoTotal);
+  const pmt = toNumber(valorParcela);
+  if (!(pv > 0) || !(n > 0) || !(pmt > 0)) return 0;
+
+  let i = 0.02;
+  for (let k = 0; k < 50; k++) {
+    const denom = i === 0 ? 1e-9 : i;
+    const f = (pmt * (1 - Math.pow(1 + denom, -n))) / denom - pv;
+    if (Math.abs(f) < 1e-7) break;
+
+    const h = 1e-5;
+    const ip = denom + h;
+    const fp = (pmt * (1 - Math.pow(1 + ip, -n))) / ip - pv;
+    const fPrime = (fp - f) / h;
+
+    if (!Number.isFinite(fPrime) || Math.abs(fPrime) < 1e-12) break;
+    i = i - f / fPrime;
+    if (!Number.isFinite(i) || i <= 0 || i > 1) i = 0.01;
+  }
+  return i * 100;
+}
+
 // Função para validar contrato pelo roteiro
 function validarContrato(contrato, banco, especie) {
   const roteiro = RoteiroBancos[banco];
@@ -127,6 +160,23 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
   const resultados = [];
   const bancos = Object.keys(RoteiroBancos);
   
+  // Calcular saldo devedor correto
+  const parcelaOriginal = toNumber(contrato.parcela);
+  const prazoRestante = contrato.prazo || contrato.prazo_total || 96;
+  let taxaAtualMes = toNumber(contrato.taxa);
+  
+  // Se não tem taxa, estimar pelo valor pago
+  if (!(taxaAtualMes > 0) && contrato.valorLiberado && contrato.prazoTotal) {
+    taxaAtualMes = estimarTaxaPorValorPago(contrato.valorLiberado, contrato.prazoTotal, parcelaOriginal);
+  }
+  
+  // Se ainda não tem taxa, usar padrão
+  if (!(taxaAtualMes > 0)) {
+    taxaAtualMes = 1.85; // Taxa padrão
+  }
+  
+  const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
+  
   bancos.forEach(bancoNome => {
     const roteiro = RoteiroBancos[bancoNome];
     const taxasPermitidas = roteiro?.taxas || [];
@@ -151,8 +201,8 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
       const coef = getCoeficiente(taxa, diaAverbacao);
       if (!coef) return;
 
-      const valorEmprestimo = contrato.parcela / coef;
-      const troco = valorEmprestimo - contrato.saldo;
+      const valorEmprestimo = parcelaOriginal / coef;
+      const troco = valorEmprestimo - saldoDevedor;
 
       if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
         if (troco > melhorTroco) {
@@ -163,7 +213,10 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
             troco: troco,
             taxa: taxa,
             valorEmprestimo: valorEmprestimo,
-            coeficiente: coef
+            coeficiente: coef,
+            saldoDevedor: saldoDevedor,
+            parcela: parcelaOriginal,
+            parcelasPagas: contrato.pagas || 0
           };
         }
       }

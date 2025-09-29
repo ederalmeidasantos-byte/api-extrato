@@ -32,12 +32,55 @@ function calcularPrazoRestante(prazoTotal, parcelasPagas) {
 }
 
 function calcularSaldoDevedor(contrato) {
-    // Cálculo básico: Valor do contrato - (parcelas pagas * valor parcela)
-    const valorContrato = parseFloat(contrato.valor_liberado || 0);
-    const parcelasPagas = parseFloat(contrato.parcelas_pagas || 0);
-    const valorParcela = parseFloat(contrato.valor_parcela || 0);
+    // Usar cálculo correto baseado no calculo (1).js
+    const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+    const prazoRestante = calcularPrazoRestante(contrato.prazo_total || 0, contrato.parcelas_pagas || 0);
+    let taxaAtualMes = parseFloat(contrato.taxa_juros_mensal || 0);
     
-    return Math.max(0, valorContrato - (parcelasPagas * valorParcela));
+    // Se não tem taxa, estimar pelo valor pago
+    if (!(taxaAtualMes > 0) && contrato.valor_liberado && contrato.prazo_total) {
+        taxaAtualMes = estimarTaxaPorValorPago(contrato.valor_liberado, contrato.prazo_total, parcelaOriginal);
+    }
+    
+    // Se ainda não tem taxa, usar padrão
+    if (!(taxaAtualMes > 0)) {
+        taxaAtualMes = 1.85; // Taxa padrão
+    }
+    
+    return pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
+}
+
+// Função para calcular PV (Valor Presente) de uma série uniforme
+function pvFromParcela(parcela, taxaPercentMes, n) {
+    const i = Number(taxaPercentMes) / 100;
+    if (!(i > 0) || !(n > 0)) return 0;
+    const fator = (1 - Math.pow(1 + i, -n)) / i;
+    return parcela * fator;
+}
+
+// Função para estimar taxa de juros por valor pago
+function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
+    const pv = parseFloat(valorLiberado || 0);
+    const n = parseFloat(prazoTotal || 0);
+    const pmt = parseFloat(valorParcela || 0);
+    if (!(pv > 0) || !(n > 0) || !(pmt > 0)) return 0;
+
+    let i = 0.02;
+    for (let k = 0; k < 50; k++) {
+        const denom = i === 0 ? 1e-9 : i;
+        const f = (pmt * (1 - Math.pow(1 + denom, -n))) / denom - pv;
+        if (Math.abs(f) < 1e-7) break;
+
+        const h = 1e-5;
+        const ip = denom + h;
+        const fp = (pmt * (1 - Math.pow(1 + ip, -n))) / ip - pv;
+        const fPrime = (fp - f) / h;
+
+        if (!Number.isFinite(fPrime) || Math.abs(fPrime) < 1e-12) break;
+        i = i - f / fPrime;
+        if (!Number.isFinite(i) || i <= 0 || i > 1) i = 0.01;
+    }
+    return i * 100;
 }
 
 function toggleEdicao(contratoId) {
@@ -404,10 +447,10 @@ function renderizarContratosNaoAprovados() {
                                 <span class="simulacao-label">Status</span>
                                 <span class="simulacao-value">${contrato.simulacao.aprovado ? '✅ APROVADO' : '❌ REJEITADO'}</span>
                             </div>
-                            <div class="simulacao-item">
-                                <span class="simulacao-label">Banco Simulado</span>
-                                <span class="simulacao-value">${contrato.simulacao.banco || '-'}</span>
-                            </div>
+                        <div class="simulacao-item">
+                            <span class="simulacao-label">Banco Simulado</span>
+                            <span class="simulacao-value">${contrato.simulacao.banco || '-'} - R$ ${formatBRNumber(contrato.simulacao.parcela || 0)} (${contrato.simulacao.parcelasPagas || 0} pagas)</span>
+                        </div>
                             <div class="simulacao-item">
                                 <span class="simulacao-label">Parcela</span>
                                 <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.parcela || 0)}</span>
@@ -472,7 +515,9 @@ function simularContrato(contratoId) {
         saldo: contrato.saldo_devedor,
         parcela: contrato.valor_parcela,
         prazo: contrato.prazo_total,
-        pagas: contrato.parcelas_pagas
+        pagas: contrato.parcelas_pagas,
+        valorLiberado: contrato.valor_liberado,
+        prazoTotal: contrato.prazo_total
     };
 
     // Simular com API
