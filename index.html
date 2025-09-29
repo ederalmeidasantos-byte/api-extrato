@@ -1338,6 +1338,37 @@ const logs = document.getElementById('logs');
         // Todo o código do menu/sidebar foi movido para o arquivo menu.js
         // para evitar conflitos e facilitar manutenção
 
+        // Função para carregar contadores em tempo real
+        async function carregarContadoresTempoReal() {
+            try {
+                const response = await fetch('/fgts/contadores-tempo-real');
+                const data = await response.json();
+                
+                if (data.success && data.contadores) {
+                    const contadores = data.contadores;
+                    
+                    // Atualizar total de CPFs
+                    totalCPFsSpan.textContent = contadores.totalCPFs;
+                    totalToProcess = contadores.totalCPFs;
+                    
+                    // Atualizar contadores individuais
+                    document.getElementById('countSuccess').textContent = contadores.sucessos;
+                    document.getElementById('countPending').textContent = contadores.pendentes;
+                    document.getElementById('countNoAuth').textContent = contadores.naoAutorizados;
+                    document.getElementById('countDescartados').textContent = contadores.descartados;
+                    
+                    // Atualizar progresso
+                    const pct = contadores.totalCPFs > 0 ? Math.round((contadores.processados/contadores.totalCPFs)*100) : 0;
+                    setProgress(pct, contadores.processados, contadores.totalCPFs);
+                    
+                    console.log('📊 Contadores carregados:', contadores);
+                    adicionarLog(`📊 Contadores carregados: ${contadores.processados}/${contadores.totalCPFs} processados`, 'info');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar contadores:', error);
+            }
+        }
+
         // Função para carregar listas do cache
         async function carregarListasDoCache() {
             try {
@@ -1423,6 +1454,7 @@ const logs = document.getElementById('logs');
 
         // Inicializar
         init();
+        carregarContadoresTempoReal();
         carregarListasDoCache();
         adicionarLog('🚀 Painel FGTS iniciado', 'info');
 </script>
