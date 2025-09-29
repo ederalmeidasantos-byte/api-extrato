@@ -1491,15 +1491,36 @@ app.post('/fgts/status-cpfs/inicializar', async (req, res) => {
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
+    console.log('🔍 API contadores-status chamada');
+    
+    // Debug: verificar se os arquivos existem
+    const statusFile = `${PERSISTENT_DIRS.cache}/status-cpfs.json`;
+    const cpfsFile = `${PERSISTENT_DIRS.cache}/cpfs-anexados.json`;
+    
+    console.log(`📁 Verificando arquivos:`);
+    console.log(`- status-cpfs.json: ${fs.existsSync(statusFile) ? 'EXISTE' : 'NÃO EXISTE'}`);
+    console.log(`- cpfs-anexados.json: ${fs.existsSync(cpfsFile) ? 'EXISTE' : 'NÃO EXISTE'}`);
+    
     const contadores = await calcularContadoresPorStatus();
+    
+    console.log('📊 Contadores calculados:', contadores);
     
     res.json({ 
       success: true, 
-      contadores 
+      contadores,
+      debug: {
+        statusFileExists: fs.existsSync(statusFile),
+        cpfsFileExists: fs.existsSync(cpfsFile),
+        timestamp: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('❌ Erro ao calcular contadores por status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 
