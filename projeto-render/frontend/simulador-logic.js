@@ -115,6 +115,15 @@ function formatBRNumber(n) {
     });
 }
 
+function formatTaxa(value) {
+    if (value == null || value === '') return '0,00';
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[^\d,-]/g, '').replace(',', '.')) : value;
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(num);
+}
+
 function formatarValorReal(input) {
     // Remove tudo que não é número
     let valor = input.value.replace(/\D/g, '');
@@ -541,7 +550,7 @@ function renderizarContratosAtivos() {
                             </div>
                             <div class="simulacao-item">
                                 <span class="simulacao-label">Taxa Simulada</span>
-                                <span class="simulacao-value">${contrato.simulacao.taxa || '1,85'}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
+                                <span class="simulacao-value">${formatTaxa(contrato.simulacao.taxa || '1,85')}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
                             </div>
                         </div>
                     </div>
@@ -694,7 +703,7 @@ function renderizarContratosNaoAprovados() {
                         </div>
                         <div class="simulacao-item">
                             <span class="simulacao-label">Taxa Simulada</span>
-                            <span class="simulacao-value">${contrato.simulacao.taxa || '1,85'}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
+                            <span class="simulacao-value">${formatTaxa(contrato.simulacao.taxa || '1,85')}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
                         </div>
                         </div>
                         ${!contrato.simulacao.aprovado ? `
@@ -880,7 +889,7 @@ function atualizarResumo() {
                 ${bancosHtml}
                 <div style="margin-top: 1rem; padding: 0.8rem; background: #f8fafc; border-radius: 6px; text-align: center;">
                     <div style="font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">
-                        📊 TOTAL DE CONTRATOS: ${contratosAprovados.length} | 💰 TOTAL DE TROCO: R$ ${formatBRNumber(totalTroco)}
+                        📊 CONTRATOS: ${contratosAprovados.length} | 💰 TROCO: R$ ${formatBRNumber(totalTroco)}
                     </div>
                 </div>
             </div>
@@ -1264,7 +1273,7 @@ function mostrarTaxasDisponiveis(contratoId) {
         <div class="taxas-title">🎯 TAXAS DISPONÍVEIS PARA ${bancoNome.toUpperCase()}:</div>
         ${taxasDisponiveis.map(taxa => `
             <button class="taxa-option" onclick="selecionarTaxa(${contratoId}, ${taxa})">
-                [${taxa}%] - Troco: R$ ${calcularTrocoParaTaxa(contrato, taxa)}
+                [${formatTaxa(taxa)}%] - Troco: R$ ${calcularTrocoParaTaxa(contrato, taxa)}
             </button>
         `).join('')}
     `;
