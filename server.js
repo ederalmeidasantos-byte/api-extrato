@@ -529,7 +529,7 @@ async function salvarStatusCPFs(statusData) {
   }
 }
 
-// Atualizar status de um CPF
+// Atualizar status de um CPF (OTIMIZADO PARA MEMÓRIA)
 async function atualizarStatusCPF(cpf, status, dados = {}) {
   try {
     const statusData = await carregarStatusCPFs();
@@ -546,15 +546,22 @@ async function atualizarStatusCPF(cpf, status, dados = {}) {
     
     await salvarStatusCPFs(statusData);
     
-    // Emitir atualização dos contadores via Socket.IO
-    const contadores = await calcularContadoresPorStatus();
-    if (ioInstance) {
-      ioInstance.emit("contadoresTempoReal", {
-        ...contadores,
-        timestamp: new Date().toISOString(),
-        processando: true,
-        ultimaAtualizacao: new Date().toISOString()
-      });
+    // OTIMIZAÇÃO: Emitir contadores apenas a cada 10 atualizações
+    if (!global.contadorAtualizacoes) {
+      global.contadorAtualizacoes = 0;
+    }
+    global.contadorAtualizacoes++;
+    
+    if (global.contadorAtualizacoes % 10 === 0 || status === 'SUCESSO' || status === 'NÃO AUTORIZADO') {
+      const contadores = await calcularContadoresPorStatus();
+      if (ioInstance) {
+        ioInstance.emit("contadoresTempoReal", {
+          ...contadores,
+          timestamp: new Date().toISOString(),
+          processando: true,
+          ultimaAtualizacao: new Date().toISOString()
+        });
+      }
     }
     
     return true;
@@ -665,7 +672,7 @@ async function filtrarCPFsParaProcessamento() {
   }
 }
 
-// Calcular contadores baseados no status
+// Calcular contadores baseados no status (OTIMIZADO PARA MEMÓRIA)
 async function calcularContadoresPorStatus() {
   try {
     const statusData = await carregarStatusCPFs();
@@ -687,36 +694,49 @@ async function calcularContadoresPorStatus() {
     let pendentes = 0;
     let descartados = 0;
     
-    for (const cpfData of cpfsAnexados.cpfs) {
-      const cpf = cpfData.cpf;
-      const status = statusData.cpfs[cpf]?.status;
+    // OTIMIZAÇÃO: Processar em lotes para economizar memória
+    const batchSize = 1000;
+    const totalCPFs = cpfsAnexados.cpfs.length;
+    
+    for (let i = 0; i < totalCPFs; i += batchSize) {
+      const batch = cpfsAnexados.cpfs.slice(i, i + batchSize);
       
-      if (!status) {
-        pendentes++; // CPF sem status
-      } else {
-        switch (status) {
-          case 'SUCESSO':
-            sucessos++;
-            break;
-          case 'NÃO AUTORIZADO':
-            naoAutorizados++;
-            break;
-          case 'REPROCESSAR RAPIDO':
-          case 'PENDING':
-          case 'LIMITE EXCEDIDO':
-          case 'NA FILA NOVO PROCESSAR':
-            pendentes++;
-            break;
-          default:
-            descartados++;
+      for (const cpfData of batch) {
+        const cpf = cpfData.cpf;
+        const status = statusData.cpfs[cpf]?.status;
+        
+        if (!status) {
+          pendentes++; // CPF sem status
+        } else {
+          switch (status) {
+            case 'SUCESSO':
+              sucessos++;
+              break;
+            case 'NÃO AUTORIZADO':
+              naoAutorizados++;
+              break;
+            case 'REPROCESSAR RAPIDO':
+            case 'PENDING':
+            case 'LIMITE EXCEDIDO':
+            case 'NA FILA NOVO PROCESSAR':
+              pendentes++;
+              break;
+            default:
+              descartados++;
+          }
         }
+      }
+      
+      // OTIMIZAÇÃO: Forçar garbage collection a cada lote
+      if (global.gc && i % (batchSize * 5) === 0) {
+        global.gc();
       }
     }
     
     const processados = sucessos + naoAutorizados;
     
     return {
-      totalCPFs: cpfsAnexados.cpfs.length,
+      totalCPFs: totalCPFs,
       processados,
       sucessos,
       naoAutorizados,
@@ -2586,6 +2606,30 @@ io.on('connection', (socket) => {
     console.log('🔌 Cliente desconectado:', socket.id);
   });
 });
+
+// ====== OTIMIZAÇÕES DE MEMÓRIA ======
+// Limpeza de memória a cada 5 minutos
+setInterval(() => {
+  if (global.gc) {
+    global.gc();
+    console.log('🧹 Garbage collection executado');
+  }
+}, 5 * 60 * 1000);
+
+// Monitor de memória
+setInterval(() => {
+  const used = process.memoryUsage();
+  const usedMB = Math.round(used.heapUsed / 1024 / 1024);
+  const totalMB = Math.round(used.heapTotal / 1024 / 1024);
+  
+  if (usedMB > 400) { // Alerta se usar mais de 400MB
+    console.log(`⚠️ ALERTA DE MEMÓRIA: ${usedMB}MB/${totalMB}MB`);
+    if (global.gc) {
+      global.gc();
+      console.log('🧹 Garbage collection forçado');
+    }
+  }
+}, 30000); // A cada 30 segundos
 
 // ====== Start ======
 const PORT = process.env.PORT || 3000;
