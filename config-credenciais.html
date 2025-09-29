@@ -112,13 +112,15 @@
             background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            width: 100%;
+            margin: 0 auto;
+            display: block;
+            width: fit-content;
         }
 
         .btn:hover {
@@ -462,7 +464,7 @@
                         <input type="url" id="lunasApiUrl" placeholder="https://api.lunas.com.br" value="https://api.lunas.com.br">
                     </div>
 
-                    <button type="submit" class="btn">💾 Salvar Credenciais</button>
+                    <button type="submit" class="btn">Salvar Credenciais</button>
                 </form>
             </div>
 
@@ -478,13 +480,13 @@
                 </div>
                 
                 <button type="button" id="adicionarUsuario" class="btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 15px;">
-                    ➕ Adicionar Usuário V8
+                    Adicionar Usuário V8
                 </button>
                 
                 <div class="form-row" style="margin-top: 15px;">
-                    <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);">
-                        💾 Salvar Usuários V8
-                    </button>
+                <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);">
+                    Salvar Usuários V8
+                </button>
                 </div>
             </div>
 
@@ -492,9 +494,9 @@
             <div class="section">
                 <div class="section-header">
                     <h2>🔍 Status das APIs</h2>
-                    <button type="button" id="testarTodasAPIs" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); margin: 0;">
-                        🧪 Testar Todas as APIs
-                    </button>
+                <button type="button" id="testarTodasAPIs" class="btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); margin: 0;">
+                    Testar Todas as APIs
+                </button>
                 </div>
                 <div id="statusAPIs" class="status-apis">
                     <div class="api-status" onclick="toggleDetails('openai')">
