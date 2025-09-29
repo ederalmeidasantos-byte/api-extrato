@@ -313,52 +313,11 @@ function renderizarContratosAtivos() {
                 <div class="contrato-title">
                     <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
                            onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
-                </div>
-                <div class="contrato-actions">
-                    <span class="troco-value">💰 R$ ${formatBRNumber(contrato.troco || 0)}</span>
-                    <button class="btn btn-primary" onclick="simularContrato(${contrato.id})">
-                        🔄 Simular
-                    </button>
-                </div>
-            </div>
-        `;
-        container.appendChild(contratoDiv);
-    });
-}
-
-function renderizarContratosNaoAprovados() {
-    const container = document.getElementById('contratosNaoAprovadosList');
-    
-    if (contratosNaoAprovados.length === 0) {
-        container.innerHTML = `
-            <div class="no-data">
-                <div class="no-data-icon">📄</div>
-                <h3>Nenhum contrato não aprovado</h3>
-                <p>Contratos rejeitados aparecerão aqui</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = '';
-
-    contratosNaoAprovados.forEach(contrato => {
-        const contratoDiv = document.createElement('div');
-        contratoDiv.className = 'contrato-item';
-        contratoDiv.innerHTML = `
-            <div class="contrato-header">
-                <div class="contrato-title">
-                    <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
-                           onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) - R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} (${contrato.parcelas_pagas || 0}/${contrato.prazo_total || 0})</span>
                     <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
                 </div>
                 <div class="contrato-actions">
-                    <span class="troco-value ${contrato.troco > 0 ? '' : 'troco-zero'}">💰 R$ ${formatBRNumber(contrato.troco || 0)}</span>
-                    <button class="btn btn-primary" onclick="simularContrato(${contrato.id})">
-                        🔄 Simular
-                    </button>
+                    <span class="troco-value">💰 R$ ${formatBRNumber(contrato.troco || 0)}</span>
                 </div>
             </div>
             
@@ -445,28 +404,157 @@ function renderizarContratosNaoAprovados() {
                                    placeholder="Ex: 1,85">
                         </div>
                     </div>
+                </div>
+                
+                ${contrato.simulacao ? `
+                    <div class="simulacao-result simulacao-approved">
+                        <div class="simulacao-title">📊 RESULTADO DA SIMULAÇÃO</div>
+                        <div class="simulacao-details">
+                            <div class="simulacao-item">
+                                <span class="simulacao-label">Status</span>
+                                <span class="simulacao-value">✅ APROVADO</span>
+                            </div>
+                            <div class="simulacao-item">
+                                <span class="simulacao-label">Banco Simulado</span>
+                                <span class="simulacao-value">${contrato.simulacao.banco || '-'}</span>
+                            </div>
+                            <div class="simulacao-item">
+                                <span class="simulacao-label">Parcela</span>
+                                <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.parcela || 0)} (${contrato.simulacao.parcelasPagas || 0} pagas)</span>
+                            </div>
+                            <div class="simulacao-item">
+                                <span class="simulacao-label">Troco</span>
+                                <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.troco || 0)}</span>
+                            </div>
+                            <div class="simulacao-item">
+                                <span class="simulacao-label">Taxa Simulada</span>
+                                <span class="simulacao-value">${contrato.simulacao.taxa || '1,85'}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        container.appendChild(contratoDiv);
+    });
+}
+
+function renderizarContratosNaoAprovados() {
+    const container = document.getElementById('contratosNaoAprovadosList');
+    
+    if (contratosNaoAprovados.length === 0) {
+        container.innerHTML = `
+            <div class="no-data">
+                <div class="no-data-icon">📄</div>
+                <h3>Nenhum contrato não aprovado</h3>
+                <p>Contratos rejeitados aparecerão aqui</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = '';
+
+    contratosNaoAprovados.forEach(contrato => {
+        const contratoDiv = document.createElement('div');
+        contratoDiv.className = 'contrato-item';
+        contratoDiv.innerHTML = `
+            <div class="contrato-header">
+                <div class="contrato-title">
+                    <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
+                           onchange="toggleContrato(${contrato.id})">
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) - R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} (${contrato.parcelas_pagas || 0}/${contrato.prazo_total || 0})</span>
+                    <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
+                </div>
+                <div class="contrato-actions">
+                    <span class="troco-value ${contrato.troco > 0 ? '' : 'troco-zero'}">💰 R$ ${formatBRNumber(contrato.troco || 0)}</span>
+                    <button class="btn btn-primary" onclick="simularContrato(${contrato.id})">
+                        🔄 Simular
+                    </button>
+                </div>
+            </div>
+            
+            <div class="contrato-details" id="detalhes-${contrato.id}">
+                <div class="details-grid">
+                    <div class="detail-group">
+                        <div class="detail-group-title">📋 DADOS BÁSICOS</div>
+                        <div class="detail-item">
+                            <span class="detail-label">Situação</span>
+                            <span class="detail-value">${contrato.situacao || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Data Inclusão</span>
+                            <span class="detail-value">${contrato.data_inclusao || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Competência Início</span>
+                            <span class="detail-value">${contrato.competencia_inicio_desconto || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Primeiro Desconto</span>
+                            <span class="detail-value">${contrato.primeiro_desconto || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Status Taxa</span>
+                            <span class="detail-value">${contrato.status_taxa || '-'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Banco</span>
+                            <span class="detail-value">${contrato.banco.nome} (${contrato.banco.codigo}) - R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} - ${contrato.prazo_total || 0} parcelas</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Valor do Contrato</span>
+                            <span class="detail-value">R$ ${formatBRNumber(contrato.valor_liberado || 0)}</span>
+                        </div>
+                    </div>
                     
                     <div class="detail-group">
-                        <div class="detail-group-title">🧮 CÁLCULOS AUTOMÁTICOS</div>
-                        <div class="detail-item">
-                            <span class="detail-label">CET Mensal</span>
-                            <span class="detail-value">${contrato.cet_mensal || '-'}%</span>
+                        <div class="detail-group-title">
+                            💰 DADOS FINANCEIROS (EDITÁVEIS)
+                            <button class="btn btn-secondary" onclick="toggleEdicao(${contrato.id})" style="margin-left: 1rem; padding: 0.3rem 0.8rem; font-size: 0.8rem;">
+                                ${contrato.editando ? '💾 Salvar' : '✏️ Editar'}
+                            </button>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">CET Anual</span>
-                            <span class="detail-value">${contrato.cet_anual || '-'}%</span>
+                            <span class="detail-label">Prazo Total</span>
+                            <input type="number" class="detail-input" value="${contrato.prazo_total || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'prazo_total', this.value)">
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Taxa Anual</span>
-                            <span class="detail-value">${contrato.taxa_juros_anual || '-'}%</span>
+                            <span class="detail-label">Parcelas Pagas</span>
+                            <input type="number" class="detail-input" value="${contrato.parcelas_pagas || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'parcelas_pagas', this.value)">
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">IOF</span>
-                            <span class="detail-value">R$ ${formatBRNumber(contrato.iof || 0)}</span>
+                            <span class="detail-label">Prazo Restante</span>
+                            <span class="detail-value">${calcularPrazoRestante(contrato.prazo_total || 0, contrato.parcelas_pagas || 0)} parcelas</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Valor Pago</span>
-                            <span class="detail-value">R$ ${formatBRNumber(contrato.valor_pago || 0)}</span>
+                            <span class="detail-label">Valor Parcela</span>
+                            <input type="text" class="detail-input" value="${formatBRNumber(parseFloat(contrato.valor_parcela || 0))}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'valor_parcela', this.value)"
+                                   onfocus="this.select()"
+                                   oninput="formatarValorReal(this)">
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Saldo Devedor</span>
+                            <input type="text" class="detail-input" value="${formatBRNumber(contrato.saldo_devedor || calcularSaldoDevedor(contrato))}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'saldo_devedor', this.value)"
+                                   onfocus="this.select()"
+                                   oninput="formatarValorReal(this)">
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Taxa Mensal (%)</span>
+                            <input type="text" class="detail-input" value="${contrato.taxa_juros_mensal || ''}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)"
+                                   onfocus="this.select()"
+                                   oninput="formatarTaxa(this)"
+                                   placeholder="Ex: 1,85">
                         </div>
                     </div>
                 </div>
@@ -481,16 +569,20 @@ function renderizarContratosNaoAprovados() {
                             </div>
                         <div class="simulacao-item">
                             <span class="simulacao-label">Banco Simulado</span>
-                            <span class="simulacao-value">${contrato.simulacao.banco || '-'} - R$ ${formatBRNumber(contrato.simulacao.parcela || 0)} (${contrato.simulacao.parcelasPagas || 0} pagas)</span>
+                            <span class="simulacao-value">${contrato.simulacao.banco || '-'}</span>
                         </div>
-                            <div class="simulacao-item">
-                                <span class="simulacao-label">Parcela</span>
-                                <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.parcela || 0)}</span>
-                            </div>
-                            <div class="simulacao-item">
-                                <span class="simulacao-label">Troco</span>
-                                <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.troco || 0)}</span>
-                            </div>
+                        <div class="simulacao-item">
+                            <span class="simulacao-label">Parcela</span>
+                            <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.parcela || 0)} (${contrato.simulacao.parcelasPagas || 0} pagas)</span>
+                        </div>
+                        <div class="simulacao-item">
+                            <span class="simulacao-label">Troco</span>
+                            <span class="simulacao-value">R$ ${formatBRNumber(contrato.simulacao.troco || 0)}</span>
+                        </div>
+                        <div class="simulacao-item">
+                            <span class="simulacao-label">Taxa Simulada</span>
+                            <span class="simulacao-value">${contrato.simulacao.taxa || '1,85'}% <button class="btn-taxa-selector" onclick="mostrarTaxasDisponiveis(${contrato.id})">✏️</button></span>
+                        </div>
                         </div>
                         ${!contrato.simulacao.aprovado ? `
                             <div class="motivo-rejeicao">
@@ -1032,6 +1124,98 @@ function limparDados() {
         
         alert('🗑️ Dados limpos com sucesso!');
     }
+}
+
+// Função para mostrar taxas disponíveis
+function mostrarTaxasDisponiveis(contratoId) {
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (!contrato) return;
+    
+    // Buscar taxas do banco no roteiro
+    const bancoNome = contrato.simulacao?.banco || 'FINANTO';
+    const taxasDisponiveis = obterTaxasDoBanco(bancoNome);
+    
+    if (taxasDisponiveis.length === 0) {
+        alert('Nenhuma taxa disponível para este banco');
+        return;
+    }
+    
+    // Criar lista de taxas
+    const listaTaxas = document.createElement('div');
+    listaTaxas.className = 'taxas-disponiveis';
+    listaTaxas.innerHTML = `
+        <div class="taxas-title">🎯 TAXAS DISPONÍVEIS PARA ${bancoNome.toUpperCase()}:</div>
+        ${taxasDisponiveis.map(taxa => `
+            <button class="taxa-option" onclick="selecionarTaxa(${contratoId}, ${taxa})">
+                [${taxa}%] - Troco: R$ ${calcularTrocoParaTaxa(contrato, taxa)}
+            </button>
+        `).join('')}
+    `;
+    
+    // Inserir após o resultado da simulação
+    const simulacaoResult = document.querySelector(`#detalhes-${contratoId} .simulacao-result`);
+    if (simulacaoResult) {
+        simulacaoResult.appendChild(listaTaxas);
+    }
+}
+
+// Função para obter taxas do banco
+function obterTaxasDoBanco(bancoNome) {
+    // Simular busca no roteiro - em produção viria do backend
+    const roteiroTaxas = {
+        'FINANTO': [1.66, 1.79, 1.85, 2.10],
+        'C6': [1.60, 1.75, 1.85, 2.00],
+        'ITAU': [1.66, 1.79, 1.85, 2.10],
+        'QI SOCIEDADE': [1.70, 1.80, 1.90, 2.05],
+        'PICPAY': [1.65, 1.78, 1.85, 2.08],
+        'BRB': [1.68, 1.82, 1.88, 2.12],
+        'DAYCOVAL': [1.72, 1.85, 1.92, 2.15],
+        'INBURSA': [1.74, 1.87, 1.94, 2.18],
+        'FINTECH': [1.69, 1.83, 1.89, 2.11],
+        'DIGIO': [1.71, 1.84, 1.91, 2.14],
+        'FACTA': [1.73, 1.86, 1.93, 2.16]
+    };
+    
+    return roteiroTaxas[bancoNome.toUpperCase()] || [1.85];
+}
+
+// Função para calcular troco para uma taxa específica
+function calcularTrocoParaTaxa(contrato, taxa) {
+    const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+    const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
+    
+    // Simular cálculo do troco (em produção viria do backend)
+    const coeficiente = 0.022974; // Coeficiente padrão
+    const valorEmprestimo = parcelaOriginal / coeficiente;
+    const troco = valorEmprestimo - saldoDevedor;
+    
+    return formatBRNumber(Math.max(0, troco));
+}
+
+// Função para selecionar taxa
+function selecionarTaxa(contratoId, taxa) {
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (!contrato) return;
+    
+    // Atualizar taxa simulada
+    if (contrato.simulacao) {
+        contrato.simulacao.taxa = taxa;
+        // Recalcular troco (em produção viria do backend)
+        const novoTroco = calcularTrocoParaTaxa(contrato, taxa);
+        contrato.simulacao.troco = parseFloat(novoTroco.replace(',', '.'));
+    }
+    
+    // Remover lista de taxas
+    const listaTaxas = document.querySelector(`#detalhes-${contratoId} .taxas-disponiveis`);
+    if (listaTaxas) {
+        listaTaxas.remove();
+    }
+    
+    // Re-renderizar contrato
+    renderizarContratos();
+    salvarDadosEditados(contratoId);
+    
+    alert(`✅ Taxa ${taxa}% selecionada e salva!`);
 }
 
 // Inicialização
