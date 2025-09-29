@@ -586,7 +586,7 @@ const logs = document.getElementById('logs');
         }
 
         // Adicionar resultado às tabelas
-        function adicionarResultado(data) {
+        function adicionarResultado(data, carregandoCache = false) {
             const { linha, cpf, id, status, valorLiberado, provider, statusDetalhado } = data;
             const valorFormatado = parseFloat(valorLiberado || 0).toFixed(2);
             
@@ -635,12 +635,14 @@ const logs = document.getElementById('logs');
                     <td class="col-linha">${linha || '?'}</td>
                     <td class="col-cpf">${cpf}</td>
                     <td class="col-id">${id || 'N/A'}</td>
-                    <td class="col-valor">${valorFormatado.replace('.', ',')}</td>
+                    <td class="col-valor">R$ ${valorFormatado.replace('.', ',')}</td>
                     <td class="col-provider">${provider || 'N/A'}</td>
-                    <td class="col-status"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td class="col-status"><span class="status-badge status-success">${statusText}</span></td>
                 `;
                 successTable.appendChild(row);
-                atualizarContador('success', valorFormatado);
+                if (!carregandoCache) {
+                    atualizarContador('success', valorFormatado);
+                }
             } else {
                 row.innerHTML = `
                     <td class="col-linha">${linha || '?'}</td>
@@ -654,19 +656,27 @@ const logs = document.getElementById('logs');
                 switch(status) {
                     case 'pending':
                         pendingTable.appendChild(row);
-                        atualizarContador('pending');
+                        if (!carregandoCache) {
+                            atualizarContador('pending');
+                        }
                         break;
                     case 'no_auth':
                         noAuthTable.appendChild(row);
-                        atualizarContador('no_auth');
+                        if (!carregandoCache) {
+                            atualizarContador('no_auth');
+                        }
                         break;
                     case 'descartado':
                         discardedTable.appendChild(row);
-                        atualizarContador('descartado');
+                        if (!carregandoCache) {
+                            atualizarContador('descartado');
+                        }
                         break;
                     case 'reprocessar_rapido':
                         pendingTable.appendChild(row);
-                        atualizarContador('pending');
+                        if (!carregandoCache) {
+                            atualizarContador('pending');
+                        }
                         break;
                 }
             }
@@ -692,7 +702,7 @@ const logs = document.getElementById('logs');
         }
 
         // Atualizar contadores
-        function atualizarContador(tipo, valor = 0) {
+        function atualizarContador(tipo, valor = 0, incrementar = true) {
             const contadores = {
                 success: { count: countSuccess, valor: valorTotalSuccess },
                 pending: { count: countPending },
@@ -703,12 +713,12 @@ const logs = document.getElementById('logs');
 
             const contador = contadores[tipo];
             if (contador) {
-                const currentCount = parseInt(contador.count.textContent);
-                contador.count.textContent = currentCount + 1;
+                const currentCount = parseInt(contador.count.textContent) || 0;
+                contador.count.textContent = incrementar ? currentCount + 1 : currentCount;
 
                 if (tipo === 'success' && contador.valor) {
-                    const currentValor = parseFloat(contador.valor.textContent.replace(',', '.'));
-                    const newValor = currentValor + parseFloat(valor);
+                    const currentValor = parseFloat(contador.valor.textContent.replace(',', '.')) || 0;
+                    const newValor = incrementar ? currentValor + parseFloat(valor) : currentValor;
                     contador.valor.textContent = `${newValor.toFixed(2).replace('.', ',')}`;
                 }
             }
@@ -1434,8 +1444,21 @@ const logs = document.getElementById('logs');
                             provider: item.provider,
                             status: 'success',
                             statusDetalhado: item.statusDetalhado
-                        });
+                        }, true);
                     });
+                    
+                    // Definir contadores corretos após carregar
+                    countSuccess.textContent = listas.sucessos.length;
+                    countPending.textContent = listas.pendentes.length;
+                    countNoAuth.textContent = listas.naoAutorizados.length;
+                    countDiscarded.textContent = listas.descartados.length;
+                    
+                    // Atualizar contadores gerais
+                    const totalProcessed = listas.sucessos.length + listas.pendentes.length + 
+                                         listas.naoAutorizados.length + listas.descartados.length;
+                    processedCPFs.textContent = totalProcessed;
+                    successCPFs.textContent = listas.sucessos.length;
+                    pendingCPFs.textContent = listas.pendentes.length;
                     
                     // Carregar pendentes
                     listas.pendentes.forEach(item => {
@@ -1446,7 +1469,7 @@ const logs = document.getElementById('logs');
                             valor: item.valor,
                             provider: item.provider,
                             status: 'pending'
-                        });
+                        }, true);
                     });
                     
                     // Carregar não autorizados
@@ -1458,7 +1481,7 @@ const logs = document.getElementById('logs');
                             valor: item.valor,
                             provider: item.provider,
                             status: 'no_auth'
-                        });
+                        }, true);
                     });
                     
                     // Carregar descartados
@@ -1470,7 +1493,7 @@ const logs = document.getElementById('logs');
                             valor: item.valor,
                             provider: item.provider,
                             status: 'descartado'
-                        });
+                        }, true);
                     });
                     
                     // Carregar agendados
@@ -1482,7 +1505,7 @@ const logs = document.getElementById('logs');
                             valor: item.valor,
                             provider: item.provider,
                             status: 'agendado'
-                        });
+                        }, true);
                     });
                     
                     console.log('📋 Listas carregadas do cache:', {
@@ -1500,8 +1523,9 @@ const logs = document.getElementById('logs');
 
         // Inicializar
         init();
-        carregarContadoresTempoReal();
-        carregarListasDoCache();
+        carregarListasDoCache().then(() => {
+            carregarContadoresTempoReal();
+        });
         adicionarLog('🚀 Painel FGTS iniciado', 'info');
 </script>
 </body>
