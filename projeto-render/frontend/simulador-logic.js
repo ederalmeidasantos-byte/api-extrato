@@ -518,7 +518,7 @@ function renderizarContratosAtivos() {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Taxa Mensal (%)</span>
-                            <input type="text" class="detail-input" value="${contrato.taxa_juros_mensal || ''}" 
+                            <input type="text" class="detail-input" value="${formatTaxa(contrato.taxa_juros_mensal || '')}" 
                                    ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)"
                                    onfocus="this.select()"
@@ -671,7 +671,7 @@ function renderizarContratosNaoAprovados() {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Taxa Mensal (%)</span>
-                            <input type="text" class="detail-input" value="${contrato.taxa_juros_mensal || ''}" 
+                            <input type="text" class="detail-input" value="${formatTaxa(contrato.taxa_juros_mensal || '')}" 
                                    ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)"
                                    onfocus="this.select()"
@@ -783,7 +783,7 @@ function simularContrato(contratoId) {
                     aprovado: true,
                     banco: resultado.bancoNovo,
                     troco: parseFloat(resultado.troco.replace(',', '.')),
-                    taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
+                    taxa: toNumber(resultado.taxa_calculada),
                     parcela: parseFloat(resultado.parcela.replace(',', '.')),
                     parcelasPagas: resultado.parcelas_pagas,
                     valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
@@ -1998,7 +1998,7 @@ function simularTodosContratos() {
                         aprovado: true,
                         banco: resultado.bancoNovo,
                         troco: parseFloat(resultado.troco.replace(',', '.')),
-                        taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
+                        taxa: toNumber(resultado.taxa_calculada),
                         parcela: parseFloat(resultado.parcela.replace(',', '.')),
                         parcelasPagas: resultado.parcelas_pagas,
                         valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
