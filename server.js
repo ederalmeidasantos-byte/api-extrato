@@ -265,6 +265,41 @@ async function continuarProcessamento() {
     } else {
       console.log('📂 Nenhum estado completo encontrado, verificando cache-persistente...');
       
+      // Verificar se há CPFs anexados no cache
+      const cpfsAnexados = await carregarCPFsAnexados();
+      
+      if (cpfsAnexados && cpfsAnexados.cpfs && cpfsAnexados.cpfs.length > 0) {
+        console.log(`📋 Lista completa encontrada no cache: ${cpfsAnexados.totalCPFs} CPFs`);
+        console.log(`📄 Arquivo original: ${cpfsAnexados.metadata.fileName}`);
+        console.log(`📅 Upload em: ${cpfsAnexados.metadata.uploadTime}`);
+        
+        // Converter para formato de processamento
+        const cpfsParaProcessar = cpfsAnexados.cpfs.map(cpf => ({
+          CPF: cpf.cpf,
+          ID: cpf.id,
+          linha: cpf.linha
+        }));
+        
+        console.log(`🚀 Iniciando processamento da lista completa do cache...`);
+        
+        // Emitir total de CPFs para o frontend
+        if (ioInstance) {
+          ioInstance.emit("totalCPFs", cpfsAnexados.totalCPFs);
+          console.log(`📡 Total de CPFs emitido para frontend: ${cpfsAnexados.totalCPFs}`);
+        }
+        
+        setTimeout(async () => {
+          try {
+            console.log(`🚀 Processando ${cpfsAnexados.totalCPFs} CPFs da lista completa do cache...`);
+            await processarCPFs(null, cpfsParaProcessar);
+          } catch (error) {
+            console.error('❌ Erro ao processar lista completa do cache:', error);
+          }
+        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
+        
+        return; // Sair da função aqui
+      }
+      
       // Verificar se há CPFs pendentes no cache-persistente.js
       const pendentes = await carregarPendentes();
       const listas = await carregarListas();
@@ -658,6 +693,17 @@ app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
     const { parse } = await import('csv-parse/sync');
     const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
     
+    console.log(`📊 Total de registros no CSV: ${registros.length}`);
+    
+    // Salvar lista completa no cache
+    const cacheData = await salvarCPFsAnexados(registros, {
+      fileName: req.file.filename,
+      uploadTime: new Date().toISOString(),
+      totalRegistros: registros.length
+    });
+    
+    console.log(`💾 Lista de ${registros.length} CPFs salva no cache persistente`);
+    
     // Criar estado inicial completo
     const estadoInicial = {
       processando: true,
@@ -747,6 +793,55 @@ app.post('/fgts/processar-pendentes', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao processar CPFs pendentes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verificar lista completa de CPFs anexados
+app.get('/fgts/lista-completa', async (req, res) => {
+  try {
+    const cpfsAnexados = await carregarCPFsAnexados();
+    
+    if (!cpfsAnexados) {
+      return res.json({
+        success: true,
+        message: "Nenhuma lista de CPFs encontrada",
+        total: 0
+      });
+    }
+    
+    res.json({
+      success: true,
+      total: cpfsAnexados.totalCPFs,
+      fileName: cpfsAnexados.metadata.fileName,
+      uploadTime: cpfsAnexados.metadata.uploadTime,
+      timestamp: cpfsAnexados.timestamp,
+      cpfs: cpfsAnexados.cpfs.slice(0, 10), // Mostrar apenas os primeiros 10 para não sobrecarregar
+      message: `Lista completa com ${cpfsAnexados.totalCPFs} CPFs`
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar lista completa:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Limpar lista completa de CPFs
+app.post('/fgts/limpar-lista-completa', async (req, res) => {
+  try {
+    if (fs.existsSync(CPFS_CACHE_FILE)) {
+      await fazerBackup(CPFS_CACHE_FILE, 'cpfs');
+      fs.unlinkSync(CPFS_CACHE_FILE);
+      console.log('🗑️ Lista completa de CPFs removida do cache');
+    }
+    
+    res.json({
+      success: true,
+      message: "Lista completa de CPFs removida do cache"
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar lista completa:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1620,6 +1715,8 @@ server.listen(PORT, async () => {
   console.log(`   🧹 Limpar: POST http://localhost:${PORT}/fgts/limpar-estado`);
   console.log(`   📋 Pendentes: GET http://localhost:${PORT}/fgts/pendentes`);
   console.log(`   🚀 Processar Pendentes: POST http://localhost:${PORT}/fgts/processar-pendentes`);
+  console.log(`   📋 Lista Completa: GET http://localhost:${PORT}/fgts/lista-completa`);
+  console.log(`   🗑️ Limpar Lista: POST http://localhost:${PORT}/fgts/limpar-lista-completa`);
   console.log(`   📅 Agendamentos: GET http://localhost:${PORT}/fgts/agendamentos`);
   console.log(`   🧪 Testar Agendamento: POST http://localhost:${PORT}/fgts/testar-agendamento`);
   console.log(`   📊 Cache: GET http://localhost:${PORT}/fgts/cache/estatisticas`);

@@ -374,7 +374,15 @@ const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 // 🔹 Registrar pendência
 function registrarPendencia(cpf, id, motivo, linha) {
   console.log(`${LOG_PREFIX()} ⚠️ Pendência registrada - Linha ${linha} | CPF: ${cpf} | ID: ${id} | Motivo: ${motivo}`);
+  console.log(`${LOG_PREFIX()} 📊 Estado atual: ${pendentes.length} pendentes antes de adicionar`);
+  
   pendentes.push({ cpf, id, motivo, linha });
+  
+  console.log(`${LOG_PREFIX()} 📊 Estado após adicionar: ${pendentes.length} pendentes`);
+  console.log(`${LOG_PREFIX()} 💾 Salvando pendentes atualizados...`);
+  
+  // Salvar pendentes imediatamente após adicionar
+  salvarPendentes(pendentes);
 }
 
 // 🔹 Emitir resultado

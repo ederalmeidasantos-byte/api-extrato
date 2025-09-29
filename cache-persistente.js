@@ -62,6 +62,13 @@ function fazerBackup(arquivo) {
 // ===== CACHE DE PENDENTES =====
 export function salvarPendentes(pendentes) {
   try {
+    console.log(`💾 Salvando pendentes: ${pendentes?.length || 0} registros`);
+    console.log(`📋 Arquivo de destino: ${PENDENTES_FILE}`);
+    
+    if (pendentes && pendentes.length > 0) {
+      console.log(`📋 Primeiros 3 pendentes para salvar:`, pendentes.slice(0, 3));
+    }
+    
     fazerBackup(PENDENTES_FILE);
     
     const dados = {
@@ -72,9 +79,20 @@ export function salvarPendentes(pendentes) {
     
     fs.writeFileSync(PENDENTES_FILE, JSON.stringify(dados, null, 2), 'utf8');
     console.log(`💾 Pendentes salvos: ${dados.total} registros`);
+    console.log(`📋 Arquivo salvo em: ${PENDENTES_FILE}`);
+    
+    // Verificar se o arquivo foi criado corretamente
+    if (fs.existsSync(PENDENTES_FILE)) {
+      const arquivoSalvo = JSON.parse(fs.readFileSync(PENDENTES_FILE, 'utf8'));
+      console.log(`✅ Verificação: Arquivo salvo com ${arquivoSalvo.total} registros`);
+    } else {
+      console.log(`❌ Erro: Arquivo não foi criado!`);
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Erro ao salvar pendentes:', error.message);
+    console.error('❌ Stack trace:', error.stack);
     return false;
   }
 }
