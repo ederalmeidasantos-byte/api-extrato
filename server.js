@@ -1818,7 +1818,7 @@ app.get('/api/credenciais', async (req, res) => {
 // API para salvar credenciais
 app.post('/api/credenciais', async (req, res) => {
   try {
-    const { openaiKey, lunasApiKey, lunasApiUrl, v8ApiKey, v8ApiUrl } = req.body;
+    const { openaiKey, lunasApiKey, lunasApiUrl, usuariosV8 } = req.body;
     
     const credenciais = await carregarCredenciais();
     
@@ -1826,8 +1826,7 @@ app.post('/api/credenciais', async (req, res) => {
     if (openaiKey) credenciais.openaiKey = openaiKey;
     if (lunasApiKey) credenciais.lunasApiKey = lunasApiKey;
     if (lunasApiUrl) credenciais.lunasApiUrl = lunasApiUrl;
-    if (v8ApiKey) credenciais.v8ApiKey = v8ApiKey;
-    if (v8ApiUrl) credenciais.v8ApiUrl = v8ApiUrl;
+    if (usuariosV8) credenciais.usuariosV8 = usuariosV8;
     
     const sucesso = await salvarCredenciais(credenciais);
     
@@ -1836,8 +1835,6 @@ app.post('/api/credenciais', async (req, res) => {
       if (openaiKey) process.env.OPENAI_API_KEY = openaiKey;
       if (lunasApiKey) process.env.LUNAS_API_KEY = lunasApiKey;
       if (lunasApiUrl) process.env.LUNAS_API_URL = lunasApiUrl;
-      if (v8ApiKey) process.env.V8_API_KEY = v8ApiKey;
-      if (v8ApiUrl) process.env.V8_API_URL = v8ApiUrl;
       
       res.json({ success: true, message: 'Credenciais salvas com sucesso' });
     } else {
@@ -1845,6 +1842,21 @@ app.post('/api/credenciais', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro ao salvar credenciais:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// API para obter usuários V8
+app.get('/api/usuarios-v8', async (req, res) => {
+  try {
+    const credenciais = await carregarCredenciais();
+    
+    res.json({
+      success: true,
+      usuarios: credenciais.usuariosV8 || []
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter usuários V8:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
