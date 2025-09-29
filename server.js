@@ -664,11 +664,51 @@ app.post('/fgts/logs/limpar', async (req, res) => {
 app.use("/static", express.static(path.join(__dirname, "projeto-render", "frontend")));
 
 // ====== Simulador ======
-app.get("/simulador", (req, res) => {
+app.get("/simulador", async (req, res) => {
   const simuladorPath = path.join(__dirname, "projeto-render", "frontend", "simulador.html");
   if (!fs.existsSync(simuladorPath)) {
     return res.status(404).json({ error: "Simulador não encontrado" });
   }
+  
+  // Verificar se há ID na URL
+  const extratoId = req.query.id;
+  
+  if (extratoId) {
+    try {
+      // Carregar dados do extrato
+      const jsonPath = path.join(PERSISTENT_DIRS.extratos, `extrato_${extratoId}.json`);
+      
+      if (fs.existsSync(jsonPath)) {
+        console.log(`📋 Carregando dados para simulador ID: ${extratoId}`);
+        const dados = JSON.parse(await fsp.readFile(jsonPath, 'utf-8'));
+        
+        // Ler o HTML
+        let html = await fsp.readFile(simuladorPath, 'utf-8');
+        
+        // Injetar dados no HTML
+        const dadosScript = `
+          <script>
+            // Dados pré-carregados do servidor
+            window.DADOS_PRE_CARREGADOS = ${JSON.stringify(dados)};
+            window.EXTRATO_ID = '${extratoId}';
+            console.log('📋 Dados pré-carregados:', window.DADOS_PRE_CARREGADOS);
+          </script>
+        `;
+        
+        // Inserir script antes do fechamento do head
+        html = html.replace('</head>', `${dadosScript}</head>`);
+        
+        res.send(html);
+        return;
+      } else {
+        console.log(`⚠️ Arquivo não encontrado: ${jsonPath}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados para simulador:', error);
+    }
+  }
+  
+  // Servir HTML normal se não há ID ou erro
   res.sendFile(simuladorPath);
 });
 

@@ -958,6 +958,52 @@ function atualizarMargens() {
 async function carregarDados() {
     console.log('🚀 Iniciando carregamento de dados...');
     
+    // Verificar se há dados pré-carregados do servidor
+    if (window.DADOS_PRE_CARREGADOS && window.EXTRATO_ID) {
+        console.log('📋 Usando dados pré-carregados do servidor');
+        console.log('📋 Dados:', window.DADOS_PRE_CARREGADOS);
+        
+        const dados = window.DADOS_PRE_CARREGADOS;
+        codigoExtrato = window.EXTRATO_ID;
+        contratos = dados.contratos || [];
+        cliente = dados.cliente || {};
+        margens = dados.margens || {};
+        
+        console.log(`📊 Processando ${contratos.length} contratos pré-carregados`);
+        
+        // Processar contratos
+        contratos.forEach((contrato, index) => {
+            if (!contrato.id) {
+                contrato.id = index + 1;
+            }
+            if (contrato.selecionado === undefined) {
+                contrato.selecionado = true;
+            }
+            contrato.simulacao = contrato.simulacao || null;
+            contrato.troco = contrato.troco || 0;
+            contrato.aprovado = contrato.aprovado || false;
+            contrato.editando = contrato.editando || false;
+            
+            // Garantir que valores estão preenchidos corretamente
+            if (!contrato.valor_parcela) {
+                contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
+            }
+            if (!contrato.taxa_juros_mensal) {
+                contrato.taxa_juros_mensal = toNumber(contrato.taxa_juros_mensal || 0);
+            }
+        });
+        
+        // Renderizar interface
+        atualizarDadosCliente();
+        atualizarMargens();
+        renderizarContratos();
+        simularTodosContratos();
+        atualizarResumo();
+        
+        console.log('✅ Dados pré-carregados processados com sucesso!');
+        return;
+    }
+    
     // Verificar se há código de extrato na URL
     const urlParams = new URLSearchParams(window.location.search);
     const extratoId = urlParams.get('extrato') || urlParams.get('id');
