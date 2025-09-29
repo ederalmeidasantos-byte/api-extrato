@@ -1681,6 +1681,13 @@ function aplicarRoteiro(c, banco) {
         return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
     }
 
+    // Validar parcela mínima
+    const parcela = toNumber(c.valor_parcela || 0);
+    if (typeof roteiro.parcelaMinima === "number" && parcela < roteiro.parcelaMinima) {
+        console.log(`❌ Parcela insuficiente: ${parcela} < ${roteiro.parcelaMinima}`);
+        return { valido: false, motivo: `Parcela mínima (${roteiro.parcelaMinima}) - ${banco}` };
+    }
+
     if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
         console.log(`❌ Espécie não permitida: ${c.especie}`);
         return { valido: false, motivo: `Banco ${banco} não permitido esp ${c.especie}` };
