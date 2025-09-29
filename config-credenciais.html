@@ -710,6 +710,13 @@
             usuarioCounter++;
             const usuarioId = `usuario_${usuarioCounter}`;
             
+            console.log(`🔧 Adicionando usuário V8 #${usuarioCounter}:`, {
+                id: usuarioId,
+                usuario: usuario,
+                senha: usuario?.senha ? `*** (${usuario.senha.length} chars)` : 'vazia',
+                senhaOriginal: usuario?.senha
+            });
+            
             const usuarioHTML = `
                 <div class="usuario-v8" id="${usuarioId}">
                     <div class="usuario-header">
@@ -739,6 +746,19 @@
             `;
             
             usuariosV8.insertAdjacentHTML('beforeend', usuarioHTML);
+            
+            // Verificar se a senha foi inserida corretamente
+            const senhaInput = document.getElementById(`${usuarioId}_senha`);
+            if (senhaInput) {
+                console.log(`✅ Campo de senha criado para ${usuarioId}:`, {
+                    value: senhaInput.value,
+                    length: senhaInput.value.length,
+                    expectedLength: usuario?.senha ? usuario.senha.length : 0
+                });
+            } else {
+                console.error(`❌ Campo de senha não encontrado para ${usuarioId}`);
+            }
+            
             console.log(`Usuário V8 #${usuarioCounter} adicionado com ID: ${usuarioId}`);
         }
 
@@ -835,12 +855,22 @@
                 const response = await fetch('/api/usuarios-v8');
                 const data = await response.json();
                 
+                console.log('📖 Resposta da API usuarios-v8:', data);
+                
                 if (data.success && data.usuarios) {
                     usuariosV8.innerHTML = '';
                     if (data.usuarios.length === 0) {
                         usuariosV8.innerHTML = '<div class="usuarios-empty">Nenhum usuário V8 configurado. Clique em "Adicionar Usuário V8" para começar.</div>';
                     } else {
-                        data.usuarios.forEach(usuario => {
+                        console.log('📖 Carregando usuários V8:', data.usuarios);
+                        data.usuarios.forEach((usuario, index) => {
+                            console.log(`👤 Usuário ${index + 1} para carregar:`, {
+                                id: usuario.id,
+                                login: usuario.login,
+                                senha: usuario.senha ? `*** (${usuario.senha.length} chars)` : 'vazia',
+                                senhaOriginal: usuario.senha,
+                                nome: usuario.nome
+                            });
                             adicionarUsuarioV8(usuario);
                         });
                     }
@@ -848,6 +878,7 @@
                     usuariosV8.innerHTML = '<div class="usuarios-empty">Nenhum usuário V8 configurado. Clique em "Adicionar Usuário V8" para começar.</div>';
                 }
             } catch (error) {
+                console.error('❌ Erro ao carregar usuários V8:', error);
                 usuariosV8.innerHTML = '<div class="usuarios-empty">Erro ao carregar usuários V8. Clique em "Adicionar Usuário V8" para começar.</div>';
             }
         }
