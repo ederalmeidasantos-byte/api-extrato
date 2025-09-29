@@ -81,15 +81,30 @@ export function salvarPendentes(pendentes) {
 
 export function carregarPendentes() {
   try {
+    console.log(`🔍 Verificando arquivo de pendentes: ${PENDENTES_FILE}`);
+    
     if (!fs.existsSync(PENDENTES_FILE)) {
+      console.log(`📂 Arquivo de pendentes não encontrado: ${PENDENTES_FILE}`);
       return [];
     }
     
     const dados = JSON.parse(fs.readFileSync(PENDENTES_FILE, 'utf8'));
     console.log(`📂 Pendentes carregados: ${dados.total || 0} registros`);
+    console.log(`📋 Estrutura dos dados:`, {
+      temPendentes: !!dados.pendentes,
+      total: dados.total,
+      ultimaAtualizacao: dados.ultimaAtualizacao,
+      tipoPendentes: Array.isArray(dados.pendentes) ? 'array' : typeof dados.pendentes
+    });
+    
+    if (dados.pendentes && dados.pendentes.length > 0) {
+      console.log(`📋 Primeiros 3 pendentes:`, dados.pendentes.slice(0, 3));
+    }
+    
     return dados.pendentes || [];
   } catch (error) {
     console.error('❌ Erro ao carregar pendentes:', error.message);
+    console.error('❌ Stack trace:', error.stack);
     return [];
   }
 }

@@ -228,16 +228,29 @@ async function continuarProcessamento() {
     if (estado) {
       console.log(`🚀 Continuando processamento de onde parou...`);
       console.log(`📊 Estado encontrado: ${estado.processados}/${estado.total} processados`);
+      console.log(`📋 Estado detalhado:`, {
+        processando: estado.processando,
+        iniciadoEm: estado.iniciadoEm,
+        arquivoOriginal: estado.arquivoOriginal,
+        total: estado.total,
+        processados: estado.processados,
+        sucessos: estado.sucessos,
+        pendentes: estado.pendentes?.length || 0,
+        reprocessar: estado.reprocessar?.length || 0,
+        erros: estado.erros?.length || 0
+      });
       
       // Se há CPFs para reprocessar, iniciar reprocessamento
       if (estado.reprocessar?.length > 0) {
         console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
+        console.log(`📋 CPFs para reprocessar:`, estado.reprocessar.slice(0, 3).map(cpf => cpf.cpf || cpf));
         await processarCPFs(null, estado.reprocessar);
       }
       
       // Se há CPFs pendentes, continuar processamento normal
       if (estado.pendentes?.length > 0) {
         console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
+        console.log(`📋 CPFs pendentes:`, estado.pendentes.slice(0, 3).map(cpf => cpf.cpf || cpf));
         
         // Iniciar processamento automático dos pendentes
         setTimeout(async () => {
@@ -263,6 +276,11 @@ async function continuarProcessamento() {
       console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
       console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
       
+      // Mostrar alguns CPFs pendentes para debug
+      if (pendentes && pendentes.length > 0) {
+        console.log(`📋 Primeiros 3 CPFs pendentes:`, pendentes.slice(0, 3).map(p => p.cpf || p));
+      }
+      
       if (pendentes && pendentes.length > 0) {
         console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
         console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
@@ -276,6 +294,7 @@ async function continuarProcessamento() {
         setTimeout(async () => {
           try {
             console.log(`🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
+            console.log(`📋 Lista de CPFs para processar:`, pendentes.slice(0, 5).map(p => p.cpf || p));
             await processarCPFs(null, pendentes);
           } catch (error) {
             console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
