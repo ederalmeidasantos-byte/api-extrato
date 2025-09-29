@@ -370,6 +370,17 @@ function attachIO(io) {
 // 🔹 Normalização
 const normalizeCPF = (cpf) => {
   if (!cpf) return null;
+  
+  // Se for um objeto, tentar extrair o CPF
+  if (typeof cpf === 'object' && cpf !== null) {
+    if (cpf.cpf) {
+      cpf = cpf.cpf;
+    } else {
+      console.log(`${LOG_PREFIX()} ⚠️ Objeto CPF inválido:`, cpf);
+      return null;
+    }
+  }
+  
   const cleaned = cpf.toString().replace(/\D/g, "");
   if (cleaned.length !== 11) return null;
   if (cleaned === "00000000000" || cleaned === "11111111111" || cleaned === "22222222222" || 
@@ -1007,7 +1018,11 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     console.log(`${LOG_PREFIX()} 📋 Parâmetros: csvPath=${csvPath}, cpfsReprocess=${cpfsReprocess?.length || 0}, callback=${!!callback}`);
 
     if (cpfsReprocess && cpfsReprocess.length) {
-      registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+      registros = cpfsReprocess.map((item, i) => {
+        // Se for um objeto, extrair o CPF
+        const cpf = typeof item === 'object' && item !== null ? item.cpf : item;
+        return { CPF: cpf, ID: `reproc_${i}` };
+      });
       console.log(`${LOG_PREFIX()} 🔄 Modo reprocessamento: ${registros.length} CPFs para reprocessar`);
     } else if (csvPath) {
       const csvContent = fs.readFileSync(csvPath, "utf-8");
