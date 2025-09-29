@@ -337,7 +337,7 @@ function calcularTrocoEndpoint(jsonDir) {
 
     const totalTroco = Object.values(bancosAgrupados).reduce((sum, val) => sum + val, 0);
 
-    return res.json({
+    const response = {
       status: 'success',
       message: 'Simulação concluída',
       dados: {
@@ -362,7 +362,7 @@ function calcularTrocoEndpoint(jsonDir) {
         dia_averbacao: diaAverbacao,
         total_contratos_processados: calculados.length
       }
-    });
+    };
 
     // Adicionar link único para o simulador
     response.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
