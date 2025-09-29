@@ -5,6 +5,7 @@ import fs from "fs";
 import fsp from "fs/promises";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
+import multer from "multer";
 import { calcularTrocoEndpoint } from "./calculo.js";
 import { extrairDeUpload } from "./extrair_pdf.js";
 import PQueue from "p-queue";
@@ -33,6 +34,21 @@ function cacheValido(p) {
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
+
+// ====== Configuração Multer para upload de PDF ======
+const upload = multer({
+  dest: PDF_DIR,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos PDF são permitidos'), false);
+    }
+  }
+});
 
 // ====== Fila: até 2 jobs em paralelo, 2 por segundo ======
 const queue = new PQueue({ concurrency: 2, interval: 1000, intervalCap: 2 });
@@ -109,6 +125,33 @@ app.get("/extrair/:fileId", async (req, res) => {
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair/:fileId:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ====== Upload manual de PDF ======
+app.post("/extrairpdf", upload.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo PDF enviado" });
+    }
+
+    const fileId = Date.now().toString(); // ID único baseado em timestamp
+    const originalPath = req.file.path;
+    const pdfPath = path.join(PDF_DIR, `extrato_${fileId}.pdf`);
+    
+    // Renomear arquivo para padrão
+    await fsp.rename(originalPath, pdfPath);
+    console.log("📄 PDF upload salvo em", pdfPath);
+
+    // Processar com fila
+    const json = await queue.add(() =>
+      extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
+    );
+
+    res.json(json);
+  } catch (err) {
+    console.error("❌ Erro em /extrairpdf:", err);
     res.status(500).json({ error: err.message });
   }
 });
