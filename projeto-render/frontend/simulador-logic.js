@@ -280,33 +280,37 @@ function gerarLinkUnico() {
     return `${baseUrl}?extrato=${codigoExtrato}`;
 }
 
-function carregarSimulacaoPorId(extratoId) {
-    const dadosSalvos = localStorage.getItem(`extratoData_${extratoId}`);
-    if (dadosSalvos) {
-        try {
-            const dados = JSON.parse(dadosSalvos);
-            codigoExtrato = dados.codigoExtrato || extratoId;
-            contratos = dados.contratos || [];
-            cliente = dados.cliente || {};
-            margens = dados.margens || {};
+async function carregarSimulacaoPorId(extratoId) {
+    try {
+        // Buscar dados da API
+        const response = await fetch(`https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`);
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar dados: ${response.status}`);
+        }
+        
+        const dados = await response.json();
+        codigoExtrato = extratoId;
+        contratos = dados.contratos || [];
+        cliente = dados.cliente || {};
+        margens = dados.margens || {};
+        
+        // Processar contratos
+        contratos.forEach((contrato, index) => {
+            if (!contrato.id) {
+                contrato.id = index + 1;
+            }
+            if (contrato.selecionado === undefined) {
+                contrato.selecionado = true;
+            }
+            contrato.simulacao = contrato.simulacao || null;
+            contrato.troco = contrato.troco || 0;
+            contrato.aprovado = contrato.aprovado || false;
+            contrato.editando = contrato.editando || false;
             
-            // Processar contratos
-            contratos.forEach((contrato, index) => {
-                if (!contrato.id) {
-                    contrato.id = index + 1;
-                }
-                if (contrato.selecionado === undefined) {
-                    contrato.selecionado = true;
-                }
-                contrato.simulacao = contrato.simulacao || null;
-                contrato.troco = contrato.troco || 0;
-                contrato.aprovado = contrato.aprovado || false;
-                contrato.editando = contrato.editando || false;
-                
-                // Garantir que valores estão preenchidos corretamente
-                if (!contrato.valor_parcela) {
-                    contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
-                }
+            // Garantir que valores estão preenchidos corretamente
+            if (!contrato.valor_parcela) {
+                contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
+            }
                 if (!contrato.taxa_juros_mensal) {
                     contrato.taxa_juros_mensal = toNumber(contrato.taxa_juros_mensal || 0);
                 }
@@ -941,14 +945,14 @@ function atualizarMargens() {
     document.getElementById('margemRCC').textContent = `R$ ${formatBRNumber(margens.rcc || 0)}`;
 }
 
-function carregarDados() {
+async function carregarDados() {
     // Verificar se há código de extrato na URL
     const urlParams = new URLSearchParams(window.location.search);
-    const extratoId = urlParams.get('extrato');
+    const extratoId = urlParams.get('extrato') || urlParams.get('id');
     
     if (extratoId) {
         // Carregar simulação específica
-        carregarSimulacaoPorId(extratoId);
+        await carregarSimulacaoPorId(extratoId);
         return;
     }
     
@@ -2053,4 +2057,6 @@ function simularTodosContratos() {
 }
 
 // Inicialização
-carregarDados();
+(async () => {
+    await carregarDados();
+})();

@@ -895,6 +895,18 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
             const resultadoAtualizacao = await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
             emitirResultado({ cpf: cpfPendente, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha: linhaPendente, resultadoCompleto: saldoValido, statusDetalhado: resultadoAtualizacao.statusDetalhado }, callback);
             contadorSucesso++;
+            
+            // Remover da lista de pendentes (persistente)
+            removerPendente(cpfPendente, linhaPendente);
+            removerResultadoLista('pendentes', cpfPendente, id);
+            
+            // Emitir remoção para o painel
+            if (ioInstance) {
+              ioInstance.emit('removerPendente', {
+                cpf: cpfPendente,
+                linha: linhaPendente
+              });
+            }
           }
         } else {
           // Se não conseguiu resolver, volta para pendentes
@@ -1015,6 +1027,19 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         const resultadoAtualizacao = await atualizarOportunidadeComTabela(id, simulacao.tabelaSimulada);
         emitirResultado({ cpf, id, status: "success", valorLiberado: simulacao.availableBalance, provider: saldoValido.provider, linha, resultadoCompleto: saldoValido, statusDetalhado: resultadoAtualizacao.statusDetalhado }, callback);
         contadorSucesso++;
+        
+        // Remover da lista de pendentes (persistente)
+        removerPendente(cpf, linha);
+        removerResultadoLista('pendentes', cpf, id);
+        
+        // Emitir remoção para o painel
+        if (ioInstance) {
+          ioInstance.emit('removerPendente', {
+            cpf: cpf,
+            linha: linha
+          });
+        }
+        
         pendentesParaReprocessar.splice(pendentesParaReprocessar.indexOf(pend), 1);
       }
     }
@@ -1057,6 +1082,57 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
   }
 }
 
+// 🔹 Processar um CPF individual (para reprocessamento)
+async function processarCPF(cpf, linha) {
+  try {
+    console.log(`${LOG_PREFIX()} 🔄 Processando CPF individual: ${cpf}, Linha: ${linha}`);
+    
+    // Resetar tentativas de cache para este CPF
+    tentativasCPF.delete(cpf);
+    
+    // Consultar resultado
+    const resultado = await consultarResultado(cpf, linha);
+    
+    if (!resultado || !resultado.data || resultado.data.length === 0) {
+      return { status: 'pending', valorLiberado: 0, provider: 'sistema' };
+    }
+    
+    // Verificar se há saldo válido
+    const saldoValido = resultado.data.find(r => r.amount > 0);
+    if (saldoValido) {
+      // Simular saldo
+      const simulacao = await simularSaldo(cpf, saldoValido.id, saldoValido.periods, saldoValido.provider);
+      if (simulacao) {
+        return {
+          status: 'success',
+          valorLiberado: simulacao.availableBalance,
+          provider: saldoValido.provider,
+          id: saldoValido.id
+        };
+      }
+    }
+    
+    // Verificar se está pendente
+    const hasPending = resultado.data.some(d => d.status === "pending");
+    if (hasPending) {
+      return { status: 'pending', valorLiberado: 0, provider: 'sistema' };
+    }
+    
+    // Verificar se não autorizado
+    const todosNaoAut = resultado.data.every(d => d.status === "error" && d.statusInfo?.includes("não possui autorização"));
+    if (todosNaoAut) {
+      return { status: 'no_auth', valorLiberado: 0, provider: 'sistema' };
+    }
+    
+    // Descartado
+    return { status: 'descartado', valorLiberado: 0, provider: 'sistema' };
+    
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao processar CPF ${cpf}:`, error.message);
+    return { status: 'descartado', valorLiberado: 0, provider: 'sistema' };
+  }
+}
+
 // 🔹 Processar CPFs de reprocessamento rápido (prioridade alta)
 async function processarReprocessamentoRapido() {
   const rapidos = pendentes.filter(p => p.status === 'reprocessar_rapido');
@@ -1082,6 +1158,9 @@ async function processarReprocessamentoRapido() {
       const statusDetalhado = resultado.status === 'success' ? 'Reprocessado para Sucesso' : 
                              resultado.status === 'no_auth' ? 'Reprocessado para Não Autorizado' : 
                              'Reprocessado para Falha';
+      
+      // Remover da lista de pendentes primeiro (persistente)
+      removerResultadoLista('pendentes', cpfRapido.cpf, cpfRapido.id);
       
       // Adicionar à lista correta baseada no status
       if (novoStatus === 'success') {
