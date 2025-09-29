@@ -25,6 +25,7 @@ import RoteiroBancos from './roteiro-bancos.js';
 
 const TROCO_MINIMO = 100;
 const PRAZO_SIMULADO = 96;
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
 
 // Função para formatar números em padrão brasileiro
 function formatBRNumber(n) {
@@ -158,7 +159,7 @@ function validarContrato(contrato, banco, especie) {
 // Função principal de simulação
 function simularContrato(contrato, especie, diaAverbacao = "15") {
   const resultados = [];
-  const bancos = Object.keys(RoteiroBancos);
+  const bancos = ORDEM_BANCOS;
   
   // Calcular saldo devedor correto
   const parcelaOriginal = toNumber(contrato.parcela);
