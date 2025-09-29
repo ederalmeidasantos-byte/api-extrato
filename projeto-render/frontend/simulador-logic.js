@@ -282,20 +282,36 @@ function gerarLinkUnico() {
 
 async function carregarSimulacaoPorId(extratoId) {
     console.log(`🔄 Carregando simulação para ID: ${extratoId}`);
+    console.log(`🔍 Tipo do ID: ${typeof extratoId}`);
+    console.log(`🔍 ID válido: ${extratoId ? 'SIM' : 'NÃO'}`);
     
     try {
         // Buscar dados da API
-        console.log(`📡 Fazendo requisição para: https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`);
-        const response = await fetch(`https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`);
+        const apiUrl = `https://api-extrato-1.onrender.com/extrato/${extratoId}/raw`;
+        console.log(`📡 Fazendo requisição para: ${apiUrl}`);
         
-        console.log(`📡 Resposta recebida: ${response.status} ${response.statusText}`);
+        const response = await fetch(apiUrl);
+        
+        console.log(`📡 Resposta recebida:`);
+        console.log(`   - Status: ${response.status}`);
+        console.log(`   - Status Text: ${response.statusText}`);
+        console.log(`   - OK: ${response.ok}`);
+        console.log(`   - Headers:`, Object.fromEntries(response.headers.entries()));
         
         if (!response.ok) {
-            throw new Error(`Erro ao carregar dados: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`❌ Erro na resposta: ${errorText}`);
+            throw new Error(`Erro ao carregar dados: ${response.status} - ${errorText}`);
         }
         
+        console.log(`📡 Convertendo resposta para JSON...`);
         const dados = await response.json();
-        console.log(`✅ Dados carregados:`, dados);
+        console.log(`✅ Dados carregados com sucesso:`, dados);
+        
+        console.log(`📊 Analisando dados:`);
+        console.log(`   - Cliente:`, dados.cliente);
+        console.log(`   - Contratos: ${dados.contratos ? dados.contratos.length : 0} encontrados`);
+        console.log(`   - Margens:`, dados.margens);
         
         codigoExtrato = extratoId;
         contratos = dados.contratos || [];
@@ -306,6 +322,8 @@ async function carregarSimulacaoPorId(extratoId) {
         
         // Processar contratos
         contratos.forEach((contrato, index) => {
+            console.log(`📋 Processando contrato ${index + 1}:`, contrato.contrato);
+            
             if (!contrato.id) {
                 contrato.id = index + 1;
             }
@@ -326,24 +344,60 @@ async function carregarSimulacaoPorId(extratoId) {
                 }
             });
             
+            console.log(`✅ Contratos processados com sucesso!`);
+            console.log(`🎨 Iniciando renderização da interface...`);
+            
             atualizarDadosCliente();
+            console.log(`✅ Dados do cliente atualizados`);
+            
             atualizarMargens();
+            console.log(`✅ Margens atualizadas`);
+            
             renderizarContratos();
+            console.log(`✅ Contratos renderizados`);
             
             // Mostrar seções se há dados
             if (contratos.length > 0) {
+                console.log(`👁️ Mostrando seções da interface...`);
                 document.getElementById('clienteSection').style.display = 'block';
                 document.getElementById('margensSection').style.display = 'block';
                 document.getElementById('contratosAtivosSection').style.display = 'block';
                 document.getElementById('contratosNaoAprovadosSection').style.display = 'block';
                 document.getElementById('resumoSection').style.display = 'block';
+                console.log(`✅ Seções exibidas`);
+            } else {
+                console.log(`⚠️ Nenhum contrato encontrado, seções permanecem ocultas`);
             }
             
             // Mostrar link único
             mostrarLinkUnico();
+            console.log(`✅ Link único exibido`);
+            
+            console.log(`🎯 Iniciando simulação automática...`);
+            simularTodosContratos();
+            console.log(`✅ Simulação automática concluída`);
+            
+            console.log(`📊 Atualizando resumo...`);
+            atualizarResumo();
+            console.log(`✅ Resumo atualizado`);
+            
+            console.log(`🎉 Carregamento de simulação concluído com sucesso!`);
             
         } catch (error) {
-            console.error('Erro ao carregar simulação:', error);
+            console.error(`❌ Erro ao carregar simulação para ID ${extratoId}:`, error);
+            console.error(`❌ Stack trace:`, error.stack);
+            
+            // Mostrar erro na interface
+            const errorDiv = document.createElement('div');
+            errorDiv.innerHTML = `
+                <div style="background: #ffebee; border: 1px solid #f44336; padding: 15px; margin: 10px; border-radius: 5px;">
+                    <h3 style="color: #d32f2f; margin: 0 0 10px 0;">❌ Erro ao carregar dados</h3>
+                    <p style="margin: 0; color: #d32f2f;"><strong>ID:</strong> ${extratoId}</p>
+                    <p style="margin: 0; color: #d32f2f;"><strong>Erro:</strong> ${error.message}</p>
+                </div>
+            `;
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+            
             alert('Erro ao carregar simulação específica');
         }
     } else {
@@ -2124,5 +2178,14 @@ function simularTodosContratos() {
 // Inicialização
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 DOM carregado, iniciando carregamento de dados...');
-    await carregarDados();
+    console.log('🔍 URL atual:', window.location.href);
+    console.log('🔍 Parâmetros da URL:', window.location.search);
+    
+    try {
+        await carregarDados();
+        console.log('✅ Carregamento de dados concluído!');
+    } catch (error) {
+        console.error('❌ Erro no carregamento de dados:', error);
+        console.error('❌ Stack trace:', error.stack);
+    }
 });
