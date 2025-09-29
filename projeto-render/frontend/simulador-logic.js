@@ -1724,22 +1724,31 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
     // Armazena apenas a última taxa por banco
     const motivosBloqueio = {};
 
+    console.log(`🔍 Testando bancos para contrato ${contrato.contrato}:`, bancosParaSimular);
+
     for (const banco of bancosParaSimular) {
+        console.log(`🏦 Testando banco: ${banco}`);
         const aplicacao = aplicarRoteiro({ ...contrato, saldo_devedor: saldoDevedor }, banco);
+        console.log(`📋 Resultado aplicacaoRoteiro para ${banco}:`, aplicacao);
 
         if (!aplicacao.valido) {
             motivosBloqueio[banco] = aplicacao.motivo;
+            console.log(`❌ ${banco} rejeitado: ${aplicacao.motivo}`);
             continue;
         }
 
         const roteiro = RoteiroBancos[banco];
         const taxasPermitidas = roteiro?.taxas || [];
+        console.log(`💰 Testando taxas para ${banco}:`, taxasPermitidas);
+        
         for (const tx of taxasPermitidas) {
             const coefNovo = getCoeficiente(tx, diaAverbacao);
             if (!coefNovo) continue;
 
             const valorEmprestimo = parcelaOriginal / coefNovo;
             const troco = valorEmprestimo - saldoDevedor;
+
+            console.log(`📊 ${banco} TX ${tx}: parcela=${parcelaOriginal}, coef=${coefNovo}, emprestimo=${valorEmprestimo}, saldo=${saldoDevedor}, troco=${troco}`);
 
             if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
                 escolhido = {
@@ -1750,14 +1759,18 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
                     valorEmprestimo,
                     troco,
                 };
+                console.log(`✅ ${banco} aprovado com troco ${troco}`);
                 break; // banco válido encontrado
             } else {
                 // Sobrescreve apenas a última taxa testada para esse banco
                 motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) TX ${tx}`;
+                console.log(`❌ ${banco} TX ${tx} rejeitado: troco ${troco} < ${TROCO_MINIMO}`);
             }
         }
         if (escolhido) break;
     }
+
+    console.log(`📝 Motivos de bloqueio finais:`, motivosBloqueio);
 
     // Contrato não elegível
     if (!escolhido) {
