@@ -157,7 +157,7 @@ app.post("/extrairpdf", upload.single('pdf'), async (req, res) => {
 });
 
 // ====== Calcular troco ======
-app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
+app.post("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 // ====== Raw JSON ======
 app.get("/extrato/:fileId/raw", (req, res) => {

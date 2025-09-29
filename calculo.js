@@ -1,4 +1,5 @@
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -264,28 +265,35 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
 function calcularTrocoEndpoint(jsonDir) {
   return async (req, res) => {
     try {
-      const { contratos, especie, diaAverbacao = "15" } = req.body;
+      const { fileId } = req.params;
+      const { especie, diaAverbacao = "15" } = req.body;
+      
+      // Carregar dados do arquivo JSON
+      const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+      if (!fs.existsSync(jsonPath)) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Extrato não encontrado'
+        });
+      }
+      
+      const extratoData = JSON.parse(await fsp.readFile(jsonPath, 'utf-8'));
+      const contratos = extratoData.contratos || [];
+      const especieFinal = especie || extratoData.beneficio?.nomeBeneficio || '32';
 
-    if (!contratos || !Array.isArray(contratos)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Lista de contratos é obrigatória'
-      });
-    }
-
-    if (!especie) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Espécie do benefício é obrigatória'
-      });
-    }
+      if (!contratos || !Array.isArray(contratos)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Lista de contratos é obrigatória'
+        });
+      }
 
     const calculados = [];
     const contratosInvalidos = [];
 
     contratos.forEach((contrato, index) => {
       try {
-        const simulacao = simularContrato(contrato, especie, diaAverbacao);
+        const simulacao = simularContrato(contrato, especieFinal, diaAverbacao);
         calculados.push({
           ...contrato,
           simulacao: simulacao
