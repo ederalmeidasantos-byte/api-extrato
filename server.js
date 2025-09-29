@@ -630,6 +630,51 @@ app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
   }
 });
 
+// Verificar agendamentos pendentes
+app.get('/fgts/agendamentos', async (req, res) => {
+  try {
+    // Importar função para acessar agendamentos
+    const { obterAgendamentos } = await import('./fgts_csv.js');
+    const agendamentos = obterAgendamentos();
+    
+    res.json({
+      success: true,
+      agendamentos: agendamentos,
+      total: agendamentos.length,
+      proximoHorarioComercial: new Date().toLocaleString('pt-BR')
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar agendamentos:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Testar agendamento
+app.post('/fgts/testar-agendamento', async (req, res) => {
+  try {
+    const { opportunityId } = req.body;
+    
+    if (!opportunityId) {
+      return res.status(400).json({ error: "opportunityId é obrigatório" });
+    }
+    
+    // Importar função de agendamento
+    const { agendarDisparo } = await import('./fgts_csv.js');
+    agendarDisparo(opportunityId, 'teste');
+    
+    res.json({
+      success: true,
+      message: `Agendamento de teste criado para ID: ${opportunityId}`,
+      proximoHorarioComercial: new Date().toLocaleString('pt-BR')
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao testar agendamento:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Verificar estado atual do processamento
 app.get('/fgts/estado', async (req, res) => {
   try {

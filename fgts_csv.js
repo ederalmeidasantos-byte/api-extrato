@@ -118,15 +118,41 @@ const HORARIO_COMERCIAL = {
 function isHorarioComercial() {
   const agora = new Date();
   const hora = agora.getHours();
-  return hora >= HORARIO_COMERCIAL.inicio && hora < HORARIO_COMERCIAL.fim;
+  const minuto = agora.getMinutes();
+  const isComercial = hora >= HORARIO_COMERCIAL.inicio && hora < HORARIO_COMERCIAL.fim;
+  
+  console.log(`${LOG_PREFIX()} 🕐 Verificação de horário: ${hora}:${minuto.toString().padStart(2, '0')} - Comercial: ${isComercial}`);
+  
+  return isComercial;
 }
 
 // 🔹 Calcular próximo horário comercial
 function proximoHorarioComercial() {
   const agora = new Date();
+  const hora = agora.getHours();
+  
+  // Se já passou do horário comercial hoje, agendar para amanhã
+  if (hora >= HORARIO_COMERCIAL.fim) {
+    const amanha = new Date(agora);
+    amanha.setDate(amanha.getDate() + 1);
+    amanha.setHours(HORARIO_COMERCIAL.inicio, 0, 0, 0);
+    console.log(`${LOG_PREFIX()} 📅 Agendando para amanhã: ${amanha.toLocaleString('pt-BR')}`);
+    return amanha;
+  }
+  
+  // Se ainda não chegou no horário comercial hoje, agendar para hoje
+  if (hora < HORARIO_COMERCIAL.inicio) {
+    const hoje = new Date(agora);
+    hoje.setHours(HORARIO_COMERCIAL.inicio, 0, 0, 0);
+    console.log(`${LOG_PREFIX()} 📅 Agendando para hoje: ${hoje.toLocaleString('pt-BR')}`);
+    return hoje;
+  }
+  
+  // Se está no horário comercial, agendar para amanhã (não deveria acontecer)
   const amanha = new Date(agora);
   amanha.setDate(amanha.getDate() + 1);
   amanha.setHours(HORARIO_COMERCIAL.inicio, 0, 0, 0);
+  console.log(`${LOG_PREFIX()} 📅 Agendando para amanhã (dentro do horário): ${amanha.toLocaleString('pt-BR')}`);
   return amanha;
 }
 
@@ -141,7 +167,8 @@ function agendarDisparo(opportunityId, tipo = 'criar') {
   };
   
   agendamentos.push(agendamento);
-  console.log(`${LOG_PREFIX()} 📅 Disparo agendado para ${proximoHorario.toLocaleString('pt-BR')} - ID: ${opportunityId}`);
+  console.log(`${LOG_PREFIX()} 📅 Disparo agendado para ${proximoHorario.toLocaleString('pt-BR')} - ID: ${opportunityId} - Tipo: ${tipo}`);
+  console.log(`${LOG_PREFIX()} 📊 Total de agendamentos: ${agendamentos.length}`);
   
   if (ioInstance) {
     ioInstance.emit("log", `📅 Disparo agendado para ${proximoHorario.toLocaleString('pt-BR')} - ID: ${opportunityId}`);
@@ -153,9 +180,16 @@ async function processarAgendamentos() {
   const agora = new Date();
   const agendamentosParaProcessar = agendamentos.filter(a => a.agendadoPara <= agora);
   
+  console.log(`${LOG_PREFIX()} 🔍 Verificando agendamentos: ${agendamentos.length} total, ${agendamentosParaProcessar.length} para processar`);
+  
+  if (agendamentosParaProcessar.length > 0) {
+    console.log(`${LOG_PREFIX()} ⏰ Processando ${agendamentosParaProcessar.length} agendamentos pendentes`);
+  }
+  
   for (const agendamento of agendamentosParaProcessar) {
     try {
       if (agendamento.tipo === 'criar' || agendamento.tipo === 'atualizar') {
+        console.log(`${LOG_PREFIX()} 🚀 Executando disparo agendado - ID: ${agendamento.id} - Tipo: ${agendamento.tipo}`);
         await disparaFluxo(agendamento.id);
         console.log(`${LOG_PREFIX()} ✅ Disparo executado (agendado) - ID: ${agendamento.id}`);
         
@@ -176,6 +210,17 @@ async function processarAgendamentos() {
       console.error(`${LOG_PREFIX()} ❌ Erro ao processar agendamento ${agendamento.id}:`, error.message);
     }
   }
+}
+
+// 🔹 Obter lista de agendamentos (para API)
+function obterAgendamentos() {
+  return agendamentos.map(a => ({
+    id: a.id,
+    tipo: a.tipo,
+    agendadoPara: a.agendadoPara.toLocaleString('pt-BR'),
+    criadoEm: a.criadoEm.toLocaleString('pt-BR'),
+    minutosRestantes: Math.round((a.agendadoPara - new Date()) / (1000 * 60))
+  }));
 }
 
 // 🔹 Executar verificações de agendamento a cada minuto
@@ -1283,5 +1328,6 @@ export {
   ajustarDelayDinamico,
   processarReprocessamentoRapido,
   limparCacheV8,
-  registrarAtualizadorEstado
+  registrarAtualizadorEstado,
+  obterAgendamentos
 };
