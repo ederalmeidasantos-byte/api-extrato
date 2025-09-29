@@ -467,7 +467,9 @@ function posProcessar(parsed, isContingencia) {
 
 // ================== Upload Flow ==================
 export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
-  const jsonPath = path.join(jsonDir, `extrato_${fileId}.json`);
+  // Usar Persistent Disk para extratos
+  const PERSISTENT_EXTRATOS_DIR = '/var/data/extratos';
+  const jsonPath = path.join(PERSISTENT_EXTRATOS_DIR, `extrato_${fileId}.json`);
 
   if (fs.existsSync(jsonPath) && cacheValido(jsonPath, ttlMs)) {
     console.log("♻️ Usando JSON cacheado válido em", jsonPath);
@@ -476,7 +478,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   }
 
   console.log("🚀 Iniciando extração de upload:", fileId);
-  await fsp.mkdir(jsonDir, { recursive: true });
+  await fsp.mkdir(PERSISTENT_EXTRATOS_DIR, { recursive: true });
 
   const isContingencia = detectarContingencia(pdfPath);
   const parsed = await gptExtrairJSON(pdfPath, isContingencia);
@@ -485,6 +487,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs }) {
   await fsp.writeFile(jsonPath, JSON.stringify(json, null, 2), "utf-8");
   console.log("✅ JSON salvo em", jsonPath);
 
+  // Manter PDF no diretório local (temporário)
   agendarExclusaoDias(TTL_DIAS_PADRAO, pdfPath, jsonPath);
 
   return { fileId, ...json };

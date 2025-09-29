@@ -5,13 +5,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configurações do cache
-const CACHE_DIR = path.join(__dirname, 'cache');
-const PENDENTES_FILE = path.join(CACHE_DIR, 'pendentes.json');
-const TENTATIVAS_FILE = path.join(CACHE_DIR, 'tentativas-cache.json');
-const ESTADO_FILE = path.join(CACHE_DIR, 'estado-processamento.json');
-const LISTAS_FILE = path.join(CACHE_DIR, 'listas-resultados.json');
-const BACKUP_DIR = path.join(CACHE_DIR, 'backups');
+// Configurações do cache - usando Persistent Disk
+const PERSISTENT_PATH = '/var/data';
+const CACHE_DIR = `${PERSISTENT_PATH}/cache`;
+const PENDENTES_FILE = `${CACHE_DIR}/pendentes.json`;
+const TENTATIVAS_FILE = `${CACHE_DIR}/tentativas-cache.json`;
+const ESTADO_FILE = `${CACHE_DIR}/estado-processamento.json`;
+const LISTAS_FILE = `${CACHE_DIR}/listas-resultados.json`;
+const BACKUP_DIR = `${CACHE_DIR}/backups`;
 
 // Criar diretórios se não existirem
 console.log(`📁 CACHE_DIR: ${CACHE_DIR}`);
