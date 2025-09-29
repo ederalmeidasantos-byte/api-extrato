@@ -382,6 +382,16 @@ function renderizarContratos() {
     contratosAtivos = contratos.filter(c => c.aprovado === true);
     contratosNaoAprovados = contratos.filter(c => c.aprovado !== true);
 
+    console.log('📊 Classificação dos contratos:');
+    console.log(`   Total: ${contratos.length}`);
+    console.log(`   Ativos: ${contratosAtivos.length}`);
+    console.log(`   Não Aprovados: ${contratosNaoAprovados.length}`);
+    
+    // Debug: mostrar status de cada contrato
+    contratos.forEach(contrato => {
+        console.log(`   Contrato ${contrato.contrato}: aprovado=${contrato.aprovado}, troco=${contrato.troco || 0}`);
+    });
+
     // Atualizar contadores
     document.getElementById('contadorAtivos').textContent = contratosAtivos.length;
     document.getElementById('contadorNaoAprovados').textContent = contratosNaoAprovados.length;
