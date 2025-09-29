@@ -223,167 +223,203 @@ async function continuarProcessamento() {
   try {
     console.log('🔍 ===== VERIFICANDO PROCESSAMENTO PENDENTE =====');
     
-    const estado = await verificarProcessamentoPendente();
+    // Primeiro, tentar carregar contadores em tempo real
+    const contadores = await carregarContadoresTempoReal();
     
-    if (estado) {
-      console.log(`🚀 Continuando processamento de onde parou...`);
-      console.log(`📊 Estado encontrado: ${estado.processados}/${estado.total} processados`);
-      console.log(`📋 Estado detalhado:`, {
-        processando: estado.processando,
-        iniciadoEm: estado.iniciadoEm,
-        arquivoOriginal: estado.arquivoOriginal,
-        total: estado.total,
-        processados: estado.processados,
-        sucessos: estado.sucessos,
-        pendentes: estado.pendentes?.length || 0,
-        reprocessar: estado.reprocessar?.length || 0,
-        erros: estado.erros?.length || 0
-      });
+    if (contadores && contadores.totalCPFs > 0) {
+      console.log(`📊 Contadores em tempo real encontrados: ${contadores.processados}/${contadores.totalCPFs} processados`);
       
-      // Emitir dados corretos para o frontend IMEDIATAMENTE
+      // Emitir dados dos contadores para o frontend IMEDIATAMENTE
       if (ioInstance) {
-        ioInstance.emit("totalCPFs", estado.total);
-        console.log(`📡 Total de CPFs emitido para frontend: ${estado.total}`);
+        ioInstance.emit("totalCPFs", contadores.totalCPFs);
+        console.log(`📡 Total de CPFs emitido para frontend: ${contadores.totalCPFs}`);
         
         // Emitir contadores atuais
         ioInstance.emit("progress", {
-          done: estado.processados,
-          total: estado.total,
-          pendentes: estado.pendentes?.length || 0,
+          done: contadores.processados,
+          total: contadores.totalCPFs,
+          pendentes: contadores.pendentes,
           counters: {
-            success: estado.sucessos,
-            pending: estado.pendentes?.length || 0,
-            no_auth: 0,
-            descartados: 0
+            success: contadores.sucessos,
+            pending: contadores.pendentes,
+            no_auth: contadores.naoAutorizados,
+            descartados: contadores.descartados
           }
         });
-      }
-      
-      // Se há CPFs para reprocessar, iniciar reprocessamento
-      if (estado.reprocessar?.length > 0) {
-        console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
-        console.log(`📋 CPFs para reprocessar:`, estado.reprocessar.slice(0, 3).map(cpf => cpf.cpf || cpf));
-        await processarCPFs(null, estado.reprocessar);
-      }
-      
-      // Se há CPFs pendentes, continuar processamento normal
-      if (estado.pendentes?.length > 0) {
-        console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
-        console.log(`📋 CPFs pendentes:`, estado.pendentes.slice(0, 3).map(cpf => cpf.cpf || cpf));
         
-        // Iniciar processamento automático dos pendentes
+        // Emitir contadores individuais
+        ioInstance.emit("contadorSucesso", contadores.sucessos);
+        ioInstance.emit("contadorPending", contadores.pendentes);
+        ioInstance.emit("contadorNaoAutorizado", contadores.naoAutorizados);
+        ioInstance.emit("contadorDescartados", contadores.descartados);
+      }
+      
+      // Continuar processamento usando contadores
+      console.log('🚀 Continuando processamento com contadores em tempo real...');
+      
+      // Verificar se há CPFs pendentes para processar
+      const pendentes = await carregarPendentes();
+      if (pendentes && pendentes.length > 0) {
+        console.log(`📋 CPFs pendentes encontrados: ${pendentes.length}`);
         setTimeout(async () => {
           try {
-            console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
-            await processarCPFs(null, estado.pendentes);
+            console.log(`🚀 Processando ${pendentes.length} CPFs pendentes...`);
+            await processarCPFs(null, pendentes);
           } catch (error) {
             console.error('❌ Erro ao processar CPFs pendentes:', error);
           }
-        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
+        }, 5000);
       }
+      
     } else {
-      console.log('📂 Nenhum estado completo encontrado, verificando cache-persistente...');
+      // Fallback: usar sistema tradicional
+      const estado = await verificarProcessamentoPendente();
       
-      // Verificar se há CPFs anexados no cache
-      const cpfsAnexados = await carregarCPFsAnexados();
-      
-      if (cpfsAnexados && cpfsAnexados.cpfs && cpfsAnexados.cpfs.length > 0) {
-        console.log(`📋 Lista completa encontrada no cache: ${cpfsAnexados.totalCPFs} CPFs`);
-        console.log(`📄 Arquivo original: ${cpfsAnexados.metadata.fileName}`);
-        console.log(`📅 Upload em: ${cpfsAnexados.metadata.uploadTime}`);
+      if (estado) {
+        console.log(`🚀 Continuando processamento de onde parou...`);
+        console.log(`📊 Estado encontrado: ${estado.processados}/${estado.total} processados`);
         
-        // Converter para formato de processamento
-        const cpfsParaProcessar = cpfsAnexados.cpfs.map(cpf => ({
-          CPF: cpf.cpf,
-          ID: cpf.id,
-          linha: cpf.linha
-        }));
+        // Inicializar contadores em tempo real com dados do estado
+        await inicializarContadoresTempoReal();
         
-        console.log(`🚀 Iniciando processamento da lista completa do cache...`);
-        
-        // Emitir total de CPFs para o frontend IMEDIATAMENTE
+        // Emitir dados corretos para o frontend IMEDIATAMENTE
         if (ioInstance) {
-          ioInstance.emit("totalCPFs", cpfsAnexados.totalCPFs);
-          console.log(`📡 Total de CPFs emitido para frontend: ${cpfsAnexados.totalCPFs}`);
+          ioInstance.emit("totalCPFs", estado.total);
+          console.log(`📡 Total de CPFs emitido para frontend: ${estado.total}`);
           
-          // Emitir contadores iniciais
+          // Emitir contadores atuais
           ioInstance.emit("progress", {
-            done: 0,
-            total: cpfsAnexados.totalCPFs,
-            pendentes: cpfsAnexados.totalCPFs,
+            done: estado.processados,
+            total: estado.total,
+            pendentes: estado.pendentes?.length || 0,
             counters: {
-              success: 0,
-              pending: cpfsAnexados.totalCPFs,
+              success: estado.sucessos,
+              pending: estado.pendentes?.length || 0,
               no_auth: 0,
               descartados: 0
             }
           });
         }
         
-        setTimeout(async () => {
-          try {
-            console.log(`🚀 Processando ${cpfsAnexados.totalCPFs} CPFs da lista completa do cache...`);
-            await processarCPFs(null, cpfsParaProcessar);
-          } catch (error) {
-            console.error('❌ Erro ao processar lista completa do cache:', error);
-          }
-        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
-        
-        return; // Sair da função aqui
-      }
-      
-      // Verificar se há CPFs pendentes no cache-persistente.js
-      const pendentes = await carregarPendentes();
-      const listas = await carregarListas();
-      
-      console.log(`📋 Cache carregado:`);
-      console.log(`   - Pendentes: ${pendentes?.length || 0}`);
-      console.log(`   - Sucessos: ${listas.sucessos?.length || 0}`);
-      console.log(`   - Erros: ${listas.erros?.length || 0}`);
-      console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
-      console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
-      
-      // Calcular total de CPFs processados
-      const totalProcessados = (listas.sucessos?.length || 0) + 
-                              (listas.naoAutorizados?.length || 0) + 
-                              (listas.descartados?.length || 0) + 
-                              (pendentes?.length || 0);
-      
-      console.log(`📊 Total estimado de CPFs: ${totalProcessados}`);
-      
-      // Mostrar alguns CPFs pendentes para debug
-      if (pendentes && pendentes.length > 0) {
-        console.log(`📋 Primeiros 3 CPFs pendentes:`, pendentes.slice(0, 3).map(p => p.cpf || p));
-      }
-      
-      if (pendentes && pendentes.length > 0) {
-        console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
-        console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
-        
-        // Emitir total de CPFs para o frontend
-        if (ioInstance) {
-          ioInstance.emit("totalCPFs", totalProcessados);
-          console.log(`📡 Total de CPFs emitido para frontend: ${totalProcessados}`);
+        // Se há CPFs para reprocessar, iniciar reprocessamento
+        if (estado.reprocessar?.length > 0) {
+          console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
+          await processarCPFs(null, estado.reprocessar);
         }
         
-        setTimeout(async () => {
-          try {
-            console.log(`🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
-            console.log(`📋 Lista de CPFs para processar:`, pendentes.slice(0, 5).map(p => p.cpf || p));
-            await processarCPFs(null, pendentes);
-          } catch (error) {
-            console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
-          }
-        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
-      } else {
-        console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
+        // Se há CPFs pendentes, continuar processamento normal
+        if (estado.pendentes?.length > 0) {
+          console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
+          
+          setTimeout(async () => {
+            try {
+              console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+              await processarCPFs(null, estado.pendentes);
+            } catch (error) {
+              console.error('❌ Erro ao processar CPFs pendentes:', error);
+            }
+          }, 5000);
+        }
         
-        // Mesmo sem pendentes, emitir total se houver CPFs processados
-        if (totalProcessados > 0) {
-          console.log(`📊 Emitindo total de CPFs processados: ${totalProcessados}`);
+      } else {
+        console.log('📂 Nenhum estado completo encontrado, verificando cache-persistente...');
+        
+        // Verificar se há CPFs anexados no cache
+        const cpfsAnexados = await carregarCPFsAnexados();
+        
+        if (cpfsAnexados && cpfsAnexados.cpfs && cpfsAnexados.cpfs.length > 0) {
+          console.log(`📋 Lista completa encontrada no cache: ${cpfsAnexados.totalCPFs} CPFs`);
+          
+          // Inicializar contadores em tempo real
+          await inicializarContadoresTempoReal();
+          
+          // Converter para formato de processamento
+          const cpfsParaProcessar = cpfsAnexados.cpfs.map(cpf => ({
+            CPF: cpf.cpf,
+            ID: cpf.id,
+            linha: cpf.linha
+          }));
+          
+          console.log(`🚀 Iniciando processamento da lista completa do cache...`);
+          
+          // Emitir total de CPFs para o frontend IMEDIATAMENTE
+          if (ioInstance) {
+            ioInstance.emit("totalCPFs", cpfsAnexados.totalCPFs);
+            console.log(`📡 Total de CPFs emitido para frontend: ${cpfsAnexados.totalCPFs}`);
+            
+            // Emitir contadores iniciais
+            ioInstance.emit("progress", {
+              done: 0,
+              total: cpfsAnexados.totalCPFs,
+              pendentes: cpfsAnexados.totalCPFs,
+              counters: {
+                success: 0,
+                pending: cpfsAnexados.totalCPFs,
+                no_auth: 0,
+                descartados: 0
+              }
+            });
+          }
+          
+          setTimeout(async () => {
+            try {
+              console.log(`🚀 Processando ${cpfsAnexados.totalCPFs} CPFs da lista completa do cache...`);
+              await processarCPFs(null, cpfsParaProcessar);
+            } catch (error) {
+              console.error('❌ Erro ao processar lista completa do cache:', error);
+            }
+          }, 5000);
+          
+          return;
+        }
+        
+        // Verificar se há CPFs pendentes no cache-persistente.js
+        const pendentes = await carregarPendentes();
+        const listas = await carregarListas();
+        
+        console.log(`📋 Cache carregado:`);
+        console.log(`   - Pendentes: ${pendentes?.length || 0}`);
+        console.log(`   - Sucessos: ${listas.sucessos?.length || 0}`);
+        console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
+        console.log(`   - Descartados: ${listas.descartados?.length || 0}`);
+        console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
+        
+        // Calcular total de CPFs processados
+        const totalProcessados = (listas.sucessos?.length || 0) + 
+                                (listas.naoAutorizados?.length || 0) + 
+                                (listas.descartados?.length || 0) + 
+                                (pendentes?.length || 0);
+        
+        console.log(`📊 Total estimado de CPFs: ${totalProcessados}`);
+        
+        if (pendentes && pendentes.length > 0) {
+          console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
+          console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+          
+          // Emitir total de CPFs para o frontend
           if (ioInstance) {
             ioInstance.emit("totalCPFs", totalProcessados);
             console.log(`📡 Total de CPFs emitido para frontend: ${totalProcessados}`);
+          }
+          
+          setTimeout(async () => {
+            try {
+              console.log(`🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
+              await processarCPFs(null, pendentes);
+            } catch (error) {
+              console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
+            }
+          }, 5000);
+        } else {
+          console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
+          
+          // Mesmo sem pendentes, emitir total se houver CPFs processados
+          if (totalProcessados > 0) {
+            console.log(`📊 Emitindo total de CPFs processados: ${totalProcessados}`);
+            if (ioInstance) {
+              ioInstance.emit("totalCPFs", totalProcessados);
+              console.log(`📡 Total de CPFs emitido para frontend: ${totalProcessados}`);
+            }
           }
         }
       }
@@ -401,6 +437,9 @@ ensurePersistentDirectories();
 
 // Registrar função de atualização de estado no módulo FGTS
 registrarAtualizadorEstado(salvarEstadoFGTS);
+
+// Registrar função de atualização de contadores em tempo real no módulo FGTS
+registrarAtualizadorContadores(atualizarContadoresTempoReal);
 
 // TTL de cache (14 dias)
 const TTL_DIAS = 14;
@@ -461,6 +500,142 @@ const uploadCSV = multer({
     }
   }
 });
+
+// ====== SISTEMA DE CONTADORES EM TEMPO REAL ======
+const CONTADORES_TEMPO_REAL_FILE = `${PERSISTENT_DIRS.cache}/contadores-tempo-real.json`;
+
+// Atualizar contadores em tempo real
+async function atualizarContadoresTempoReal(tipo, incremento = 1) {
+  try {
+    let contadores = {
+      timestamp: new Date().toISOString(),
+      totalCPFs: 0,
+      processados: 0,
+      sucessos: 0,
+      pendentes: 0,
+      naoAutorizados: 0,
+      descartados: 0,
+      agendados: 0,
+      processando: true,
+      ultimaAtualizacao: new Date().toISOString()
+    };
+
+    // Carregar contadores existentes se o arquivo existir
+    if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
+      try {
+        const data = JSON.parse(await fsp.readFile(CONTADORES_TEMPO_REAL_FILE, 'utf-8'));
+        contadores = { ...contadores, ...data };
+      } catch (error) {
+        console.log('⚠️ Erro ao carregar contadores existentes, criando novos');
+      }
+    }
+
+    // Atualizar contador específico
+    switch (tipo) {
+      case 'processado':
+        contadores.processados += incremento;
+        break;
+      case 'sucesso':
+        contadores.sucessos += incremento;
+        break;
+      case 'pendente':
+        contadores.pendentes += incremento;
+        break;
+      case 'naoAutorizado':
+        contadores.naoAutorizados += incremento;
+        break;
+      case 'descartado':
+        contadores.descartados += incremento;
+        break;
+      case 'agendado':
+        contadores.agendados += incremento;
+        break;
+    }
+
+    // Atualizar timestamp
+    contadores.ultimaAtualizacao = new Date().toISOString();
+
+    // Fazer backup antes de salvar
+    if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
+      await fazerBackup(CONTADORES_TEMPO_REAL_FILE, 'contadores');
+    }
+
+    // Salvar contadores atualizados
+    await fsp.writeFile(CONTADORES_TEMPO_REAL_FILE, JSON.stringify(contadores, null, 2));
+    
+    console.log(`📊 Contadores atualizados: ${tipo} +${incremento} | Total: ${contadores.processados}/${contadores.totalCPFs}`);
+
+    // Emitir atualização via Socket.IO
+    if (ioInstance) {
+      ioInstance.emit("contadoresTempoReal", contadores);
+      ioInstance.emit("progress", {
+        done: contadores.processados,
+        total: contadores.totalCPFs,
+        pendentes: contadores.pendentes,
+        counters: {
+          success: contadores.sucessos,
+          pending: contadores.pendentes,
+          no_auth: contadores.naoAutorizados,
+          descartados: contadores.descartados
+        }
+      });
+    }
+
+    return contadores;
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contadores em tempo real:', error);
+    return null;
+  }
+}
+
+// Carregar contadores em tempo real
+async function carregarContadoresTempoReal() {
+  try {
+    if (!fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
+      return null;
+    }
+
+    const data = JSON.parse(await fsp.readFile(CONTADORES_TEMPO_REAL_FILE, 'utf-8'));
+    console.log(`📊 Contadores carregados: ${data.processados}/${data.totalCPFs} processados`);
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Erro ao carregar contadores em tempo real:', error);
+    return null;
+  }
+}
+
+// Inicializar contadores com dados da lista completa
+async function inicializarContadoresTempoReal() {
+  try {
+    const cpfsAnexados = await carregarCPFsAnexados();
+    
+    if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
+      const contadores = {
+        timestamp: new Date().toISOString(),
+        totalCPFs: cpfsAnexados.totalCPFs,
+        processados: 0,
+        sucessos: 0,
+        pendentes: cpfsAnexados.totalCPFs,
+        naoAutorizados: 0,
+        descartados: 0,
+        agendados: 0,
+        processando: true,
+        ultimaAtualizacao: new Date().toISOString()
+      };
+
+      await fsp.writeFile(CONTADORES_TEMPO_REAL_FILE, JSON.stringify(contadores, null, 2));
+      console.log(`📊 Contadores inicializados: ${contadores.totalCPFs} CPFs`);
+      
+      return contadores;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao inicializar contadores:', error);
+    return null;
+  }
+}
 
 // ====== SISTEMA DE CACHE DE CPFs ANEXADOS ======
 const CPFS_CACHE_FILE = `${PERSISTENT_DIRS.cache}/cpfs-anexados.json`;
@@ -1198,6 +1373,111 @@ app.post('/fgts/resume', async (req, res) => {
     
     res.json({ success: true, message: "Processamento retomado" });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API para ler contadores em tempo real
+app.get('/fgts/contadores-tempo-real', async (req, res) => {
+  try {
+    const contadores = await carregarContadoresTempoReal();
+    
+    if (contadores) {
+      res.json({
+        success: true,
+        contadores: contadores
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Nenhum contador encontrado',
+        contadores: null
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar contadores em tempo real:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// API para forçar atualização dos contadores no frontend
+app.post('/fgts/atualizar-contadores', async (req, res) => {
+  try {
+    console.log('🔄 Forçando atualização dos contadores no frontend...');
+    
+    const contadores = await carregarContadoresTempoReal();
+    
+    if (contadores && ioInstance) {
+      // Emitir contadores via Socket.IO
+      ioInstance.emit("contadoresTempoReal", contadores);
+      ioInstance.emit("progress", {
+        done: contadores.processados,
+        total: contadores.totalCPFs,
+        pendentes: contadores.pendentes,
+        counters: {
+          success: contadores.sucessos,
+          pending: contadores.pendentes,
+          no_auth: contadores.naoAutorizados,
+          descartados: contadores.descartados
+        }
+      });
+      
+      // Emitir contadores individuais
+      ioInstance.emit("contadorSucesso", contadores.sucessos);
+      ioInstance.emit("contadorPending", contadores.pendentes);
+      ioInstance.emit("contadorNaoAutorizado", contadores.naoAutorizados);
+      ioInstance.emit("contadorDescartados", contadores.descartados);
+      
+      console.log(`📡 Contadores emitidos: ${contadores.processados}/${contadores.totalCPFs}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Contadores atualizados no frontend",
+        contadores: contadores
+      });
+    } else {
+      res.json({
+        success: false,
+        message: "Nenhum contador encontrado ou Socket.IO não disponível"
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao atualizar contadores:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API para limpar contadores em tempo real
+app.post('/fgts/limpar-contadores', async (req, res) => {
+  try {
+    console.log('🗑️ Limpando contadores em tempo real...');
+    
+    if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
+      // Fazer backup antes de deletar
+      await fazerBackup(CONTADORES_TEMPO_REAL_FILE, 'contadores');
+      
+      // Deletar arquivo
+      await fsp.unlink(CONTADORES_TEMPO_REAL_FILE);
+      
+      console.log('✅ Contadores em tempo real limpos');
+      
+      res.json({ 
+        success: true, 
+        message: "Contadores em tempo real limpos com sucesso"
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        message: "Nenhum arquivo de contadores encontrado"
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar contadores:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1961,6 +2241,9 @@ server.listen(PORT, async () => {
   console.log(`   📋 Lista Completa: GET http://localhost:${PORT}/fgts/lista-completa`);
   console.log(`   🗑️ Limpar Lista: POST http://localhost:${PORT}/fgts/limpar-lista-completa`);
   console.log(`   🧹 Limpar CPFs Inválidos: POST http://localhost:${PORT}/fgts/limpar-cpfs-invalidos`);
+  console.log(`   📊 Contadores Tempo Real: GET http://localhost:${PORT}/fgts/contadores-tempo-real`);
+  console.log(`   🔄 Atualizar Contadores: POST http://localhost:${PORT}/fgts/atualizar-contadores`);
+  console.log(`   🗑️ Limpar Contadores: POST http://localhost:${PORT}/fgts/limpar-contadores`);
   console.log(`   📅 Agendamentos: GET http://localhost:${PORT}/fgts/agendamentos`);
   console.log(`   🧪 Testar Agendamento: POST http://localhost:${PORT}/fgts/testar-agendamento`);
   console.log(`   📊 Cache: GET http://localhost:${PORT}/fgts/cache/estatisticas`);

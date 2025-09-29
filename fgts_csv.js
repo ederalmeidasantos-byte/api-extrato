@@ -447,6 +447,41 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
   console.log(`🔍 Salvando resultado no cache - Tipo: ${tipoLista}, CPF: ${cpf}, Status: ${status}`);
   adicionarResultadoLista(tipoLista, dadosResultado);
 
+  // ====== ATUALIZAR CONTADORES EM TEMPO REAL ======
+  // Chamar função de atualização de contadores se disponível
+  if (typeof atualizarContadoresTempoReal === 'function') {
+    try {
+      // Mapear status para tipo de contador
+      let tipoContador = '';
+      switch(status) {
+        case 'success':
+          tipoContador = 'sucesso';
+          break;
+        case 'pending':
+          tipoContador = 'pendente';
+          break;
+        case 'no_auth':
+          tipoContador = 'naoAutorizado';
+          break;
+        case 'descartado':
+          tipoContador = 'descartado';
+          break;
+        default:
+          tipoContador = 'descartado';
+      }
+      
+      // Sempre incrementar processados
+      atualizarContadoresTempoReal('processado', 1);
+      
+      // Incrementar contador específico
+      atualizarContadoresTempoReal(tipoContador, 1);
+      
+      console.log(`📊 Contadores atualizados: ${tipoContador} +1`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar contadores em tempo real:', error);
+    }
+  }
+
   // Emitir log resumido para o painel (sem detalhes da API)
   if (ioInstance) {
     ioInstance.emit("log", logMessage);
@@ -933,9 +968,17 @@ async function disparaFluxo(opportunityId) {
 // Função para atualizar estado persistente (será chamada do server.js)
 let atualizarEstadoPersistente = null;
 
+// Função para atualizar contadores em tempo real (será chamada do server.js)
+let atualizarContadoresTempoReal = null;
+
 // Registrar função de atualização de estado
 function registrarAtualizadorEstado(callback) {
   atualizarEstadoPersistente = callback;
+}
+
+// Registrar função de atualização de contadores em tempo real
+function registrarAtualizadorContadores(callback) {
+  atualizarContadoresTempoReal = callback;
 }
 
 // Atualizar estado quando há mudanças
@@ -1503,5 +1546,6 @@ export {
   processarReprocessamentoRapido,
   limparCacheV8,
   registrarAtualizadorEstado,
+  registrarAtualizadorContadores,
   obterAgendamentos
 };
