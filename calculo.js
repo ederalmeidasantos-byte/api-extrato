@@ -97,69 +97,87 @@ function estimarTaxaPorValorPago(valorLiberado, prazoTotal, valorParcela) {
   return i * 100;
 }
 
-// Função para validar contrato pelo roteiro
-function validarContrato(contrato, banco, especie) {
+// Função para bancos permitidos por espécie
+function bancosPermitidosPorEspecie(especie) {
+  if (especie === "87") return ["BRB", "PICPAY", "C6", "FACTA"];
+  if (especie === "88") return ["FINANTO", "BRB", "PICPAY", "C6", "FACTA"];
+  return ORDEM_BANCOS;
+}
+
+function validarEspecieParaRoteiro(especie, roteiro) {
+  if (!roteiro || !roteiro.especiesAceitas) return true;
+
+  const ea = roteiro.especiesAceitas;
+  if (ea.todas === true) {
+    if (Array.isArray(ea.exceto) && ea.exceto.includes(String(especie))) {
+      return false;
+    }
+    return true;
+  }
+
+  if (ea.todas === false) {
+    if (Array.isArray(ea.permitidas)) {
+      return ea.permitidas.includes(String(especie));
+    }
+    return false;
+  }
+
+  return true;
+}
+
+// Função para aplicar roteiro (baseada no calculo (1).js)
+function aplicarRoteiro(c, banco) {
   const roteiro = RoteiroBancos[banco];
-  if (!roteiro) return { valido: false, motivo: "Banco não encontrado no roteiro" };
+  if (!roteiro) return { valido: false, motivo: "Banco não encontrado" };
 
-  const saldo = toNumber(contrato.saldo);
-  const parcela = toNumber(contrato.parcela);
-  const parcelasPagas = toNumber(contrato.pagas);
-
-  // 1. Saldo devedor mínimo
+  const saldo = toNumber(c.saldo_devedor);
   if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
-    return { 
-      valido: false, 
-      motivo: `Saldo devedor (R$ ${formatBRNumber(saldo)}) abaixo do mínimo (R$ ${formatBRNumber(roteiro.saldoDevedorMinimo)})` 
-    };
+    return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
   }
 
-  // 2. Espécie permitida
-  if (roteiro.especiesAceitas) {
-    const { todas, exceto } = roteiro.especiesAceitas;
-    if (Array.isArray(exceto) && exceto.includes(especie)) {
-      return { valido: false, motivo: `Espécie ${especie} não permitida pelo banco ${banco}` };
-    }
+  if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
+    return { valido: false, motivo: `Banco ${banco} não permitido esp ${c.especie}` };
   }
 
-  // 3. Parcela mínima
-  if (typeof roteiro.parcelaMinima === "number" && parcela < roteiro.parcelaMinima) {
-    return { 
-      valido: false, 
-      motivo: `Parcela (R$ ${formatBRNumber(parcela)}) abaixo da mínima (R$ ${formatBRNumber(roteiro.parcelaMinima)})` 
-    };
-  }
+  const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
+  let regraParcelas = null;
 
-  // 4. Parcelas pagas (regra geral + exceções)
-  let regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
-  
   if (Array.isArray(roteiro.excecoes)) {
-    const excecao = roteiro.excecoes.find(e => String(e.codigo) === String(contrato.bancoCodigo));
-    if (excecao) {
-      const parsed = Number(String(excecao.regra || "0").replace(/\D/g, "")) || regraParcelas;
-      regraParcelas = parsed;
+    const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(c.banco?.codigo));
+    if (excecao && typeof excecao.regra === "string") {
+      regraParcelas = Number(excecao.regra.split(" ")[0]);
     }
+  }
+
+  if (regraParcelas === null && Array.isArray(roteiro.excecoes)) {
+    const demais = roteiro.excecoes.find((e) => e.nome.toLowerCase().includes("demais bancos"));
+    if (demais && demais.regra) {
+      regraParcelas = Number(demais.regra.split(" ")[0]);
+    }
+  }
+
+  if (regraParcelas === null) {
+    regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
   }
 
   if (parcelasPagas < regraParcelas) {
-    return { 
-      valido: false, 
-      motivo: `Parcelas pagas (${parcelasPagas}) abaixo do mínimo (${regraParcelas})` 
+    return {
+      valido: false,
+      motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
     };
   }
 
-  // 5. Banco de origem não permitido (naoPorta)
-  if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some(b => String(b.codigo) === String(contrato.bancoCodigo))) {
-    return { valido: false, motivo: `Banco de origem não permitido` };
+  if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
+    return { valido: false, motivo: `Banco não permitido (${c.banco?.nome || "N/A"})` };
   }
 
   return { valido: true, motivo: null };
 }
 
-// Função principal de simulação
+// Função principal de simulação (baseada no calculo (1).js)
 function simularContrato(contrato, especie, diaAverbacao = "15") {
   const resultados = [];
-  const bancos = ORDEM_BANCOS;
+  const bancos = bancosPermitidosPorEspecie(especie);
   
   // Calcular saldo devedor correto
   const parcelaOriginal = toNumber(contrato.parcela);
@@ -178,50 +196,55 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
   
   const saldoDevedor = pvFromParcela(parcelaOriginal, taxaAtualMes, prazoRestante);
   
-  bancos.forEach(bancoNome => {
-    const roteiro = RoteiroBancos[bancoNome];
-    const taxasPermitidas = roteiro?.taxas || [];
+  // Armazena apenas a última taxa por banco
+  const motivosBloqueio = {};
+  
+  for (const bancoNome of bancos) {
+    const aplicacao = aplicarRoteiro({ ...contrato, saldo_devedor: saldoDevedor, especie: especie }, bancoNome);
     
-    // Validar contrato
-    const validacao = validarContrato(contrato, bancoNome, especie);
-    
-    if (!validacao.valido) {
+    if (!aplicacao.valido) {
+      motivosBloqueio[bancoNome] = aplicacao.motivo;
       resultados.push({
         banco: bancoNome,
         aprovado: false,
-        motivo: validacao.motivo
+        motivo: aplicacao.motivo
       });
-      return;
+      continue;
     }
 
+    const roteiro = RoteiroBancos[bancoNome];
+    const taxasPermitidas = roteiro?.taxas || [];
+    
     // Testar cada taxa
     let melhorResultado = null;
     let melhorTroco = 0;
 
-    taxasPermitidas.forEach(taxa => {
+    for (const taxa of taxasPermitidas) {
       const coef = getCoeficiente(taxa, diaAverbacao);
-      if (!coef) return;
+      if (!coef) continue;
 
       const valorEmprestimo = parcelaOriginal / coef;
       const troco = valorEmprestimo - saldoDevedor;
 
       if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
-        if (troco > melhorTroco) {
-          melhorTroco = troco;
-          melhorResultado = {
-            banco: bancoNome,
-            aprovado: true,
-            troco: troco,
-            taxa: taxa,
-            valorEmprestimo: valorEmprestimo,
-            coeficiente: coef,
-            saldoDevedor: saldoDevedor,
-            parcela: parcelaOriginal,
-            parcelasPagas: contrato.pagas || 0
-          };
-        }
+        melhorTroco = troco;
+        melhorResultado = {
+          banco: bancoNome,
+          aprovado: true,
+          troco: troco,
+          taxa: taxa,
+          valorEmprestimo: valorEmprestimo,
+          coeficiente: coef,
+          saldoDevedor: saldoDevedor,
+          parcela: parcelaOriginal,
+          parcelasPagas: contrato.pagas || 0
+        };
+        break; // banco válido encontrado
+      } else {
+        // Sobrescreve apenas a última taxa testada para esse banco
+        motivosBloqueio[bancoNome] = `Troco (${formatBRNumber(troco)}) TX ${taxa}`;
       }
-    });
+    }
 
     if (melhorResultado) {
       resultados.push(melhorResultado);
@@ -229,10 +252,10 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
       resultados.push({
         banco: bancoNome,
         aprovado: false,
-        motivo: `Troco insuficiente (mínimo: R$ ${formatBRNumber(TROCO_MINIMO)})`
+        motivo: motivosBloqueio[bancoNome] || `Troco insuficiente (mínimo: R$ ${formatBRNumber(TROCO_MINIMO)})`
       });
     }
-  });
+  }
 
   return resultados;
 }
@@ -348,5 +371,7 @@ export {
   formatBRNumber,
   toNumber,
   getCoeficiente,
-  validarContrato
+  aplicarRoteiro,
+  bancosPermitidosPorEspecie,
+  validarEspecieParaRoteiro
 };
