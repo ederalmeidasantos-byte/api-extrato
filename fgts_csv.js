@@ -107,6 +107,72 @@ pendentesCarregados.forEach(pendente => {
 
 console.log(`📊 Cache carregado: ${tentativasCPF.size} tentativas de cache, ${pendentesCarregados.length} pendentes`);
 
+// ====== SISTEMA DE PERSISTÊNCIA DE AGENDAMENTOS ======
+
+// Arquivo para salvar agendamentos
+const AGENDAMENTOS_FILE = '/var/data/cache/agendamentos.json';
+
+// Salvar agendamentos em arquivo persistente
+async function salvarAgendamentos() {
+  try {
+    const agendamentosData = {
+      timestamp: new Date().toISOString(),
+      total: agendamentos.length,
+      agendamentos: agendamentos.map(a => ({
+        id: a.id,
+        tipo: a.tipo,
+        agendadoPara: a.agendadoPara.toISOString(),
+        criadoEm: a.criadoEm.toISOString()
+      }))
+    };
+    
+    await fsp.writeFile(AGENDAMENTOS_FILE, JSON.stringify(agendamentosData, null, 2));
+    console.log(`${LOG_PREFIX()} 💾 Agendamentos salvos: ${agendamentos.length} agendamentos`);
+    
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao salvar agendamentos:`, error);
+  }
+}
+
+// Carregar agendamentos do arquivo persistente
+async function carregarAgendamentos() {
+  try {
+    if (!fs.existsSync(AGENDAMENTOS_FILE)) {
+      console.log(`${LOG_PREFIX()} 📂 Nenhum arquivo de agendamentos encontrado`);
+      return;
+    }
+    
+    const data = JSON.parse(await fsp.readFile(AGENDAMENTOS_FILE, 'utf-8'));
+    
+    // Converter strings de data de volta para objetos Date
+    agendamentos.length = 0; // Limpar array atual
+    agendamentos.push(...data.agendamentos.map(a => ({
+      id: a.id,
+      tipo: a.tipo,
+      agendadoPara: new Date(a.agendadoPara),
+      criadoEm: new Date(a.criadoEm)
+    })));
+    
+    console.log(`${LOG_PREFIX()} 📂 Agendamentos carregados: ${agendamentos.length} agendamentos`);
+    
+    // Mostrar próximos agendamentos
+    if (agendamentos.length > 0) {
+      const proximos = agendamentos
+        .sort((a, b) => a.agendadoPara - b.agendadoPara)
+        .slice(0, 3);
+      
+      console.log(`${LOG_PREFIX()} 📅 Próximos agendamentos:`);
+      proximos.forEach(a => {
+        const minutosRestantes = Math.round((a.agendadoPara - new Date()) / (1000 * 60));
+        console.log(`${LOG_PREFIX()}   - ID: ${a.id} - ${a.agendadoPara.toLocaleString('pt-BR')} (${minutosRestantes} min)`);
+      });
+    }
+    
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao carregar agendamentos:`, error);
+  }
+}
+
 // 🔹 Sistema de Agendamento
 const agendamentos = [];
 const HORARIO_COMERCIAL = {

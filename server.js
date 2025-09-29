@@ -235,7 +235,31 @@ async function continuarProcessamento() {
       // Se há CPFs pendentes, continuar processamento normal
       if (estado.pendentes?.length > 0) {
         console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
-        // O processamento continuará automaticamente via cache-persistente.js
+        
+        // Iniciar processamento automático dos pendentes
+        setTimeout(async () => {
+          try {
+            console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+            await processarCPFs(null, estado.pendentes);
+          } catch (error) {
+            console.error('❌ Erro ao processar CPFs pendentes:', error);
+          }
+        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
+      }
+    } else {
+      // Verificar se há CPFs pendentes no cache-persistente.js
+      const pendentes = await carregarPendentes();
+      if (pendentes && pendentes.length > 0) {
+        console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
+        console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+        
+        setTimeout(async () => {
+          try {
+            await processarCPFs(null, pendentes);
+          } catch (error) {
+            console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
+          }
+        }, 5000); // Aguardar 5 segundos para o sistema estabilizar
       }
     }
     
@@ -646,6 +670,63 @@ app.get('/fgts/agendamentos', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao verificar agendamentos:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Forçar processamento de CPFs pendentes
+app.post('/fgts/processar-pendentes', async (req, res) => {
+  try {
+    console.log('🚀 Forçando processamento de CPFs pendentes...');
+    
+    // Carregar CPFs pendentes do cache
+    const pendentes = await carregarPendentes();
+    
+    if (!pendentes || pendentes.length === 0) {
+      return res.json({
+        success: true,
+        message: "Nenhum CPF pendente encontrado",
+        total: 0
+      });
+    }
+    
+    console.log(`📋 Encontrados ${pendentes.length} CPFs pendentes`);
+    
+    // Iniciar processamento
+    await processarCPFs(null, pendentes);
+    
+    res.json({
+      success: true,
+      message: `Processamento iniciado para ${pendentes.length} CPFs pendentes`,
+      total: pendentes.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao processar CPFs pendentes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verificar CPFs pendentes
+app.get('/fgts/pendentes', async (req, res) => {
+  try {
+    const pendentes = await carregarPendentes();
+    const listas = await carregarListas();
+    
+    res.json({
+      success: true,
+      pendentes: pendentes || [],
+      totalPendentes: pendentes?.length || 0,
+      listas: {
+        sucessos: listas.sucessos?.length || 0,
+        erros: listas.erros?.length || 0,
+        naoAutorizados: listas.naoAutorizados?.length || 0,
+        agendados: listas.agendados?.length || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar CPFs pendentes:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1493,6 +1574,10 @@ server.listen(PORT, async () => {
   console.log(`   📊 Estado: GET http://localhost:${PORT}/fgts/estado`);
   console.log(`   🚀 Continuar: POST http://localhost:${PORT}/fgts/continuar`);
   console.log(`   🧹 Limpar: POST http://localhost:${PORT}/fgts/limpar-estado`);
+  console.log(`   📋 Pendentes: GET http://localhost:${PORT}/fgts/pendentes`);
+  console.log(`   🚀 Processar Pendentes: POST http://localhost:${PORT}/fgts/processar-pendentes`);
+  console.log(`   📅 Agendamentos: GET http://localhost:${PORT}/fgts/agendamentos`);
+  console.log(`   🧪 Testar Agendamento: POST http://localhost:${PORT}/fgts/testar-agendamento`);
   console.log(`   📊 Cache: GET http://localhost:${PORT}/fgts/cache/estatisticas`);
   console.log(`   📋 Logs: GET http://localhost:${PORT}/fgts/logs/erros`);
   console.log(`   ❤️ Health: GET http://localhost:${PORT}/api/health`);
