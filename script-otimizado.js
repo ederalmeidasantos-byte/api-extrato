@@ -463,22 +463,37 @@ function habilitarControles(habilitar) {
     if (elements.btnCancel) elements.btnCancel.disabled = !habilitar;
 }
 
+// Cache para otimizar performance dos logs
+let logCount = 0;
+const MAX_LOGS = 50; // Reduzido para melhor performance
+
 // Adicionar log (otimizado)
 function adicionarLog(mensagem, tipo = 'info') {
     if (!elements.logs) return;
     
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${tipo}`;
-    logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${mensagem}`;
-    
-    elements.logs.appendChild(logEntry);
-    elements.logs.scrollTop = elements.logs.scrollHeight;
-    
-    // Limitar logs para evitar vazamento de memória
-    const logs = elements.logs.querySelectorAll('.log-entry');
-    if (logs.length > 100) {
-        logs[0].remove();
-    }
+    // Usar requestAnimationFrame para melhor performance
+    requestAnimationFrame(() => {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry log-${tipo}`;
+        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${mensagem}`;
+        
+        elements.logs.appendChild(logEntry);
+        logCount++;
+        
+        // Limitar logs de forma mais eficiente
+        if (logCount > MAX_LOGS) {
+            const firstLog = elements.logs.querySelector('.log-entry');
+            if (firstLog) {
+                firstLog.remove();
+                logCount--;
+            }
+        }
+        
+        // Scroll apenas se necessário
+        if (elements.logs.scrollTop + elements.logs.clientHeight >= elements.logs.scrollHeight - 10) {
+            elements.logs.scrollTop = elements.logs.scrollHeight;
+        }
+    });
 }
 
 // Limpar tabelas

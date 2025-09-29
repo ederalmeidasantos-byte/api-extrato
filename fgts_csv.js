@@ -493,8 +493,8 @@ function emitirResultado({ cpf, id, status, valorLiberado = 0, provider, linha =
     }
   }
 
-  // Emitir log resumido para o painel (sem detalhes da API)
-  if (ioInstance) {
+  // Emitir log resumido para o painel (apenas para erros e sucessos importantes)
+  if (ioInstance && (status === 'error' || status === 'success' || status === 'no_auth')) {
     ioInstance.emit("log", logMessage);
   }
 

@@ -576,13 +576,37 @@ const logs = document.getElementById('logs');
         }
 
         // Adicionar log
+        // Cache para otimizar performance dos logs
+        let logCount = 0;
+        const MAX_LOGS = 50; // Reduzido para melhor performance
+        
         function adicionarLog(mensagem, tipo = 'info') {
-            const timestamp = new Date().toLocaleTimeString('pt-BR');
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry log-${tipo}`;
-            logEntry.textContent = `[${timestamp}] ${mensagem}`;
-            logs.appendChild(logEntry);
-            logs.scrollTop = logs.scrollHeight;
+            if (!logs) return;
+            
+            // Usar requestAnimationFrame para melhor performance
+            requestAnimationFrame(() => {
+                const timestamp = new Date().toLocaleTimeString('pt-BR');
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry log-${tipo}`;
+                logEntry.textContent = `[${timestamp}] ${mensagem}`;
+                
+                logs.appendChild(logEntry);
+                logCount++;
+                
+                // Limitar logs de forma mais eficiente
+                if (logCount > MAX_LOGS) {
+                    const firstLog = logs.querySelector('.log-entry');
+                    if (firstLog) {
+                        firstLog.remove();
+                        logCount--;
+                    }
+                }
+                
+                // Scroll apenas se necessário
+                if (logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 10) {
+                    logs.scrollTop = logs.scrollHeight;
+                }
+            });
         }
 
         // Adicionar resultado às tabelas
