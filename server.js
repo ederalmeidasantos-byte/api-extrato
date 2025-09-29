@@ -168,6 +168,15 @@ app.post("/extrairpdf", upload.single('pdf'), async (req, res) => {
 // ====== Calcular troco ======
 app.post("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
+// ====== Simulador ======
+app.get("/simulador", (req, res) => {
+  const simuladorPath = path.join(__dirname, "projeto-render", "frontend", "simulador.html");
+  if (!fs.existsSync(simuladorPath)) {
+    return res.status(404).json({ error: "Simulador não encontrado" });
+  }
+  res.sendFile(simuladorPath);
+});
+
 // ====== Raw JSON ======
 app.get("/extrato/:fileId/raw", (req, res) => {
   const { fileId } = req.params;

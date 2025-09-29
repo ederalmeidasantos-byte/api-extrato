@@ -1159,6 +1159,66 @@ const logs = document.getElementById('logs');
             removerResultado('pending', data.cpf, data.linha);
         });
 
+        // Função para remover resultado das tabelas
+        function removerResultado(tipo, cpf, linha) {
+            console.log(`🗑️ Removendo resultado: ${tipo}, CPF: ${cpf}, Linha: ${linha}`);
+            
+            // Encontrar e remover da tabela apropriada
+            let tabela;
+            switch(tipo) {
+                case 'pending':
+                    tabela = pendingTable;
+                    break;
+                case 'success':
+                    tabela = successTable;
+                    break;
+                case 'no_auth':
+                    tabela = noAuthTable;
+                    break;
+                case 'descartado':
+                    tabela = discardedTable;
+                    break;
+                default:
+                    console.warn(`⚠️ Tipo de tabela não reconhecido: ${tipo}`);
+                    return;
+            }
+            
+            // Encontrar a linha pelo CPF e linha
+            const rows = tabela.querySelectorAll('tr');
+            let rowToRemove = null;
+            
+            for (const row of rows) {
+                const cpfCell = row.cells[1]; // CPF está na segunda coluna
+                const linhaCell = row.cells[0]; // Linha está na primeira coluna
+                
+                if (cpfCell && linhaCell && 
+                    cpfCell.textContent === cpf && 
+                    linhaCell.textContent === linha.toString()) {
+                    rowToRemove = row;
+                    break;
+                }
+            }
+            
+            if (rowToRemove) {
+                // Remover da tabela
+                rowToRemove.remove();
+                
+                // Atualizar contador
+                const contadorElement = document.getElementById(`count${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`);
+                if (contadorElement) {
+                    const currentCount = parseInt(contadorElement.textContent);
+                    contadorElement.textContent = Math.max(0, currentCount - 1);
+                }
+                
+                // Remover do array de resultados
+                resultados = resultados.filter(r => !(r.cpf === cpf && r.linha === linha));
+                
+                console.log(`✅ Resultado removido com sucesso: ${tipo}, CPF: ${cpf}, Linha: ${linha}`);
+            } else {
+                console.warn(`⚠️ Linha não encontrada para remover: ${tipo}, CPF: ${cpf}, Linha: ${linha}`);
+            }
+        }
+
         socket.on('agendamento', (data) => {
             adicionarAgendamento(data);
         });

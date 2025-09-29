@@ -916,12 +916,19 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     // --- Consulta na fila primeiro ---
     let resultadoFila = await tentarConsultaComRetry(cpf, linha);
     if (!resultadoFila || !resultadoFila.data || resultadoFila.data.length === 0) {
-      await enviarParaFila(cpf, "bms");
-      resultadoFila = await tentarConsultaComRetry(cpf, linha);
+      // Tentar enviar para fila com diferentes providers
+      const filaProviders = ["bms", "cartos", "qi"];
+      for (const provider of filaProviders) {
+        const enviado = await enviarParaFila(cpf, provider);
+        if (enviado === true) {
+          resultadoFila = await tentarConsultaComRetry(cpf, linha);
+          break; // Se conseguiu enviar, para o loop
+        }
+      }
     }
 
-    // --- Consulta BMS e Cartos ---
-    const providers = ["bms", "cartos"];
+    // --- Consulta BMS, Cartos e QI ---
+    const providers = ["bms", "cartos", "qi"];
     let resultadosProviders = {};
 
     for (const prov of providers) {
