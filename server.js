@@ -102,6 +102,9 @@ app.post("/extrair", async (req, res) => {
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
 
+    // Adicionar link único para o simulador
+    json.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
+    
     res.json(json);
   } catch (err) {
     console.error("❌ Erro em /extrair:", err);
@@ -121,6 +124,9 @@ app.get("/extrair/:fileId", async (req, res) => {
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
+
+    // Adicionar link único para o simulador
+    json.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
 
     res.json(json);
   } catch (err) {
@@ -148,6 +154,9 @@ app.post("/extrairpdf", upload.single('pdf'), async (req, res) => {
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
+
+    // Adicionar link único para o simulador
+    json.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
 
     res.json(json);
   } catch (err) {

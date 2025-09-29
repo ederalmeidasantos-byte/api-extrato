@@ -364,6 +364,11 @@ function calcularTrocoEndpoint(jsonDir) {
       }
     });
 
+    // Adicionar link único para o simulador
+    response.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
+
+    return res.json(response);
+
     } catch (error) {
       console.error('Erro no cálculo:', error);
       return res.status(500).json({
