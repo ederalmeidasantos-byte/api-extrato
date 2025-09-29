@@ -1638,6 +1638,94 @@ app.post('/fgts/debug-atualizar-status/:cpf', async (req, res) => {
   }
 });
 
+// API para testar callback de processamento
+app.post('/fgts/debug-testar-callback/:cpf', async (req, res) => {
+  try {
+    const { cpf } = req.params;
+    
+    console.log(`🔧 DEBUG: Testando callback para CPF ${cpf}`);
+    
+    // Simular resultado de processamento
+    const resultado = {
+      cpf: cpf,
+      id: 'teste_123',
+      status: 'success',
+      valorLiberado: 2000.00,
+      provider: 'teste',
+      linha: 999
+    };
+    
+    console.log(`🔧 DEBUG: Resultado simulado:`, resultado);
+    
+    // Chamar callback como se fosse do processarCPFs
+    const callback = (resultado) => {
+      console.log(`🔧 DEBUG: Callback chamado com:`, resultado);
+      
+      if (resultado) {
+        console.log(`✅ CPF processado: ${resultado.cpf} - ${resultado.status}`);
+        
+        // Atualizar status do CPF baseado no resultado
+        let novoStatus = 'NA FILA NOVO PROCESSAR';
+        let tabulador = 'PENDENTE';
+        
+        switch (resultado.status) {
+          case 'success':
+            novoStatus = 'SUCESSO';
+            tabulador = 'SUCESSO';
+            break;
+          case 'no_auth':
+            novoStatus = 'NÃO AUTORIZADO';
+            tabulador = 'NÃO AUTORIZADO';
+            break;
+          case 'pending':
+            novoStatus = 'PENDING';
+            tabulador = 'PENDENTE';
+            break;
+          case 'reprocessar_rapido':
+            novoStatus = 'REPROCESSAR RAPIDO';
+            tabulador = 'PENDENTE';
+            break;
+          case 'limite_excedido':
+            novoStatus = 'LIMITE EXCEDIDO';
+            tabulador = 'PENDENTE';
+            break;
+        }
+        
+        console.log(`🔧 DEBUG: Novo status calculado:`, { novoStatus, tabulador });
+        
+        // Atualizar status do CPF
+        atualizarStatusCPF(resultado.cpf, novoStatus, {
+          tabulador: tabulador,
+          id: resultado.id || '',
+          valor: resultado.valorLiberado || 0,
+          provider: resultado.provider || 'sistema'
+        });
+      }
+    };
+    
+    // Chamar callback
+    callback(resultado);
+    
+    // Verificar se foi salvo
+    const statusData = await carregarStatusCPFs();
+    const statusAtualizado = statusData?.cpfs?.[cpf];
+    
+    res.json({
+      success: true,
+      debug: {
+        cpf,
+        resultadoSimulado: resultado,
+        statusAtualizado,
+        arquivoExiste: fs.existsSync(STATUS_CPFS_FILE),
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao testar callback:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
