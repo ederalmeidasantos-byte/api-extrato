@@ -315,8 +315,22 @@ async function carregarSimulacaoPorId(extratoId) {
         
         codigoExtrato = extratoId;
         contratos = dados.contratos || [];
-        cliente = dados.cliente || {};
+        
+        // Mapear dados do cliente corretamente
+        cliente = {
+            nome: dados.cliente || '-',
+            nb: dados.beneficio?.nb || '-',
+            especie: dados.beneficio?.especie || '-',
+            origem: dados.origem || '-',
+            dataExtrato: dados.data_extrato || '-'
+        };
+        
         margens = dados.margens || {};
+        
+        console.log(`📊 Dados mapeados:`);
+        console.log(`   - Cliente:`, cliente);
+        console.log(`   - Contratos: ${contratos.length} encontrados`);
+        console.log(`   - Margens:`, margens);
         
         console.log(`📊 Processando ${contratos.length} contratos`);
         
