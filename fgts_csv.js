@@ -921,15 +921,20 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
   let contadorDescartados = 0;
   
   try {
+    console.log(`${LOG_PREFIX()} 🚀 ===== INICIANDO PROCESSAMENTO DE CPFs =====`);
+    console.log(`${LOG_PREFIX()} 📋 Parâmetros: csvPath=${csvPath}, cpfsReprocess=${cpfsReprocess?.length || 0}, callback=${!!callback}`);
 
     if (cpfsReprocess && cpfsReprocess.length) {
       registros = cpfsReprocess.map((cpf, i) => ({ CPF: cpf, ID: `reproc_${i}` }));
+      console.log(`${LOG_PREFIX()} 🔄 Modo reprocessamento: ${registros.length} CPFs para reprocessar`);
     } else if (csvPath) {
       const csvContent = fs.readFileSync(csvPath, "utf-8");
       registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
+      console.log(`${LOG_PREFIX()} 📄 Modo CSV: ${registros.length} registros carregados do arquivo`);
     } else throw new Error("Nenhum CSV fornecido para processar!");
 
   const total = registros.length;
+  console.log(`${LOG_PREFIX()} 📊 Total de registros para processar: ${total}`);
 
   console.log(`${LOG_PREFIX()} 📄 Total de CPFs lidos: ${total}`);
   if (ioInstance) ioInstance.emit("totalCPFs", total);
@@ -1253,23 +1258,32 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
 async function processarCPF(cpf, linha) {
   try {
     console.log(`${LOG_PREFIX()} 🔄 Processando CPF individual: ${cpf}, Linha: ${linha}`);
+    console.log(`${LOG_PREFIX()} 📊 Estado atual: ${pendentes.length} pendentes, ${tentativasCPF.size} tentativas de cache`);
     
     // Resetar tentativas de cache para este CPF
     tentativasCPF.delete(cpf);
+    console.log(`${LOG_PREFIX()} 🧹 Cache resetado para CPF: ${cpf}`);
     
     // Consultar resultado
+    console.log(`${LOG_PREFIX()} 🔍 Consultando resultado para CPF: ${cpf}`);
     const resultado = await consultarResultado(cpf, linha);
     
     if (!resultado || !resultado.data || resultado.data.length === 0) {
+      console.log(`${LOG_PREFIX()} ⚠️ Nenhum resultado encontrado para CPF: ${cpf}`);
       return { status: 'pending', valorLiberado: 0, provider: 'sistema' };
     }
+    
+    console.log(`${LOG_PREFIX()} ✅ Resultado encontrado para CPF: ${cpf} - ${resultado.data.length} registros`);
     
     // Verificar se há saldo válido
     const saldoValido = resultado.data.find(r => r.amount > 0);
     if (saldoValido) {
+      console.log(`${LOG_PREFIX()} 💰 Saldo válido encontrado: R$ ${saldoValido.amount} - Provider: ${saldoValido.provider}`);
+      
       // Simular saldo
       const simulacao = await simularSaldo(cpf, saldoValido.id, saldoValido.periods, saldoValido.provider);
       if (simulacao) {
+        console.log(`${LOG_PREFIX()} ✅ Simulação concluída: R$ ${simulacao.availableBalance} liberado`);
         return {
           status: 'success',
           valorLiberado: simulacao.availableBalance,
