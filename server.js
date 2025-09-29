@@ -311,6 +311,14 @@ async function continuarProcessamento() {
       console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
       console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
       
+      // Calcular total de CPFs processados
+      const totalProcessados = (listas.sucessos?.length || 0) + 
+                              (listas.naoAutorizados?.length || 0) + 
+                              (listas.descartados?.length || 0) + 
+                              (pendentes?.length || 0);
+      
+      console.log(`📊 Total estimado de CPFs: ${totalProcessados}`);
+      
       // Mostrar alguns CPFs pendentes para debug
       if (pendentes && pendentes.length > 0) {
         console.log(`📋 Primeiros 3 CPFs pendentes:`, pendentes.slice(0, 3).map(p => p.cpf || p));
@@ -322,8 +330,8 @@ async function continuarProcessamento() {
         
         // Emitir total de CPFs para o frontend
         if (ioInstance) {
-          ioInstance.emit("totalCPFs", pendentes.length);
-          console.log(`📡 Total de CPFs emitido para frontend: ${pendentes.length}`);
+          ioInstance.emit("totalCPFs", totalProcessados);
+          console.log(`📡 Total de CPFs emitido para frontend: ${totalProcessados}`);
         }
         
         setTimeout(async () => {
@@ -337,6 +345,15 @@ async function continuarProcessamento() {
         }, 5000); // Aguardar 5 segundos para o sistema estabilizar
       } else {
         console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
+        
+        // Mesmo sem pendentes, emitir total se houver CPFs processados
+        if (totalProcessados > 0) {
+          console.log(`📊 Emitindo total de CPFs processados: ${totalProcessados}`);
+          if (ioInstance) {
+            ioInstance.emit("totalCPFs", totalProcessados);
+            console.log(`📡 Total de CPFs emitido para frontend: ${totalProcessados}`);
+          }
+        }
       }
     }
     
