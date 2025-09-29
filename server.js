@@ -1799,11 +1799,16 @@ async function carregarCredenciais() {
 // Salvar credenciais
 async function salvarCredenciais(credenciais) {
   try {
-    await fsp.writeFile(CREDENCIAIS_FILE, JSON.stringify(credenciais, null, 2));
+    // Usar JSON.stringify com escape adequado para caracteres especiais
+    const jsonContent = JSON.stringify(credenciais, null, 2);
+    console.log('📝 Conteúdo JSON a ser salvo:', jsonContent.substring(0, 200) + '...');
+    
+    await fsp.writeFile(CREDENCIAIS_FILE, jsonContent, 'utf8');
     console.log('✅ Credenciais salvas com sucesso');
     return true;
   } catch (error) {
     console.error('❌ Erro ao salvar credenciais:', error);
+    console.error('❌ Detalhes do erro:', error.message);
     return false;
   }
 }
@@ -1847,6 +1852,7 @@ app.post('/api/credenciais', async (req, res) => {
           id: usuario.id,
           login: usuario.login,
           senha: usuario.senha ? `*** (${usuario.senha.length} chars)` : 'vazia',
+          senhaOriginal: usuario.senha, // Mostrar a senha original para debug
           nome: usuario.nome
         });
       });
