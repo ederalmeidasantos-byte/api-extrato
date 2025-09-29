@@ -726,7 +726,7 @@
                         <div class="form-group">
                             <label for="${usuarioId}_senha">🔒 Senha</label>
                             <div class="input-with-toggle">
-                                <input type="password" id="${usuarioId}_senha" placeholder="Sua senha" value="${usuario?.senha || ''}" data-field="senha">
+                                <input type="password" id="${usuarioId}_senha" placeholder="Sua senha" value="${usuario?.senha ? usuario.senha : ''}" data-field="senha">
                                 <button type="button" class="toggle-password" onclick="togglePassword('${usuarioId}_senha')">👁️</button>
                             </div>
                         </div>
