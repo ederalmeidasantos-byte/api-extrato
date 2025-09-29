@@ -261,9 +261,10 @@ function simularContrato(contrato, especie, diaAverbacao = "15") {
 }
 
 // Endpoint para calcular troco
-function calcularTrocoEndpoint(req, res) {
-  try {
-    const { contratos, especie, diaAverbacao = "15" } = req.body;
+function calcularTrocoEndpoint(jsonDir) {
+  return async (req, res) => {
+    try {
+      const { contratos, especie, diaAverbacao = "15" } = req.body;
 
     if (!contratos || !Array.isArray(contratos)) {
       return res.status(400).json({
@@ -355,14 +356,15 @@ function calcularTrocoEndpoint(req, res) {
       }
     });
 
-  } catch (error) {
-    console.error('Erro no cálculo:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Erro interno no cálculo',
-      error: error.message
-    });
-  }
+    } catch (error) {
+      console.error('Erro no cálculo:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Erro interno no cálculo',
+        error: error.message
+      });
+    }
+  };
 }
 
 export {
