@@ -375,6 +375,20 @@
             gap: 0.5rem;
             margin-top: 1rem;
         }
+
+        /* Resumo fixo ao rolar a tela */
+        #resumoSection {
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+            margin-bottom: 1rem;
+        }
+
+        /* Sombra mais pronunciada quando fixo */
+        #resumoSection.sticky {
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+        }
         
         .loading {
             display: inline-block;
@@ -601,5 +615,30 @@
     </div>
 
     <script src="simulador-logic.js"></script>
+    
+    <script>
+        // Detectar quando o resumo está fixo e adicionar classe CSS
+        function handleStickyResumo() {
+            const resumoSection = document.getElementById('resumoSection');
+            if (!resumoSection) return;
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        resumoSection.classList.remove('sticky');
+                    } else {
+                        resumoSection.classList.add('sticky');
+                    }
+                });
+            }, {
+                rootMargin: '-1rem 0px 0px 0px'
+            });
+            
+            observer.observe(resumoSection);
+        }
+        
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', handleStickyResumo);
+    </script>
 </body>
 </html>
