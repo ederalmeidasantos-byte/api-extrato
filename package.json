@@ -1,7 +1,7 @@
 {
-  "name": "painel-fgts-api",
+  "name": "extrato-api",
   "version": "1.0.0",
-  "description": "API para Painel de Consulta FGTS com processamento em lote",
+  "description": "API para extrair dados de extratos INSS em PDF",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -35,16 +35,8 @@
     "type": "git",
     "url": "git+https://github.com/ederalmeidasantos-byte/api-extrato.git"
   },
-  "keywords": [
-    "fgts",
-    "consignado",
-    "painel",
-    "api",
-    "socket.io",
-    "csv",
-    "processamento"
-  ],
-  "author": "Lunas Digital",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/ederalmeidasantos-byte/api-extrato/issues"
