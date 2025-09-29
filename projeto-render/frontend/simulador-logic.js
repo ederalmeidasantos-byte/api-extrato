@@ -782,11 +782,11 @@ function simularContrato(contratoId) {
                 contrato.simulacao = {
                     aprovado: true,
                     banco: resultado.bancoNovo,
-                    troco: parseFloat(resultado.troco.replace(',', '.')),
+                    troco: toNumber(resultado.troco),
                     taxa: toNumber(resultado.taxa_calculada),
-                    parcela: parseFloat(resultado.parcela.replace(',', '.')),
+                    parcela: toNumber(resultado.parcela),
                     parcelasPagas: resultado.parcelas_pagas,
-                    valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
+                    valorEmprestimo: toNumber(resultado.valor_emprestimo),
                     coeficiente: resultado.coeficiente_usado
                 };
                 contrato.troco = contrato.simulacao.troco;
@@ -796,6 +796,12 @@ function simularContrato(contratoId) {
                     banco: resultado.bancoNovo,
                     troco: contrato.simulacao.troco,
                     taxa: contrato.simulacao.taxa
+                });
+                
+                console.log('🔍 Verificação troco:', {
+                    'contrato.simulacao.troco': contrato.simulacao.troco,
+                    'contrato.troco': contrato.troco,
+                    'formatBRNumber(contrato.troco)': formatBRNumber(contrato.troco)
                 });
             }
             
@@ -922,7 +928,6 @@ function exportarResultados() {
 function novaSimulacao() {
     contratos.forEach(c => {
         c.simulacao = null;
-        c.troco = 0;
         c.aprovado = false;
         c.selecionado = true;
     });
@@ -1995,15 +2000,21 @@ function simularTodosContratos() {
                     contrato.simulacao = {
                         aprovado: true,
                         banco: resultado.bancoNovo,
-                        troco: parseFloat(resultado.troco.replace(',', '.')),
+                        troco: toNumber(resultado.troco),
                         taxa: toNumber(resultado.taxa_calculada),
-                        parcela: parseFloat(resultado.parcela.replace(',', '.')),
+                        parcela: toNumber(resultado.parcela),
                         parcelasPagas: resultado.parcelas_pagas,
-                        valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
+                        valorEmprestimo: toNumber(resultado.valor_emprestimo),
                         coeficiente: resultado.coeficiente_usado
                     };
                     contrato.troco = contrato.simulacao.troco;
                     contrato.aprovado = true;
+                    
+                    console.log('🔍 Verificação troco (selecionarTaxa):', {
+                        'contrato.simulacao.troco': contrato.simulacao.troco,
+                        'contrato.troco': contrato.troco,
+                        'formatBRNumber(contrato.troco)': formatBRNumber(contrato.troco)
+                    });
                 }
                 
                 console.log(`✅ Contrato ${contrato.contrato} simulado:`, contrato.simulacao.aprovado ? 'APROVADO' : 'REJEITADO');
