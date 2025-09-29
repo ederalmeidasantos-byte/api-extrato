@@ -1901,6 +1901,142 @@ app.get('/config-credenciais', (req, res) => {
   res.sendFile(path.join(__dirname, 'config-credenciais.html'));
 });
 
+// ====== APIS DE TESTE ======
+
+// Testar OpenAI
+app.post('/api/testar-openai', async (req, res) => {
+  try {
+    const { openaiKey } = req.body;
+    
+    if (!openaiKey) {
+      return res.status(400).json({ success: false, error: 'Chave OpenAI não fornecida' });
+    }
+    
+    // Teste simples com OpenAI
+    const response = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      res.json({ 
+        success: true, 
+        resposta: `Conectado! ${data.data.length} modelos disponíveis`,
+        modelos: data.data.length
+      });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        error: `Erro HTTP ${response.status}: ${response.statusText}` 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao testar OpenAI:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Testar Lunas API
+app.post('/api/testar-lunas', async (req, res) => {
+  try {
+    const { lunasApiKey, lunasApiUrl } = req.body;
+    
+    if (!lunasApiKey || !lunasApiUrl) {
+      return res.status(400).json({ success: false, error: 'Chave e URL da Lunas não fornecidas' });
+    }
+    
+    // Teste de conectividade com Lunas
+    const response = await fetch(`${lunasApiUrl}/auth`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lunasApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: 'test',
+        password: 'test'
+      }),
+      timeout: 10000
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      res.json({ 
+        success: true, 
+        status: 'Conectado com sucesso',
+        resposta: data
+      });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        error: `Erro HTTP ${response.status}: ${response.statusText}` 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro ao testar Lunas API:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Testar Usuários V8
+app.post('/api/testar-v8', async (req, res) => {
+  try {
+    const { usuarios } = req.body;
+    
+    if (!usuarios || usuarios.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nenhum usuário V8 fornecido' });
+    }
+    
+    let testados = 0;
+    let sucessos = 0;
+    const resultados = [];
+    
+    for (const usuario of usuarios) {
+      testados++;
+      try {
+        // Teste real de autenticação V8
+        const authResponse = await fetch('https://auth.v8sistema.com/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            grant_type: 'password',
+            client_id: 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn',
+            audience: 'https://bff.v8sistema.com',
+            username: usuario.login,
+            password: usuario.senha
+          }),
+          timeout: 5000
+        });
+        
+        if (authResponse.ok) {
+          sucessos++;
+          resultados.push({ usuario: usuario.login, status: 'OK' });
+        } else {
+          resultados.push({ usuario: usuario.login, status: `Erro ${authResponse.status}` });
+        }
+      } catch (error) {
+        resultados.push({ usuario: usuario.login, status: 'Erro de conexão' });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      testados,
+      sucessos,
+      falhas: testados - sucessos,
+      resultados
+    });
+  } catch (error) {
+    console.error('❌ Erro ao testar usuários V8:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Filtrar CPFs para processamento
 app.get('/fgts/cpfs-para-processar', async (req, res) => {
   try {

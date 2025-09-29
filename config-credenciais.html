@@ -331,7 +331,15 @@
                         <input type="url" id="lunasApiUrl" placeholder="https://api.lunas.com.br" value="https://api.lunas.com.br">
                     </div>
 
-                    <button type="submit" class="btn">💾 Salvar Credenciais</button>
+                    <div class="form-row">
+                        <button type="submit" class="btn">💾 Salvar Credenciais</button>
+                        <button type="button" id="testarOpenAI" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            🧪 Testar OpenAI
+                        </button>
+                        <button type="button" id="testarLunas" class="btn" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                            🧪 Testar Lunas API
+                        </button>
+                    </div>
                 </form>
             </div>
 
@@ -350,9 +358,14 @@
                     ➕ Adicionar Usuário V8
                 </button>
                 
-                <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); margin-top: 15px;">
-                    💾 Salvar Usuários V8
-                </button>
+                <div class="form-row" style="margin-top: 15px;">
+                    <button type="button" id="salvarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%);">
+                        💾 Salvar Usuários V8
+                    </button>
+                    <button type="button" id="testarUsuariosV8" class="btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        🧪 Testar Usuários V8
+                    </button>
+                </div>
             </div>
 
             <!-- Seção de Configurações do Sistema -->
@@ -630,6 +643,106 @@
                     showStatus('✅ Usuários V8 salvos com sucesso!', 'success');
                 } else {
                     showStatus('❌ Erro ao salvar usuários V8: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            }
+        });
+
+        // Testar OpenAI
+        document.getElementById('testarOpenAI').addEventListener('click', async () => {
+            const openaiKey = document.getElementById('openaiKey').value;
+            
+            if (!openaiKey) {
+                showStatus('❌ Digite a chave da API OpenAI primeiro', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('🔄 Testando OpenAI...', 'success');
+                
+                const response = await fetch('/api/testar-openai', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ openaiKey })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ OpenAI funcionando! Resposta: ' + data.resposta, 'success');
+                } else {
+                    showStatus('❌ Erro OpenAI: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            }
+        });
+
+        // Testar Lunas API
+        document.getElementById('testarLunas').addEventListener('click', async () => {
+            const lunasApiKey = document.getElementById('lunasApiKey').value;
+            const lunasApiUrl = document.getElementById('lunasApiUrl').value;
+            
+            if (!lunasApiKey || !lunasApiUrl) {
+                showStatus('❌ Digite a chave e URL da API Lunas primeiro', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('🔄 Testando Lunas API...', 'success');
+                
+                const response = await fetch('/api/testar-lunas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        lunasApiKey, 
+                        lunasApiUrl 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Lunas API funcionando! Status: ' + data.status, 'success');
+                } else {
+                    showStatus('❌ Erro Lunas API: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Erro de conexão: ' + error.message, 'error');
+            }
+        });
+
+        // Testar Usuários V8
+        document.getElementById('testarUsuariosV8').addEventListener('click', async () => {
+            const usuarios = obterUsuariosV8();
+            
+            if (usuarios.length === 0) {
+                showStatus('❌ Adicione pelo menos um usuário V8 primeiro', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('🔄 Testando Usuários V8...', 'success');
+                
+                const response = await fetch('/api/testar-v8', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ usuarios })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Usuários V8 funcionando! Testados: ' + data.testados + ' usuários', 'success');
+                } else {
+                    showStatus('❌ Erro Usuários V8: ' + data.error, 'error');
                 }
             } catch (error) {
                 showStatus('❌ Erro de conexão: ' + error.message, 'error');
