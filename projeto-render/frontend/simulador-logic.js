@@ -435,7 +435,7 @@ function renderizarContratosAtivos() {
                 <div class="contrato-title">
                     <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
                            onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) - R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} (${contrato.parcelas_pagas || 0}/${contrato.prazo_total || 0})</span>
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
                     <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
                 </div>
                 <div class="contrato-actions">
@@ -585,7 +585,7 @@ function renderizarContratosNaoAprovados() {
                 <div class="contrato-title">
                     <input type="checkbox" class="contrato-checkbox" ${contrato.selecionado ? 'checked' : ''} 
                            onchange="toggleContrato(${contrato.id})">
-                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo}) - R$ ${formatBRNumber(parseFloat(contrato.valor_parcela || 0))} (${contrato.parcelas_pagas || 0}/${contrato.prazo_total || 0})</span>
+                    <span class="contrato-info">Contrato ${contrato.contrato} - ${contrato.banco.nome} (${contrato.banco.codigo})</span>
                     <button class="expand-btn" onclick="toggleDetalhes(${contrato.id})">▶</button>
                 </div>
                 <div class="contrato-actions">
@@ -869,8 +869,7 @@ function atualizarResumo() {
         }
     });
 
-    document.getElementById('totalTroco').textContent = `R$ ${formatBRNumber(totalTroco)}`;
-    
+    // Removido totalTroco à esquerda - só fica no resumo à direita
     const bancosHtml = Object.entries(bancosAgrupados)
         .map(([banco, valores]) => `
             <div class="banco-item">
@@ -1947,6 +1946,10 @@ function selecionarTaxa(contratoId, taxa) {
 }
 
 // Função para abrir upload de extrato
+function abrirDigitar() {
+    alert('Função de digitar será implementada em breve!');
+}
+
 function abrirUploadExtrato() {
     // Redirecionar para a página principal onde está o upload
     window.location.href = '/';
