@@ -1737,8 +1737,8 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
         contrato.especie = cliente.especie || "32"; // Espécie padrão
     }
 
-    const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
-    const parcelaAjustada = parseFloat(contrato.valor_parcela || 0);
+    const parcelaOriginal = toNumber(contrato.valor_parcela || 0);
+    const parcelaAjustada = toNumber(contrato.valor_parcela || 0);
     const totalParcelas = Number.isFinite(+contrato.prazo_total) ? +contrato.prazo_total : 0;
     const prazoRestante = Number.isFinite(+contrato.prazo_restante) ? +contrato.prazo_restante : totalParcelas;
 
@@ -1757,6 +1757,12 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
 
     const saldoDevedor = calcularSaldoDevedor(contrato); // Sempre usar cálculo correto
     let taxaAtualMes = toNumber(contrato.taxa_juros_mensal || 0);
+    
+    console.log(`🔍 DEBUG calcularParaContrato - Contrato ${contrato.contrato}:`);
+    console.log(`   Taxa Original: "${contrato.taxa_juros_mensal}"`);
+    console.log(`   Taxa Convertida: ${taxaAtualMes}`);
+    console.log(`   Tipo da Taxa: ${typeof contrato.taxa_juros_mensal}`);
+    console.log(`   Taxa > 0: ${taxaAtualMes > 0}`);
 
     console.log(`💰 Cálculo do saldo devedor para contrato ${contrato.contrato}:`);
     console.log(`   Parcela: ${contrato.valor_parcela}`);
