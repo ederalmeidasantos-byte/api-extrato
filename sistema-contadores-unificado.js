@@ -142,7 +142,7 @@ class SistemaContadores {
     // Carregar contadores do servidor
     async carregarDoServidor() {
         try {
-            const response = await fetch('/fgts/contadores-tempo-real');
+            const response = await fetch('/fgts/contadores-status');
             const data = await response.json();
             
             if (data.success && data.contadores) {
