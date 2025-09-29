@@ -1202,6 +1202,68 @@ app.post('/fgts/resume', async (req, res) => {
   }
 });
 
+// Forçar atualização dos dados no frontend
+app.post('/fgts/atualizar-frontend', async (req, res) => {
+  try {
+    console.log('🔄 Forçando atualização dos dados no frontend...');
+    
+    // Carregar dados atuais
+    const listaResponse = await carregarCPFsAnexados();
+    const estadoResponse = await carregarEstadoFGTS();
+    const pendentesResponse = await carregarPendentes();
+    const listasResponse = await carregarListas();
+    
+    if (ioInstance) {
+      // Emitir total de CPFs
+      if (listaResponse && listaResponse.totalCPFs > 0) {
+        ioInstance.emit("totalCPFs", listaResponse.totalCPFs);
+        console.log(`📡 Total de CPFs emitido: ${listaResponse.totalCPFs}`);
+      }
+      
+      // Emitir progresso atual
+      if (estadoResponse) {
+        ioInstance.emit("progress", {
+          done: estadoResponse.processados || 0,
+          total: estadoResponse.total || 0,
+          pendentes: pendentesResponse?.length || 0,
+          counters: {
+            success: estadoResponse.sucessos || 0,
+            pending: pendentesResponse?.length || 0,
+            no_auth: listasResponse.naoAutorizados?.length || 0,
+            descartados: listasResponse.descartados?.length || 0
+          }
+        });
+        console.log(`📡 Progresso emitido: ${estadoResponse.processados}/${estadoResponse.total}`);
+      }
+      
+      // Emitir contadores individuais
+      if (estadoResponse) {
+        ioInstance.emit("contadorSucesso", estadoResponse.sucessos || 0);
+        ioInstance.emit("contadorPending", pendentesResponse?.length || 0);
+        ioInstance.emit("contadorNaoAutorizado", listasResponse.naoAutorizados?.length || 0);
+        ioInstance.emit("contadorDescartados", listasResponse.descartados?.length || 0);
+        console.log(`📡 Contadores individuais emitidos`);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: "Dados atualizados no frontend",
+      dados: {
+        totalCPFs: listaResponse?.totalCPFs || 0,
+        processados: estadoResponse?.processados || 0,
+        sucessos: estadoResponse?.sucessos || 0,
+        pendentes: pendentesResponse?.length || 0,
+        processando: estadoResponse?.processando || false
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao atualizar frontend:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Atualizar delay
 app.post('/fgts/delay', async (req, res) => {
   try {
