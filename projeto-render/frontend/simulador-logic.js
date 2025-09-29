@@ -2122,6 +2122,7 @@ function simularTodosContratos() {
 }
 
 // Inicialização
-(async () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 DOM carregado, iniciando carregamento de dados...');
     await carregarDados();
-})();
+});
