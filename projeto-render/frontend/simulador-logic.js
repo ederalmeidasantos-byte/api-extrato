@@ -1218,94 +1218,183 @@ const RoteiroBancos = {
   INBURSA: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
+      { codigo: "623", nome: "Banco PAN", regra: "12 paga" },
+      { codigo: "925", nome: "Banco BRB", regra: "5 paga" },
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "237", nome: "Bradesco", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
-      { codigo: "012", nome: "Banco Inbursa" }
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "149", nome: "FACTA" },
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "422", nome: "SAFRA" },
+      { codigo: "079", nome: "PICPAY" },
+      { codigo: "935", nome: "Facta" },
+      { codigo: "329", nome: "QI" },
+      { codigo: "752", nome: "BNP Paribas" },
+      { codigo: "025", nome: "Banco Alfa" }
     ],
-    idade: "21 a 72 anos",
+    idade: "21 a 69 anos",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
-    taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    taxas: [1.66],
+    saldoDevedorMinimo: 2500,
+    parcelaMinima: 0
   },
   FINTECH: {
-    regraGeral: "0 parcelas pagas",
+    regraGeral: "2 parcelas pagas",
     excecoes: [
-      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+      { codigo: "623", nome: "Banco PAN", regra: "13 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "2 pagas" }
     ],
-    naoPorta: [],
-    idade: "21 a 72 anos",
+    naoPorta: [
+      { codigo: "643", nome: "Banco Pine" },
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "149", nome: "FACTA" },
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "925", nome: "BRB" },
+      { codigo: "254", nome: "Paraná Banco" },
+      { codigo: "935", nome: "Facta" }
+    ],
+    idade: "21 a 69",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0
   },
   DIGIO: {
-    regraGeral: "0 parcelas pagas",
+    regraGeral: "12 parcelas pagas",
     excecoes: [
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "033", nome: "Santander", detalhe: "Contratos iniciados com 20, 30, 40", regra: "1 paga" },
+      { codigo: "905", nome: "Banco Alfa", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
-    naoPorta: [],
-    idade: "21 a 72 anos",
+    naoPorta: [
+      { codigo: "001", nome: "Banco do Brasil" },
+      { codigo: "041", nome: "Banrisul" },
+      { codigo: "237", nome: "Bradesco" },
+      { codigo: "623", nome: "Banco PAN" }
+    ],
+    idade: "21 a 66 anos (prazo 96x) / 67 a 72 anos (prazo 96x)",
     especiesAceitas: { todas: true, exceto: ["87", "88"] },
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0
   },
   FACTA: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
-      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+      { codigo: "707", nome: "Daycoval", regra: "24 paga" },
+      { codigo: "623", nome: "PAN", regra: "16 paga" },
+      { codigo: "121", nome: "AGIBANK", regra: "15 paga" },
+      { codigo: "254", nome: "Banco PARANA", regra: "15 paga" },
+      { codigo: "318", nome: "BMG", regra: "12 paga" },
+      { codigo: "033", nome: "OLE", regra: "12 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "3 pagas" }
     ],
     naoPorta: [
-      { codigo: "935", nome: "Facta" }
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "643", nome: "PINE" },
+      { codigo: "935", nome: "FACTA" },
+      { codigo: "329", nome: "QI" },
+      { codigo: "626", nome: "C6" }
     ],
-    idade: "21 a 72 anos",
-    especiesAceitas: { todas: true, exceto: ["87", "88"] },
-    taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    idade: "21 a 73 anos",
+    especiesAceitas: { todas: true },
+    taxas: [1.85],
+    saldoDevedorMinimo: 0,
+    parcelaMinima: 50
   },
   FINANTO: {
-    regraGeral: "0 parcelas pagas",
+    regraGeral: "3 parcelas pagas",
     excecoes: [
-      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+      { codigo: "623", nome: "Banco PAN", regra: "12 pagas" },
+      { codigo: "033", nome: "Santander", regra: "12 pagas" },
+      { codigo: "254", nome: "Paraná Banco", regra: "12 pagas" },
+      { codigo: "041", nome: "Banrisul", regra: "12 pagas" },
+      { codigo: "326", nome: "Parati – Crédito", regra: "12 pagas" },
+      { codigo: "389", nome: "Banco Mercantil do Brasil", regra: "12 pagas" },
+      { codigo: "121", nome: "Agibank", regra: "12 pagas" },
+      { codigo: "707", nome: "Daycoval", regra: "13 pagas" },
+      { codigo: "000", nome: "Demais bancos", regra: "3 pagas" }
     ],
-    naoPorta: [],
-    idade: "21 a 72 anos",
-    especiesAceitas: { todas: true, exceto: ["87", "88"] },
-    taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    naoPorta: [
+      { codigo: "012", nome: "Banco Inbursa" },
+      { codigo: "329", nome: "QI Sociedade de Crédito" },
+      { codigo: "422", nome: "Safra" },
+      { codigo: "752", nome: "BNP Paribas" },
+      { codigo: "643", nome: "Banco Pine" },
+      { codigo: "079", nome: "Picpay" },
+      { codigo: "025", nome: "Banco Alfa" },
+      { codigo: "935", nome: "Facta" },
+      { codigo: "626", nome: "C6 / C6 Consignado" }
+    ],
+    idade: "21 a 69 anos",
+    especiesAceitas: {
+      todas: true,
+      exceto: ["87"],
+      regrasEspeciais: [
+        { especies: ["32"], idadeMinima: 60 }
+      ]
+    },
+    taxas: [1.85, 1.79],
+    saldoDevedorMinimo: 8000,
+    parcelaMinima: 0
   },
   C6: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
-      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+      { codigo: "935", nome: "Facta", regra: "13 pagas" },
+      { codigo: "149", nome: "Facta", regra: "13 pagas" },  
+      { codigo: "329", nome: "QI Sociedade de Crédito", regra: "13 pagas" },
+      { codigo: "012", nome: "Banco Inbursa", regra: "19 pagas" },
+      { codigo: "623", nome: "Banco PAN", regra: "37 pagas" },
+      { codigo: "000", nome: "Demais bancos", regra: "2 pagas" }
     ],
     naoPorta: [
-      { codigo: "626", nome: "C6 / C6 Consignado" }
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "079", nome: "Picpay" },
+      { codigo: "707", nome: "Daycoval" },
+      { codigo: "121", nome: "Agibank" }
     ],
     idade: "21 a 72 anos",
-    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    especiesAceitas: { todas: true},
     taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    saldoDevedorMinimo: 2000,
+    parcelaMinima: 0
   },
   PICPAY: {
     regraGeral: "0 parcelas pagas",
     excecoes: [
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "033", nome: "Santander", detalhe: "Contratos iniciados com 20, 30, 40", regra: "1 paga" },
+      { codigo: "905", nome: "Banco Alfa", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "237", nome: "Bradesco", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
       { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
     ],
     naoPorta: [
-      { codigo: "079", nome: "Picpay" }
+      { codigo: "012", nome: "INBURSA" },
+      { codigo: "121", nome: "AGIBANK" },
+      { codigo: "925", nome: "BRB" }
     ],
-    idade: "21 a 72 anos",
-    especiesAceitas: { todas: true, exceto: ["87", "88"] },
-    taxas: [1.85, 1.79, 1.66],
-    saldoDevedorMinimo: 500,
-    parcelaMinima: 20
+    idade: "21 a 73 anos",
+    especiesAceitas: { todas: true },
+    taxas: [1.85],
+    saldoDevedorMinimo: 0,
+    parcelaMinima: 50
   }
 };
 
@@ -1316,11 +1405,28 @@ const coeficientes = {
     1.85: 0.022974
 };
 
+// Função para converter valores (baseada no calculo (1).js)
+function toNumber(v) {
+    if (v == null) return 0;
+    if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+    let s = v.toString().replace(/[R$\s%]/g, "").trim();
+    if (s === "") return 0;
+    const hasDot = s.includes(".");
+    const hasComma = s.includes(",");
+    if (hasDot && hasComma) {
+        if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+        else s = s.replace(/,/g, "");
+    } else if (hasComma) s = s.replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+}
+
 // Função para obter coeficiente baseado na taxa e dia
 function getCoeficiente(taxa, dia = "15") {
     const tabela = coeficientes[Number(taxa).toFixed(2)];
     if (!tabela) return null;
-    return tabela;
+
+    return tabela[dia] || tabela["01"] || tabela["1"] || null;
 }
 
 // Função para bancos permitidos por espécie
@@ -1353,24 +1459,24 @@ function validarEspecieParaRoteiro(especie, roteiro) {
 }
 
 // Função para aplicar roteiro (baseada no calculo (1).js)
-function aplicarRoteiro(contrato, banco) {
+function aplicarRoteiro(c, banco) {
     const roteiro = RoteiroBancos[banco];
     if (!roteiro) return { valido: false, motivo: "Banco não encontrado" };
 
-    const saldo = parseFloat(contrato.saldo_devedor || 0);
+    const saldo = toNumber(c.saldo_devedor);
     if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
         return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
     }
 
-    if (!validarEspecieParaRoteiro(contrato.especie, roteiro)) {
-        return { valido: false, motivo: `Banco ${banco} não permitido esp ${contrato.especie}` };
+    if (!validarEspecieParaRoteiro(c.especie, roteiro)) {
+        return { valido: false, motivo: `Banco ${banco} não permitido esp ${c.especie}` };
     }
 
-    const parcelasPagas = Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0;
+    const parcelasPagas = Number.isFinite(+c.parcelas_pagas) ? +c.parcelas_pagas : 0;
     let regraParcelas = null;
 
     if (Array.isArray(roteiro.excecoes)) {
-        const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(contrato.banco?.codigo));
+        const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(c.banco?.codigo));
         if (excecao && typeof excecao.regra === "string") {
             regraParcelas = Number(excecao.regra.split(" ")[0]);
         }
@@ -1390,12 +1496,12 @@ function aplicarRoteiro(contrato, banco) {
     if (parcelasPagas < regraParcelas) {
         return {
             valido: false,
-            motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${contrato.banco?.nome || "N/A"} (código ${contrato.banco?.codigo || "N/A"})`,
+            motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${c.banco?.nome || "N/A"} (código ${c.banco?.codigo || "N/A"})`,
         };
     }
 
-    if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(contrato.banco?.codigo))) {
-        return { valido: false, motivo: `Banco não permitido (${contrato.banco?.nome || "N/A"})` };
+    if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(c.banco?.codigo))) {
+        return { valido: false, motivo: `Banco não permitido (${c.banco?.nome || "N/A"})` };
     }
 
     return { valido: true, motivo: null };
@@ -1413,6 +1519,7 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
     }
 
     const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+    const parcelaAjustada = parseFloat(contrato.valor_parcela || 0);
     const totalParcelas = Number.isFinite(+contrato.prazo_total) ? +contrato.prazo_total : 0;
     const prazoRestante = Number.isFinite(+contrato.prazo_restante) ? +contrato.prazo_restante : totalParcelas;
 
