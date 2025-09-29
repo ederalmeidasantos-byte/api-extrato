@@ -368,7 +368,16 @@ function attachIO(io) {
 }
 
 // 🔹 Normalização
-const normalizeCPF = (cpf) => (cpf || "").toString().replace(/\D/g, "").padStart(11, "0");
+const normalizeCPF = (cpf) => {
+  if (!cpf) return null;
+  const cleaned = cpf.toString().replace(/\D/g, "");
+  if (cleaned.length !== 11) return null;
+  if (cleaned === "00000000000" || cleaned === "11111111111" || cleaned === "22222222222" || 
+      cleaned === "33333333333" || cleaned === "44444444444" || cleaned === "55555555555" ||
+      cleaned === "66666666666" || cleaned === "77777777777" || cleaned === "88888888888" || 
+      cleaned === "99999999999") return null;
+  return cleaned;
+};
 const normalizePhone = (phone) => (phone || "").toString().replace(/\D/g, "");
 
 // 🔹 Registrar pendência
@@ -1064,8 +1073,9 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const telefone = normalizePhone(registro.TELEFONE);
 
     if (!cpf) {
+      console.log(`${LOG_PREFIX()} ⚠️ CPF inválido na linha ${linha}: ${registro.CPF} - pulando`);
       contadorDescartados++;
-      emitirResultado({ cpf, id: idOriginal, status: "descartado", provider: "N/A", valorLiberado: 0, linha }, callback);
+      emitirResultado({ cpf: registro.CPF || "INVÁLIDO", id: idOriginal, status: "descartado", provider: "N/A", valorLiberado: 0, linha }, callback);
       processed++;
       atualizarProgresso();
       continue;
