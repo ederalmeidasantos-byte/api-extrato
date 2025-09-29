@@ -769,14 +769,15 @@
                     login, 
                     senha: senha ? '***' : 'vazio', 
                     nome,
-                    elementId: element.id
+                    elementId: element.id,
+                    senhaLength: senha.length
                 });
                 
                 if (login && senha) {
                     usuarios.push({
                         id: `usuario_${index + 1}`,
                         login: login,
-                        senha: senha,
+                        senha: senha, // JSON.stringify vai fazer o escape automaticamente
                         nome: nome || `Usuário ${index + 1}`
                     });
                 } else {

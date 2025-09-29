@@ -1773,7 +1773,21 @@ async function carregarCredenciais() {
   try {
     if (fs.existsSync(CREDENCIAIS_FILE)) {
       const content = await fsp.readFile(CREDENCIAIS_FILE, 'utf-8');
-      return JSON.parse(content);
+      const credenciais = JSON.parse(content);
+      
+      if (credenciais.usuariosV8) {
+        console.log('📖 Carregando usuários V8:', credenciais.usuariosV8.length, 'usuários');
+        credenciais.usuariosV8.forEach((usuario, index) => {
+          console.log(`👤 Usuário V8 ${index + 1} carregado:`, {
+            id: usuario.id,
+            login: usuario.login,
+            senha: usuario.senha ? `*** (${usuario.senha.length} chars)` : 'vazia',
+            nome: usuario.nome
+          });
+        });
+      }
+      
+      return credenciais;
     }
     return {};
   } catch (error) {
@@ -1820,6 +1834,24 @@ app.post('/api/credenciais', async (req, res) => {
   try {
     const { openaiKey, lunasApiKey, lunasApiUrl, usuariosV8 } = req.body;
     
+    console.log('📝 Salvando credenciais:', {
+      openaiKey: openaiKey ? '***' : 'não fornecido',
+      lunasApiKey: lunasApiKey ? '***' : 'não fornecido',
+      lunasApiUrl: lunasApiUrl || 'não fornecido',
+      usuariosV8: usuariosV8 ? `${usuariosV8.length} usuários` : 'não fornecido'
+    });
+    
+    if (usuariosV8) {
+      usuariosV8.forEach((usuario, index) => {
+        console.log(`👤 Usuário V8 ${index + 1}:`, {
+          id: usuario.id,
+          login: usuario.login,
+          senha: usuario.senha ? `*** (${usuario.senha.length} chars)` : 'vazia',
+          nome: usuario.nome
+        });
+      });
+    }
+    
     const credenciais = await carregarCredenciais();
     
     // Atualizar apenas as credenciais fornecidas
@@ -1836,6 +1868,7 @@ app.post('/api/credenciais', async (req, res) => {
       if (lunasApiKey) process.env.LUNAS_API_KEY = lunasApiKey;
       if (lunasApiUrl) process.env.LUNAS_API_URL = lunasApiUrl;
       
+      console.log('✅ Credenciais salvas com sucesso');
       res.json({ success: true, message: 'Credenciais salvas com sucesso' });
     } else {
       res.status(500).json({ success: false, error: 'Erro ao salvar credenciais' });
