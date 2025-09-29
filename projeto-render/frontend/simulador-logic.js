@@ -15,6 +15,23 @@ function calcularPrazoRestante(prazoTotal, parcelasPagas) {
     return Math.max(0, prazoTotal - parcelasPagas);
 }
 
+function calcularSaldoDevedor(contrato) {
+    // Cálculo básico: Valor do contrato - (parcelas pagas * valor parcela)
+    const valorContrato = parseFloat(contrato.valor_liberado || 0);
+    const parcelasPagas = parseFloat(contrato.parcelas_pagas || 0);
+    const valorParcela = parseFloat(contrato.valor_parcela || 0);
+    
+    return Math.max(0, valorContrato - (parcelasPagas * valorParcela));
+}
+
+function toggleEdicao(contratoId) {
+    const contrato = contratos.find(c => c.id === contratoId);
+    if (contrato) {
+        contrato.editando = !contrato.editando;
+        renderizarContratos();
+    }
+}
+
 function renderizarContratos() {
     // Separar contratos em ativos e não aprovados
     contratosAtivos = contratos.filter(c => c.aprovado === true);
@@ -131,18 +148,29 @@ function renderizarContratosNaoAprovados() {
                             <span class="detail-label">Banco</span>
                             <span class="detail-value">${contrato.banco.nome} (${contrato.banco.codigo})</span>
                         </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Valor do Contrato</span>
+                            <span class="detail-value">R$ ${formatBRNumber(contrato.valor_liberado || 0)}</span>
+                        </div>
                     </div>
                     
                     <div class="detail-group">
-                        <div class="detail-group-title">💰 DADOS FINANCEIROS (EDITÁVEIS)</div>
+                        <div class="detail-group-title">
+                            💰 DADOS FINANCEIROS (EDITÁVEIS)
+                            <button class="btn btn-secondary" onclick="toggleEdicao(${contrato.id})" style="margin-left: 1rem; padding: 0.3rem 0.8rem; font-size: 0.8rem;">
+                                ${contrato.editando ? '🔒 Bloquear' : '✏️ Editar'}
+                            </button>
+                        </div>
                         <div class="detail-item">
                             <span class="detail-label">Prazo Total</span>
                             <input type="number" class="detail-input" value="${contrato.prazo_total || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'prazo_total', this.value)">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Parcelas Pagas</span>
                             <input type="number" class="detail-input" value="${contrato.parcelas_pagas || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'parcelas_pagas', this.value)">
                         </div>
                         <div class="detail-item">
@@ -152,16 +180,19 @@ function renderizarContratosNaoAprovados() {
                         <div class="detail-item">
                             <span class="detail-label">Valor Parcela</span>
                             <input type="number" class="detail-input" step="0.01" value="${contrato.valor_parcela || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'valor_parcela', this.value)">
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Valor do Contrato</span>
-                            <input type="number" class="detail-input" step="0.01" value="${contrato.valor_liberado || 0}" 
-                                   onchange="atualizarContrato(${contrato.id}, 'valor_liberado', this.value)">
+                            <span class="detail-label">Saldo Devedor</span>
+                            <input type="number" class="detail-input" step="0.01" value="${contrato.saldo_devedor || calcularSaldoDevedor(contrato)}" 
+                                   ${contrato.editando ? '' : 'disabled'}
+                                   onchange="atualizarContrato(${contrato.id}, 'saldo_devedor', this.value)">
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Taxa Mensal (%)</span>
                             <input type="number" class="detail-input" step="0.01" value="${contrato.taxa_juros_mensal || 0}" 
+                                   ${contrato.editando ? '' : 'disabled'}
                                    onchange="atualizarContrato(${contrato.id}, 'taxa_juros_mensal', this.value)">
                         </div>
                     </div>
@@ -429,6 +460,7 @@ function carregarDados() {
                 contrato.simulacao = null;
                 contrato.troco = 0;
                 contrato.aprovado = false;
+                contrato.editando = false;
             });
             
             atualizarDadosCliente();
@@ -624,6 +656,7 @@ function carregarDadosTeste() {
         contrato.simulacao = null;
         contrato.troco = 0;
         contrato.aprovado = false;
+        contrato.editando = false;
     });
     
     // Salvar no localStorage
