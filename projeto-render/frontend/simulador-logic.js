@@ -1164,6 +1164,151 @@ const TROCO_MINIMO = 100;
 const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
 const PRAZO_SIMULADO = 96;
 
+// Roteiro de Bancos (baseado no RoteiroBancos.js)
+const RoteiroBancos = {
+  BRB: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "001", nome: "Banco do Brasil", regra: "1 paga" },
+      { codigo: "104", nome: "Caixa Econômica Federal", regra: "1 paga" },
+      { codigo: "033", nome: "Santander", detalhe: "Contratos iniciados com 20, 30, 40", regra: "1 paga" },
+      { codigo: "905", nome: "Banco Alfa", regra: "1 paga" },
+      { codigo: "754", nome: "Sicoob", regra: "1 paga" },
+      { codigo: "341", nome: "Itaú", regra: "1 paga" },
+      { codigo: "237", nome: "Bradesco", regra: "1 paga" },
+      { codigo: "260", nome: "Nu CFI", regra: "1 paga" },
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "079", nome: "Picpay" },
+      { codigo: "121", nome: "Agibank" },
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "925", nome: "BRB" }
+    ],
+    idade: "21 a 73 anos",
+    especiesAceitas: { todas: true },
+    taxas: [1.85, 1.79],
+    saldoDevedorMinimo: 4000,
+    parcelaMinima: 0
+  },
+  DAYCOVAL: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "935", nome: "Facta", regra: "24 pagas" },
+      { codigo: "121", nome: "Agibank", regra: "15 pagas" },
+      { codigo: "012", nome: "Banco Inbursa", regra: "13 pagas" },
+      { codigo: "623", nome: "Banco PAN", regra: "12 pagas" },
+      { codigo: "389", nome: "MERCANTIL", regra: "6 pagas" },
+      { codigo: "754", nome: "SICOOB", regra: "6 pagas" },
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "626", nome: "C6 / C6 Consignado" },
+      { codigo: "422", nome: "Safra" },
+      { codigo: "004", nome: "BNB - Banco do Nordeste" },
+      { codigo: "905", nome: "Banco Alfa" },
+      { codigo: "707", nome: "Daycoval" }
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  INBURSA: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "012", nome: "Banco Inbursa" }
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  FINTECH: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  DIGIO: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  FACTA: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "935", nome: "Facta" }
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  FINANTO: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  C6: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "626", nome: "C6 / C6 Consignado" }
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  },
+  PICPAY: {
+    regraGeral: "0 parcelas pagas",
+    excecoes: [
+      { codigo: "000", nome: "Demais bancos", regra: "12 pagas" }
+    ],
+    naoPorta: [
+      { codigo: "079", nome: "Picpay" }
+    ],
+    idade: "21 a 72 anos",
+    especiesAceitas: { todas: true, exceto: ["87", "88"] },
+    taxas: [1.85, 1.79, 1.66],
+    saldoDevedorMinimo: 500,
+    parcelaMinima: 20
+  }
+};
+
 // Coeficientes corretos baseados no calculo.js
 const coeficientes = {
     1.66: 0.021434,
@@ -1260,6 +1405,11 @@ function aplicarRoteiro(contrato, banco) {
 function calcularParaContrato(contrato, diaAverbacao = "15") {
     if (!contrato || (contrato.situacao && contrato.situacao.toLowerCase() !== "ativo")) {
         return { contrato: contrato?.contrato, motivo: "Contrato não ativo", banco: contrato?.banco };
+    }
+
+    // Adicionar espécie se não existir
+    if (!contrato.especie) {
+        contrato.especie = cliente.especie || "32"; // Espécie padrão
     }
 
     const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
@@ -1434,6 +1584,12 @@ function selecionarTaxa(contratoId, taxa) {
     salvarDadosEditados(contratoId);
     
     alert(`✅ Taxa ${taxa}% selecionada e salva!`);
+}
+
+// Função para abrir upload de extrato
+function abrirUploadExtrato() {
+    // Redirecionar para a página principal onde está o upload
+    window.location.href = '/';
 }
 
 // Função para simular todos os contratos automaticamente
