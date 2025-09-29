@@ -1908,7 +1908,7 @@ function obterTaxasDoBanco(bancoNome) {
 
 // Função para calcular troco para uma taxa específica
 function calcularTrocoParaTaxa(contrato, taxa) {
-    const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+    const parcelaOriginal = toNumber(contrato.valor_parcela || 0);
     const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
     
     const coeficiente = getCoeficiente(taxa);
