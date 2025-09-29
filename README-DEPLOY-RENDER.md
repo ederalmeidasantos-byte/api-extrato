@@ -87,7 +87,7 @@ PORT=3000
 
 ```
 projeto/
-├── server-fgts.js          # ✅ Servidor principal FGTS
+├── server.js                # ✅ Servidor principal integrado
 ├── package.json            # ✅ Dependências Node.js
 ├── render.yaml             # ✅ Configuração Render
 ├── fgts_csv.js             # ✅ Lógica FGTS
@@ -182,7 +182,7 @@ curl https://painel-fgts.onrender.com/fgts/logs/erros
 ```
 
 **Soluções:**
-- ✅ Verificar se `server-fgts.js` existe
+- ✅ Verificar se `server.js` existe
 - ✅ Verificar se variáveis de ambiente estão configuradas
 - ✅ Verificar se portas estão corretas
 
@@ -269,7 +269,7 @@ git push origin main
 
 ## ✅ **Checklist Final**
 
-- [ ] ✅ Servidor FGTS criado (`server-fgts.js`)
+- [ ] ✅ Servidor integrado (`server.js`)
 - [ ] ✅ Package.json atualizado
 - [ ] ✅ Render.yaml configurado
 - [ ] ✅ Variáveis de ambiente configuradas

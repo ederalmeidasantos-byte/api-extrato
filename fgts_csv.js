@@ -1227,6 +1227,7 @@ async function processarReprocessamentoRapido() {
 
 export {
   processarCPFs,
+  processarCPF,
   disparaFluxo,
   authenticate,
   atualizarOportunidadeComTabela,

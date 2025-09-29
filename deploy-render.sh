@@ -11,7 +11,7 @@ echo "📋 Verificando arquivos necessários..."
 
 # Verificar se os arquivos principais existem
 required_files=(
-    "server-fgts.js"
+    "server.js"
     "package.json"
     "render.yaml"
     "fgts_csv.js"
@@ -139,7 +139,7 @@ if [ "$test_local" = "y" ] || [ "$test_local" = "Y" ]; then
                 
                 # Testar se o servidor inicia
                 echo "🚀 Testando inicialização do servidor..."
-                timeout 10s node server-fgts.js &
+                timeout 10s node server.js &
                 server_pid=$!
                 sleep 3
                 
@@ -197,7 +197,7 @@ echo ""
 echo "✅ ===== CHECKLIST FINAL ====="
 echo ""
 echo "📋 Arquivos prontos para deploy:"
-echo "✅ server-fgts.js (servidor principal)"
+echo "✅ server.js (servidor principal)"
 echo "✅ package.json (dependências)"
 echo "✅ render.yaml (configuração Render)"
 echo "✅ fgts_csv.js (lógica FGTS)"

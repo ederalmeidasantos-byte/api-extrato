@@ -12,9 +12,15 @@ if (!process.env.OPENAI_API_KEY) {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// ================== Helpers ==================
-const DAY_MS = 24 * 60 * 60 * 1000;
-const TTL_DIAS_PADRAO = 14;
+// ====== PERSISTENT DISK CONFIGURATION ======
+const PERSISTENT_PATH = '/var/data';
+const PERSISTENT_EXTRATOS_DIR = `${PERSISTENT_PATH}/extratos`;
+
+// Criar diretório persistente se não existir
+if (!fs.existsSync(PERSISTENT_EXTRATOS_DIR)) {
+  fs.mkdirSync(PERSISTENT_EXTRATOS_DIR, { recursive: true });
+  console.log(`✅ Diretório persistente de extratos criado: ${PERSISTENT_EXTRATOS_DIR}`);
+}
 
 function agendarExclusaoDias(dias, ...paths) {
   const wait = dias * DAY_MS;

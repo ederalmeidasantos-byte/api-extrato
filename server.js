@@ -51,12 +51,6 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// pastas
-const PDF_DIR = path.join(__dirname, "extratos");
-const JSON_DIR = path.join(__dirname, "jsonDir");
-if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
-if (!fs.existsSync(JSON_DIR)) fs.mkdirSync(JSON_DIR, { recursive: true });
-
 // ====== PERSISTENT DISK CONFIGURATION ======
 const PERSISTENT_PATH = '/var/data';
 const PERSISTENT_DIRS = {
@@ -67,6 +61,13 @@ const PERSISTENT_DIRS = {
   config: `${PERSISTENT_PATH}/config`
 };
 
+// ====== DIRETÓRIOS PERSISTENTES ======
+// Usar Persistent Disk do Render para manter dados entre deploys
+const PDF_DIR = PERSISTENT_DIRS.extratos;
+const JSON_DIR = PERSISTENT_DIRS.extratos;
+const UPLOADS_DIR = PERSISTENT_DIRS.uploads;
+const LOGS_DIR = PERSISTENT_DIRS.logs;
+
 // Criar diretórios persistentes se não existirem
 async function ensurePersistentDirectories() {
   try {
@@ -74,12 +75,71 @@ async function ensurePersistentDirectories() {
       if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
         console.log(`✅ Diretório persistente criado: ${dirPath}`);
-      } else {
+  } else {
         console.log(`📁 Diretório persistente já existe: ${dirPath}`);
       }
     }
+    
+    // Criar diretório de backups se não existir
+    const backupDir = `${PERSISTENT_PATH}/backups`;
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+      console.log(`✅ Diretório de backups criado: ${backupDir}`);
+    }
   } catch (error) {
     console.error('❌ Erro ao criar diretórios persistentes:', error);
+  }
+}
+
+// Sistema de backup automático
+async function fazerBackup(arquivo, tipo = 'geral') {
+  try {
+    if (!fs.existsSync(arquivo)) {
+      console.log(`⚠️ Arquivo não encontrado para backup: ${arquivo}`);
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const nomeArquivo = path.basename(arquivo, path.extname(arquivo));
+    const extensao = path.extname(arquivo);
+    const backupDir = `${PERSISTENT_PATH}/backups`;
+    const backupFile = `${backupDir}/${nomeArquivo}-${tipo}-${timestamp}${extensao}`;
+    
+    // Fazer backup
+    await fsp.copyFile(arquivo, backupFile);
+    console.log(`💾 Backup criado: ${backupFile}`);
+    
+    // Limpar backups antigos (manter apenas os 5 mais recentes)
+    await limparBackupsAntigos(backupDir, nomeArquivo, tipo);
+    
+  } catch (error) {
+    console.error('❌ Erro ao fazer backup:', error);
+  }
+}
+
+// Limpar backups antigos (manter apenas os 5 mais recentes)
+async function limparBackupsAntigos(backupDir, nomeArquivo, tipo) {
+  try {
+    const files = await fsp.readdir(backupDir);
+    const backups = files
+      .filter(file => file.startsWith(`${nomeArquivo}-${tipo}-`))
+      .map(file => ({
+        name: file,
+        path: path.join(backupDir, file),
+        mtime: fs.statSync(path.join(backupDir, file)).mtime
+      }))
+      .sort((a, b) => b.mtime - a.mtime); // Mais recente primeiro
+    
+    // Manter apenas os 5 mais recentes
+    if (backups.length > 5) {
+      const paraRemover = backups.slice(5);
+      for (const backup of paraRemover) {
+        await fsp.unlink(backup.path);
+        console.log(`🗑️ Backup antigo removido: ${backup.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao limpar backups antigos:', error);
   }
 }
 
@@ -117,7 +177,7 @@ app.use(express.json({ limit: "10mb" }));
 attachIO(io);
 
 // ====== Configuração Multer para upload de PDF ======
-const upload = multer({
+const upload = multer({ 
   dest: PDF_DIR,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
@@ -133,7 +193,7 @@ const upload = multer({
 
 // ====== Configuração Multer para upload de CSV (FGTS) ======
 const uploadCSV = multer({
-  dest: path.join(__dirname, "uploads"),
+  dest: UPLOADS_DIR,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
   },
@@ -197,6 +257,10 @@ app.post("/extrair", async (req, res) => {
     const json = await queue.add(() =>
       extrairDeUpload({ fileId, pdfPath, jsonDir: JSON_DIR, ttlMs: TTL_MS })
     );
+
+    // Fazer backup do JSON processado
+    const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
+    await fazerBackup(jsonPath, 'extrato');
 
     // Adicionar link único para o simulador
     json.simulador_link = `https://api-extrato-1.onrender.com/simulador?id=${fileId}`;
@@ -462,8 +526,8 @@ app.get('/fgts/cache/visualizar', async (req, res) => {
         }
       }
     }
-    
-    res.json({ 
+
+    res.json({
       success: true, 
       cacheDir, 
       totalArquivos, 
@@ -918,7 +982,7 @@ app.get("/api/status/persistent-disk", async (req, res) => {
       };
     }
     
-    res.json({
+  res.json({
       persistentPath: PERSISTENT_PATH,
       directories: status,
       timestamp: new Date().toISOString()
