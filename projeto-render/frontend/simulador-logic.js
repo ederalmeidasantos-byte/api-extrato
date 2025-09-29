@@ -275,15 +275,6 @@ function copiarLinkUnico() {
 }
 
 function renderizarContratos() {
-    // Salvar estado dos detalhes expandidos antes de re-renderizar
-    const detalhesExpandidos = [];
-    document.querySelectorAll('.contrato-details').forEach(detail => {
-        if (detail.style.display !== 'none') {
-            const contratoId = detail.id.replace('detalhes-', '');
-            detalhesExpandidos.push(parseInt(contratoId));
-        }
-    });
-    
     // Separar contratos em ativos e não aprovados
     contratosAtivos = contratos.filter(c => c.aprovado === true);
     contratosNaoAprovados = contratos.filter(c => c.aprovado !== true);
@@ -296,19 +287,6 @@ function renderizarContratos() {
     renderizarContratosAtivos();
     renderizarContratosNaoAprovados();
     atualizarResumo();
-    
-    // Restaurar estado dos detalhes expandidos
-    detalhesExpandidos.forEach(contratoId => {
-        const detalhes = document.getElementById(`detalhes-${contratoId}`);
-        if (detalhes) {
-            detalhes.style.display = 'block';
-            const btn = detalhes.previousElementSibling.querySelector('.expand-btn');
-            if (btn) {
-                btn.classList.add('expanded');
-                btn.textContent = '▼';
-            }
-        }
-    });
 }
 
 function renderizarContratosAtivos() {
@@ -639,7 +617,7 @@ function simularContrato(contratoId) {
     const contrato = contratos.find(c => c.id === contratoId);
     if (!contrato) return;
 
-    console.log('🔄 Iniciando simulação para contrato:', contrato.contrato);
+    console.log('🔄 Iniciando simulação local para contrato:', contrato.contrato);
 
     // Simular automaticamente taxa e saldo se estiverem em branco
     if (!contrato.taxa_juros_mensal || contrato.taxa_juros_mensal === 0) {
@@ -657,99 +635,59 @@ function simularContrato(contratoId) {
     btn.innerHTML = '<span class="loading"></span> Simulando...';
     btn.disabled = true;
 
-    // Preparar dados para simulação
-    const contratoSimulacao = {
-        contrato: contrato.contrato,
-        bancoCodigo: contrato.banco.codigo,
-        taxa: contrato.taxa_juros_mensal,
-        saldo: contrato.saldo_devedor,
-        parcela: contrato.valor_parcela,
-        prazo: contrato.prazo_total,
-        pagas: contrato.parcelas_pagas,
-        valorLiberado: contrato.valor_liberado,
-        prazoTotal: contrato.prazo_total
-    };
-
-    console.log('📤 Dados enviados para API:', contratoSimulacao);
-
-    // Simular com API
-    fetch('/api/simular-troco', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            contratos: [contratoSimulacao],
-            especie: cliente.especie,
-            diaAverbacao: "15"
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('📥 Resposta completa da API:', data);
+    try {
+        // Usar a nova lógica local baseada no calculo (1).js
+        const resultado = calcularParaContrato(contrato, "15");
         
-        if (data.status === 'success' && data.dados && data.dados.contratos && data.dados.contratos.length > 0) {
-            const contratoResultado = data.dados.contratos[0];
-            console.log('📊 Resultado do contrato:', contratoResultado);
+        console.log('📊 Resultado da simulação local:', resultado);
+        
+        if (resultado.motivo) {
+            // Contrato rejeitado
+            contrato.simulacao = {
+                aprovado: false,
+                motivo: resultado.motivo,
+                banco: resultado.banco?.nome || 'Nenhum',
+                troco: 0,
+                taxa: contrato.taxa_juros_mensal
+            };
+            contrato.troco = 0;
+            contrato.aprovado = false;
             
-            if (contratoResultado.simulacao && contratoResultado.simulacao.length > 0) {
-                // Pegar o melhor resultado (maior troco)
-                const resultados = contratoResultado.simulacao.filter(s => s.aprovado);
-                const melhorResultado = resultados.reduce((melhor, atual) => 
-                    (atual.troco > melhor.troco) ? atual : melhor, resultados[0]);
-                
-                console.log('🏆 Melhor resultado encontrado:', melhorResultado);
-                
-                if (melhorResultado) {
-                    contrato.simulacao = melhorResultado;
-                    contrato.troco = melhorResultado.troco || 0;
-                    
-                    // Se aprovado, mover para ativos
-                    if (melhorResultado.aprovado) {
-                        contrato.aprovado = true;
-                    }
-                    
-                    console.log('✅ Simulação concluída com sucesso:', {
-                        banco: melhorResultado.banco,
-                        troco: melhorResultado.troco,
-                        aprovado: melhorResultado.aprovado
-                    });
-                } else {
-                    console.log('❌ Nenhum resultado aprovado encontrado');
-                    contrato.simulacao = {
-                        aprovado: false,
-                        motivo: 'Nenhum banco aprovou este contrato',
-                        banco: 'Nenhum',
-                        troco: 0
-                    };
-                }
-            } else {
-                console.log('❌ Nenhuma simulação retornada');
-                contrato.simulacao = {
-                    aprovado: false,
-                    motivo: 'Erro na simulação: Simulação concluída',
-                    banco: 'Nenhum',
-                    troco: 0
-                };
-            }
-            
-            // Salvar dados com código do extrato
-            salvarDadosEditados(contratoId);
-            
-            renderizarContratos();
+            console.log('❌ Contrato rejeitado:', resultado.motivo);
         } else {
-            console.error('❌ Erro na resposta:', data);
-            alert('Erro na simulação: ' + (data.message || 'Resposta inválida da API'));
+            // Contrato aprovado
+            contrato.simulacao = {
+                aprovado: true,
+                banco: resultado.bancoNovo,
+                troco: parseFloat(resultado.troco.replace(',', '.')),
+                taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
+                parcela: parseFloat(resultado.parcela.replace(',', '.')),
+                parcelasPagas: resultado.parcelas_pagas,
+                valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
+                coeficiente: resultado.coeficiente_usado
+            };
+            contrato.troco = contrato.simulacao.troco;
+            contrato.aprovado = true;
+            
+            console.log('✅ Contrato aprovado:', {
+                banco: resultado.bancoNovo,
+                troco: contrato.simulacao.troco,
+                taxa: contrato.simulacao.taxa
+            });
         }
-    })
-    .catch(error => {
-        console.error('❌ Erro de conexão:', error);
-        alert('Erro de conexão na simulação: ' + error.message);
-    })
-    .finally(() => {
+        
+        // Salvar dados com código do extrato
+        salvarDadosEditados(contratoId);
+        
+        renderizarContratos();
+        
+    } catch (error) {
+        console.error('❌ Erro na simulação local:', error);
+        alert('Erro na simulação: ' + error.message);
+    } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
-    });
+    }
 }
 
 function toggleContrato(contratoId) {
@@ -821,7 +759,6 @@ function atualizarResumo() {
     
     const resumoContent = `
         <div class="resumo-totals">
-            <div class="resumo-total">R$ ${formatBRNumber(totalTroco)}</div>
             <div class="resumo-bancos">
                 ${bancosHtml}
                 <div style="margin-top: 1rem; padding: 0.8rem; background: #f8fafc; border-radius: 6px; text-align: center;">
@@ -1222,24 +1159,234 @@ function mostrarTaxasDisponiveis(contratoId) {
     }
 }
 
+// Configurações do simulador
+const TROCO_MINIMO = 100;
+const ORDEM_BANCOS = ["FINANTO", "C6", "PICPAY", "BRB", "DAYCOVAL", "INBURSA", "FINTECH", "DIGIO", "FACTA"];
+const PRAZO_SIMULADO = 96;
+
+// Coeficientes corretos baseados no calculo.js
+const coeficientes = {
+    1.66: 0.021434,
+    1.79: 0.022488,
+    1.85: 0.022974
+};
+
+// Função para obter coeficiente baseado na taxa e dia
+function getCoeficiente(taxa, dia = "15") {
+    const tabela = coeficientes[Number(taxa).toFixed(2)];
+    if (!tabela) return null;
+    return tabela;
+}
+
+// Função para bancos permitidos por espécie
+function bancosPermitidosPorEspecie(especie) {
+    if (especie === "87") return ["BRB", "PICPAY", "C6", "FACTA"];
+    if (especie === "88") return ["FINANTO", "BRB", "PICPAY", "C6", "FACTA"];
+    return ORDEM_BANCOS;
+}
+
+// Função para validar espécie para roteiro
+function validarEspecieParaRoteiro(especie, roteiro) {
+    if (!roteiro || !roteiro.especiesAceitas) return true;
+
+    const ea = roteiro.especiesAceitas;
+    if (ea.todas === true) {
+        if (Array.isArray(ea.exceto) && ea.exceto.includes(String(especie))) {
+            return false;
+        }
+        return true;
+    }
+
+    if (ea.todas === false) {
+        if (Array.isArray(ea.permitidas)) {
+            return ea.permitidas.includes(String(especie));
+        }
+        return false;
+    }
+
+    return true;
+}
+
+// Função para aplicar roteiro (baseada no calculo (1).js)
+function aplicarRoteiro(contrato, banco) {
+    const roteiro = RoteiroBancos[banco];
+    if (!roteiro) return { valido: false, motivo: "Banco não encontrado" };
+
+    const saldo = parseFloat(contrato.saldo_devedor || 0);
+    if (typeof roteiro.saldoDevedorMinimo === "number" && saldo < roteiro.saldoDevedorMinimo) {
+        return { valido: false, motivo: `Saldo mínimo (${roteiro.saldoDevedorMinimo}) - ${banco}` };
+    }
+
+    if (!validarEspecieParaRoteiro(contrato.especie, roteiro)) {
+        return { valido: false, motivo: `Banco ${banco} não permitido esp ${contrato.especie}` };
+    }
+
+    const parcelasPagas = Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0;
+    let regraParcelas = null;
+
+    if (Array.isArray(roteiro.excecoes)) {
+        const excecao = roteiro.excecoes.find((e) => String(e.codigo) === String(contrato.banco?.codigo));
+        if (excecao && typeof excecao.regra === "string") {
+            regraParcelas = Number(excecao.regra.split(" ")[0]);
+        }
+    }
+
+    if (regraParcelas === null && Array.isArray(roteiro.excecoes)) {
+        const demais = roteiro.excecoes.find((e) => e.nome.toLowerCase().includes("demais bancos"));
+        if (demais && demais.regra) {
+            regraParcelas = Number(demais.regra.split(" ")[0]);
+        }
+    }
+
+    if (regraParcelas === null) {
+        regraParcelas = Number(roteiro.regraGeral?.split(" ")[0] || 0);
+    }
+
+    if (parcelasPagas < regraParcelas) {
+        return {
+            valido: false,
+            motivo: `Parcelas abaixo do mínimo (${regraParcelas}) - banco: ${contrato.banco?.nome || "N/A"} (código ${contrato.banco?.codigo || "N/A"})`,
+        };
+    }
+
+    if (Array.isArray(roteiro.naoPorta) && roteiro.naoPorta.some((b) => String(b.codigo) === String(contrato.banco?.codigo))) {
+        return { valido: false, motivo: `Banco não permitido (${contrato.banco?.nome || "N/A"})` };
+    }
+
+    return { valido: true, motivo: null };
+}
+
+// Função para calcular contrato (baseada no calculo (1).js)
+function calcularParaContrato(contrato, diaAverbacao = "15") {
+    if (!contrato || (contrato.situacao && contrato.situacao.toLowerCase() !== "ativo")) {
+        return { contrato: contrato?.contrato, motivo: "Contrato não ativo", banco: contrato?.banco };
+    }
+
+    const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+    const totalParcelas = Number.isFinite(+contrato.prazo_total) ? +contrato.prazo_total : 0;
+    const prazoRestante = Number.isFinite(+contrato.prazo_restante) ? +contrato.prazo_restante : totalParcelas;
+
+    // Reforço da validação: bloqueia definitivamente contratos com parcela original < 25 (exceto espécie 32)
+    if (parcelaOriginal < 25 && contrato.especie !== "32") {
+        return {
+            contrato: contrato.contrato,
+            motivo: `Parcela (${formatBRNumber(parcelaOriginal)}) abaixo da mínima (25,00)`,
+            parcela: formatBRNumber(parcelaOriginal),
+            saldo_devedor: formatBRNumber(parseFloat(contrato.saldo_devedor || 0)),
+            prazo_total: totalParcelas,
+            parcelas_pagas: Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0,
+            banco: contrato.banco,
+        };
+    }
+
+    const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
+    let taxaAtualMes = parseFloat(contrato.taxa_juros_mensal || 0);
+
+    if (!(taxaAtualMes > 0)) {
+        const estimada = estimarTaxaPorValorPago(contrato.valor_liberado, totalParcelas, parcelaOriginal);
+        if (estimada > 0) {
+            taxaAtualMes = estimada;
+        } else {
+            return {
+                contrato: contrato.contrato,
+                motivo: "Falha ao calcular taxa",
+                parcela: formatBRNumber(parcelaOriginal),
+                saldo_devedor: formatBRNumber(saldoDevedor),
+                prazo_total: totalParcelas,
+                parcelas_pagas: Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0,
+                banco: contrato.banco,
+            };
+        }
+    }
+
+    // Bancos de simulação
+    const bancosParaSimular = bancosPermitidosPorEspecie(contrato.especie);
+    let escolhido = null;
+
+    // Armazena apenas a última taxa por banco
+    const motivosBloqueio = {};
+
+    for (const banco of bancosParaSimular) {
+        const aplicacao = aplicarRoteiro({ ...contrato, saldo_devedor: saldoDevedor }, banco);
+
+        if (!aplicacao.valido) {
+            motivosBloqueio[banco] = aplicacao.motivo;
+            continue;
+        }
+
+        const roteiro = RoteiroBancos[banco];
+        const taxasPermitidas = roteiro?.taxas || [];
+        for (const tx of taxasPermitidas) {
+            const coefNovo = getCoeficiente(tx, diaAverbacao);
+            if (!coefNovo) continue;
+
+            const valorEmprestimo = parcelaOriginal / coefNovo;
+            const troco = valorEmprestimo - saldoDevedor;
+
+            if (Number.isFinite(troco) && troco >= TROCO_MINIMO) {
+                escolhido = {
+                    bancoNovo: banco,
+                    taxaSelecionada: tx,
+                    coeficiente_usado: coefNovo,
+                    saldoDevedor,
+                    valorEmprestimo,
+                    troco,
+                };
+                break; // banco válido encontrado
+            } else {
+                // Sobrescreve apenas a última taxa testada para esse banco
+                motivosBloqueio[banco] = `Troco (${formatBRNumber(troco)}) TX ${tx}`;
+            }
+        }
+        if (escolhido) break;
+    }
+
+    // Contrato não elegível
+    if (!escolhido) {
+        const todosMotivos = Object.entries(motivosBloqueio)
+            .map(([banco, motivo]) => `${banco}: ${motivo}`)
+            .join(" | ");
+        return {
+            contrato: contrato.contrato,
+            motivo: `Nenhum banco/taxa elegível - motivos: ${todosMotivos}`,
+            parcela: formatBRNumber(parcelaOriginal),
+            saldo_devedor: formatBRNumber(saldoDevedor),
+            prazo_total: totalParcelas,
+            parcelas_pagas: Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0,
+            banco: contrato.banco,
+        };
+    }
+
+    return {
+        banco: contrato.banco,
+        bancoNovo: escolhido.bancoNovo,
+        contrato: contrato.contrato,
+        parcela_original: formatBRNumber(parcelaOriginal),
+        parcela: formatBRNumber(parcelaOriginal),
+        prazo_total: totalParcelas,
+        parcelas_pagas: Number.isFinite(+contrato.parcelas_pagas) ? +contrato.parcelas_pagas : 0,
+        prazo_restante: prazoRestante,
+        prazo_simulado: PRAZO_SIMULADO,
+        taxa_atual: formatBRNumber(taxaAtualMes),
+        taxa_atual_anual: formatBRNumber((Math.pow(1 + taxaAtualMes / 100, 12) - 1) * 100),
+        status_taxa: contrato.status_taxa || "RECALCULADA_VALOR_PAGO",
+        taxa_calculada: formatBRNumber(escolhido.taxaSelecionada),
+        coeficiente_usado: escolhido.coeficiente_usado,
+        saldo_devedor: formatBRNumber(escolhido.saldoDevedor),
+        valor_emprestimo: formatBRNumber(escolhido.valorEmprestimo),
+        troco: formatBRNumber(escolhido.troco),
+        data_contrato: contrato.data_contrato || contrato.data_inclusao || null,
+        motivo: null,
+    };
+}
+
 // Função para obter taxas do banco
 function obterTaxasDoBanco(bancoNome) {
-    // Buscar taxas do roteiro real
-    const roteiroTaxas = {
-        'BRB': [1.85, 1.79],
-        'DAYCOVAL': [1.85, 1.79, 1.66],
-        'INBURSA': [1.85, 1.79, 1.66],
-        'FINTECH': [1.85, 1.79, 1.66],
-        'DIGIO': [1.85, 1.79, 1.66],
-        'FACTA': [1.85, 1.79, 1.66],
-        'FINANTO': [1.85, 1.79, 1.66],
-        'C6': [1.85, 1.79, 1.66],
-        'PICPAY': [1.85, 1.79, 1.66],
-        'QI SOCIEDADE': [1.85, 1.79, 1.66],
-        'ITAU': [1.85, 1.79, 1.66]
-    };
-    
-    return roteiroTaxas[bancoNome.toUpperCase()] || [1.85];
+    const roteiro = RoteiroBancos[bancoNome.toUpperCase()];
+    if (roteiro && roteiro.taxas) {
+        return roteiro.taxas;
+    }
+    return [1.85]; // Taxa padrão
 }
 
 // Função para calcular troco para uma taxa específica
@@ -1247,14 +1394,9 @@ function calcularTrocoParaTaxa(contrato, taxa) {
     const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
     const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
     
-    // Usar coeficientes corretos baseados na taxa
-    const coeficientes = {
-        1.66: 0.021434,
-        1.79: 0.022488,
-        1.85: 0.022974
-    };
+    const coeficiente = getCoeficiente(taxa);
+    if (!coeficiente) return formatBRNumber(0);
     
-    const coeficiente = coeficientes[taxa] || 0.022974;
     const valorEmprestimo = parcelaOriginal / coeficiente;
     const troco = valorEmprestimo - saldoDevedor;
     
@@ -1273,17 +1415,12 @@ function selecionarTaxa(contratoId, taxa) {
         const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
         const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
         
-        const coeficientes = {
-            1.66: 0.021434,
-            1.79: 0.022488,
-            1.85: 0.022974
-        };
-        
-        const coeficiente = coeficientes[taxa] || 0.022974;
-        const valorEmprestimo = parcelaOriginal / coeficiente;
-        const novoTroco = valorEmprestimo - saldoDevedor;
-        
-        contrato.simulacao.troco = Math.max(0, novoTroco);
+        const coeficiente = getCoeficiente(taxa);
+        if (coeficiente) {
+            const valorEmprestimo = parcelaOriginal / coeficiente;
+            const novoTroco = valorEmprestimo - saldoDevedor;
+            contrato.simulacao.troco = Math.max(0, novoTroco);
+        }
     }
     
     // Remover lista de taxas
@@ -1297,6 +1434,74 @@ function selecionarTaxa(contratoId, taxa) {
     salvarDadosEditados(contratoId);
     
     alert(`✅ Taxa ${taxa}% selecionada e salva!`);
+}
+
+// Função para simular todos os contratos automaticamente
+function simularTodosContratos() {
+    console.log('🔄 Simulando todos os contratos automaticamente...');
+    
+    contratos.forEach(contrato => {
+        if (!contrato.simulacao) {
+            try {
+                // Simular automaticamente taxa e saldo se estiverem em branco
+                if (!contrato.taxa_juros_mensal || contrato.taxa_juros_mensal === 0) {
+                    contrato.taxa_juros_mensal = 1.85; // Taxa padrão
+                }
+                if (!contrato.saldo_devedor || contrato.saldo_devedor === 0) {
+                    contrato.saldo_devedor = calcularSaldoDevedor(contrato);
+                }
+
+                // Usar a nova lógica local baseada no calculo (1).js
+                const resultado = calcularParaContrato(contrato, "15");
+                
+                if (resultado.motivo) {
+                    // Contrato rejeitado
+                    contrato.simulacao = {
+                        aprovado: false,
+                        motivo: resultado.motivo,
+                        banco: resultado.banco?.nome || 'Nenhum',
+                        troco: 0,
+                        taxa: contrato.taxa_juros_mensal
+                    };
+                    contrato.troco = 0;
+                    contrato.aprovado = false;
+                } else {
+                    // Contrato aprovado
+                    contrato.simulacao = {
+                        aprovado: true,
+                        banco: resultado.bancoNovo,
+                        troco: parseFloat(resultado.troco.replace(',', '.')),
+                        taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
+                        parcela: parseFloat(resultado.parcela.replace(',', '.')),
+                        parcelasPagas: resultado.parcelas_pagas,
+                        valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
+                        coeficiente: resultado.coeficiente_usado
+                    };
+                    contrato.troco = contrato.simulacao.troco;
+                    contrato.aprovado = true;
+                }
+                
+                console.log(`✅ Contrato ${contrato.contrato} simulado:`, contrato.simulacao.aprovado ? 'APROVADO' : 'REJEITADO');
+                
+            } catch (error) {
+                console.error(`❌ Erro ao simular contrato ${contrato.contrato}:`, error);
+                contrato.simulacao = {
+                    aprovado: false,
+                    motivo: 'Erro na simulação: ' + error.message,
+                    banco: 'Nenhum',
+                    troco: 0,
+                    taxa: contrato.taxa_juros_mensal
+                };
+                contrato.troco = 0;
+                contrato.aprovado = false;
+            }
+        }
+    });
+    
+    // Salvar dados após simular todos
+    salvarDadosEditados();
+    
+    console.log('✅ Todos os contratos foram simulados automaticamente');
 }
 
 // Inicialização
