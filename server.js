@@ -393,53 +393,14 @@ const CONTADORES_TEMPO_REAL_FILE = `${PERSISTENT_DIRS.cache}/contadores-tempo-re
 // Atualizar contadores em tempo real
 async function atualizarContadoresTempoReal(tipo, incremento = 1) {
   try {
-    let contadores = {
-      timestamp: new Date().toISOString(),
-      totalCPFs: 0,
-      processados: 0,
-      sucessos: 0,
-      pendentes: 0,
-      naoAutorizados: 0,
-      descartados: 0,
-      agendados: 0,
-      processando: true,
-      ultimaAtualizacao: new Date().toISOString()
-    };
-
-    // Carregar contadores existentes se o arquivo existir
-    if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
-      try {
-        const data = JSON.parse(await fsp.readFile(CONTADORES_TEMPO_REAL_FILE, 'utf-8'));
-        contadores = { ...contadores, ...data };
-      } catch (error) {
-        console.log('⚠️ Erro ao carregar contadores existentes, criando novos');
-      }
-    }
-
-    // Atualizar contador específico
-    switch (tipo) {
-      case 'processado':
-        contadores.processados += incremento;
-        break;
-      case 'sucesso':
-        contadores.sucessos += incremento;
-        break;
-      case 'pendente':
-        contadores.pendentes += incremento;
-        break;
-      case 'naoAutorizado':
-        contadores.naoAutorizados += incremento;
-        break;
-      case 'descartado':
-        contadores.descartados += incremento;
-        break;
-      case 'agendado':
-        contadores.agendados += incremento;
-        break;
-    }
-
-    // Atualizar timestamp
+    // Usar sistema de status em vez do sistema antigo
+    const contadores = await calcularContadoresPorStatus();
+    
+    // Adicionar campos extras para compatibilidade
+    contadores.timestamp = new Date().toISOString();
+    contadores.processando = true;
     contadores.ultimaAtualizacao = new Date().toISOString();
+    contadores.agendados = 0; // Por enquanto, não temos agendados no sistema de status
 
     // Fazer backup antes de salvar
     if (fs.existsSync(CONTADORES_TEMPO_REAL_FILE)) {
@@ -509,28 +470,18 @@ async function carregarContadoresTempoReal() {
 // Inicializar contadores com dados da lista completa
 async function inicializarContadoresTempoReal() {
   try {
-    const cpfsAnexados = await carregarCPFsAnexados();
+    // Usar sistema de status em vez do sistema antigo
+    const contadores = await calcularContadoresPorStatus();
     
-    if (cpfsAnexados && cpfsAnexados.totalCPFs > 0) {
-      // Calcular contadores reais baseados nos dados existentes
-      const listas = await carregarListas();
-      const pendentes = await carregarPendentes();
-      
-      const contadores = {
-        timestamp: new Date().toISOString(),
-        totalCPFs: cpfsAnexados.totalCPFs,
-        processados: (listas?.sucessos?.length || 0) + (listas?.naoAutorizados?.length || 0) + (listas?.descartados?.length || 0),
-        sucessos: listas?.sucessos?.length || 0,
-        pendentes: pendentes?.length || 0, // Apenas CPFs realmente pendentes
-        naoAutorizados: listas?.naoAutorizados?.length || 0,
-        descartados: listas?.descartados?.length || 0,
-        agendados: listas?.agendados?.length || 0,
-        processando: true,
-        ultimaAtualizacao: new Date().toISOString()
-      };
+    if (contadores.totalCPFs > 0) {
+      // Adicionar campos extras para compatibilidade
+      contadores.timestamp = new Date().toISOString();
+      contadores.processando = true;
+      contadores.ultimaAtualizacao = new Date().toISOString();
+      contadores.agendados = 0; // Por enquanto, não temos agendados no sistema de status
 
       await fsp.writeFile(CONTADORES_TEMPO_REAL_FILE, JSON.stringify(contadores, null, 2));
-      console.log(`📊 Contadores inicializados corretamente: ${contadores.processados}/${contadores.totalCPFs} processados, ${contadores.pendentes} pendentes`);
+      console.log(`📊 Contadores inicializados com sistema de status: ${contadores.processados}/${contadores.totalCPFs} processados, ${contadores.pendentes} pendentes`);
       
       return contadores;
     }

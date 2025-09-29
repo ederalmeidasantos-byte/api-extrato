@@ -1422,7 +1422,8 @@ const logs = document.getElementById('logs');
         // Função para carregar contadores em tempo real
         async function carregarContadoresTempoReal() {
             try {
-                const response = await fetch('/fgts/contadores-tempo-real');
+                // Usar sistema de status em vez do sistema antigo
+                const response = await fetch('/fgts/contadores-status');
                 const data = await response.json();
                 
                 if (data.success && data.contadores) {
@@ -1437,11 +1438,16 @@ const logs = document.getElementById('logs');
                     document.getElementById('countNoAuth').textContent = contadores.naoAutorizados;
                     document.getElementById('countDescartados').textContent = contadores.descartados;
                     
+                    // Atualizar contadores principais
+                    processedCPFs.textContent = contadores.processados;
+                    successCPFs.textContent = contadores.sucessos;
+                    pendingCPFs.textContent = contadores.pendentes;
+                    
                     // Atualizar progresso
                     const pct = contadores.totalCPFs > 0 ? Math.round((contadores.processados/contadores.totalCPFs)*100) : 0;
                     setProgress(pct, contadores.processados, contadores.totalCPFs);
                     
-                    console.log('📊 Contadores carregados:', contadores);
+                    console.log('📊 Contadores carregados do status:', contadores);
                     adicionarLog(`📊 Contadores carregados: ${contadores.processados}/${contadores.totalCPFs} processados`, 'info');
                 }
             } catch (error) {
@@ -1452,37 +1458,44 @@ const logs = document.getElementById('logs');
         // Função para carregar listas do cache
         async function carregarListasDoCache() {
             try {
-                const response = await fetch('/fgts/listas');
+                // Usar o mesmo sistema do status-page
+                const response = await fetch('/fgts/contadores-status');
                 const data = await response.json();
                 
                 if (data.success) {
-                    const listas = data.listas;
+                    const contadores = data.contadores;
                     
-                    // Carregar sucessos
-                    listas.sucessos.forEach(item => {
-                        adicionarResultado({
-                            cpf: item.cpf,
-                            id: item.id,
-                            linha: item.linha,
-                            valor: item.valor,
-                            provider: item.provider,
-                            status: 'success',
-                            statusDetalhado: item.statusDetalhado
-                        }, true);
-                    });
+                    // Atualizar contadores baseados no status real
+                    totalCPFs.textContent = contadores.totalCPFs;
+                    processedCPFs.textContent = contadores.processados;
+                    successCPFs.textContent = contadores.sucessos;
+                    pendingCPFs.textContent = contadores.pendentes;
+                    countSuccess.textContent = contadores.sucessos;
+                    countPending.textContent = contadores.pendentes;
+                    countNoAuth.textContent = contadores.naoAutorizados;
+                    countDiscarded.textContent = contadores.descartados;
                     
-                    // Definir contadores corretos após carregar
-                    countSuccess.textContent = listas.sucessos.length;
-                    countPending.textContent = listas.pendentes.length;
-                    countNoAuth.textContent = listas.naoAutorizados.length;
-                    countDiscarded.textContent = listas.descartados.length;
+                    console.log('📊 Contadores carregados do status:', contadores);
                     
-                    // Atualizar contadores gerais
-                    const totalProcessed = listas.sucessos.length + listas.pendentes.length + 
-                                         listas.naoAutorizados.length + listas.descartados.length;
-                    processedCPFs.textContent = totalProcessed;
-                    successCPFs.textContent = listas.sucessos.length;
-                    pendingCPFs.textContent = listas.pendentes.length;
+                    // Carregar dados das tabelas do cache antigo para exibição
+                    const responseListas = await fetch('/fgts/listas');
+                    const dataListas = await responseListas.json();
+                    
+                    if (dataListas.success) {
+                        const listas = dataListas.listas;
+                        
+                        // Carregar sucessos
+                        listas.sucessos.forEach(item => {
+                            adicionarResultado({
+                                cpf: item.cpf,
+                                id: item.id,
+                                linha: item.linha,
+                                valor: item.valor,
+                                provider: item.provider,
+                                status: 'success',
+                                statusDetalhado: item.statusDetalhado
+                            }, true);
+                        });
                     
                     // Carregar pendentes
                     listas.pendentes.forEach(item => {
