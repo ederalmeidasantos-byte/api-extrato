@@ -178,7 +178,7 @@ function calcularSaldoDevedor(contrato) {
     // Usar cálculo correto baseado no calculo (1).js
     const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
     const prazoRestante = calcularPrazoRestante(contrato.prazo_total || 0, contrato.parcelas_pagas || 0);
-    let taxaAtualMes = parseFloat(contrato.taxa_juros_mensal || 0);
+    let taxaAtualMes = toNumber(contrato.taxa_juros_mensal || 0);
     
     // Se não tem taxa, estimar pelo valor pago
     if (!(taxaAtualMes > 0) && contrato.valor_liberado && contrato.prazo_total) {
@@ -308,7 +308,7 @@ function carregarSimulacaoPorId(extratoId) {
                     contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
                 }
                 if (!contrato.taxa_juros_mensal) {
-                    contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+                    contrato.taxa_juros_mensal = toNumber(contrato.taxa_juros_mensal || 0);
                 }
             });
             
@@ -989,7 +989,7 @@ function carregarDados() {
                     contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
                 }
                 if (!contrato.taxa_juros_mensal) {
-                    contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+                    contrato.taxa_juros_mensal = toNumber(contrato.taxa_juros_mensal || 0);
                 }
             });
             
@@ -1193,7 +1193,7 @@ function carregarDadosTeste() {
         
         // Converter valores para números e processar dados
         contrato.valor_parcela = parseFloat(contrato.valor_parcela || 0);
-        contrato.taxa_juros_mensal = parseFloat(contrato.taxa_juros_mensal || 0);
+        contrato.taxa_juros_mensal = toNumber(contrato.taxa_juros_mensal || 0);
         contrato.valor_liberado = parseFloat(contrato.valor_liberado || 0);
         contrato.valor_pago = parseFloat(contrato.valor_pago || 0);
         
@@ -1756,7 +1756,7 @@ function calcularParaContrato(contrato, diaAverbacao = "15") {
     }
 
     const saldoDevedor = calcularSaldoDevedor(contrato); // Sempre usar cálculo correto
-    let taxaAtualMes = parseFloat(contrato.taxa_juros_mensal || 0);
+    let taxaAtualMes = toNumber(contrato.taxa_juros_mensal || 0);
 
     console.log(`💰 Cálculo do saldo devedor para contrato ${contrato.contrato}:`);
     console.log(`   Parcela: ${contrato.valor_parcela}`);
