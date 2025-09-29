@@ -168,6 +168,9 @@ app.post("/extrairpdf", upload.single('pdf'), async (req, res) => {
 // ====== Calcular troco ======
 app.post("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
+// ====== Arquivos estáticos ======
+app.use("/static", express.static(path.join(__dirname, "projeto-render", "frontend")));
+
 // ====== Simulador ======
 app.get("/simulador", (req, res) => {
   const simuladorPath = path.join(__dirname, "projeto-render", "frontend", "simulador.html");
