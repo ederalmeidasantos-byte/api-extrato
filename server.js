@@ -223,34 +223,59 @@ async function continuarProcessamento() {
   try {
     console.log('🔍 ===== VERIFICANDO PROCESSAMENTO PENDENTE =====');
     
+    // Emitir log para frontend
+    if (ioInstance) {
+      ioInstance.emit("log", "🔍 Verificando processamento pendente...");
+    }
+    
     const estado = await verificarProcessamentoPendente();
     
     if (estado) {
       console.log(`🚀 Continuando processamento de onde parou...`);
       console.log(`📊 Estado encontrado: ${estado.processados}/${estado.total} processados`);
       
+      // Emitir log para frontend
+      if (ioInstance) {
+        ioInstance.emit("log", `🚀 Continuando processamento: ${estado.processados}/${estado.total} processados`);
+      }
+      
       // Se há CPFs para reprocessar, iniciar reprocessamento
       if (estado.reprocessar?.length > 0) {
         console.log(`🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
+        if (ioInstance) {
+          ioInstance.emit("log", `🔄 Iniciando reprocessamento de ${estado.reprocessar.length} CPFs`);
+        }
         await processarCPFs(null, estado.reprocessar);
       }
       
       // Se há CPFs pendentes, continuar processamento normal
       if (estado.pendentes?.length > 0) {
         console.log(`⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
+        if (ioInstance) {
+          ioInstance.emit("log", `⏳ Continuando processamento de ${estado.pendentes.length} CPFs pendentes`);
+        }
         
         // Iniciar processamento automático dos pendentes
         setTimeout(async () => {
           try {
             console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+            if (ioInstance) {
+              ioInstance.emit("log", `🚀 Iniciando processamento automático dos CPFs pendentes...`);
+            }
             await processarCPFs(null, estado.pendentes);
           } catch (error) {
             console.error('❌ Erro ao processar CPFs pendentes:', error);
+            if (ioInstance) {
+              ioInstance.emit("log", `❌ Erro ao processar CPFs pendentes: ${error.message}`);
+            }
           }
         }, 5000); // Aguardar 5 segundos para o sistema estabilizar
       }
     } else {
       console.log('📂 Nenhum estado completo encontrado, verificando cache-persistente...');
+      if (ioInstance) {
+        ioInstance.emit("log", "📂 Nenhum estado completo encontrado, verificando cache-persistente...");
+      }
       
       // Verificar se há CPFs pendentes no cache-persistente.js
       const pendentes = await carregarPendentes();
@@ -263,9 +288,25 @@ async function continuarProcessamento() {
       console.log(`   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
       console.log(`   - Agendados: ${listas.agendados?.length || 0}`);
       
+      // Emitir logs detalhados para frontend
+      if (ioInstance) {
+        ioInstance.emit("log", `📋 Cache carregado:`);
+        ioInstance.emit("log", `   - Pendentes: ${pendentes?.length || 0}`);
+        ioInstance.emit("log", `   - Sucessos: ${listas.sucessos?.length || 0}`);
+        ioInstance.emit("log", `   - Erros: ${listas.erros?.length || 0}`);
+        ioInstance.emit("log", `   - Não Autorizados: ${listas.naoAutorizados?.length || 0}`);
+        ioInstance.emit("log", `   - Agendados: ${listas.agendados?.length || 0}`);
+      }
+      
       if (pendentes && pendentes.length > 0) {
         console.log(`📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
         console.log(`🚀 Iniciando processamento automático dos CPFs pendentes...`);
+        
+        // Emitir logs para frontend
+        if (ioInstance) {
+          ioInstance.emit("log", `📋 CPFs pendentes encontrados no cache: ${pendentes.length}`);
+          ioInstance.emit("log", `🚀 Iniciando processamento automático dos CPFs pendentes...`);
+        }
         
         // Emitir total de CPFs para o frontend
         if (ioInstance) {
@@ -276,20 +317,35 @@ async function continuarProcessamento() {
         setTimeout(async () => {
           try {
             console.log(`🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
+            if (ioInstance) {
+              ioInstance.emit("log", `🚀 Processando ${pendentes.length} CPFs pendentes do cache...`);
+            }
             await processarCPFs(null, pendentes);
           } catch (error) {
             console.error('❌ Erro ao processar CPFs pendentes do cache:', error);
+            if (ioInstance) {
+              ioInstance.emit("log", `❌ Erro ao processar CPFs pendentes do cache: ${error.message}`);
+            }
           }
         }, 5000); // Aguardar 5 segundos para o sistema estabilizar
       } else {
         console.log('✅ Nenhum CPF pendente encontrado - sistema limpo');
+        if (ioInstance) {
+          ioInstance.emit("log", "✅ Nenhum CPF pendente encontrado - sistema limpo");
+        }
       }
     }
     
     console.log('✅ ===== VERIFICAÇÃO DE PROCESSAMENTO CONCLUÍDA =====');
+    if (ioInstance) {
+      ioInstance.emit("log", "✅ Verificação de processamento concluída");
+    }
     
   } catch (error) {
     console.error('❌ Erro ao continuar processamento:', error);
+    if (ioInstance) {
+      ioInstance.emit("log", `❌ Erro ao continuar processamento: ${error.message}`);
+    }
   }
 }
 

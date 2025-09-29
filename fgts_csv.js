@@ -702,6 +702,7 @@ async function enviarParaFila(cpf, provider) {
       } else if (erroCompleto.status === 400) {
         // Erro 400 - CPF inválido ou problema com dados
         console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - marcando como erro`);
+        console.log(`${LOG_PREFIX()} 📋 Detalhes do erro 400:`, erroCompleto);
         return "erro400";
       } else {
         // Outros erros - tentar novamente
@@ -1099,6 +1100,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
         } else if (enviado === "erro400") {
           // CPF com erro 400 - marcar como erro e pular para próximo
           console.log(`${LOG_PREFIX()} ⚠️ CPF ${cpf} com erro 400 - pulando para próximo`);
+          console.log(`${LOG_PREFIX()} 📋 CPF ${cpf} será marcado como erro permanente`);
           return "erro400";
         }
       }
