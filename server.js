@@ -1587,6 +1587,45 @@ app.get('/fgts/debug-cpf/:cpf', async (req, res) => {
   }
 });
 
+// API para forçar atualização de status de um CPF
+app.post('/fgts/debug-atualizar-status/:cpf', async (req, res) => {
+  try {
+    const { cpf } = req.params;
+    const { status, dados } = req.body;
+    
+    console.log(`🔧 DEBUG: Forçando atualização de status para CPF ${cpf}:`, { status, dados });
+    
+    const resultado = await atualizarStatusCPF(cpf, status || 'SUCESSO', {
+      tabulador: 'SUCESSO',
+      id: 'debug',
+      valor: 1000.00,
+      provider: 'debug',
+      ...dados
+    });
+    
+    console.log(`🔧 DEBUG: Resultado da atualização:`, resultado);
+    
+    // Verificar se foi salvo
+    const statusData = await carregarStatusCPFs();
+    const statusAtualizado = statusData?.cpfs?.[cpf];
+    
+    res.json({
+      success: true,
+      debug: {
+        cpf,
+        statusSolicitado: status || 'SUCESSO',
+        resultadoAtualizacao: resultado,
+        statusAtualizado,
+        arquivoExiste: fs.existsSync(STATUS_CPFS_FILE),
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao forçar atualização de status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obter contadores baseados em status
 app.get('/fgts/contadores-status', async (req, res) => {
   try {
