@@ -1932,7 +1932,7 @@ function selecionarTaxa(contratoId, taxa) {
     if (contrato.simulacao) {
         contrato.simulacao.taxa = taxa;
         // Recalcular troco com coeficiente correto
-        const parcelaOriginal = parseFloat(contrato.valor_parcela || 0);
+        const parcelaOriginal = toNumber(contrato.valor_parcela || 0);
         const saldoDevedor = contrato.saldo_devedor || calcularSaldoDevedor(contrato);
         
         const coeficiente = getCoeficiente(taxa);
@@ -1940,6 +1940,7 @@ function selecionarTaxa(contratoId, taxa) {
             const valorEmprestimo = parcelaOriginal / coeficiente;
             const novoTroco = valorEmprestimo - saldoDevedor;
             contrato.simulacao.troco = Math.max(0, novoTroco);
+            contrato.troco = contrato.simulacao.troco; // Atualizar troco do contrato
         }
     }
     
@@ -1952,8 +1953,6 @@ function selecionarTaxa(contratoId, taxa) {
     // Re-renderizar contrato
     renderizarContratos();
     salvarDadosEditados(contratoId);
-    
-    alert(`✅ Taxa ${taxa}% selecionada e salva!`);
 }
 
 // Função para abrir upload de extrato
