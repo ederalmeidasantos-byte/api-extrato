@@ -732,64 +732,68 @@ function simularContrato(contratoId) {
         console.log('💰 Saldo devedor calculado:', contrato.saldo_devedor);
     }
 
-    // Simular loading
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="loading"></span> Simulando...';
-    btn.disabled = true;
+    // Simular loading - encontrar o botão pelo ID
+    const btn = document.querySelector(`button[onclick="simularContrato(${contratoId})"]`);
+    if (btn) {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="loading"></span> Simulando...';
+        btn.disabled = true;
 
-    try {
-        // Usar a nova lógica local baseada no calculo (1).js
-        const resultado = calcularParaContrato(contrato, "15");
-        
-        console.log('📊 Resultado da simulação local:', resultado);
-        
-        if (resultado.motivo) {
-            // Contrato rejeitado
-            contrato.simulacao = {
-                aprovado: false,
-                motivo: resultado.motivo,
-                banco: resultado.banco?.nome || 'Nenhum',
-                troco: 0,
-                taxa: contrato.taxa_juros_mensal
-            };
-            contrato.troco = 0;
-            contrato.aprovado = false;
+        try {
+            // Usar a nova lógica local baseada no calculo (1).js
+            const resultado = calcularParaContrato(contrato, "15");
             
-            console.log('❌ Contrato rejeitado:', resultado.motivo);
-        } else {
-            // Contrato aprovado
-            contrato.simulacao = {
-                aprovado: true,
-                banco: resultado.bancoNovo,
-                troco: parseFloat(resultado.troco.replace(',', '.')),
-                taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
-                parcela: parseFloat(resultado.parcela.replace(',', '.')),
-                parcelasPagas: resultado.parcelas_pagas,
-                valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
-                coeficiente: resultado.coeficiente_usado
-            };
-            contrato.troco = contrato.simulacao.troco;
-            contrato.aprovado = true;
+            console.log('📊 Resultado da simulação local:', resultado);
             
-            console.log('✅ Contrato aprovado:', {
-                banco: resultado.bancoNovo,
-                troco: contrato.simulacao.troco,
-                taxa: contrato.simulacao.taxa
-            });
+            if (resultado.motivo) {
+                // Contrato rejeitado
+                contrato.simulacao = {
+                    aprovado: false,
+                    motivo: resultado.motivo,
+                    banco: resultado.banco?.nome || 'Nenhum',
+                    troco: 0,
+                    taxa: contrato.taxa_juros_mensal
+                };
+                contrato.troco = 0;
+                contrato.aprovado = false;
+                
+                console.log('❌ Contrato rejeitado:', resultado.motivo);
+            } else {
+                // Contrato aprovado
+                contrato.simulacao = {
+                    aprovado: true,
+                    banco: resultado.bancoNovo,
+                    troco: parseFloat(resultado.troco.replace(',', '.')),
+                    taxa: parseFloat(resultado.taxa_calculada.replace(',', '.')),
+                    parcela: parseFloat(resultado.parcela.replace(',', '.')),
+                    parcelasPagas: resultado.parcelas_pagas,
+                    valorEmprestimo: parseFloat(resultado.valor_emprestimo.replace(',', '.')),
+                    coeficiente: resultado.coeficiente_usado
+                };
+                contrato.troco = contrato.simulacao.troco;
+                contrato.aprovado = true;
+                
+                console.log('✅ Contrato aprovado:', {
+                    banco: resultado.bancoNovo,
+                    troco: contrato.simulacao.troco,
+                    taxa: contrato.simulacao.taxa
+                });
+            }
+            
+            // Salvar dados com código do extrato
+            salvarDadosEditados(contratoId);
+            
+            renderizarContratos();
+            
+        } catch (error) {
+            console.error('❌ Erro na simulação local:', error);
+            alert('Erro na simulação: ' + error.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
-        
-        // Salvar dados com código do extrato
-        salvarDadosEditados(contratoId);
-        
-        renderizarContratos();
-        
-    } catch (error) {
-        console.error('❌ Erro na simulação local:', error);
-        alert('Erro na simulação: ' + error.message);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+    } else {
+        console.error('❌ Botão não encontrado para contrato:', contratoId);
     }
 }
 
