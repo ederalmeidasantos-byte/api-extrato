@@ -699,29 +699,62 @@ app.get('/fgts', (req, res) => {
 // Upload e processamento de CSV
 app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
   try {
+    console.log('🚀 ===== INICIANDO UPLOAD DE CSV =====');
+    console.log('📋 Request recebido:', {
+      hasFile: !!req.file,
+      fileName: req.file?.filename,
+      originalName: req.file?.originalname,
+      size: req.file?.size,
+      mimetype: req.file?.mimetype,
+      path: req.file?.path
+    });
+
     if (!req.file) {
+      console.log('❌ ERRO: Nenhum arquivo CSV enviado');
       return res.status(400).json({ error: "Nenhum arquivo CSV enviado" });
     }
 
     console.log('📄 Processando CSV:', req.file.filename);
+    console.log('📁 Caminho do arquivo:', req.file.path);
+    console.log('📊 Tamanho do arquivo:', req.file.size, 'bytes');
+    
+    // Verificar se o arquivo existe
+    if (!fs.existsSync(req.file.path)) {
+      console.log('❌ ERRO: Arquivo não existe no caminho:', req.file.path);
+      return res.status(500).json({ error: "Arquivo não encontrado" });
+    }
+    
+    console.log('✅ Arquivo existe no caminho:', req.file.path);
     
     // Ler CPFs do CSV
+    console.log('📖 Lendo conteúdo do CSV...');
     const csvContent = fs.readFileSync(req.file.path, 'utf-8');
+    console.log('✅ Conteúdo lido, tamanho:', csvContent.length, 'caracteres');
+    
     const { parse } = await import('csv-parse/sync');
+    console.log('📊 Parseando CSV...');
     const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
     
-    console.log(`📊 Total de registros no CSV: ${registros.length}`);
+    console.log(`📊 Total de registros parseados: ${registros.length}`);
+    console.log('📋 Primeiros 3 registros:', registros.slice(0, 3));
     
     // Salvar lista completa no cache
+    console.log('💾 Salvando lista completa no cache...');
     const cacheData = await salvarCPFsAnexados(registros, {
       fileName: req.file.filename,
       uploadTime: new Date().toISOString(),
       totalRegistros: registros.length
     });
     
-    console.log(`💾 Lista de ${registros.length} CPFs salva no cache persistente`);
+    console.log(`✅ Lista de ${registros.length} CPFs salva no cache persistente`);
+    console.log('📄 Dados salvos:', {
+      totalCPFs: cacheData.totalCPFs,
+      fileName: cacheData.metadata.fileName,
+      uploadTime: cacheData.metadata.uploadTime
+    });
     
     // Criar estado inicial completo
+    console.log('📊 Criando estado inicial...');
     const estadoInicial = {
       processando: true,
       iniciadoEm: new Date().toISOString(),
@@ -742,11 +775,22 @@ app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
       ultimaAtualizacao: new Date().toISOString()
     };
     
+    console.log('✅ Estado inicial criado:', {
+      total: estadoInicial.total,
+      processados: estadoInicial.processados,
+      sucessos: estadoInicial.sucessos
+    });
+    
     // Salvar estado inicial
+    console.log('💾 Salvando estado inicial...');
     await salvarEstadoFGTS(estadoInicial);
+    console.log('✅ Estado inicial salvo');
     
     // Processar CPFs
+    console.log('🚀 Iniciando processamento de CPFs...');
     await processarCPFs(req.file.path);
+    
+    console.log('✅ ===== UPLOAD CONCLUÍDO COM SUCESSO =====');
     
     res.json({ 
       success: true, 
@@ -756,7 +800,17 @@ app.post('/fgts/run', uploadCSV.single('csvfile'), async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erro no processamento:', error);
+    console.error('❌ ===== ERRO NO UPLOAD DE CSV =====');
+    console.error('❌ Erro:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Request:', {
+      hasFile: !!req.file,
+      fileName: req.file?.filename,
+      originalName: req.file?.originalname,
+      size: req.file?.size,
+      mimetype: req.file?.mimetype,
+      path: req.file?.path
+    });
     res.status(500).json({ error: error.message });
   }
 });
