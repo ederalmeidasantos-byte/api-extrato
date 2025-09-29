@@ -406,6 +406,9 @@ const io = new Server(server, {
   }
 });
 
+// Definir instância global do Socket.IO
+let ioInstance = io;
+
 // ====== MIDDLEWARE ======
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -1367,44 +1370,55 @@ app.post('/fgts/atualizar-contadores', async (req, res) => {
     
     const contadores = await carregarContadoresTempoReal();
     
-    if (contadores && ioInstance) {
-      // Emitir contadores via Socket.IO
-      ioInstance.emit("contadoresTempoReal", contadores);
-      ioInstance.emit("progress", {
-        done: contadores.processados,
-        total: contadores.totalCPFs,
-        pendentes: contadores.pendentes,
-        counters: {
-          success: contadores.sucessos,
-          pending: contadores.pendentes,
-          no_auth: contadores.naoAutorizados,
-          descartados: contadores.descartados
-        }
-      });
+    if (contadores) {
+      console.log(`📊 Contadores encontrados: ${contadores.processados}/${contadores.totalCPFs}`);
       
-      // Emitir contadores individuais
-      ioInstance.emit("contadorSucesso", contadores.sucessos);
-      ioInstance.emit("contadorPending", contadores.pendentes);
-      ioInstance.emit("contadorNaoAutorizado", contadores.naoAutorizados);
-      ioInstance.emit("contadorDescartados", contadores.descartados);
-      
-      console.log(`📡 Contadores emitidos: ${contadores.processados}/${contadores.totalCPFs}`);
+      // Emitir contadores via Socket.IO se disponível
+      if (ioInstance) {
+        // Emitir contadores via Socket.IO
+        ioInstance.emit("contadoresTempoReal", contadores);
+        ioInstance.emit("progress", {
+          done: contadores.processados,
+          total: contadores.totalCPFs,
+          pendentes: contadores.pendentes,
+          counters: {
+            success: contadores.sucessos,
+            pending: contadores.pendentes,
+            no_auth: contadores.naoAutorizados,
+            descartados: contadores.descartados
+          }
+        });
+        
+        // Emitir contadores individuais
+        ioInstance.emit("contadorSucesso", contadores.sucessos);
+        ioInstance.emit("contadorPending", contadores.pendentes);
+        ioInstance.emit("contadorNaoAutorizado", contadores.naoAutorizados);
+        ioInstance.emit("contadorDescartados", contadores.descartados);
+        
+        console.log(`📡 Contadores emitidos via Socket.IO: ${contadores.processados}/${contadores.totalCPFs}`);
+      } else {
+        console.log('⚠️ Socket.IO não disponível, apenas retornando dados');
+      }
       
       res.json({ 
         success: true, 
         message: "Contadores atualizados no frontend",
-        contadores: contadores
+        contadores: contadores,
+        socketEmitted: !!ioInstance
       });
     } else {
       res.json({
         success: false,
-        message: "Nenhum contador encontrado ou Socket.IO não disponível"
+        message: "Nenhum contador encontrado"
       });
     }
     
   } catch (error) {
     console.error('❌ Erro ao atualizar contadores:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
