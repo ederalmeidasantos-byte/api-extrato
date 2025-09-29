@@ -846,6 +846,72 @@ app.post('/fgts/limpar-lista-completa', async (req, res) => {
   }
 });
 
+// Limpar CPFs inválidos do cache
+app.post('/fgts/limpar-cpfs-invalidos', async (req, res) => {
+  try {
+    console.log('🧹 Iniciando limpeza de CPFs inválidos...');
+    
+    // Função para validar CPF
+    const isValidCPF = (cpf) => {
+      if (!cpf) return false;
+      const cleaned = cpf.toString().replace(/\D/g, "");
+      if (cleaned.length !== 11) return false;
+      if (cleaned === "00000000000" || cleaned === "11111111111" || cleaned === "22222222222" || 
+          cleaned === "33333333333" || cleaned === "44444444444" || cleaned === "55555555555" ||
+          cleaned === "66666666666" || cleaned === "77777777777" || cleaned === "88888888888" || 
+          cleaned === "99999999999") return false;
+      return true;
+    };
+    
+    let totalRemovidos = 0;
+    
+    // Limpar pendentes inválidos
+    const pendentes = await carregarPendentes();
+    if (pendentes && pendentes.length > 0) {
+      const pendentesValidos = pendentes.filter(p => isValidCPF(p.cpf));
+      const removidosPendentes = pendentes.length - pendentesValidos.length;
+      
+      if (removidosPendentes > 0) {
+        await salvarPendentes(pendentesValidos);
+        console.log(`🗑️ Removidos ${removidosPendentes} CPFs inválidos dos pendentes`);
+        totalRemovidos += removidosPendentes;
+      }
+    }
+    
+    // Limpar listas de resultados
+    const listas = await carregarListas();
+    const tiposLista = ['sucessos', 'pendentes', 'naoAutorizados', 'descartados', 'agendados'];
+    
+    for (const tipo of tiposLista) {
+      if (listas[tipo] && listas[tipo].length > 0) {
+        const listaValida = listas[tipo].filter(item => isValidCPF(item.cpf));
+        const removidos = listas[tipo].length - listaValida.length;
+        
+        if (removidos > 0) {
+          await limparLista(tipo);
+          for (const item of listaValida) {
+            await adicionarResultadoLista(tipo, item);
+          }
+          console.log(`🗑️ Removidos ${removidos} CPFs inválidos da lista ${tipo}`);
+          totalRemovidos += removidos;
+        }
+      }
+    }
+    
+    console.log(`✅ Limpeza concluída: ${totalRemovidos} CPFs inválidos removidos`);
+    
+    res.json({
+      success: true,
+      message: `Limpeza concluída: ${totalRemovidos} CPFs inválidos removidos`,
+      totalRemovidos
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar CPFs inválidos:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Verificar CPFs pendentes
 app.get('/fgts/pendentes', async (req, res) => {
   try {
@@ -1717,6 +1783,7 @@ server.listen(PORT, async () => {
   console.log(`   🚀 Processar Pendentes: POST http://localhost:${PORT}/fgts/processar-pendentes`);
   console.log(`   📋 Lista Completa: GET http://localhost:${PORT}/fgts/lista-completa`);
   console.log(`   🗑️ Limpar Lista: POST http://localhost:${PORT}/fgts/limpar-lista-completa`);
+  console.log(`   🧹 Limpar CPFs Inválidos: POST http://localhost:${PORT}/fgts/limpar-cpfs-invalidos`);
   console.log(`   📅 Agendamentos: GET http://localhost:${PORT}/fgts/agendamentos`);
   console.log(`   🧪 Testar Agendamento: POST http://localhost:${PORT}/fgts/testar-agendamento`);
   console.log(`   📊 Cache: GET http://localhost:${PORT}/fgts/cache/estatisticas`);
