@@ -1263,14 +1263,54 @@ const logs = document.getElementById('logs');
                 successCPFs.textContent = counters.success || 0;
                 pendingCPFs.textContent = counters.pending || 0;
             }
+            
+            // Habilitar botões se ainda não estiverem habilitados
+            if (total > 0 && !isProcessing) {
+                isProcessing = true;
+                btnPausar.disabled = false;
+                btnCancelar.disabled = false;
+            }
         });
 
         socket.on('totalCPFs', (total) => {
             totalCPFs.textContent = total;
+            
+            // Habilitar botões de controle quando processamento inicia
+            if (total > 0) {
+                isProcessing = true;
+                btnPausar.disabled = false;
+                btnCancelar.disabled = false;
+                adicionarLog(`📊 Processamento iniciado automaticamente com ${total} CPFs`, 'info');
+            }
         });
 
         socket.on('delayUpdate', (delay) => {
             delayInput.value = delay;
+        });
+
+        // Eventos para controle de processamento
+        socket.on('processamentoPausado', () => {
+            isPaused = true;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = false;
+            adicionarLog('⏸️ Processamento pausado pelo sistema', 'warning');
+        });
+
+        socket.on('processamentoRetomado', () => {
+            isPaused = false;
+            btnPausar.disabled = false;
+            btnRetomar.disabled = true;
+            adicionarLog('▶️ Processamento retomado pelo sistema', 'info');
+        });
+
+        socket.on('processamentoFinalizado', () => {
+            isProcessing = false;
+            isPaused = false;
+            btnProcessar.disabled = false;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = true;
+            btnCancelar.disabled = true;
+            adicionarLog('✅ Processamento finalizado', 'success');
         });
 
         // ===== FUNÇÕES DO MENU MOVIDAS PARA menu.js =====

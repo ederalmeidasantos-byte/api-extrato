@@ -1174,6 +1174,12 @@ app.post('/fgts/reprocessar', async (req, res) => {
 app.post('/fgts/pause', async (req, res) => {
   try {
     setPause(true);
+    
+    // Emitir evento para o frontend
+    if (ioInstance) {
+      ioInstance.emit('processamentoPausado');
+    }
+    
     res.json({ success: true, message: "Processamento pausado" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1184,6 +1190,12 @@ app.post('/fgts/pause', async (req, res) => {
 app.post('/fgts/resume', async (req, res) => {
   try {
     setPause(false);
+    
+    // Emitir evento para o frontend
+    if (ioInstance) {
+      ioInstance.emit('processamentoRetomado');
+    }
+    
     res.json({ success: true, message: "Processamento retomado" });
   } catch (error) {
     res.status(500).json({ error: error.message });

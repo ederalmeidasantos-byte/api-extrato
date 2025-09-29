@@ -1301,6 +1301,21 @@ Sucesso: ${contadorSucesso} | Pendentes: ${contadorPending} | Sem Autorização:
   // Salvar pendentes finais
   salvarPendentes(pendentes);
   
+  // Emitir evento de finalização
+  if (ioInstance) {
+    ioInstance.emit('processamentoFinalizado');
+  }
+  
+  // Atualizar estado final
+  await atualizarEstadoCompleto({
+    processando: false,
+    total: total,
+    processados: processed,
+    sucessos: contadorSucesso,
+    pendentes: pendentesParaReprocessar.length,
+    ultimaAtualizacao: new Date().toISOString()
+  });
+  
   } catch (error) {
     // Log detalhado do erro de sistema
     logSystemError('processarCPFs', error, {
