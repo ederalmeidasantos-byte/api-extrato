@@ -22,35 +22,30 @@ app.use((req, res, next) => {
     }
 });
 
-// Credenciais V8 (do .env)
-const CREDENCIAIS_V8 = [
-    {
-        id: 'crislunasdigital',
-        username: process.env.V8_USERNAME || 'crislunasdigital@gmail.com',
-        password: process.env.V8_PASSWORD || '7.O?v>coI>5E',
-        client_id: process.env.V8_CLIENT_ID || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
-    }
-];
+// Configurações V8 (fixas no servidor)
+const V8_CONFIG = {
+    client_id: process.env.V8_CLIENT_ID || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn',
+    audience: 'https://bff.v8sistema.com',
+    scope: 'offline_access',
+    auth_url: 'https://auth.v8sistema.com/oauth/token'
+};
 
-// Cache de tokens
+// Cache de tokens por usuário
 let tokenCache = new Map();
 
-// Função para gerar token
-async function gerarToken(credencialId) {
-    const credencial = CREDENCIAIS_V8.find(c => c.id === credencialId);
-    if (!credencial) {
-        throw new Error(`Credencial ${credencialId} não encontrada`);
-    }
-
+// Função para gerar token com credenciais do usuário
+async function gerarToken(username, password) {
     try {
-        const response = await axios.post('https://auth.v8sistema.com/oauth/token', 
+        console.log(`🔐 Gerando token para: ${username}`);
+        
+        const response = await axios.post(V8_CONFIG.auth_url, 
             qs.stringify({
                 grant_type: 'password',
-                username: credencial.username,
-                password: credencial.password,
-                audience: 'https://bff.v8sistema.com',
-                scope: 'offline_access',
-                client_id: credencial.client_id
+                username: username,
+                password: password,
+                audience: V8_CONFIG.audience,
+                scope: V8_CONFIG.scope,
+                client_id: V8_CONFIG.client_id
             }), {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -59,29 +54,32 @@ async function gerarToken(credencialId) {
         );
 
         const tokenData = response.data;
-        tokenCache.set(credencialId, {
+        const userKey = `${username}`;
+        
+        tokenCache.set(userKey, {
             token: tokenData.access_token,
             expires_at: Date.now() + (tokenData.expires_in * 1000),
-            credencial: credencialId
+            username: username
         });
 
+        console.log(`✅ Token gerado com sucesso para: ${username}`);
         return tokenData;
     } catch (error) {
-        console.error(`Erro ao gerar token para ${credencialId}:`, error.response?.data || error.message);
+        console.error(`❌ Erro ao gerar token para ${username}:`, error.response?.data || error.message);
         throw error;
     }
 }
 
-// Função para obter token válido
-async function obterTokenValido(credencialId) {
-    const cached = tokenCache.get(credencialId);
+// Função para obter token válido do cache
+function obterTokenValido(username) {
+    const userKey = `${username}`;
+    const cached = tokenCache.get(userKey);
     
     if (cached && cached.expires_at > Date.now() + 60000) { // 1 minuto de margem
         return cached.token;
     }
-
-    const tokenData = await gerarToken(credencialId);
-    return tokenData.access_token;
+    
+    return null; // Token não existe ou expirou
 }
 
 // Rotas
@@ -93,8 +91,8 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/health',
             status: '/status',
-            token: '/token',
-            renew: '/renew-token'
+            authenticate: '/authenticate',
+            token: '/token/:username'
         }
     });
 });
@@ -110,62 +108,88 @@ app.get('/status', (req, res) => {
         memory: process.memoryUsage(),
         cache: {
             size: tokenCache.size,
-            entries: Array.from(tokenCache.keys())
+            users: Array.from(tokenCache.keys())
         },
-        credentials: CREDENCIAIS_V8.map(c => ({
-            id: c.id,
-            username: c.username,
-            hasPassword: !!c.password,
-            hasClientId: !!c.client_id
-        }))
+        v8_config: {
+            client_id: V8_CONFIG.client_id,
+            audience: V8_CONFIG.audience,
+            scope: V8_CONFIG.scope
+        }
     };
     res.json(status);
 });
 
-app.get('/credentials', (req, res) => {
-    const credentials = CREDENCIAIS_V8.map(c => ({
-        id: c.id,
-        username: c.username,
-        hasPassword: !!c.password,
-        hasClientId: !!c.client_id
-    }));
-    res.json(credentials);
-});
-
-app.get('/token', async (req, res) => {
+// Rota principal: POST /authenticate - Recebe credenciais do usuário
+app.post('/authenticate', async (req, res) => {
     try {
-        const credencialId = 'crislunasdigital';
-        const token = await obterTokenValido(credencialId);
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Username e password são obrigatórios',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        // Gera token com as credenciais do usuário
+        const tokenData = await gerarToken(username, password);
         
         res.json({
             success: true,
-            access_token: token,
-            expires_in: 3600,
+            access_token: tokenData.access_token,
+            expires_in: tokenData.expires_in,
+            token_type: tokenData.token_type || 'Bearer',
+            username: username,
             timestamp: new Date().toISOString()
         });
+        
     } catch (error) {
-        res.status(500).json({
+        console.error('Erro na autenticação:', error.message);
+        
+        let errorMessage = 'Erro interno do servidor';
+        let statusCode = 500;
+        
+        if (error.response) {
+            statusCode = error.response.status;
+            if (statusCode === 401) {
+                errorMessage = 'Credenciais inválidas';
+            } else if (statusCode === 429) {
+                errorMessage = 'Muitas tentativas. Tente novamente em alguns minutos';
+            } else {
+                errorMessage = error.response.data?.error_description || error.response.data?.error || 'Erro na autenticação';
+            }
+        }
+        
+        res.status(statusCode).json({
             success: false,
-            error: error.message,
+            error: errorMessage,
             timestamp: new Date().toISOString()
         });
     }
 });
 
-app.post('/renew-token', async (req, res) => {
+// Rota para obter token do cache: GET /token/:username
+app.get('/token/:username', async (req, res) => {
     try {
-        const credencialId = 'crislunasdigital';
-        tokenCache.delete(credencialId); // Força renovação
+        const { username } = req.params;
+        const token = obterTokenValido(username);
         
-        const token = await obterTokenValido(credencialId);
+        if (!token) {
+            return res.status(404).json({
+                success: false,
+                error: 'Token não encontrado ou expirado. Faça login novamente.',
+                timestamp: new Date().toISOString()
+            });
+        }
         
         res.json({
             success: true,
             access_token: token,
-            expires_in: 3600,
-            refreshed: true,
+            username: username,
             timestamp: new Date().toISOString()
         });
+        
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -179,7 +203,9 @@ app.post('/renew-token', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 FGTS Token API rodando na porta ${PORT}`);
     console.log(`📊 Status: http://localhost:${PORT}/status`);
-    console.log(`🔑 Token: http://localhost:${PORT}/token/crislunasdigital`);
+    console.log(`🔐 Autenticar: POST http://localhost:${PORT}/authenticate`);
+    console.log(`🔑 Token: GET http://localhost:${PORT}/token/:username`);
+    console.log(`💡 Exemplo: POST /authenticate { "username": "user@email.com", "password": "senha123" }`);
 });
 
 module.exports = app;

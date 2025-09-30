@@ -1,12 +1,11 @@
-# V8 API Credentials
+# V8 API Credentials (fixas no servidor)
 V8_CLIENT_ID="DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"
 V8_AUDIENCE="https://bff.v8sistema.com"
 V8_SCOPE="offline_access"
 V8_AUTH_URL="https://auth.v8sistema.com/oauth/token"
 
-# FGTS Login Credentials (1 user only)
-V8_USERNAME="crislunasdigital@gmail.com"
-V8_PASSWORD="7.O?v>coI>5E"
-
 # Porta do servidor
 PORT=3000
+
+# NOTA: As credenciais dos usuários são enviadas via POST /authenticate
+# A API atua como proxy entre o usuário e a V8
