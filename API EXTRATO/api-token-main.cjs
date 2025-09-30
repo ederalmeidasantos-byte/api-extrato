@@ -1,6 +1,6 @@
 const express = require('express');
 const axios = require('axios');
-const qs = require('querystring');
+const qs = require('qs');
 require('dotenv').config();
 
 const app = express();
