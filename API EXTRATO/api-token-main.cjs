@@ -26,27 +26,9 @@ app.use((req, res, next) => {
 const CREDENCIAIS_V8 = [
     {
         id: 'crislunasdigital',
-        username: process.env.USERNAME_1 || 'crislunasdigital@gmail.com',
-        password: process.env.PASSWORD_1 || '7.O?v>coI>5E',
-        client_id: process.env.CLIENT_ID_1 || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
-    },
-    {
-        id: 'crislunasdigital2',
-        username: process.env.USERNAME_2 || 'crislunasdigital2@gmail.com',
-        password: process.env.PASSWORD_2 || '7.O?v>coI>5E',
-        client_id: process.env.CLIENT_ID_2 || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
-    },
-    {
-        id: 'crislunasdigital3',
-        username: process.env.USERNAME_3 || 'crislunasdigital3@gmail.com',
-        password: process.env.PASSWORD_3 || '7.O?v>coI>5E',
-        client_id: process.env.CLIENT_ID_3 || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
-    },
-    {
-        id: 'crislunasdigital4',
-        username: process.env.USERNAME_4 || 'crislunasdigital4@gmail.com',
-        password: process.env.PASSWORD_4 || '7.O?v>coI>5E',
-        client_id: process.env.CLIENT_ID_4 || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
+        username: process.env.V8_USERNAME || 'crislunasdigital@gmail.com',
+        password: process.env.V8_PASSWORD || '7.O?v>coI>5E',
+        client_id: process.env.V8_CLIENT_ID || 'DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn'
     }
 ];
 
@@ -111,8 +93,8 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/health',
             status: '/status',
-            token: '/token/:credencialId',
-            credentials: '/credentials'
+            token: '/token',
+            renew: '/renew-token'
         }
     });
 });
@@ -150,15 +132,14 @@ app.get('/credentials', (req, res) => {
     res.json(credentials);
 });
 
-app.get('/token/:credencialId', async (req, res) => {
+app.get('/token', async (req, res) => {
     try {
-        const { credencialId } = req.params;
+        const credencialId = 'crislunasdigital';
         const token = await obterTokenValido(credencialId);
         
         res.json({
             success: true,
-            credencialId,
-            token,
+            access_token: token,
             expires_in: 3600,
             timestamp: new Date().toISOString()
         });
@@ -171,23 +152,18 @@ app.get('/token/:credencialId', async (req, res) => {
     }
 });
 
-app.post('/token/:credencialId', async (req, res) => {
+app.post('/renew-token', async (req, res) => {
     try {
-        const { credencialId } = req.params;
-        const { force_refresh } = req.body;
-        
-        if (force_refresh) {
-            tokenCache.delete(credencialId);
-        }
+        const credencialId = 'crislunasdigital';
+        tokenCache.delete(credencialId); // Força renovação
         
         const token = await obterTokenValido(credencialId);
         
         res.json({
             success: true,
-            credencialId,
-            token,
+            access_token: token,
             expires_in: 3600,
-            refreshed: !!force_refresh,
+            refreshed: true,
             timestamp: new Date().toISOString()
         });
     } catch (error) {
