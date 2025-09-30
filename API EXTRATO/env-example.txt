@@ -1,0 +1,20 @@
+# Credenciais V8 Sistema
+USERNAME_1=crislunasdigital@gmail.com
+PASSWORD_1=7.O?v>coI>5E
+CLIENT_ID_1=DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn
+
+USERNAME_2=crislunasdigital2@gmail.com
+PASSWORD_2=7.O?v>coI>5E
+CLIENT_ID_2=DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn
+
+USERNAME_3=crislunasdigital3@gmail.com
+PASSWORD_3=7.O?v>coI>5E
+CLIENT_ID_3=DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn
+
+USERNAME_4=crislunasdigital4@gmail.com
+PASSWORD_4=7.O?v>coI>5E
+CLIENT_ID_4=DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn
+
+# Porta do servidor
+PORT=3000
+
