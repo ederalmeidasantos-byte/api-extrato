@@ -2,10 +2,10 @@
   "name": "fgts-token-api",
   "version": "1.0.0",
   "description": "API para geração de tokens FGTS V8",
-  "main": "api-token-main.cjs",
+  "main": "src/api-token-main.cjs",
   "scripts": {
-    "start": "node api-token-main.cjs",
-    "dev": "node api-token-main.cjs"
+    "start": "node src/api-token-main.cjs",
+    "dev": "node src/api-token-main.cjs"
   },
   "dependencies": {
     "express": "^4.18.2",
