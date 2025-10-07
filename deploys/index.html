@@ -344,18 +344,23 @@
 
         // Função para carregar eventos
         async function loadEvents() {
+            console.log('🔄 Carregando eventos...');
             try {
                 const response = await fetch('/api/git-history');
+                console.log('📡 Resposta recebida:', response.status);
                 const data = await response.json();
+                console.log('📊 Dados recebidos:', data);
                 
                 if (data.success) {
+                    console.log('✅ Exibindo eventos:', data.commits.length);
                     displayEvents(data.commits);
                 } else {
+                    console.error('❌ Erro na API:', data.error);
                     showError('Erro ao carregar eventos: ' + data.error);
                 }
             } catch (error) {
-                console.error('Erro:', error);
-                showError('Erro ao conectar com a API');
+                console.error('❌ Erro na requisição:', error);
+                showError('Erro ao conectar com a API: ' + error.message);
             }
         }
 

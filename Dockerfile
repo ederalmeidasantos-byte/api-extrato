@@ -1,6 +1,9 @@
 # Dockerfile para API Lunas Digital
 FROM node:18-alpine
 
+# Instalar Git
+RUN apk add --no-cache git
+
 # Definir diretório de trabalho
 WORKDIR /app
 
@@ -8,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copiar código da aplicação
 COPY . .

@@ -1108,7 +1108,11 @@ app.get('/api/git-history', async (req, res) => {
       const commits = stdout.trim().split('\n').filter(line => line.trim()).map(line => {
         const parts = line.split('|');
         if (parts.length >= 6) {
-          const [hash, author, email, date, message, refs] = parts;
+          let [hash, author, email, date, message, refs] = parts;
+          
+          // Limpar hash de caracteres especiais (como asteriscos do git log --graph)
+          hash = hash.replace(/[*|\\\/\s]/g, '').trim();
+          
           return {
             hash: hash.substring(0, 7), // Short hash
             fullHash: hash,
