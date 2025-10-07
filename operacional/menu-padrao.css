@@ -1,0 +1,309 @@
+/* ================== MENU PADRÃO LUNAS DIGITAL ================== */
+/* Estilos para o menu modular que será usado em todas as páginas */
+
+.menu-padrao {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+  min-height: 100vh;
+  width: 280px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* ================== HEADER DO MENU ================== */
+.menu-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: white;
+  transition: opacity 0.2s ease;
+}
+
+.menu-logo:hover {
+  opacity: 0.8;
+}
+
+.menu-logo img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* ================== ITENS DO MENU ================== */
+.menu-items {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-item {
+  margin: 0.25rem 0;
+}
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.menu-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+.menu-item.active .menu-link {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-left-color: #fbbf24;
+  font-weight: 600;
+}
+
+.menu-link i {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.menu-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* ================== SUBMENU ================== */
+.submenu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.1);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.menu-item.expanded .submenu {
+  max-height: 300px;
+}
+
+.submenu-item {
+  margin: 0;
+}
+
+.submenu-link {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.5rem 0.5rem 3rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.submenu-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.submenu-item.active .submenu-link {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-weight: 600;
+}
+
+/* ================== FOOTER DO MENU ================== */
+.menu-footer {
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+  margin-bottom: 1rem;
+}
+
+.user-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.user-role {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: white;
+}
+
+.logout-btn i {
+  width: 16px;
+  height: 16px;
+}
+
+/* ================== BREADCRUMB ================== */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.breadcrumb-home {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-home:hover {
+  color: #1e40af;
+}
+
+.breadcrumb-home i {
+  width: 16px;
+  height: 16px;
+}
+
+.breadcrumb-separator {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.breadcrumb-item {
+  color: #64748b;
+}
+
+.breadcrumb-item.current {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* ================== RESPONSIVIDADE ================== */
+@media (max-width: 768px) {
+  .menu-padrao {
+    width: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .menu-padrao.open {
+    transform: translateX(0);
+  }
+  
+  .breadcrumb {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ================== TEMAS ALTERNATIVOS ================== */
+.menu-padrao.lunas-green {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.menu-padrao.lunas-purple {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+}
+
+/* ================== MODO COMPACTO ================== */
+.menu-padrao.compact {
+  width: 80px;
+}
+
+.menu-padrao.compact .menu-label,
+.menu-padrao.compact .logo-text,
+.menu-padrao.compact .user-info,
+.menu-padrao.compact .submenu {
+  display: none;
+}
+
+.menu-padrao.compact .menu-link {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.menu-padrao.compact .menu-header {
+  padding: 1rem;
+}
+
+.menu-padrao.compact .menu-footer {
+  padding: 1rem;
+}
+
+/* ================== ANIMAÇÕES ================== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.menu-item {
+  animation: slideIn 0.3s ease forwards;
+}
+
+.menu-item:nth-child(1) { animation-delay: 0.1s; }
+.menu-item:nth-child(2) { animation-delay: 0.2s; }
+.menu-item:nth-child(3) { animation-delay: 0.3s; }
+.menu-item:nth-child(4) { animation-delay: 0.4s; }
+.menu-item:nth-child(5) { animation-delay: 0.5s; }
+
+
+

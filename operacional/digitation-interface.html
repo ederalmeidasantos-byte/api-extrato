@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fila de Digitação - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css?v=20250105000000">
+    
+    <style>
+        /* Estilos específicos da fila de digitação */
+        .queue-filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .client-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .client-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .client-info {
+            flex: 1;
+        }
+
+        .client-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .client-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .proposals-container {
+            display: none;
+            padding: 1.5rem;
+            background: #f8fafc;
+        }
+
+        .proposals-container.expanded {
+            display: block;
+        }
+
+        .proposal-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-id-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .ade-number {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .banco-info {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .produto-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        .proposal-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .proposal-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-size: 0.9rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            justify-content: flex-end;
+        }
+
+        .empty-queue {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-queue i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .queue-stats {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats-info {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            margin: 0.5rem 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <img src="/operacional/assets/logo-lunas.png" alt="Lunas Digital" />
+                    <span>Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-feather="menu"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="activity" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item active" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitation-badge">0</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="buscar-propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Fila de Digitação</h1>
+                        <p class="page-subtitle">Gerencie propostas aguardando digitação</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="atualizarFila()">
+                        <i data-feather="refresh-cw"></i>
+                        Atualizar
+                    </button>
+                </div>
+
+                <!-- Queue Stats -->
+                <div class="queue-stats">
+                    <div class="stats-info">
+                        <div class="stat-item">
+                            <span class="stat-label">Status do Formulário</span>
+                            <span class="stat-value" id="status-filter-display">Todos os Status</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total de Propostas</span>
+                            <span class="stat-value" id="queue-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="queue-filters">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="status-filter">Status do Formulário</label>
+                            <select id="status-filter" onchange="filtrarFila()">
+                                <option value="">Todos os Status</option>
+                                <option value="1">Etapa 1 - Dados</option>
+                                <option value="2">Etapa 2 - Endereço</option>
+                                <option value="3">Etapa 3 - Benefício</option>
+                                <option value="4">Etapa 4 - Bancário</option>
+                                <option value="5">Etapa 5 - Confirmação</option>
+                                <option value="6">Cliente Finalizou</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="search-client">Buscar Cliente</label>
+                            <input type="text" id="search-client" placeholder="Nome, CPF ou telefone..." onkeyup="filtrarFila()">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="date-filter">Data</label>
+                            <input type="date" id="date-filter" onchange="filtrarFila()">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <button class="btn btn-secondary" onclick="limparFiltros()">
+                                <i data-feather="x"></i>
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue List -->
+                <div id="queue-list">
+                    <div class="loading">
+                        <i data-feather="loader"></i>
+                        <p>Carregando fila...</p>
+                        <p>Aguarde enquanto carregamos as propostas.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        // Renderizar ícones do Feather quando a página carregar
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+        
+        // Variáveis globais
+        let filaOriginal = [];
+        let filaFiltrada = [];
+        let statusConfig = {};
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await carregarStatusConfig();
+                await carregarFila();
+            } catch (error) {
+                console.error('Erro ao inicializar:', error);
+                mostrarErro('Erro ao carregar dados da fila');
+            }
+        });
+
+        // Carregar configuração de status
+        async function carregarStatusConfig() {
+            try {
+                const response = await fetch('/api/status-config');
+                const data = await response.json();
+                if (data.success) {
+                    statusConfig = data.config;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar status config:', error);
+            }
+        }
+
+        // Carregar fila de propostas
+        async function carregarFila() {
+            try {
+                const response = await fetch('/api/propostas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Agrupar propostas por cliente
+                    const propostasPorCliente = {};
+                    
+                    (data.propostas || []).forEach(proposta => {
+                        const clientId = proposta.clientId;
+                        
+                        if (!propostasPorCliente[clientId]) {
+                            propostasPorCliente[clientId] = {
+                                clientId: clientId,
+                                cliente: {
+                                    nome: proposta.nome || 'Nome não informado',
+                                    cpf: proposta.cpf || '',
+                                    telefone: proposta.telefone || '',
+                                    email: proposta.email || ''
+                                },
+                                propostas: [],
+                                statusFormulario: proposta.statusFormulario || '1',
+                                dataAtualizacao: proposta.createdAt || new Date().toISOString()
+                            };
+                        }
+                        
+                        propostasPorCliente[clientId].propostas.push(proposta);
+                    });
+                    
+                    // Buscar dados completos dos clientes
+                    await carregarDadosClientes(propostasPorCliente);
+                    
+                    filaOriginal = Object.values(propostasPorCliente);
+                    filaFiltrada = [...filaOriginal];
+                    renderizarFila();
+                } else {
+                    throw new Error(data.message || 'Erro ao carregar propostas');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fila:', error);
+                mostrarErro('Erro ao carregar propostas da fila');
+            }
+        }
+
+        // Carregar dados completos dos clientes
+        async function carregarDadosClientes(propostasPorCliente) {
+            // Por enquanto, vamos usar os dados que temos das propostas
+            // Em uma implementação futura, podemos criar uma API para buscar dados completos
+            console.log('Dados dos clientes carregados das propostas');
+        }
+
+        // Atualizar fila
+        async function atualizarFila() {
+            const container = document.getElementById('queue-list');
+            container.innerHTML = `
+                <div class="loading">
+                    <i data-feather="loader"></i>
+                    <p>Atualizando fila...</p>
+                </div>
+            `;
+            feather.replace();
+            
+            await carregarFila();
+        }
+
+        // Filtrar fila
+        function filtrarFila() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const searchTerm = document.getElementById('search-client').value.toLowerCase();
+            const dateFilter = document.getElementById('date-filter').value;
+            
+            // Atualizar display do filtro de status
+            const statusDisplay = document.getElementById('status-filter-display');
+            const statusSelect = document.getElementById('status-filter');
+            const selectedOption = statusSelect.options[statusSelect.selectedIndex];
+            statusDisplay.textContent = selectedOption.text;
+            
+            filaFiltrada = filaOriginal.filter(item => {
+                // Filtro por termo de busca
+                if (searchTerm) {
+                    const cliente = item.cliente || {};
+                    const searchMatch = 
+                        (cliente.nome || '').toLowerCase().includes(searchTerm) ||
+                        (cliente.cpf || '').includes(searchTerm) ||
+                        (cliente.telefone || '').includes(searchTerm);
+                    
+                    if (!searchMatch) return false;
+                }
+                
+                // Filtro por data
+                if (dateFilter) {
+                    const itemDate = new Date(item.dataAtualizacao || item.dataCriacao).toISOString().split('T')[0];
+                    if (itemDate !== dateFilter) return false;
+                }
+                
+                // Filtro por status do formulário
+                if (statusFilter) {
+                    if (item.statusFormulario !== statusFilter) return false;
+                }
+                
+                return true;
+            });
+            
+            renderizarFila();
+        }
+
+        // Renderizar fila
+        function renderizarFila() {
+            const container = document.getElementById('queue-list');
+            const counter = document.getElementById('queue-count');
+            
+            // Contar total de propostas
+            const totalPropostas = filaFiltrada.reduce((total, item) => total + (item.propostas ? item.propostas.length : 0), 0);
+            counter.textContent = totalPropostas;
+            
+            if (filaFiltrada.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-queue">
+                        <i data-feather="inbox"></i>
+                        <h3>Fila vazia</h3>
+                        <p>Não há propostas aguardando digitação no momento.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            const html = filaFiltrada.map(item => criarCardCliente(item)).join('');
+            container.innerHTML = html;
+            feather.replace();
+            
+            // Atualizar badge na sidebar
+            const badge = document.getElementById('digitation-badge');
+            if (badge) {
+                badge.textContent = totalPropostas;
+            }
+            
+            if (window.crmLayout) {
+                window.crmLayout.updateBadge('digitation', totalPropostas);
+            }
+        }
+
+        // Criar HTML do card do cliente
+        function criarCardCliente(item) {
+            const { clientId, cliente, propostas, statusFormulario } = item;
+            const dataFormatada = formatarData(item.dataAtualizacao || item.dataCriacao);
+            
+            // Obter informações do status do formulário
+            const statusInfo = obterStatusInfo(statusFormulario, statusConfig, 'formulario');
+            const statusText = statusInfo.nome;
+            const statusCor = statusInfo.cor;
+            
+            // Criar HTML das propostas
+            const propostasHTML = (propostas || []).map(proposta => {
+                const contratos = proposta.contratos?.length || 0;
+                const trocoTotal = proposta.contratos?.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0) || 0;
+                
+                // Obter status da proposta
+                const propostaStatus = proposta.statusProposta || '1';
+                const propostaStatusInfo = obterStatusInfo(propostaStatus, statusConfig, 'proposta');
+                const propostaStatusText = propostaStatusInfo.nome;
+                const propostaStatusCor = propostaStatusInfo.cor;
+                
+                // Obter produto da proposta
+                const produtoId = proposta.statusProdutos || proposta.produto || '1';
+                const produtoInfo = obterStatusInfo(produtoId, statusConfig, 'produtos');
+                const produtoText = produtoInfo.nome;
+                
+                return `
+                    <div class="proposal-item">
+                        <div class="proposal-header">
+                            <div class="proposal-id-info">
+                                <span class="ade-number">ADE: ${proposta.id}</span>
+                                <span class="banco-info">BANCO: ${proposta.bancoNovo || 'N/A'}</span>
+                                <span class="produto-badge" style="background-color: ${produtoInfo.cor};">
+                                    ${produtoText.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="proposal-status" style="background-color: ${propostaStatusCor};">
+                                ${propostaStatusText}
+                            </div>
+                        </div>
+                        
+                        <div class="proposal-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Banco Atual</span>
+                                <span class="detail-value">${proposta.bancoAtual || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Parcela</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.parcelaAtual || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} → R$ ${parseFloat(proposta.parcelaNova || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Prazo</span>
+                                <span class="detail-value">${proposta.prazoAtual || 0}x → ${proposta.prazoNovo || 0}x</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Troco</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.trocoTotal || trocoTotal || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Saldo Devedor</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.saldoDevedor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Contrato</span>
+                                <span class="detail-value">${proposta.numeroContrato || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Data</span>
+                                <span class="detail-value">${formatarData(proposta.dataAtualizacao || proposta.dataCriacao)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="proposal-actions">
+                            <button class="btn btn-secondary" onclick="visualizarProposta('${clientId}', '${proposta.id}')">
+                                <i data-feather="eye"></i>
+                                Visualizar
+                            </button>
+                            <button class="btn btn-primary" onclick="detalharProposta('${clientId}', '${proposta.id}')">
+                                <i data-feather="edit"></i>
+                                Detalhar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="client-card">
+                    <div class="client-header" onclick="toggleClientProposals('${clientId}')">
+                        <div class="client-info">
+                            <div class="client-name">${cliente?.nome || 'Nome não informado'}</div>
+                            <div class="client-meta">
+                                <span>CPF: ${cliente?.cpf || 'CPF não informado'}</span>
+                                <span>${dataFormatada}</span>
+                                <span>${propostas?.length || 0} proposta(s)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="client-actions">
+                            <div class="client-status" style="background-color: ${statusCor};">
+                                ${statusText}
+                            </div>
+                            <button class="btn btn-primary" onclick="event.stopPropagation(); abrirTelaDigitação('${clientId}')">
+                                <i data-feather="edit-3"></i>
+                                Digitar
+                            </button>
+                            <i data-feather="chevron-down" class="toggle-icon" id="toggle-${clientId}"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="proposals-container" id="proposals-${clientId}">
+                        ${propostasHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Visualizar proposta
+        function visualizarProposta(clientId, propostaId) {
+            const url = `/operacional/formulario-cliente.html?clientId=${clientId}&proposalId=${propostaId}&view=true`;
+            window.open(url, '_blank');
+        }
+
+        // Detalhar proposta
+        function detalharProposta(clientId, propostaId) {
+            const url = `/operacional/digitar-proposta.html?clientId=${clientId}&proposalId=${propostaId}`;
+            window.location.href = url;
+        }
+
+        // Abrir tela de digitação
+        function abrirTelaDigitação(clientId) {
+            window.location.href = `/operacional/digitar-proposta.html?clientId=${clientId}`;
+        }
+
+        // Toggle propostas do cliente
+        function toggleClientProposals(clientId) {
+            const container = document.getElementById(`proposals-${clientId}`);
+            const toggle = document.getElementById(`toggle-${clientId}`);
+            
+            container.classList.toggle('expanded');
+            const icon = toggle;
+            
+            if (container.classList.contains('expanded')) {
+                icon.setAttribute('data-feather', 'chevron-up');
+                toggle.classList.add('rotated');
+            } else {
+                icon.setAttribute('data-feather', 'chevron-down');
+                toggle.classList.remove('rotated');
+            }
+            
+            feather.replace();
+        }
+
+        // Obter informações do status
+        function obterStatusInfo(statusId, statusConfig, tipo) {
+            let tipoKey;
+            if (tipo === 'produtos') {
+                tipoKey = 'produtos';
+            } else if (tipo === 'formulario') {
+                tipoKey = 'statusFormulario';
+            } else if (tipo === 'proposta') {
+                tipoKey = 'statusProposta';
+            } else {
+                tipoKey = `status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
+            }
+            
+            const statusList = statusConfig[tipoKey] || [];
+            const status = statusList.find(s => s.id == statusId) || statusList.find(s => s.id == 'etapa1') || statusList[0] || {};
+            
+            return {
+                id: status.id || statusId,
+                nome: status.nome || 'Status Desconhecido',
+                descricao: status.descricao || '',
+                cor: status.cor || '#6b7280',
+                corNome: status.corNome || 'Cinza',
+                ativo: status.ativo !== false
+            };
+        }
+
+        // Limpar filtros
+        function limparFiltros() {
+            document.getElementById('status-filter').value = '';
+            document.getElementById('search-client').value = '';
+            document.getElementById('date-filter').value = '';
+            document.getElementById('status-filter-display').textContent = 'Todos os Status';
+            filtrarFila();
+        }
+
+        // Formatar data
+        function formatarData(isoString) {
+            if (!isoString) return 'Data não informada';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            const container = document.getElementById('queue-list');
+            container.innerHTML = `
+                <div class="empty-queue">
+                    <i data-feather="alert-circle"></i>
+                    <h3>Erro</h3>
+                    <p>${mensagem}</p>
+                    <button class="btn btn-primary" onclick="atualizarFila()">
+                        <i data-feather="refresh-cw"></i>
+                        Tentar Novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
+    </script>
+</body>
+</html>

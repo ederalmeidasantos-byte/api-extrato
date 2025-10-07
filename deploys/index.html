@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploys - API Lunas Digital</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #00d4aa;
+            font-size: 1.5rem;
+        }
+
+        .status-badge {
+            background: #00d4aa;
+            color: #000;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .service-info {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #333;
+        }
+
+        .service-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .service-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .service-tags {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            background: #333;
+            color: #fff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .service-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            color: #888;
+            font-size: 0.875rem;
+        }
+
+        .detail-value {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            margin-left: 0.5rem;
+        }
+
+        .copy-btn:hover {
+            color: #00d4aa;
+        }
+
+        .events-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid #333;
+        }
+
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-btn {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .filter-btn:hover {
+            background: #444;
+        }
+
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            background: #0f0f0f;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .event-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .event-icon.success {
+            background: #00d4aa;
+            color: #000;
+        }
+
+        .event-icon.failed {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .event-icon.in-progress {
+            background: #ffaa00;
+            color: #000;
+        }
+
+        .event-content {
+            flex: 1;
+        }
+
+        .event-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .event-commit {
+            color: #00d4aa;
+            text-decoration: none;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+        }
+
+        .event-commit:hover {
+            text-decoration: underline;
+        }
+
+        .event-message {
+            color: #ccc;
+            margin: 0.5rem 0;
+            font-size: 0.875rem;
+        }
+
+        .event-time {
+            color: #888;
+            font-size: 0.75rem;
+        }
+
+        .event-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .action-btn:hover {
+            background: #444;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+
+        .error {
+            background: #ff4444;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .service-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>API Lunas Digital</h1>
+        <div class="status-badge">Service recovered</div>
+    </div>
+
+    <div class="container">
+        <div class="service-info">
+            <div class="service-title">
+                <span class="service-name">api.lunas</span>
+                <div class="service-tags">
+                    <span class="tag">Node</span>
+                    <span class="tag">Starter</span>
+                </div>
+            </div>
+            
+            <div class="service-details">
+                <div class="detail-item">
+                    <span class="detail-label">Service ID</span>
+                    <span class="detail-value">
+                        srv-d2qblvndiees73cqsm40
+                        <button class="copy-btn" onclick="copyToClipboard('srv-d2qblvndiees73cqsm40')">📋</button>
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Repository</span>
+                    <span class="detail-value">
+                        ederalmeidasantos-byte / api-extrato
+                        <button class="copy-btn" onclick="copyToClipboard('https://github.com/ederalmeidasantos-byte/api-extrato')">📋</button>
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Branch</span>
+                    <span class="detail-value">main</span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Live URL</span>
+                    <span class="detail-value">
+                        https://api-extrato-1.onrender.com
+                        <button class="copy-btn" onclick="copyToClipboard('https://api-extrato-1.onrender.com')">📋</button>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="events-section">
+            <div class="events-header">
+                <h2>Events</h2>
+                <button class="filter-btn" onclick="filterEvents()">Filter events (31)</button>
+            </div>
+            
+            <div id="events-list" class="events-list">
+                <div class="loading">Carregando eventos...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Função para copiar texto
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Mostrar feedback visual
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 1000);
+            });
+        }
+
+        // Função para carregar eventos
+        async function loadEvents() {
+            try {
+                const response = await fetch('/api/git-history');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayEvents(data.commits);
+                } else {
+                    showError('Erro ao carregar eventos: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showError('Erro ao conectar com a API');
+            }
+        }
+
+        // Função para exibir eventos
+        function displayEvents(commits) {
+            const eventsList = document.getElementById('events-list');
+            
+            if (commits.length === 0) {
+                eventsList.innerHTML = '<div class="loading">Nenhum evento encontrado</div>';
+                return;
+            }
+
+            const eventsHtml = commits.map(commit => {
+                const eventType = commit.status === 'success' ? 'Deploy live' : 
+                                commit.status === 'failed' ? 'Deploy failed' : 'Deploy started';
+                
+                const iconClass = commit.status === 'success' ? 'success' : 
+                                commit.status === 'failed' ? 'failed' : 'in-progress';
+                
+                const iconText = commit.status === 'success' ? '✓' : 
+                               commit.status === 'failed' ? '✗' : '↑';
+                
+                const timeAgo = getTimeAgo(new Date(commit.date));
+                
+                return `
+                    <div class="event-item">
+                        <div class="event-icon ${iconClass}">${iconText}</div>
+                        <div class="event-content">
+                            <div class="event-title">
+                                ${eventType} for 
+                                <a href="https://github.com/ederalmeidasantos-byte/api-extrato/commit/${commit.fullHash}" target="_blank" class="event-commit">${commit.hash}</a>
+                                <button class="copy-btn" onclick="copyToClipboard('${commit.hash}')" title="Copiar hash">📋</button>
+                            </div>
+                            <div class="event-message">${commit.message}</div>
+                            <div class="event-time">${timeAgo}</div>
+                        </div>
+                        <div class="event-actions">
+                            ${commit.status === 'failed' ? '<button class="action-btn">Rollback</button>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            eventsList.innerHTML = eventsHtml;
+        }
+
+        // Função para calcular tempo relativo
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'Agora mesmo';
+            if (minutes < 60) return `${minutes} min atrás`;
+            if (hours < 24) return `${hours}h atrás`;
+            return `${days} dias atrás`;
+        }
+
+        // Função para mostrar erro
+        function showError(message) {
+            const eventsList = document.getElementById('events-list');
+            eventsList.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Função para filtrar eventos
+        function filterEvents() {
+            alert('Funcionalidade de filtro em desenvolvimento');
+        }
+
+        // Carregar eventos quando a página carregar
+        document.addEventListener('DOMContentLoaded', loadEvents);
+    </script>
+</body>
+</html>

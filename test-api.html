@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste API</title>
+</head>
+<body>
+    <h1>Teste da API</h1>
+    <div id="resultado"></div>
+    
+    <script>
+        async function testarAPI() {
+            try {
+                console.log('🔍 Testando API...');
+                const response = await fetch('/api/proposta/proposta_1759461048171_nxdpli1rz');
+                console.log('📡 Resposta:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Dados recebidos:', data);
+                
+                document.getElementById('resultado').innerHTML = `
+                    <h2>✅ API funcionando!</h2>
+                    <p>Status: ${response.status}</p>
+                    <p>Success: ${data.success}</p>
+                    <p>Proposta ID: ${data.propostaId}</p>
+                    <p>Cliente: ${data.dados?.cliente?.nome || 'N/A'}</p>
+                    <p>Contratos: ${data.dados?.contratos?.length || 0}</p>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                document.getElementById('resultado').innerHTML = `
+                    <h2>❌ Erro na API</h2>
+                    <p>Erro: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Testar quando a página carregar
+        document.addEventListener('DOMContentLoaded', testarAPI);
+    </script>
+</body>
+</html>
+
+
+

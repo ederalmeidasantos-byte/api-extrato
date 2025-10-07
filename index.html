@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunas Digital - Sistema Principal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+        .systems {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .system-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #333;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .system-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        .system-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #667eea;
+        }
+        .system-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .status {
+            background: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏢 Lunas Digital</h1>
+        <p class="subtitle">Sistema Principal - API Funcionando</p>
+        
+        <div class="status">✅ Sistema Online</div>
+        
+        <div class="systems">
+            <a href="/operacional" class="system-card">
+                <h3>🏢 Operacional</h3>
+                <p>Gestão de clientes e propostas</p>
+            </a>
+            
+            <a href="/fgts" class="system-card">
+                <h3>🏦 FGTS</h3>
+                <p>Sistema de consulta FGTS</p>
+            </a>
+            
+            <a href="/inss" class="system-card">
+                <h3>📋 INSS</h3>
+                <p>Simulador e cálculos INSS</p>
+            </a>
+            
+            <a href="/api/chatgpt-kentro" class="system-card">
+                <h3>🤖 ChatGPT</h3>
+                <p>Sistema inteligente de atendimento</p>
+            </a>
+        </div>
+        
+        <div style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+            <p>Versão: 1.0.0 | Reconstrução completa realizada com sucesso</p>
+        </div>
+    </div>
+</body>
+</html>

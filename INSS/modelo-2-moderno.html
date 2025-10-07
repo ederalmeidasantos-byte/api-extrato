@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo 2 - Moderno com Gradiente</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+        }
+        
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* MODELO 2: MODERNO COM GRADIENTE */
+        .cart-floating {
+            position: sticky;
+            top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            padding: 1.2rem;
+            max-width: 300px;
+            color: white;
+        }
+        
+        .cart-title {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .cart-totals {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+        
+        .cart-total {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 0.7rem;
+            text-align: center;
+            flex: 1;
+            backdrop-filter: blur(10px);
+        }
+        
+        .total-label {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+        
+        .total-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: white;
+            display: block;
+        }
+        
+        .cart-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.6rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .cart-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .cart-toggle {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            margin-top: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .cart-toggle:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="content">
+            <h1>Modelo 2: Moderno com Gradiente</h1>
+            <p>Estilo inspirado no Linear e Vercel. Design moderno com gradientes vibrantes.</p>
+            
+            <h3>Características:</h3>
+            <ul>
+                <li>Gradiente vibrante (azul para roxo)</li>
+                <li>Efeito glassmorphism</li>
+                <li>Sombras coloridas</li>
+                <li>Texto branco sobre gradiente</li>
+                <li>Botão translúcido</li>
+                <li>Backdrop blur</li>
+            </ul>
+            
+            <h3>Exemplo de uso:</h3>
+            <p>Perfeito para aplicações modernas que querem se destacar com um visual impactante.</p>
+        </div>
+        
+        <div class="cart-floating">
+            <div class="cart-title">Resumo de Simulação</div>
+            
+            <div class="cart-totals">
+                <div class="cart-total">
+                    <span class="total-label">Contratos</span>
+                    <span class="total-value">3</span>
+                </div>
+                <div class="cart-total">
+                    <span class="total-label">Troco</span>
+                    <span class="total-value">R$ 2.896,55</span>
+                </div>
+            </div>
+            
+            <button class="cart-button">Digitar Contrato</button>
+            
+            <div class="cart-toggle">Ver detalhes</div>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+

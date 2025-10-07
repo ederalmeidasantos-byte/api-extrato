@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .config-content {
+            padding: 1.5rem;
+        }
+
+        .status-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .status-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="activity" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitar-proposta.html" class="nav-item" data-nav="digitar-proposta">
+                        <div class="nav-item-content">
+                            <i data-feather="edit" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitar Proposta</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item active" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Configurações Status</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-title">
+                    <i data-feather="settings"></i>
+                    <h1>Configurações de Status</h1>
+                </div>
+                <p>Gerencie status e produtos do sistema</p>
+            </div>
+
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="carregarConfiguracoes()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar
+                </button>
+                <button class="btn btn-secondary" onclick="salvarConfiguracoes()">
+                    <i data-feather="save"></i>
+                    Salvar
+                </button>
+            </div>
+
+            <div class="config-container">
+                <!-- Status do Formulário -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="file-text"></i>
+                            Status do Formulário
+                        </div>
+                        <div class="config-info">
+                            <i data-feather="info"></i>
+                            Apenas cores podem ser editadas - nomes e códigos são fixos
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div id="status-formulario-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os status.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Produtos -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="package"></i>
+                            Produtos
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div class="page-actions">
+                            <button class="btn btn-primary" onclick="sincronizarProdutosSimulador()">
+                                <i data-feather="refresh-cw"></i>
+                                Sincronizar Simulador
+                            </button>
+                            <button class="btn btn-secondary" onclick="adicionarProduto()">
+                                <i data-feather="plus"></i>
+                                Adicionar Produto
+                            </button>
+                        </div>
+                        <div id="status-produtos-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os produtos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status da Proposta -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="check-circle"></i>
+                            Status da Proposta
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div class="page-actions">
+                            <button class="btn btn-secondary" onclick="adicionarStatus('proposta')">
+                                <i data-feather="plus"></i>
+                                Adicionar Status
+                            </button>
+                        </div>
+                        <div id="status-proposta-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os status.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        // Renderizar ícones do Feather quando a página carregar
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+        
+        // Variáveis globais
+        let statusConfig = {};
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            try {
+                console.log('🔄 Carregando configurações...');
+                
+                const response = await fetch('/api/status-config');
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar configurações');
+                }
+                
+                statusConfig = await response.json();
+                
+                // Renderizar status
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configurações carregadas com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configurações:', error);
+                await carregarConfiguracaoPadrao();
+            }
+        }
+
+        // Carregar configuração padrão
+        async function carregarConfiguracaoPadrao() {
+            try {
+                const response = await fetch('/var/data/status-config.json');
+                statusConfig = await response.json();
+                
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configuração padrão carregada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configuração padrão:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        }
+
+        // Renderizar status
+        function renderizarStatus(tipo) {
+            const container = document.getElementById(`status-${tipo}-list`);
+            const statusList = statusConfig[`status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`] || {};
+            
+            if (Object.keys(statusList).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox"></i>
+                        <h3>Nenhum status encontrado</h3>
+                        <p>Adicione novos status para começar.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = Object.values(statusList).map(status => `
+                    <div class="status-item">
+                        <div class="status-info">
+                            <div class="status-badge" style="background-color: ${status.cor || '#3b82f6'}">
+                                ${status.nome || 'Status'}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${status.nome || 'Status'}</div>
+                                <div style="font-size: 0.9rem; color: #64748b;">${status.descricao || 'Sem descrição'}</div>
+                            </div>
+                        </div>
+                        <div class="status-actions">
+                            <button class="btn btn-secondary" onclick="editarStatus('${tipo}', '${status.id}')">
+                                <i data-feather="edit"></i>
+                                Editar
+                            </button>
+                            <button class="btn btn-secondary" onclick="excluirStatus('${tipo}', '${status.id}')">
+                                <i data-feather="trash-2"></i>
+                                Excluir
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Renderizar produtos
+        function renderizarProdutos() {
+            const container = document.getElementById('status-produtos-list');
+            const produtos = statusConfig.produtos || {};
+            
+            if (Object.keys(produtos).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox"></i>
+                        <h3>Nenhum produto encontrado</h3>
+                        <p>Adicione novos produtos para começar.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = Object.values(produtos).map(produto => `
+                    <div class="status-item">
+                        <div class="status-info">
+                            <div class="status-badge" style="background-color: ${produto.cor || '#3b82f6'}">
+                                ${produto.nome || 'Produto'}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${produto.nome || 'Produto'}</div>
+                                <div style="font-size: 0.9rem; color: #64748b;">${produto.descricao || 'Sem descrição'}</div>
+                            </div>
+                        </div>
+                        <div class="status-actions">
+                            <button class="btn btn-secondary" onclick="editarStatus('produtos', '${produto.id}')">
+                                <i data-feather="edit"></i>
+                                Editar
+                            </button>
+                            <button class="btn btn-secondary" onclick="excluirStatus('produtos', '${produto.id}')">
+                                <i data-feather="trash-2"></i>
+                                Excluir
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Funções placeholder
+        function adicionarProduto() {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function adicionarStatus(tipo) {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function editarStatus(tipo, id) {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function excluirStatus(tipo, id) {
+            if (confirm('Tem certeza que deseja excluir este item?')) {
+                alert('Funcionalidade em desenvolvimento');
+            }
+        }
+
+        function sincronizarProdutosSimulador() {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function salvarConfiguracoes() {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function mostrarErro(mensagem) {
+            alert('Erro: ' + mensagem);
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar configurações
+                await carregarConfiguracoes();
+                
+                console.log('✅ Página de configuração inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Kentro - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Principal</div>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Clientes</div>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="search-client">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="new-client">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Propostas</div>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="proposals">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Integração</div>
+                    <a href="/operacional/kentro-test.html" class="nav-item active" data-nav="kentro">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Teste Kentro</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle-mobile">
+                        <i data-feather="menu"></i>
+                    </button>
+                    <h1 class="page-title">Teste Kentro</h1>
+                </div>
+                <div class="topbar-right">
+                    <a href="/INSS/simulador.html" class="topbar-btn">
+                        <i data-feather="calculator"></i>
+                        Simulador
+                    </a>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Teste de Integração Kentro</h2>
+                        <p>Teste a conexão e funcionalidades da API Kentro</p>
+                    </div>
+
+                    <div class="test-section">
+                        <h3>1. Teste de Conexão</h3>
+                        <p>Verifique se a API Kentro está respondendo corretamente.</p>
+                        <button class="btn btn-primary" onclick="testarConexao()">
+                            <i data-feather="wifi"></i>
+                            Testar Conexão
+                        </button>
+                        <div id="conexao-result" class="test-result"></div>
+                    </div>
+
+                    <div class="test-section">
+                        <h3>2. Buscar Oportunidade por CPF</h3>
+                        <div class="form-group">
+                            <label for="test-cpf">CPF para Teste</label>
+                            <input type="text" id="test-cpf" placeholder="Digite o CPF (apenas números)" maxlength="11" value="04973279889">
+                        </div>
+                        <button class="btn btn-primary" onclick="buscarOportunidade()">
+                            <i data-feather="search"></i>
+                            Buscar Oportunidade
+                        </button>
+                        <div id="oportunidade-result" class="test-result"></div>
+                    </div>
+
+                    <div class="test-section">
+                        <h3>3. Teste de Status da Oportunidade</h3>
+                        <div class="form-group">
+                            <label for="test-id">ID da Oportunidade</label>
+                            <input type="text" id="test-id" placeholder="Digite o ID da oportunidade" value="36383">
+                        </div>
+                        <button class="btn btn-primary" onclick="consultarStatus()">
+                            <i data-feather="info"></i>
+                            Consultar Status
+                        </button>
+                        <div id="status-result" class="test-result"></div>
+                    </div>
+
+                    <div class="test-section">
+                        <h3>4. Logs de Teste</h3>
+                        <div class="log-container" id="test-logs">
+                            <p>Os logs de teste aparecerão aqui...</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="limparLogs()">
+                            <i data-feather="trash-2"></i>
+                            Limpar Logs
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/kentro-integration.js"></script>
+    
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Função para adicionar log
+        function adicionarLog(mensagem, tipo = 'info') {
+            const logContainer = document.getElementById('test-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${tipo}`;
+            logEntry.innerHTML = `<span class="log-time">[${timestamp}]</span> ${mensagem}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Função para testar conexão
+        async function testarConexao() {
+            const resultDiv = document.getElementById('conexao-result');
+            resultDiv.innerHTML = '<div class="loading">Testando conexão...</div>';
+            
+            adicionarLog('Iniciando teste de conexão com Kentro...', 'info');
+            
+            try {
+                const response = await fetch('/kentro/testar-conexao', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="success">✅ Conexão OK - ${data.count} oportunidades encontradas</div>`;
+                    adicionarLog(`✅ Conexão estabelecida com sucesso. ${data.count} oportunidades carregadas.`, 'success');
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Falha na conexão: ${data.error}</div>`;
+                    adicionarLog(`❌ Falha na conexão: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+                adicionarLog(`❌ Erro na requisição: ${error.message}`, 'error');
+            }
+        }
+
+        // Função para buscar oportunidade
+        async function buscarOportunidade() {
+            const cpf = document.getElementById('test-cpf').value;
+            const resultDiv = document.getElementById('oportunidade-result');
+            
+            if (!cpf) {
+                alert('Digite um CPF para testar');
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Buscando oportunidade...</div>';
+            adicionarLog(`Buscando oportunidade para CPF: ${cpf}`, 'info');
+            
+            try {
+                const response = await fetch('/kentro/buscar-cliente', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ cpf: cpf })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Cliente encontrado!<br>
+                            <strong>ID:</strong> ${data.idoportunidade}<br>
+                            <strong>Nome:</strong> ${data.cliente.nome}<br>
+                            <strong>Status:</strong> ${data.cliente.status}
+                        </div>
+                    `;
+                    adicionarLog(`✅ Cliente encontrado: ${data.cliente.nome} (ID: ${data.idoportunidade})`, 'success');
+                    
+                    // Preencher o campo de ID automaticamente
+                    document.getElementById('test-id').value = data.idoportunidade;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Cliente não encontrado: ${data.error}</div>`;
+                    adicionarLog(`❌ Cliente não encontrado: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+                adicionarLog(`❌ Erro na busca: ${error.message}`, 'error');
+            }
+        }
+
+        // Função para consultar status
+        async function consultarStatus() {
+            const id = document.getElementById('test-id').value;
+            const resultDiv = document.getElementById('status-result');
+            
+            if (!id) {
+                alert('Digite um ID da oportunidade para testar');
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Consultando status...</div>';
+            adicionarLog(`Consultando status da oportunidade ID: ${id}`, 'info');
+            
+            try {
+                const response = await fetch(`/kentro/status/${id}`, {
+                    method: 'GET'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Status consultado com sucesso!<br>
+                            <strong>ID:</strong> ${data.id}<br>
+                            <strong>Status:</strong> ${data.status}<br>
+                            <strong>Última Atualização:</strong> ${data.ultimaAtualizacao}
+                        </div>
+                    `;
+                    adicionarLog(`✅ Status consultado: ${data.status}`, 'success');
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Erro ao consultar status: ${data.error}</div>`;
+                    adicionarLog(`❌ Erro ao consultar status: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+                adicionarLog(`❌ Erro na consulta: ${error.message}`, 'error');
+            }
+        }
+
+        // Função para limpar logs
+        function limparLogs() {
+            document.getElementById('test-logs').innerHTML = '<p>Os logs de teste aparecerão aqui...</p>';
+        }
+
+        // Permitir apenas números no campo CPF
+        document.getElementById('test-cpf').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Permitir apenas números no campo ID
+        document.getElementById('test-id').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+    </script>
+
+    <style>
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+
+        .test-section h3 {
+            margin-bottom: 1rem;
+            color: #1e293b;
+        }
+
+        .test-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .test-result .loading {
+            color: #3b82f6;
+            font-style: italic;
+        }
+
+        .test-result .success {
+            color: #059669;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+        }
+
+        .test-result .error {
+            color: #dc2626;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .log-container {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .log-time {
+            color: #94a3b8;
+        }
+
+        .log-success {
+            color: #10b981;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .log-info {
+            color: #3b82f6;
+        }
+    </style>
+</body>
+</html>

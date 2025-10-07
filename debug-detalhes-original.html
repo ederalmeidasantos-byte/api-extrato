@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Detalhes Original</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { background: #e3f2fd; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Página Original</h1>
+    
+    <div id="debugInfo" class="debug">
+        <h3>Informações de Debug:</h3>
+        <div id="debugContent">Carregando...</div>
+    </div>
+    
+    <div id="clienteInfo" class="info">
+        <h3>Dados do Cliente:</h3>
+        <div id="clienteContent">Carregando...</div>
+    </div>
+    
+    <div id="contratosList" class="info">
+        <h3>Contratos:</h3>
+        <div id="contratosContent">Carregando...</div>
+    </div>
+
+    <script>
+        let propostaData = null;
+
+        function carregarProposta() {
+            try {
+                const propostaId = window.location.pathname.split('/').pop();
+                
+                console.log('🚀 Função carregarProposta executada');
+                console.log('🔍 URL atual:', window.location.href);
+                console.log('🔍 PropostaId extraído:', propostaId);
+                
+                // Debug info
+                document.getElementById('debugContent').innerHTML = `
+                    <p><strong>URL:</strong> ${window.location.href}</p>
+                    <p><strong>PropostaId:</strong> ${propostaId}</p>
+                    <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+                `;
+                
+                if (!propostaId) {
+                    document.getElementById('clienteContent').innerHTML = '<div class="error">❌ ID da proposta não encontrado!</div>';
+                    return;
+                }
+
+                console.log('🔍 Buscando proposta:', propostaId);
+                
+                // Buscar dados da proposta via API
+                fetch(`/api/proposta/${propostaId}`)
+                    .then(response => {
+                        console.log('📡 Resposta da API:', response.status);
+                        document.getElementById('debugContent').innerHTML += `<p><strong>Status API:</strong> ${response.status}</p>`;
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        console.log('✅ Dados recebidos:', result);
+                        console.log('🔍 Result.success:', result.success);
+                        console.log('🔍 Result.dados:', result.dados);
+                        
+                        document.getElementById('debugContent').innerHTML += `<p><strong>Success:</strong> ${result.success}</p>`;
+                        document.getElementById('debugContent').innerHTML += `<p><strong>Dados recebidos:</strong> ${result.dados ? 'Sim' : 'Não'}</p>`;
+                        
+                        if (result.success && result.dados) {
+                            propostaData = result.dados;
+                            console.log('✅ Proposta carregada:', propostaId);
+
+                            // Renderizar dados
+                            renderizarCliente();
+                            renderizarContratos();
+                        } else {
+                            console.error('❌ Dados inválidos:', result);
+                            document.getElementById('clienteContent').innerHTML = '<div class="error">❌ Dados da proposta inválidos</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao carregar proposta:', error);
+                        document.getElementById('debugContent').innerHTML += `<p class="error"><strong>Erro:</strong> ${error.message}</p>`;
+                        document.getElementById('clienteContent').innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+                    });
+                
+            } catch (error) {
+                console.error('❌ Erro inesperado:', error);
+                document.getElementById('debugContent').innerHTML += `<p class="error"><strong>Erro inesperado:</strong> ${error.message}</p>`;
+                document.getElementById('clienteContent').innerHTML = `<div class="error">❌ Erro inesperado: ${error.message}</div>`;
+            }
+        }
+
+        function renderizarCliente() {
+            console.log('🎨 Renderizando cliente...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                document.getElementById('clienteContent').innerHTML = '<div class="error">❌ propostaData não está definida!</div>';
+                return;
+            }
+            
+            const cliente = propostaData.cliente;
+            console.log('🔍 Dados do cliente:', cliente);
+            
+            if (cliente) {
+                document.getElementById('clienteContent').innerHTML = `
+                    <p><strong>Nome:</strong> ${cliente.nome || 'N/A'}</p>
+                    <p><strong>NB:</strong> ${cliente.nb || 'N/A'}</p>
+                    <p><strong>Espécie:</strong> ${cliente.especie || 'N/A'}</p>
+                    <p><strong>Origem:</strong> ${cliente.origem || 'N/A'}</p>
+                    <p><strong>Data Extrato:</strong> ${cliente.dataExtrato || 'N/A'}</p>
+                `;
+            } else {
+                document.getElementById('clienteContent').innerHTML = '<div class="error">❌ Dados do cliente não encontrados!</div>';
+            }
+        }
+
+        function renderizarContratos() {
+            console.log('🎨 Renderizando contratos...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                document.getElementById('contratosContent').innerHTML = '<div class="error">❌ propostaData não está definida!</div>';
+                return;
+            }
+            
+            const contratos = propostaData.contratos;
+            console.log('🔍 Dados dos contratos:', contratos);
+            
+            if (contratos && contratos.length > 0) {
+                let html = `<p><strong>Total de contratos:</strong> ${contratos.length}</p>`;
+                contratos.forEach((contrato, index) => {
+                    html += `
+                        <div style="border: 1px solid #ccc; margin: 10px 0; padding: 10px; border-radius: 5px;">
+                            <h4>Contrato ${index + 1}</h4>
+                            <p><strong>Número:</strong> ${contrato.contrato || 'N/A'}</p>
+                            <p><strong>Banco:</strong> ${contrato.banco?.nome || 'N/A'} (${contrato.banco?.codigo || 'N/A'})</p>
+                            <p><strong>Situação:</strong> ${contrato.situacao || 'N/A'}</p>
+                            <p><strong>Valor Parcela:</strong> R$ ${contrato.valor_parcela || 'N/A'}</p>
+                            <p><strong>Valor Liberado:</strong> R$ ${contrato.valor_liberado || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                document.getElementById('contratosContent').innerHTML = html;
+            } else {
+                document.getElementById('contratosContent').innerHTML = '<div class="error">❌ Nenhum contrato encontrado!</div>';
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 DOM carregado, iniciando carregamento de dados...');
+            carregarProposta();
+        });
+    </script>
+</body>
+</html>
+
+
+

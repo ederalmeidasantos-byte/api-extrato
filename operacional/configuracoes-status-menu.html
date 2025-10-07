@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Menu Padrão CSS (Inline) -->
+    <style>
+        /* ================== MENU PADRÃO LUNAS DIGITAL ================== */
+        .menu-padrao {
+          background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+          color: white;
+          min-height: 100vh;
+          width: 280px;
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 1000;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-header {
+          padding: 1.5rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-logo {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          text-decoration: none;
+          color: white;
+          transition: opacity 0.2s ease;
+        }
+
+        .menu-logo:hover {
+          opacity: 0.8;
+        }
+
+        .logo-text {
+          font-size: 1.25rem;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+        }
+
+        .menu-items {
+          flex: 1;
+          padding: 1rem 0;
+          overflow-y: auto;
+        }
+
+        .menu-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+
+        .menu-item {
+          margin: 0.25rem 0;
+        }
+
+        .menu-link {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1.5rem;
+          color: rgba(255, 255, 255, 0.8);
+          text-decoration: none;
+          transition: all 0.2s ease;
+          border-left: 3px solid transparent;
+        }
+
+        .menu-link:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          border-left-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .menu-item.active .menu-link {
+          background: rgba(255, 255, 255, 0.15);
+          color: white;
+          border-left-color: #fbbf24;
+          font-weight: 600;
+        }
+
+        .menu-link i {
+          width: 20px;
+          height: 20px;
+          flex-shrink: 0;
+        }
+
+        .menu-label {
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+
+        .submenu {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          background: rgba(0, 0, 0, 0.1);
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+        }
+
+        .menu-item.expanded .submenu {
+          max-height: 300px;
+        }
+
+        .submenu-item {
+          margin: 0;
+        }
+
+        .submenu-link {
+          display: flex;
+          align-items: center;
+          padding: 0.5rem 1.5rem 0.5rem 3rem;
+          color: rgba(255, 255, 255, 0.7);
+          text-decoration: none;
+          transition: all 0.2s ease;
+          font-size: 0.9rem;
+        }
+
+        .submenu-link:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .submenu-item.active .submenu-link {
+          background: rgba(255, 255, 255, 0.15);
+          color: white;
+          font-weight: 600;
+        }
+
+        .menu-footer {
+          padding: 1.5rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(0, 0, 0, 0.1);
+        }
+
+        .user-info {
+          margin-bottom: 1rem;
+        }
+
+        .user-name {
+          display: block;
+          font-weight: 600;
+          font-size: 0.95rem;
+          margin-bottom: 0.25rem;
+        }
+
+        .user-role {
+          display: block;
+          font-size: 0.8rem;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .logout-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.75rem;
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #fca5a5;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+          background: rgba(239, 68, 68, 0.3);
+          border-color: rgba(239, 68, 68, 0.5);
+          color: white;
+        }
+
+        .logout-btn i {
+          width: 16px;
+          height: 16px;
+        }
+
+        .breadcrumb {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem 1.5rem;
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          font-size: 0.9rem;
+        }
+
+        .breadcrumb-home {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          color: #64748b;
+          text-decoration: none;
+          transition: color 0.2s ease;
+        }
+
+        .breadcrumb-home:hover {
+          color: #1e40af;
+        }
+
+        .breadcrumb-home i {
+          width: 16px;
+          height: 16px;
+        }
+
+        .breadcrumb-separator {
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .breadcrumb-item {
+          color: #64748b;
+        }
+
+        .breadcrumb-item.current {
+          color: #1e40af;
+          font-weight: 600;
+        }
+
+        /* Layout com menu lateral */
+        body {
+          margin: 0;
+          padding: 0;
+          background: #f8fafc;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .main-container {
+          display: flex;
+          min-height: 100vh;
+        }
+
+        .content-area {
+          flex: 1;
+          margin-left: 280px; /* Largura do menu */
+          padding: 0;
+          background: #f8fafc;
+        }
+
+        .page-content {
+          padding: 2rem;
+        }
+
+        /* Estilos específicos das configurações */
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .config-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .config-subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+
+        .config-content {
+            padding: 1.5rem;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .status-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .status-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-badge.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-description {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-sm i {
+            width: 14px;
+            height: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .content-area {
+                margin-left: 0;
+            }
+
+            .page-content {
+                padding: 1rem;
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Menu Padrão -->
+        <div id="menu-container"></div>
+        
+        <!-- Área de Conteúdo -->
+        <div class="content-area">
+            <!-- Breadcrumb -->
+            <div id="breadcrumb-container"></div>
+            
+            <!-- Conteúdo Principal -->
+            <div class="page-content">
+                <div class="config-container">
+                    <!-- Status de Propostas -->
+                    <div class="config-section">
+                        <div class="config-header">
+                            <h2 class="config-title">Status de Propostas</h2>
+                            <p class="config-subtitle">Configure os status disponíveis para propostas</p>
+                        </div>
+                        <div class="config-content">
+                            <div class="status-grid" id="status-grid">
+                                <!-- Status serão carregados aqui -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Produtos -->
+                    <div class="config-section">
+                        <div class="config-header">
+                            <h2 class="config-title">Produtos</h2>
+                            <p class="config-subtitle">Configure os produtos disponíveis</p>
+                        </div>
+                        <div class="config-content">
+                            <div class="status-grid" id="produtos-grid">
+                                <!-- Produtos serão carregados aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // ================== MENU PADRÃO LUNAS DIGITAL ==================
+        const MENU_CONFIG = {
+          logo: {
+            src: '/assets/logo-lunas.png',
+            alt: 'Lunas Digital',
+            link: '/operacional'
+          },
+          
+          items: [
+            {
+              id: 'dashboard',
+              label: 'Dashboard',
+              icon: 'home',
+              link: '/operacional',
+              active: false
+            },
+            {
+              id: 'clientes',
+              label: 'Clientes',
+              icon: 'users',
+              link: '/operacional/buscar-cliente.html',
+              active: false
+            },
+            {
+              id: 'propostas',
+              label: 'Propostas',
+              icon: 'file-text',
+              link: '/operacional/digitation-interface.html',
+              active: false
+            },
+            {
+              id: 'configuracoes',
+              label: 'Configurações',
+              icon: 'settings',
+              submenu: [
+                {
+                  id: 'status-produtos',
+                  label: 'Status & Produtos',
+                  link: '/operacional/configuracoes-status.html'
+                },
+                {
+                  id: 'usuarios',
+                  label: 'Usuários',
+                  link: '/operacional/configuracoes-usuarios.html'
+                },
+                {
+                  id: 'sistema',
+                  label: 'Sistema',
+                  link: '/operacional/configuracoes-sistema.html'
+                }
+              ]
+            }
+          ]
+        };
+
+        function renderMenu(containerId = 'menu-container', currentPage = null) {
+          const container = document.getElementById(containerId);
+          if (!container) return;
+
+          if (currentPage) {
+            MENU_CONFIG.items.forEach(item => {
+              item.active = (item.id === currentPage);
+              if (item.submenu) {
+                item.submenu.forEach(subItem => {
+                  subItem.active = (subItem.id === currentPage);
+                });
+              }
+            });
+          }
+
+          const menuHTML = generateMenuHTML();
+          container.innerHTML = menuHTML;
+          addMenuEventListeners();
+          
+          console.log('✅ Menu padrão carregado com sucesso');
+        }
+
+        function generateMenuHTML() {
+          let html = `
+            <nav class="menu-padrao lunas-menu">
+              <div class="menu-header">
+                <a href="${MENU_CONFIG.logo.link}" class="menu-logo">
+                  <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 1.5rem;">🏢</span>
+                  </div>
+                  <span class="logo-text">Lunas Digital</span>
+                </a>
+              </div>
+              
+              <div class="menu-items">
+                <ul class="menu-list">
+          `;
+
+          MENU_CONFIG.items.forEach(item => {
+            html += generateMenuItemHTML(item);
+          });
+
+          html += `
+                </ul>
+              </div>
+              
+              <div class="menu-footer">
+                <div class="user-info">
+                  <span class="user-name">Usuário Logado</span>
+                  <span class="user-role">Administrador</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                  <i data-feather="log-out"></i>
+                  Sair
+                </button>
+              </div>
+            </nav>
+          `;
+
+          return html;
+        }
+
+        function generateMenuItemHTML(item) {
+          let html = `
+            <li class="menu-item ${item.active ? 'active' : ''}">
+              <a href="${item.link || '#'}" class="menu-link" data-item-id="${item.id}">
+          `;
+
+          if (item.icon) {
+            html += `<i data-feather="${item.icon}"></i>`;
+          }
+
+          html += `
+                <span class="menu-label">${item.label}</span>
+              </a>
+          `;
+
+          if (item.submenu && item.submenu.length > 0) {
+            html += `
+              <ul class="submenu">
+            `;
+            
+            item.submenu.forEach(subItem => {
+              html += `
+                <li class="submenu-item ${subItem.active ? 'active' : ''}">
+                  <a href="${subItem.link}" class="submenu-link" data-item-id="${subItem.id}">
+                    <span class="submenu-label">${subItem.label}</span>
+                  </a>
+                </li>
+              `;
+            });
+            
+            html += `
+              </ul>
+            `;
+          }
+
+          html += `
+            </li>
+          `;
+
+          return html;
+        }
+
+        function addMenuEventListeners() {
+          document.querySelectorAll('.menu-item').forEach(item => {
+            const link = item.querySelector('.menu-link');
+            const submenu = item.querySelector('.submenu');
+            
+            if (submenu) {
+              link.addEventListener('click', (e) => {
+                e.preventDefault();
+                item.classList.toggle('expanded');
+              });
+            }
+          });
+
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        }
+
+        function renderBreadcrumb(containerId = 'breadcrumb-container', path = []) {
+          const container = document.getElementById(containerId);
+          if (!container) return;
+
+          let html = `
+            <nav class="breadcrumb">
+              <a href="/operacional" class="breadcrumb-home">
+                <i data-feather="home"></i>
+                Dashboard
+              </a>
+          `;
+
+          path.forEach((item, index) => {
+            html += `
+              <span class="breadcrumb-separator">></span>
+              <span class="breadcrumb-item ${index === path.length - 1 ? 'current' : ''}">
+                ${item.label}
+              </span>
+            `;
+          });
+
+          html += `</nav>`;
+
+          container.innerHTML = html;
+          
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        }
+
+        function logout() {
+          if (confirm('Tem certeza que deseja sair?')) {
+            window.location.href = '/login';
+          }
+        }
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+          try {
+            console.log('📡 Carregando configurações...');
+            
+            // Carregar status
+            const statusResponse = await fetch('/api/status-config');
+            const statusData = await statusResponse.json();
+            
+            // Carregar produtos
+            const produtosResponse = await fetch('/api/produtos');
+            const produtosData = await produtosResponse.json();
+            
+            renderizarStatus(statusData.statusProposta || []);
+            renderizarProdutos(produtosData.produtos || []);
+            
+            console.log('✅ Configurações carregadas');
+            
+          } catch (error) {
+            console.error('❌ Erro ao carregar configurações:', error);
+            mostrarErro('Erro ao carregar configurações. Tente novamente.');
+          }
+        }
+
+        function renderizarStatus(statusList) {
+          const container = document.getElementById('status-grid');
+          
+          if (statusList.length === 0) {
+            container.innerHTML = `
+              <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #64748b;">
+                <i data-feather="info" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+                <h3>Nenhum status encontrado</h3>
+                <p>Configure os status de propostas</p>
+              </div>
+            `;
+          } else {
+            container.innerHTML = statusList.map(status => `
+              <div class="status-card">
+                <div class="status-header">
+                  <span class="status-name">${status.nome}</span>
+                  <span class="status-badge ${status.ativo ? 'active' : 'inactive'}">
+                    ${status.ativo ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div class="status-description">
+                  ${status.descricao || 'Sem descrição'}
+                </div>
+                <div class="status-actions">
+                  <button class="btn btn-primary btn-sm" onclick="editarStatus('${status.id}')">
+                    <i data-feather="edit"></i>
+                    Editar
+                  </button>
+                  <button class="btn btn-secondary btn-sm" onclick="toggleStatus('${status.id}')">
+                    <i data-feather="${status.ativo ? 'pause' : 'play'}"></i>
+                    ${status.ativo ? 'Desativar' : 'Ativar'}
+                  </button>
+                </div>
+              </div>
+            `).join('');
+          }
+          
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        }
+
+        function renderizarProdutos(produtosList) {
+          const container = document.getElementById('produtos-grid');
+          
+          if (produtosList.length === 0) {
+            container.innerHTML = `
+              <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #64748b;">
+                <i data-feather="package" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+                <h3>Nenhum produto encontrado</h3>
+                <p>Configure os produtos disponíveis</p>
+              </div>
+            `;
+          } else {
+            container.innerHTML = produtosList.map(produto => `
+              <div class="status-card">
+                <div class="status-header">
+                  <span class="status-name">${produto.nome}</span>
+                  <span class="status-badge ${produto.ativo ? 'active' : 'inactive'}">
+                    ${produto.ativo ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                <div class="status-description">
+                  ${produto.descricao || 'Sem descrição'}
+                </div>
+                <div class="status-actions">
+                  <button class="btn btn-primary btn-sm" onclick="editarProduto('${produto.id}')">
+                    <i data-feather="edit"></i>
+                    Editar
+                  </button>
+                  <button class="btn btn-secondary btn-sm" onclick="toggleProduto('${produto.id}')">
+                    <i data-feather="${produto.ativo ? 'pause' : 'play'}"></i>
+                    ${produto.ativo ? 'Desativar' : 'Ativar'}
+                  </button>
+                </div>
+              </div>
+            `).join('');
+          }
+          
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        }
+
+        function editarStatus(id) {
+          console.log('Editar status:', id);
+        }
+
+        function toggleStatus(id) {
+          console.log('Toggle status:', id);
+        }
+
+        function editarProduto(id) {
+          console.log('Editar produto:', id);
+        }
+
+        function toggleProduto(id) {
+          console.log('Toggle produto:', id);
+        }
+
+        function mostrarErro(mensagem) {
+          const container = document.getElementById('status-grid');
+          container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #ef4444;">
+              <i data-feather="alert-circle" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+              <h3>Erro</h3>
+              <p>${mensagem}</p>
+            </div>
+          `;
+          
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+          console.log('🚀 Página de configurações carregada');
+          
+          // Renderizar menu
+          renderMenu('menu-container', 'status-produtos');
+          
+          // Renderizar breadcrumb
+          renderBreadcrumb('breadcrumb-container', [
+            { label: 'Configurações' },
+            { label: 'Status & Produtos' }
+          ]);
+          
+          carregarConfiguracoes();
+          
+          // Inicializar ícones Feather
+          if (typeof feather !== 'undefined') {
+            feather.replace();
+          }
+        });
+    </script>
+</body>
+</html>
+
+
+

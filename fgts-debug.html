@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>FGTS DEBUG - v1.0</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background-color: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background-color: #f0f2ff;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .process-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        .process-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-info { color: #00ff00; }
+        .log-success { color: #00ff00; }
+        .log-error { color: #ff4444; }
+        .log-warning { color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 FGTS DEBUG</h1>
+            <p>Teste de Upload com Debug Completo</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <h3>📁 Selecione seu arquivo CSV</h3>
+                <p>Arraste e solte ou clique para selecionar</p>
+                <input type="file" id="fileInput" class="file-input" accept=".csv" />
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Selecionar Arquivo
+                </button>
+                <div class="file-info" id="fileInfo">
+                    <p><strong>Arquivo:</strong> <span id="fileName"></span></p>
+                    <p><strong>Tamanho:</strong> <span id="fileSize"></span></p>
+                    <p><strong>Tipo:</strong> <span id="fileType"></span></p>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="process-btn" id="processBtn" onclick="processFile()" disabled>
+                    🚀 Processar Arquivo
+                </button>
+            </div>
+            
+            <div class="logs" id="logs">
+                <div class="log-entry log-info">Sistema iniciado - Aguardando arquivo...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const processBtn = document.getElementById('processBtn');
+        const logs = document.getElementById('logs');
+        
+        function addLog(type, message) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+            logs.style.display = 'block';
+        }
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentFile = file;
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+                document.getElementById('fileType').textContent = file.type;
+                fileInfo.style.display = 'block';
+                processBtn.disabled = false;
+                addLog('info', `Arquivo selecionado: ${file.name} (${file.size} bytes)`);
+            }
+        });
+        
+        async function processFile() {
+            if (!currentFile) {
+                addLog('error', 'Nenhum arquivo selecionado!');
+                return;
+            }
+            
+            addLog('info', 'Iniciando processamento...');
+            processBtn.disabled = true;
+            processBtn.textContent = 'Processando...';
+            
+            const formData = new FormData();
+            formData.append('csvfile', currentFile);
+            
+            addLog('info', 'Campo adicionado: csvfile');
+            addLog('info', `Arquivo: ${currentFile.name} (${currentFile.type})`);
+            
+            // Debug FormData
+            addLog('info', 'Conteúdo do FormData:');
+            for (let [key, value] of formData.entries()) {
+                addLog('info', `  ${key}: ${value.name || value}`);
+            }
+            
+            try {
+                const response = await fetch('/fgts/run', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                addLog('info', `Status da resposta: ${response.status}`);
+                
+                const responseText = await response.text();
+                addLog('info', `Resposta: ${responseText}`);
+                
+                if (response.ok) {
+                    addLog('success', 'Upload realizado com sucesso!');
+                } else {
+                    addLog('error', `Erro: ${responseText}`);
+                }
+                
+            } catch (error) {
+                addLog('error', `Erro na requisição: ${error.message}`);
+            } finally {
+                processBtn.disabled = false;
+                processBtn.textContent = '🚀 Processar Arquivo';
+            }
+        }
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                currentFile = files[0];
+                fileInput.files = files;
+                document.getElementById('fileName').textContent = currentFile.name;
+                document.getElementById('fileSize').textContent = (currentFile.size / 1024).toFixed(2) + ' KB';
+                document.getElementById('fileType').textContent = currentFile.type;
+                fileInfo.style.display = 'block';
+                processBtn.disabled = false;
+                addLog('info', `Arquivo selecionado via drag&drop: ${currentFile.name}`);
+            }
+        });
+        
+        addLog('info', 'Sistema de debug carregado!');
+    </script>
+</body>
+</html>
+

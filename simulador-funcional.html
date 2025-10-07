@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador INSS - Lunas Digital</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            color: #334155;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .header-subtitle { font-size: 1.2rem; opacity: 0.9; }
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn:hover { transform: translateY(-2px); }
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1e293b;
+        }
+        .client-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .info-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .info-label { font-weight: 600; color: #64748b; font-size: 0.9rem; }
+        .info-value { font-size: 1.1rem; color: #1e293b; margin-top: 0.25rem; }
+        .margins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        .margin-item {
+            background: #f0f9ff;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e0f2fe;
+        }
+        .margin-label { font-weight: 600; color: #0369a1; font-size: 0.9rem; }
+        .margin-value { font-size: 1.2rem; color: #0c4a6e; margin-top: 0.5rem; font-weight: 700; }
+        .resumo {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1.5rem;
+            border-radius: 16px;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+        }
+        .resumo-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+        .resumo-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 0.9rem; opacity: 0.9; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+        .btn-enviar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-enviar:hover { background: rgba(255, 255, 255, 0.3); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Simulador INSS</h1>
+            <p class="header-subtitle">Sistema inteligente de simulação de contratos e cálculo de troco</p>
+            <div class="header-actions">
+                <button class="btn btn-success" onclick="abrirUploadExtrato()">
+                    <i data-feather="file-plus"></i>
+                    Anexar Extrato
+                </button>
+                <button class="btn btn-danger" onclick="limparDados()">
+                    <i data-feather="trash-2"></i>
+                    Limpar
+                </button>
+            </div>
+        </div>
+
+        <!-- Seção Cliente -->
+        <div id="clienteSection" class="section hidden">
+            <div class="section-title">Informações do Cliente</div>
+            <div class="client-info">
+                <div class="info-item">
+                    <div class="info-label">Nome:</div>
+                    <div class="info-value" id="cliente-nome">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">NB:</div>
+                    <div class="info-value" id="cliente-nb">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Espécie:</div>
+                    <div class="info-value" id="cliente-especie">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Origem:</div>
+                    <div class="info-value" id="cliente-origem">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Data Extrato:</div>
+                    <div class="info-value" id="cliente-data">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Margens -->
+        <div id="margensSection" class="section hidden">
+            <div class="section-title">Margens do Cliente</div>
+            <div class="margins-grid">
+                <div class="margin-item">
+                    <div class="margin-label">Disponível</div>
+                    <div class="margin-value" id="margem-disponivel">R$ 0,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">Extrapolada</div>
+                    <div class="margin-value" id="margem-extrapolado">R$ 0,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">RMC</div>
+                    <div class="margin-value" id="margem-rmc">R$ 0,00</div>
+                </div>
+                <div class="margin-item">
+                    <div class="margin-label">RCC</div>
+                    <div class="margin-value" id="margem-rcc">R$ 0,00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção Contratos -->
+        <div id="contratosSection" class="section hidden">
+            <div class="section-title">Contratos Aprovados (<span id="contratos-count">0</span> contratos)</div>
+            <div id="contratos-list"></div>
+        </div>
+    </div>
+
+    <!-- Resumo Fixo -->
+    <div id="resumoSection" class="resumo hidden">
+        <div class="resumo-title">RESUMO DE SIMULAÇÃO</div>
+        <div class="resumo-stats">
+            <div class="stat-item">
+                <div class="stat-label">Contratos</div>
+                <div class="stat-value" id="resumo-contratos">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Troco Total</div>
+                <div class="stat-value" id="resumo-troco">R$ 0,00</div>
+            </div>
+        </div>
+        <button class="btn-enviar" onclick="enviarProposta()">
+            <i data-feather="send"></i>
+            Enviar Proposta
+        </button>
+    </div>
+
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Variáveis globais
+        let cliente = null;
+        let contratos = [];
+        let margens = null;
+        let codigoExtrato = null;
+
+        // Função para abrir upload de extrato
+        window.abrirUploadExtrato = function() {
+            console.log('Abrindo upload de extrato');
+            
+            const cpf = prompt('Digite o CPF do cliente:');
+            if (!cpf) {
+                alert('CPF é obrigatório para continuar');
+                return;
+            }
+            
+            const cpfLimpo = cpf.replace(/[^0-9]/g, '');
+            if (cpfLimpo.length !== 11) {
+                alert('CPF deve ter 11 dígitos');
+                return;
+            }
+            
+            window.cpfCache = cpfLimpo;
+            localStorage.setItem('cpfCache', cpfLimpo);
+            
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf';
+            input.style.display = 'none';
+            
+            input.onchange = async function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                console.log('Arquivo selecionado:', file.name);
+                await fazerUploadExtrato(file, cpfLimpo);
+            };
+            
+            document.body.appendChild(input);
+            setTimeout(() => input.click(), 100);
+        };
+
+        // Função para fazer upload do extrato
+        async function fazerUploadExtrato(file, cpf) {
+            try {
+                console.log('Fazendo upload do extrato');
+                
+                const formData = new FormData();
+                formData.append('pdf', file);
+                formData.append('cpf', cpf);
+                
+                const response = await fetch('https://lunasdigital.com.br/api/processar-extrato', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                
+                const resultado = await response.json();
+                console.log('Resultado do upload:', resultado);
+                
+                if (resultado.success) {
+                    alert('Extrato processado com sucesso!');
+                    await carregarSimulacaoPorId(resultado.extratoId);
+                } else {
+                    alert('Erro ao processar extrato: ' + (resultado.error || 'Erro desconhecido'));
+                }
+                
+            } catch (error) {
+                console.error('Erro no upload:', error);
+                alert('Erro ao fazer upload: ' + error.message);
+            }
+        }
+
+        // Função para carregar simulação por ID
+        window.carregarSimulacaoPorId = async function(extratoId) {
+            try {
+                console.log('Carregando simulação:', extratoId);
+                
+                const response = await fetch('https://lunasdigital.com.br/api/simulacao/' + extratoId);
+                
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                
+                const dados = await response.json();
+                console.log('Dados recebidos:', dados);
+                
+                const extrato = dados.extrato || dados;
+                
+                codigoExtrato = extratoId;
+                contratos = extrato.contratos || [];
+                
+                contratos.forEach(contrato => {
+                    contrato.aprovado = true;
+                });
+                
+                cliente = {
+                    nome: extrato.cliente || '-',
+                    cpf: extrato.cpf || window.cpfCache || localStorage.getItem('cpfCache') || '',
+                    nb: extrato.beneficio?.nb || '-',
+                    especie: extrato.beneficio?.codigoBeneficio || '-',
+                    origem: extrato.origem || '-',
+                    dataExtrato: extrato.data_extrato || '-',
+                    valorDisponivel: extrato.margens?.disponivel || 0,
+                    valorExtrapolado: extrato.margens?.extrapolado || 0,
+                    valorRMC: extrato.margens?.rmc || 0,
+                    valorRCC: extrato.margens?.rcc || 0
+                };
+                
+                margens = extrato.margens || {
+                    disponivel: 0,
+                    extrapolado: 0,
+                    rmc: 0,
+                    rcc: 0
+                };
+                
+                atualizarInterface();
+                console.log('Simulação carregada com sucesso');
+                
+            } catch (error) {
+                console.error('Erro ao carregar simulação:', error);
+                alert('Erro ao carregar simulação: ' + error.message);
+            }
+        };
+
+        // Função para atualizar interface
+        function atualizarInterface() {
+            if (!cliente) return;
+            
+            // Mostrar seções
+            document.getElementById('clienteSection').classList.remove('hidden');
+            document.getElementById('margensSection').classList.remove('hidden');
+            document.getElementById('contratosSection').classList.remove('hidden');
+            document.getElementById('resumoSection').classList.remove('hidden');
+            
+            // Atualizar dados do cliente
+            document.getElementById('cliente-nome').textContent = cliente.nome;
+            document.getElementById('cliente-nb').textContent = cliente.nb;
+            document.getElementById('cliente-especie').textContent = cliente.especie;
+            document.getElementById('cliente-origem').textContent = cliente.origem;
+            document.getElementById('cliente-data').textContent = cliente.dataExtrato;
+            
+            // Atualizar margens
+            document.getElementById('margem-disponivel').textContent = formatarMoeda(cliente.valorDisponivel);
+            document.getElementById('margem-extrapolado').textContent = formatarMoeda(cliente.valorExtrapolado);
+            document.getElementById('margem-rmc').textContent = formatarMoeda(cliente.valorRMC);
+            document.getElementById('margem-rcc').textContent = formatarMoeda(cliente.valorRCC);
+            
+            // Atualizar contratos
+            atualizarListaContratos();
+            
+            // Atualizar resumo
+            atualizarResumo();
+        }
+
+        // Função para atualizar lista de contratos
+        function atualizarListaContratos() {
+            const contratosAprovados = contratos.filter(c => c.aprovado === true);
+            
+            document.getElementById('contratos-count').textContent = contratosAprovados.length;
+            
+            const contratosList = document.getElementById('contratos-list');
+            contratosList.innerHTML = '';
+            
+            contratosAprovados.forEach((contrato, index) => {
+                const contratoDiv = document.createElement('div');
+                contratoDiv.className = 'info-item';
+                contratoDiv.innerHTML = `
+                    <div class="info-label">Contrato ${index + 1}</div>
+                    <div class="info-value">Banco: ${contrato.banco || 'N/A'} | Valor: ${formatarMoeda(contrato.valor || 0)} | Troco: ${formatarMoeda(contrato.troco || 0)}</div>
+                `;
+                contratosList.appendChild(contratoDiv);
+            });
+        }
+
+        // Função para atualizar resumo
+        function atualizarResumo() {
+            const totalContratos = contratos.filter(c => c.aprovado === true).length;
+            const trocoTotal = calcularTrocoTotal();
+            
+            document.getElementById('resumo-contratos').textContent = totalContratos;
+            document.getElementById('resumo-troco').textContent = formatarMoeda(trocoTotal);
+        }
+
+        // Função para calcular troco total
+        function calcularTrocoTotal() {
+            return contratos
+                .filter(c => c.aprovado === true)
+                .reduce((total, contrato) => total + (contrato.troco || 0), 0);
+        }
+
+        // Função para formatar moeda
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        // Função para limpar dados
+        function limparDados() {
+            cliente = null;
+            contratos = [];
+            margens = null;
+            codigoExtrato = null;
+            
+            // Esconder seções
+            document.getElementById('clienteSection').classList.add('hidden');
+            document.getElementById('margensSection').classList.add('hidden');
+            document.getElementById('contratosSection').classList.add('hidden');
+            document.getElementById('resumoSection').classList.add('hidden');
+            
+            console.log('Dados limpos');
+        }
+
+        // Função para enviar proposta
+        function enviarProposta() {
+            if (!cliente || !contratos.length) {
+                alert('Nenhum dado disponível para enviar');
+                return;
+            }
+            
+            const dadosProposta = {
+                id: 'proposta_' + Date.now(),
+                cliente: cliente,
+                contratos: contratos.filter(c => c.aprovado === true),
+                margens: margens,
+                extratoId: codigoExtrato,
+                dataCriacao: new Date().toISOString(),
+                status: 'pendente'
+            };
+            
+            console.log('Dados da proposta:', dadosProposta);
+            alert('Proposta enviada com sucesso!');
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Simulador INSS carregado');
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const extratoId = urlParams.get('extrato');
+            
+            if (extratoId) {
+                console.log('Carregando extrato da URL:', extratoId);
+                carregarSimulacaoPorId(extratoId);
+            }
+        });
+    </script>
+</body>
+</html>

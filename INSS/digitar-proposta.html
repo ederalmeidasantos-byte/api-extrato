@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitar Proposta - INSS</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: #3b82f6;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .copy-btn {
+            position: absolute;
+            right: 8px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .copy-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: #10b981;
+        }
+
+        .copy-btn i {
+            width: 16px;
+            height: 16px;
+        }
+
+        .contratos-list {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .contrato-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .contrato-info {
+            flex: 1;
+        }
+
+        .contrato-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .contrato-details {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .contrato-selected {
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+
+        .contrato-selected .contrato-title {
+            color: #059669;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn i {
+            width: 20px;
+            height: 20px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            color: #059669;
+            border: 1px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .contrato-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i data-feather="edit-3" class="feather-icon"></i> Digitar Proposta</h1>
+            <p>Preencha os dados do cliente e contratos selecionados</p>
+        </div>
+
+        <div class="alert alert-success" id="successAlert">
+            <i data-feather="check-circle" class="feather-icon"></i>
+            Proposta enviada para fila de digitação com sucesso!
+        </div>
+
+        <div class="alert alert-error" id="errorAlert">
+            <i data-feather="alert-circle" class="feather-icon"></i>
+            <span id="errorMessage">Erro ao enviar proposta.</span>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Enviando proposta para fila de digitação...</p>
+        </div>
+
+        <form id="propostaForm">
+            <!-- Dados Pessoais -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i data-feather="user" class="feather-icon"></i>
+                    Dados Pessoais
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="nome">Nome Completo *</label>
+                        <div class="input-container">
+                            <input type="text" id="nome" name="nome" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('nome')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cpf">CPF *</label>
+                        <div class="input-container">
+                            <input type="text" id="cpf" name="cpf" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('cpf')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="telefone">Telefone *</label>
+                        <div class="input-container">
+                            <input type="text" id="telefone" name="telefone" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('telefone')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">E-mail</label>
+                        <div class="input-container">
+                            <input type="email" id="email" name="email">
+                            <button type="button" class="copy-btn" onclick="copiarCampo('email')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dados do Extrato -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i data-feather="file-text" class="feather-icon"></i>
+                    Dados do Extrato
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="nb">Número do Benefício (NB) *</label>
+                        <div class="input-container">
+                            <input type="text" id="nb" name="nb" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('nb')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="especie">Espécie do Benefício *</label>
+                        <div class="input-container">
+                            <input type="text" id="especie" name="especie" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('especie')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="origem">Origem *</label>
+                        <div class="input-container">
+                            <input type="text" id="origem" name="origem" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('origem')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="dataExtrato">Data do Extrato *</label>
+                        <div class="input-container">
+                            <input type="text" id="dataExtrato" name="dataExtrato" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('dataExtrato')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i data-feather="map-pin" class="feather-icon"></i>
+                    Endereço
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cep">CEP *</label>
+                        <div class="input-container">
+                            <input type="text" id="cep" name="cep" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('cep')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="logradouro">Logradouro *</label>
+                        <div class="input-container">
+                            <input type="text" id="logradouro" name="logradouro" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('logradouro')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero">Número *</label>
+                        <div class="input-container">
+                            <input type="text" id="numero" name="numero" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('numero')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="complemento">Complemento</label>
+                        <div class="input-container">
+                            <input type="text" id="complemento" name="complemento">
+                            <button type="button" class="copy-btn" onclick="copiarCampo('complemento')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bairro">Bairro *</label>
+                        <div class="input-container">
+                            <input type="text" id="bairro" name="bairro" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('bairro')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cidade">Cidade *</label>
+                        <div class="input-container">
+                            <input type="text" id="cidade" name="cidade" required>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('cidade')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="estado">Estado *</label>
+                        <div class="input-container">
+                            <select id="estado" name="estado" required>
+                                <option value="">Selecione</option>
+                                <option value="AC">Acre</option>
+                                <option value="AL">Alagoas</option>
+                                <option value="AP">Amapá</option>
+                                <option value="AM">Amazonas</option>
+                                <option value="BA">Bahia</option>
+                                <option value="CE">Ceará</option>
+                                <option value="DF">Distrito Federal</option>
+                                <option value="ES">Espírito Santo</option>
+                                <option value="GO">Goiás</option>
+                                <option value="MA">Maranhão</option>
+                                <option value="MT">Mato Grosso</option>
+                                <option value="MS">Mato Grosso do Sul</option>
+                                <option value="MG">Minas Gerais</option>
+                                <option value="PA">Pará</option>
+                                <option value="PB">Paraíba</option>
+                                <option value="PR">Paraná</option>
+                                <option value="PE">Pernambuco</option>
+                                <option value="PI">Piauí</option>
+                                <option value="RJ">Rio de Janeiro</option>
+                                <option value="RN">Rio Grande do Norte</option>
+                                <option value="RS">Rio Grande do Sul</option>
+                                <option value="RO">Rondônia</option>
+                                <option value="RR">Roraima</option>
+                                <option value="SC">Santa Catarina</option>
+                                <option value="SP">São Paulo</option>
+                                <option value="SE">Sergipe</option>
+                                <option value="TO">Tocantins</option>
+                            </select>
+                            <button type="button" class="copy-btn" onclick="copiarCampo('estado')">
+                                <i data-feather="copy" class="feather-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contratos Selecionados -->
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i data-feather="file-plus" class="feather-icon"></i>
+                    Contratos Selecionados
+                </h2>
+                <div id="contratosList" class="contratos-list">
+                    <p>Carregando contratos...</p>
+                </div>
+            </div>
+
+            <!-- Ações -->
+            <div class="actions">
+                <button type="button" class="btn btn-secondary" onclick="voltar()">
+                    <i data-feather="arrow-left" class="feather-icon"></i>
+                    Voltar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i data-feather="send" class="feather-icon"></i>
+                    Enviar para Fila de Digitação
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Dados da proposta (vindos da URL ou localStorage)
+        let propostaData = null;
+        let contratosSelecionados = [];
+
+        // Carregar dados da proposta
+        function carregarDadosProposta() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const propostaId = urlParams.get('propostaId');
+            
+            if (propostaId) {
+                // Carregar do localStorage
+                const dados = localStorage.getItem(`proposta_${propostaId}`);
+                if (dados) {
+                    propostaData = JSON.parse(dados);
+                    contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
+                    preencherFormulario();
+                    renderizarContratos();
+                } else {
+                    mostrarErro('Proposta não encontrada');
+                }
+            } else {
+                mostrarErro('ID da proposta não fornecido');
+            }
+        }
+
+        // Preencher formulário com dados da proposta
+        function preencherFormulario() {
+            if (!propostaData) return;
+
+            // Dados pessoais
+            document.getElementById('nome').value = propostaData.cliente.nome || '';
+            document.getElementById('cpf').value = propostaData.cliente.cpf || '';
+            document.getElementById('telefone').value = propostaData.cliente.telefone || '';
+            document.getElementById('email').value = propostaData.cliente.email || '';
+
+            // Dados do extrato
+            document.getElementById('nb').value = propostaData.cliente.nb || '';
+            document.getElementById('especie').value = propostaData.cliente.especie || '';
+            document.getElementById('origem').value = propostaData.cliente.origem || '';
+            document.getElementById('dataExtrato').value = propostaData.cliente.dataExtrato || '';
+
+            // Endereço (se disponível)
+            if (propostaData.cliente.endereco) {
+                document.getElementById('cep').value = propostaData.cliente.endereco.cep || '';
+                document.getElementById('logradouro').value = propostaData.cliente.endereco.logradouro || '';
+                document.getElementById('numero').value = propostaData.cliente.endereco.numero || '';
+                document.getElementById('complemento').value = propostaData.cliente.endereco.complemento || '';
+                document.getElementById('bairro').value = propostaData.cliente.endereco.bairro || '';
+                document.getElementById('cidade').value = propostaData.cliente.endereco.cidade || '';
+                document.getElementById('estado').value = propostaData.cliente.endereco.estado || '';
+            }
+        }
+
+        // Renderizar contratos selecionados
+        function renderizarContratos() {
+            const container = document.getElementById('contratosList');
+            
+            if (contratosSelecionados.length === 0) {
+                container.innerHTML = '<p>Nenhum contrato selecionado</p>';
+                return;
+            }
+
+            container.innerHTML = contratosSelecionados.map(contrato => `
+                <div class="contrato-item contrato-selected">
+                    <div class="contrato-info">
+                        <div class="contrato-title">Contrato ${contrato.contrato || contrato.id}</div>
+                        <div class="contrato-details">
+                            ${contrato.banco?.nome || contrato.simulacao?.bancoNome || 'Banco'} - 
+                            ${contrato.simulacao?.parcelas || 96}x de R$ ${formatBRNumber(contrato.simulacao?.valorParcela || contrato.simulacao?.parcela || 0)} - 
+                            Troco: R$ ${formatBRNumber(contrato.simulacao?.troco || 0)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Função para copiar campo
+        function copiarCampo(campoId) {
+            const campo = document.getElementById(campoId);
+            const valor = campo.value;
+            
+            if (!valor) {
+                alert('Campo vazio');
+                return;
+            }
+
+            navigator.clipboard.writeText(valor).then(() => {
+                const btn = campo.nextElementSibling;
+                btn.classList.add('copied');
+                btn.innerHTML = '<i data-feather="check" class="feather-icon"></i>';
+                feather.replace();
+                
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<i data-feather="copy" class="feather-icon"></i>';
+                    feather.replace();
+                }, 2000);
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                alert('Erro ao copiar texto');
+            });
+        }
+
+        // Formatar número brasileiro
+        function formatBRNumber(num) {
+            return parseFloat(num || 0).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            document.getElementById('errorMessage').textContent = mensagem;
+            document.getElementById('errorAlert').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('errorAlert').classList.remove('show');
+            }, 5000);
+        }
+
+        // Mostrar sucesso
+        function mostrarSucesso() {
+            document.getElementById('successAlert').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('successAlert').classList.remove('show');
+            }, 5000);
+        }
+
+        // Voltar
+        function voltar() {
+            window.history.back();
+        }
+
+        // Enviar formulário
+        document.getElementById('propostaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validar campos obrigatórios
+            const camposObrigatorios = ['nome', 'cpf', 'telefone', 'nb', 'especie', 'origem', 'dataExtrato', 'cep', 'logradouro', 'numero', 'bairro', 'cidade', 'estado'];
+            const camposVazios = camposObrigatorios.filter(campo => !document.getElementById(campo).value);
+            
+            if (camposVazios.length > 0) {
+                mostrarErro(`Preencha os campos obrigatórios: ${camposVazios.join(', ')}`);
+                return;
+            }
+
+            if (contratosSelecionados.length === 0) {
+                mostrarErro('Selecione pelo menos um contrato');
+                return;
+            }
+
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            const dadosProposta = {
+                id: propostaData.id,
+                cliente: {
+                    nome: formData.get('nome'),
+                    cpf: formData.get('cpf'),
+                    telefone: formData.get('telefone'),
+                    email: formData.get('email'),
+                    nb: formData.get('nb'),
+                    especie: formData.get('especie'),
+                    origem: formData.get('origem'),
+                    dataExtrato: formData.get('dataExtrato'),
+                    endereco: {
+                        cep: formData.get('cep'),
+                        logradouro: formData.get('logradouro'),
+                        numero: formData.get('numero'),
+                        complemento: formData.get('complemento'),
+                        bairro: formData.get('bairro'),
+                        cidade: formData.get('cidade'),
+                        estado: formData.get('estado')
+                    }
+                },
+                contratos: contratosSelecionados,
+                status: 'pendente',
+                dataEnvio: new Date().toISOString(),
+                tipo: 'digitacao'
+            };
+
+            // Mostrar loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('propostaForm').style.display = 'none';
+
+            // Simular envio (salvar no localStorage)
+            setTimeout(() => {
+                // Salvar na fila de digitação
+                const filaDigitacao = JSON.parse(localStorage.getItem('filaDigitacao') || '[]');
+                filaDigitacao.push(dadosProposta);
+                localStorage.setItem('filaDigitacao', JSON.stringify(filaDigitacao));
+
+                // Ocultar loading
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('propostaForm').style.display = 'block';
+
+                // Mostrar sucesso
+                mostrarSucesso();
+
+                // Redirecionar para fila de digitação após 2 segundos
+                setTimeout(() => {
+                    window.location.href = '/fila-digitacao';
+                }, 2000);
+            }, 2000);
+        });
+
+        // Carregar dados quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarDadosProposta();
+        });
+    </script>
+</body>
+</html>
+
+
+

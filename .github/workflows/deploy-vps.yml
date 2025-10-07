@@ -1,0 +1,62 @@
+name: 🚀 Deploy VPS Hostinger
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: 🚀 Deploy no VPS
+      run: |
+        echo "🚀 Iniciando deploy no VPS..."
+        
+        # 1. Verificar status atual
+        echo "🔍 Verificando status atual..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 status"
+        
+        # 2. Parar aplicação
+        echo "⏹️ Parando aplicação..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 stop api-extrato || true"
+        
+        # 3. Atualizar código
+        echo "📥 Atualizando código via Git..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd '${{ secrets.VPS_PATH }}/API Lunas' && git pull origin master"
+        
+        # 4. Instalar dependências
+        echo "📦 Instalando dependências..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd '${{ secrets.VPS_PATH }}/API Lunas' && npm install --production"
+        
+        # 5. Reiniciar aplicação
+        echo "🔄 Reiniciando aplicação..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "cd '${{ secrets.VPS_PATH }}/API Lunas' && pm2 restart api-extrato || pm2 start ecosystem.config.cjs"
+        
+        # 6. Verificar status final
+        echo "✅ Verificando status final..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "pm2 status"
+        
+        # 7. Testar aplicação
+        echo "🧪 Testando aplicação..."
+        ssh -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "curl -f http://localhost:3000/api/health || echo 'Aplicação não respondeu'"
+        
+        echo "🎉 Deploy concluído com sucesso!"
+        
+    - name: 📊 Status do Deploy
+      run: |
+        echo "🌐 Aplicação disponível em: https://lunasdigital.com.br/"
+        echo "📅 Deploy realizado em: $(date)"
+        echo "🔗 Commit: ${{ github.sha }}"
+

@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏢 Lunas Digital CRM - Sistema Operacional</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Cores principais */
+            --primary-blue: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            --secondary-gray: #f8fafc;
+            --success-green: linear-gradient(135deg, #10b981, #059669);
+            --warning-yellow: linear-gradient(135deg, #f59e0b, #d97706);
+            --danger-red: linear-gradient(135deg, #ef4444, #dc2626);
+            
+            /* Bordas e Separadores */
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            
+            /* Textos */
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
+            
+            /* Sidebar */
+            --sidebar-bg: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--secondary-gray);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* SIDEBAR FIXA */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-blue);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* NAVEGAÇÃO */
+        .sidebar-nav {
+            padding: 1rem;
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 0.75rem;
+            padding: 0 0.75rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.25rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            background: var(--primary-blue);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .nav-item i {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* BUSCA RÁPIDA */
+        .quick-search {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* CONTEÚDO PRINCIPAL */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* HEADER DO CLIENTE */
+        .client-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .client-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .client-avatar {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-blue);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 700;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .client-details h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .client-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge.success {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .badge.warning {
+            background: var(--warning-yellow);
+            color: white;
+        }
+
+        .badge.info {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        /* BOTÕES DE AÇÃO */
+        .client-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .btn-success {
+            background: var(--success-green);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        /* CARDS DE ESTATÍSTICAS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .stat-change.positive {
+            color: #059669;
+        }
+
+        .stat-change.negative {
+            color: #dc2626;
+        }
+
+        /* TABS DE CONTEÚDO */
+        .content-tabs {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        .tab-navigation {
+            display: flex;
+            border-bottom: 1px solid var(--border-light);
+            background: #f8fafc;
+        }
+
+        .tab-button {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+            background: white;
+        }
+
+        .tab-content {
+            padding: 2rem;
+            min-height: 400px;
+        }
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 1001;
+                background: var(--primary-blue);
+                color: white;
+                border: none;
+                padding: 0.75rem;
+                border-radius: 8px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+
+            .client-info {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .client-actions {
+                flex-direction: column;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tab-navigation {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Overlay para mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i data-feather="menu"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- SIDEBAR FIXA -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Header da Sidebar -->
+        <div class="sidebar-header">
+            <a href="/operacional/" class="logo">
+                <div class="logo-icon">
+                    <i data-feather="hexagon"></i>
+                </div>
+                <span class="logo-text">Lunas Digital</span>
+            </a>
+        </div>
+
+        <!-- Navegação Principal -->
+        <nav class="sidebar-nav">
+            <!-- PRINCIPAL -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">PRINCIPAL</h4>
+                <a href="/operacional/" class="nav-item active">
+                    <i data-feather="home"></i>
+                    Dashboard
+                </a>
+                <a href="/INSS/simulador.html" class="nav-item">
+                    <i data-feather="calculator"></i>
+                    Simulador INSS
+                </a>
+            </div>
+
+            <!-- CLIENTES -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">CLIENTES</h4>
+                <a href="/operacional/buscar-cliente.html" class="nav-item">
+                    <i data-feather="search"></i>
+                    Buscar Cliente
+                </a>
+                <a href="/operacional/formulario-cliente.html" class="nav-item">
+                    <i data-feather="user-plus"></i>
+                    Novo Cliente
+                </a>
+            </div>
+
+            <!-- OPERACIONAL -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">OPERACIONAL</h4>
+                <a href="/operacional/digitation-interface.html" class="nav-item">
+                    <i data-feather="clipboard"></i>
+                    Fila de Digitação
+                </a>
+                <a href="/roteiro-bancos.html" class="nav-item">
+                    <i data-feather="map"></i>
+                    Roteiro Bancos
+                </a>
+                <a href="/roteiro-inss.html" class="nav-item">
+                    <i data-feather="file-text"></i>
+                    Roteiro INSS
+                </a>
+            </div>
+
+            <!-- SISTEMA -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">SISTEMA</h4>
+                <a href="/logs.html" class="nav-item">
+                    <i data-feather="activity"></i>
+                    Logs
+                </a>
+                <a href="/operacional/configuracoes.html" class="nav-item">
+                    <i data-feather="settings"></i>
+                    Configurações
+                </a>
+                <a href="/status-cpfs.html" class="nav-item">
+                    <i data-feather="pie-chart"></i>
+                    Relatórios
+                </a>
+            </div>
+        </nav>
+
+        <!-- Busca Rápida -->
+        <div class="quick-search">
+            <input type="text" class="search-input" placeholder="🔍 Busca rápida..." id="quickSearch">
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+        <!-- Header do Cliente -->
+        <div class="client-header">
+            <div class="client-info">
+                <div class="client-avatar">
+                    LD
+                </div>
+                <div class="client-details">
+                    <h1>Sistema Operacional Lunas</h1>
+                    <div class="client-badges">
+                        <span class="badge success">✅ Online</span>
+                        <span class="badge info">v3.2</span>
+                        <span class="badge warning">🔄 Sincronizando</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="client-actions">
+                <a href="/operacional/buscar-cliente.html" class="btn btn-primary">
+                    <i data-feather="search"></i>
+                    Buscar Cliente
+                </a>
+                <a href="/operacional/formulario-cliente.html" class="btn btn-success">
+                    <i data-feather="user-plus"></i>
+                    Novo Cliente
+                </a>
+                <a href="/INSS/simulador.html" class="btn btn-secondary">
+                    <i data-feather="calculator"></i>
+                    Simulador
+                </a>
+            </div>
+        </div>
+
+        <!-- Cards de Estatísticas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-title">Total de Clientes</span>
+                    <div class="stat-icon" style="background: var(--primary-blue);">
+                        <i data-feather="users"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalClients">0</div>
+                <div class="stat-change positive">+12 este mês</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-title">Propostas Ativas</span>
+                    <div class="stat-icon" style="background: var(--success-green);">
+                        <i data-feather="file-text"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="activeProposals">0</div>
+                <div class="stat-change positive">+5 hoje</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-title">Valor Total</span>
+                    <div class="stat-icon" style="background: var(--warning-yellow);">
+                        <i data-feather="dollar-sign"></i>
+                    </div>
+                </div>
+                <div class="stat-value" id="totalValue">R$ 0</div>
+                <div class="stat-change positive">+R$ 15.750</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-title">Taxa Conversão</span>
+                    <div class="stat-icon" style="background: var(--danger-red);">
+                        <i data-feather="trending-up"></i>
+                    </div>
+                </div>
+                <div class="stat-value">78%</div>
+                <div class="stat-change positive">+3% esta semana</div>
+            </div>
+        </div>
+
+        <!-- Tabs de Conteúdo -->
+        <div class="content-tabs">
+            <div class="tab-navigation">
+                <button class="tab-button active" onclick="showTab('dashboard')">
+                    <i data-feather="home"></i>
+                    Dashboard
+                </button>
+                <button class="tab-button" onclick="showTab('proposals')">
+                    <i data-feather="file-text"></i>
+                    Propostas
+                </button>
+                <button class="tab-button" onclick="showTab('timeline')">
+                    <i data-feather="clock"></i>
+                    Timeline
+                </button>
+                <button class="tab-button" onclick="showTab('reports')">
+                    <i data-feather="bar-chart"></i>
+                    Relatórios
+                </button>
+            </div>
+
+            <div class="tab-content" id="tabContent">
+                <div id="dashboard-content">
+                    <h3>📊 Dashboard Principal</h3>
+                    <p>Bem-vindo ao Sistema Operacional Lunas Digital CRM v3.2</p>
+                    <br>
+                    <h4>🚀 Funcionalidades Principais:</h4>
+                    <ul style="margin-left: 2rem; margin-top: 1rem;">
+                        <li><strong>👥 Gestão de Clientes:</strong> Busca, cadastro e edição completa</li>
+                        <li><strong>🧮 Simulador INSS:</strong> Cálculos automáticos e propostas</li>
+                        <li><strong>📋 Fila de Digitação:</strong> Controle de propostas em andamento</li>
+                        <li><strong>🔗 Integrações:</strong> Kentro API, ViaCEP, WhatsApp</li>
+                        <li><strong>📱 Mobile Responsivo:</strong> Interface adaptada para dispositivos móveis</li>
+                    </ul>
+                    <br>
+                    <h4>🎯 Próximas Ações:</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <strong>🔍 Buscar Cliente</strong><br>
+                            <small>Encontre clientes por CPF, nome ou telefone</small>
+                        </div>
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <strong>➕ Novo Cliente</strong><br>
+                            <small>Cadastre um novo cliente no sistema</small>
+                        </div>
+                        <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                            <strong>🧮 Simulador</strong><br>
+                            <small>Realize simulações INSS automatizadas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Função para alternar sidebar mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
+        // Função para fechar sidebar
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+        }
+
+        // Função para mostrar tabs
+        function showTab(tabName) {
+            // Remover classe active de todos os botões
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Adicionar classe active ao botão clicado
+            event.target.classList.add('active');
+            
+            // Atualizar conteúdo da tab
+            const tabContent = document.getElementById('tabContent');
+            
+            switch(tabName) {
+                case 'proposals':
+                    tabContent.innerHTML = `
+                        <div id="proposals-content">
+                            <h3>📋 Propostas em Andamento</h3>
+                            <p>Gerencie todas as propostas do sistema</p>
+                            <br>
+                            <div style="display: grid; gap: 1rem;">
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <strong>🔄 Em Processamento</strong> - 5 propostas
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <strong>✅ Aprovadas</strong> - 12 propostas
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                    <strong>⏳ Aguardando Cliente</strong> - 3 propostas
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'timeline':
+                    tabContent.innerHTML = `
+                        <div id="timeline-content">
+                            <h3>🕒 Timeline de Atividades</h3>
+                            <p>Histórico de atividades do sistema</p>
+                            <br>
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                    <strong>Hoje 14:30</strong> - Cliente João Silva cadastrado
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; border-left: 4px solid #10b981;">
+                                    <strong>Hoje 13:15</strong> - Proposta #1234 aprovada
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                                    <strong>Hoje 11:00</strong> - Simulação INSS realizada
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'reports':
+                    tabContent.innerHTML = `
+                        <div id="reports-content">
+                            <h3>📊 Relatórios do Sistema</h3>
+                            <p>Análises e estatísticas detalhadas</p>
+                            <br>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+                                    <h4 style="color: #3b82f6;">Conversão</h4>
+                                    <div style="font-size: 2rem; font-weight: bold; margin: 0.5rem 0;">78%</div>
+                                    <small>Taxa de conversão</small>
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+                                    <h4 style="color: #10b981;">Receita</h4>
+                                    <div style="font-size: 2rem; font-weight: bold; margin: 0.5rem 0;">R$ 245k</div>
+                                    <small>Este mês</small>
+                                </div>
+                                <div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+                                    <h4 style="color: #f59e0b;">Pendentes</h4>
+                                    <div style="font-size: 2rem; font-weight: bold; margin: 0.5rem 0;">8</div>
+                                    <small>Propostas pendentes</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                default:
+                    tabContent.innerHTML = `
+                        <div id="dashboard-content">
+                            <h3>📊 Dashboard Principal</h3>
+                            <p>Bem-vindo ao Sistema Operacional Lunas Digital CRM v3.2</p>
+                            <br>
+                            <h4>🚀 Funcionalidades Principais:</h4>
+                            <ul style="margin-left: 2rem; margin-top: 1rem;">
+                                <li><strong>👥 Gestão de Clientes:</strong> Busca, cadastro e edição completa</li>
+                                <li><strong>🧮 Simulador INSS:</strong> Cálculos automáticos e propostas</li>
+                                <li><strong>📋 Fila de Digitação:</strong> Controle de propostas em andamento</li>
+                                <li><strong>🔗 Integrações:</strong> Kentro API, ViaCEP, WhatsApp</li>
+                                <li><strong>📱 Mobile Responsivo:</strong> Interface adaptada para dispositivos móveis</li>
+                            </ul>
+                            <br>
+                            <h4>🎯 Próximas Ações:</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                                <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                    <strong>🔍 Buscar Cliente</strong><br>
+                                    <small>Encontre clientes por CPF, nome ou telefone</small>
+                                </div>
+                                <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #10b981;">
+                                    <strong>➕ Novo Cliente</strong><br>
+                                    <small>Cadastre um novo cliente no sistema</small>
+                                </div>
+                                <div style="padding: 1rem; background: #f8fafc; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                                    <strong>🧮 Simulador</strong><br>
+                                    <small>Realize simulações INSS automatizadas</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+            }
+        }
+
+        // Simular carregamento de dados
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simular dados das estatísticas
+            setTimeout(() => {
+                document.getElementById('totalClients').textContent = '127';
+                document.getElementById('activeProposals').textContent = '23';
+                document.getElementById('totalValue').textContent = 'R$ 245.780';
+            }, 1000);
+
+            // Busca rápida
+            const quickSearch = document.getElementById('quickSearch');
+            quickSearch.addEventListener('input', function(e) {
+                const query = e.target.value.toLowerCase();
+                console.log('🔍 Busca rápida:', query);
+                // Implementar lógica de busca aqui
+            });
+        });
+
+        // Fechar sidebar ao clicar em link (mobile)
+        document.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 1024) {
+                    closeSidebar();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

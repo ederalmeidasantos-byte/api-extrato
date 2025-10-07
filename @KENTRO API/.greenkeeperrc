@@ -1,0 +1,35 @@
+{
+  "groups": {
+    "jest": {
+      "packages": [
+        "jest",
+        "@types/jest",
+        "jest-junit",
+        "jest-sonar-reporter"
+      ]
+    },
+    "eslint": {
+      "packages": [
+        "eslint",
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser"
+      ]
+    },
+    "babel": {
+      "packages": [
+        "@babel/core",
+        "@babel/preset-env",
+        "@babel/plugin-proposal-class-properties",
+        "@babel/plugin-proposal-object-rest-spread",
+        "@babel/plugin-transform-runtime"
+      ]
+    }
+  },
+  "ignore": [
+    "axios",
+    "dotenv"
+  ]
+}
+
+
+

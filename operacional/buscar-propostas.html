@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar Propostas - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Principal</div>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Clientes</div>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="search-client">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="new-client">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Propostas</div>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item active" data-nav="proposals">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Integração</div>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Teste Kentro</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Configurações</div>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle-mobile">
+                        <i data-feather="menu"></i>
+                    </button>
+                    <h1 class="page-title">Buscar Propostas</h1>
+                </div>
+                <div class="topbar-right">
+                    <a href="/INSS/simulador.html" class="topbar-btn">
+                        <i data-feather="calculator"></i>
+                        Simulador
+                    </a>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Buscar Propostas</h2>
+                        <p>Encontre e gerencie propostas de empréstimo</p>
+                    </div>
+
+                    <div class="search-form">
+                        <div class="form-group">
+                            <label for="search-cpf">CPF do Cliente</label>
+                            <input type="text" id="search-cpf" placeholder="Digite o CPF (apenas números)" maxlength="11">
+                        </div>
+                        <div class="form-group">
+                            <label for="search-status">Status</label>
+                            <select id="search-status">
+                                <option value="">Todos os status</option>
+                                <option value="pending">Pendente</option>
+                                <option value="approved">Aprovado</option>
+                                <option value="rejected">Rejeitado</option>
+                                <option value="processing">Em Processamento</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="buscarPropostas()">
+                            <i data-feather="search"></i>
+                            Buscar
+                        </button>
+                    </div>
+
+                    <div class="results-section" id="results-section" style="display: none;">
+                        <h3>Resultados da Busca</h3>
+                        <div class="table-container">
+                            <table class="data-table" id="propostas-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Cliente</th>
+                                        <th>CPF</th>
+                                        <th>Valor</th>
+                                        <th>Status</th>
+                                        <th>Data</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="propostas-tbody">
+                                    <!-- Dados serão inseridos aqui via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/client-manager.js"></script>
+    
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Função para buscar propostas
+        function buscarPropostas() {
+            const cpf = document.getElementById('search-cpf').value;
+            const status = document.getElementById('search-status').value;
+            
+            if (!cpf && !status) {
+                alert('Digite pelo menos um critério de busca');
+                return;
+            }
+
+            // Simular busca (substituir por chamada real à API)
+            const resultados = [
+                {
+                    id: '12345',
+                    cliente: 'João Silva',
+                    cpf: '12345678901',
+                    valor: 'R$ 5.000,00',
+                    status: 'Aprovado',
+                    data: '2025-10-02'
+                },
+                {
+                    id: '12346',
+                    cliente: 'Maria Santos',
+                    cpf: '98765432100',
+                    valor: 'R$ 3.500,00',
+                    status: 'Pendente',
+                    data: '2025-10-01'
+                }
+            ];
+
+            exibirResultados(resultados);
+        }
+
+        // Função para exibir resultados
+        function exibirResultados(propostas) {
+            const tbody = document.getElementById('propostas-tbody');
+            tbody.innerHTML = '';
+
+            propostas.forEach(proposta => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${proposta.id}</td>
+                    <td>${proposta.cliente}</td>
+                    <td>${proposta.cpf}</td>
+                    <td>${proposta.valor}</td>
+                    <td><span class="status-badge status-${proposta.status.toLowerCase()}">${proposta.status}</span></td>
+                    <td>${proposta.data}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="visualizarProposta('${proposta.id}')">
+                            <i data-feather="eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="editarProposta('${proposta.id}')">
+                            <i data-feather="edit"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('results-section').style.display = 'block';
+            feather.replace();
+        }
+
+        // Função para visualizar proposta
+        function visualizarProposta(id) {
+            alert(`Visualizando proposta ${id}`);
+        }
+
+        // Função para editar proposta
+        function editarProposta(id) {
+            alert(`Editando proposta ${id}`);
+        }
+
+        // Permitir apenas números no campo CPF
+        document.getElementById('search-cpf').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+    </script>
+</body>
+</html>
+
+        }
+
+        // Permitir apenas números no campo CPF
+        document.getElementById('search-cpf').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+    </script>
+</body>
+</html>

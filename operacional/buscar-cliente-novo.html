@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar Cliente - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Menu Padrão CSS -->
+    <link rel="stylesheet" href="/menu-padrao.css">
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Layout com menu lateral */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .main-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .content-area {
+            flex: 1;
+            margin-left: 280px; /* Largura do menu */
+            padding: 0;
+            background: #f8fafc;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-container {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* Conteúdo principal */
+        .page-content {
+            padding: 2rem;
+        }
+
+        /* Estilos específicos da busca de cliente */
+        .search-filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .search-row {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .search-group input,
+        .search-group select {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .search-group input:focus,
+        .search-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: end;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        /* Resultados */
+        .results-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        .results-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .results-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .results-count {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        .client-card {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s ease;
+        }
+
+        .client-card:hover {
+            background: #f8fafc;
+        }
+
+        .client-card:last-child {
+            border-bottom: none;
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .client-info h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-outline:hover {
+            background: #f8fafc;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .content-area {
+                margin-left: 0;
+            }
+
+            .page-content {
+                padding: 1rem;
+            }
+
+            .search-row {
+                flex-direction: column;
+            }
+
+            .search-group {
+                min-width: 100%;
+            }
+
+            .search-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            .search-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Menu Padrão -->
+        <div id="menu-container"></div>
+        
+        <!-- Área de Conteúdo -->
+        <div class="content-area">
+            <!-- Breadcrumb -->
+            <div id="breadcrumb-container"></div>
+            
+            <!-- Conteúdo Principal -->
+            <div class="page-content">
+                <!-- Filtros de Busca -->
+                <div class="search-filters">
+                    <div class="search-row">
+                        <div class="search-group">
+                            <label for="search-cpf">CPF</label>
+                            <input type="text" id="search-cpf" placeholder="Digite o CPF">
+                        </div>
+                        <div class="search-group">
+                            <label for="search-nome">Nome</label>
+                            <input type="text" id="search-nome" placeholder="Digite o nome">
+                        </div>
+                        <div class="search-group">
+                            <label for="search-nb">NB</label>
+                            <input type="text" id="search-nb" placeholder="Digite o NB">
+                        </div>
+                        <div class="search-actions">
+                            <button class="btn btn-primary" onclick="buscarClientes()">
+                                <i data-feather="search"></i>
+                                Buscar
+                            </button>
+                            <button class="btn btn-secondary" onclick="limparFiltros()">
+                                <i data-feather="x"></i>
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados -->
+                <div class="results-container">
+                    <div class="results-header">
+                        <h2 class="results-title">Clientes Encontrados</h2>
+                        <div class="results-count" id="results-count">Carregando...</div>
+                    </div>
+                    <div id="results-list">
+                        <!-- Resultados serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/menu-padrao.js"></script>
+    <script>
+        // Variáveis globais
+        let clientes = [];
+        let clientesFiltrados = [];
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página de busca de clientes carregada');
+            carregarClientes();
+            
+            // Inicializar ícones Feather
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        });
+
+        // Carregar clientes da API
+        async function carregarClientes() {
+            try {
+                console.log('📡 Carregando clientes...');
+                const response = await fetch('/api/clients');
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                clientes = data.clients || [];
+                clientesFiltrados = [...clientes];
+                
+                console.log(`✅ ${clientes.length} clientes carregados`);
+                renderizarResultados();
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar clientes:', error);
+                mostrarErro('Erro ao carregar clientes. Tente novamente.');
+            }
+        }
+
+        // Buscar clientes com filtros
+        function buscarClientes() {
+            const cpf = document.getElementById('search-cpf').value.trim();
+            const nome = document.getElementById('search-nome').value.trim();
+            const nb = document.getElementById('search-nb').value.trim();
+
+            clientesFiltrados = clientes.filter(cliente => {
+                const matchCpf = !cpf || cliente.cpf?.includes(cpf);
+                const matchNome = !nome || cliente.nome?.toLowerCase().includes(nome.toLowerCase());
+                const matchNb = !nb || cliente.nb?.includes(nb);
+                
+                return matchCpf && matchNome && matchNb;
+            });
+
+            renderizarResultados();
+        }
+
+        // Limpar filtros
+        function limparFiltros() {
+            document.getElementById('search-cpf').value = '';
+            document.getElementById('search-nome').value = '';
+            document.getElementById('search-nb').value = '';
+            
+            clientesFiltrados = [...clientes];
+            renderizarResultados();
+        }
+
+        // Renderizar resultados
+        function renderizarResultados() {
+            const container = document.getElementById('results-list');
+            const countElement = document.getElementById('results-count');
+            
+            countElement.textContent = `${clientesFiltrados.length} cliente(s) encontrado(s)`;
+            
+            if (clientesFiltrados.length === 0) {
+                container.innerHTML = `
+                    <div class="client-card">
+                        <div style="text-align: center; padding: 2rem; color: #64748b;">
+                            <i data-feather="search" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+                            <h3>Nenhum cliente encontrado</h3>
+                            <p>Tente ajustar os filtros de busca</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = clientesFiltrados.map(cliente => `
+                    <div class="client-card">
+                        <div class="client-header">
+                            <div class="client-info">
+                                <h3>${cliente.nome || 'Nome não informado'}</h3>
+                                <div class="client-meta">
+                                    <span><strong>CPF:</strong> ${cliente.cpf || 'Não informado'}</span>
+                                    <span><strong>NB:</strong> ${cliente.nb || 'Não informado'}</span>
+                                    <span><strong>Telefone:</strong> ${cliente.telefone || 'Não informado'}</span>
+                                </div>
+                            </div>
+                            <div class="client-actions">
+                                <button class="btn btn-success btn-sm" onclick="verCliente(${cliente.id})">
+                                    <i data-feather="eye"></i>
+                                    Ver
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="editarCliente(${cliente.id})">
+                                    <i data-feather="edit"></i>
+                                    Editar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Reinicializar ícones Feather
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
+
+        // Ações dos clientes
+        function verCliente(id) {
+            window.location.href = `/operacional/crm-cliente.html?clientId=${id}`;
+        }
+
+        function editarCliente(id) {
+            // Implementar edição
+            console.log('Editar cliente:', id);
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            const container = document.getElementById('results-list');
+            container.innerHTML = `
+                <div class="client-card">
+                    <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                        <i data-feather="alert-circle" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+                        <h3>Erro</h3>
+                        <p>${mensagem}</p>
+                    </div>
+                </div>
+            `;
+            
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste ChatGPT Vendedor - Lunas Digital</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .resultado {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background: #ecf0f1;
+            border-left: 4px solid #3498db;
+        }
+        .erro {
+            background: #e74c3c;
+            color: white;
+            border-left-color: #c0392b;
+        }
+        .sucesso {
+            background: #27ae60;
+            color: white;
+            border-left-color: #229954;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Teste ChatGPT Vendedor</h1>
+        
+        <form id="testeForm">
+            <div class="form-group">
+                <label for="numero">Número do WhatsApp:</label>
+                <input type="text" id="numero" value="5511959088554" placeholder="5511999999999">
+            </div>
+            
+            <div class="form-group">
+                <label for="produto">Produto:</label>
+                <select id="produto">
+                    <option value="portabilidade">Portabilidade</option>
+                    <option value="fgts">FGTS</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="mensagem">Mensagem do Cliente:</label>
+                <textarea id="mensagem" placeholder="Digite a mensagem que o cliente enviaria...">Olá, tenho interesse em portabilidade de empréstimo consignado</textarea>
+            </div>
+            
+            <button type="submit">🚀 Testar ChatGPT</button>
+            <button type="button" onclick="testarExemplos()">📝 Exemplos Rápidos</button>
+        </form>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+        document.getElementById('testeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const numero = document.getElementById('numero').value;
+            const produto = document.getElementById('produto').value;
+            const mensagem = document.getElementById('mensagem').value;
+            
+            if (!numero || !mensagem) {
+                mostrarResultado('Por favor, preencha todos os campos.', 'erro');
+                return;
+            }
+            
+            mostrarResultado('Processando...', 'loading');
+            
+            try {
+                const response = await fetch('/teste-chatgpt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        numero: numero,
+                        produto: produto,
+                        mensagem: mensagem
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    mostrarResultado(`
+                        <h3>✅ Resposta do ChatGPT:</h3>
+                        <p><strong>Chat ID:</strong> ${data.chatId}</p>
+                        <p><strong>Classificação:</strong> ${JSON.stringify(data.classification, null, 2)}</p>
+                        <p><strong>Resposta:</strong></p>
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                            ${data.resposta.texto.replace(/\n/g, '<br>')}
+                        </div>
+                        <p><strong>Tipo de Mensagem:</strong> ${data.resposta.tipoMensagem}</p>
+                        <p><strong>Enviar Resposta:</strong> ${data.resposta.enviarResposta ? 'Sim' : 'Não'}</p>
+                        ${data.resposta.botoes ? `<p><strong>Botões:</strong> ${JSON.stringify(data.resposta.botoes, null, 2)}</p>` : ''}
+                    `, 'sucesso');
+                } else {
+                    mostrarResultado(`Erro: ${data.error}`, 'erro');
+                }
+                
+            } catch (error) {
+                mostrarResultado(`Erro na requisição: ${error.message}`, 'erro');
+            }
+        });
+        
+        function mostrarResultado(html, tipo) {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = html;
+            resultado.className = `resultado ${tipo}`;
+        }
+        
+        function testarExemplos() {
+            const exemplos = [
+                {
+                    produto: 'portabilidade',
+                    mensagem: 'Tenho margem negativa, posso fazer portabilidade?'
+                },
+                {
+                    produto: 'portabilidade',
+                    mensagem: 'Quero trocar minha conta de pagamento'
+                },
+                {
+                    produto: 'portabilidade',
+                    mensagem: 'Sim, quero simular uma proposta'
+                },
+                {
+                    produto: 'fgts',
+                    mensagem: 'Quanto posso sacar do meu FGTS?'
+                },
+                {
+                    produto: 'fgts',
+                    mensagem: 'Como funciona o saque do FGTS?'
+                }
+            ];
+            
+            const exemplo = exemplos[Math.floor(Math.random() * exemplos.length)];
+            document.getElementById('produto').value = exemplo.produto;
+            document.getElementById('mensagem').value = exemplo.mensagem;
+        }
+    </script>
+</body>
+</html>
+

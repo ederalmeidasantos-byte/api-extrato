@@ -1,0 +1,32 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+
+comment:
+  layout: "header,diff,files,footer"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes
+
+github_checks:
+  annotations: true
+
+ignore:
+  - "node_modules/"
+  - "coverage/"
+  - "docs/"
+  - "test-*.js"
+  - "*.test.js"
+  - "*.spec.js"
+  - "examples.js"
+
+
+

@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitar Proposta - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Estilos específicos da digitação de proposta */
+        .proposal-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .proposal-client-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .client-details h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .status-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-dropdown {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .all-proposals-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .proposals-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .proposals-header h3 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .proposals-count {
+            background: #3b82f6;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .proposals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .proposal-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+        }
+
+        .proposal-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border-color: #3b82f6;
+        }
+
+        .proposal-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-id {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+
+        .proposal-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .proposal-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .copy-button {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 0.125rem 0.25rem;
+            font-size: 0.65rem;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 0.25rem;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .copy-button:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .copy-button.copied {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+            padding: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            gap: 0.25rem;
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .contract-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .contract-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .contract-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .contract-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .contract-field {
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem 0;
+            gap: 0.25rem;
+        }
+
+        .field-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .field-value {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .proposal-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .summary-title {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .summary-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .summary-comparison {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .current-value {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .new-value {
+            color: #059669;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .tabs-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #3b82f6;
+            background: white;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-button:hover {
+            background: #f1f5f9;
+        }
+
+        .tab-content {
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .client-data-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .data-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .data-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .contract-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .contract-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .contract-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .contract-basic-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .contract-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 1.2rem;
+        }
+
+        .contract-details {
+            padding: 1rem;
+            display: none;
+        }
+
+        .contract-details.expanded {
+            display: block;
+        }
+
+        .contract-status-control {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #d97706, #b45309);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .proposal-client-info {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .proposal-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitar-proposta.html" class="nav-item active" data-nav="digitar-proposta">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitar Proposta</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                            <i data-feather="file-text"></i>
+                            Digitar Proposta
+                        </h1>
+                        <span class="page-subtitle">Detalhamento e gestão de propostas</span>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <button class="topbar-btn secondary" onclick="carregarDados()">
+                            <i data-feather="refresh-cw"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Loading State -->
+                <div id="loading-state" class="empty-state">
+                    <i data-feather="loader"></i>
+                    <h3>Carregando dados...</h3>
+                    <p>Aguarde enquanto carregamos as informações da proposta.</p>
+                </div>
+
+                <!-- Main Content (hidden initially) -->
+                <div id="main-content" style="display: none;">
+                    <!-- Header da Proposta -->
+                    <div class="proposal-header">
+                        <div class="proposal-client-info">
+                            <div class="client-details">
+                                <h2 id="client-name">Carregando...</h2>
+                                <div class="client-meta">
+                                    <span><i data-feather="user" style="width: 14px; height: 14px;"></i> <span id="client-cpf">-</span></span>
+                                    <span><i data-feather="phone" style="width: 14px; height: 14px;"></i> <span id="client-phone">-</span></span>
+                                    <span><i data-feather="hash" style="width: 14px; height: 14px;"></i> <span id="proposal-id">-</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Tabs de Conteúdo -->
+                    <div class="tabs-container">
+                        <div class="tabs-header">
+                            <button class="tab-button active" onclick="mostrarTab('dados')">
+                                <i data-feather="user"></i>
+                                Dados do Cliente
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('propostas')">
+                                <i data-feather="file-text"></i>
+                                Todas as Propostas
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('contratos')">
+                                <i data-feather="file-text"></i>
+                                Contratos
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('status')">
+                                <i data-feather="activity"></i>
+                                Status & Timeline
+                            </button>
+                        </div>
+
+                        <!-- Tab: Dados do Cliente -->
+                        <div id="tab-dados" class="tab-content active">
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="user"></i>
+                                    Informações Pessoais
+                                </h3>
+                                <div class="data-grid" id="personal-data">
+                                    <!-- Dados pessoais serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="home"></i>
+                                    Endereço
+                                </h3>
+                                <div class="data-grid" id="address-data">
+                                    <!-- Dados de endereço serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="shield"></i>
+                                    Benefício INSS
+                                </h3>
+                                <div class="data-grid" id="benefit-data">
+                                    <!-- Dados do benefício serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="credit-card"></i>
+                                    Dados Bancários
+                                </h3>
+                                <div class="data-grid" id="banking-data">
+                                    <!-- Dados bancários serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Todas as Propostas -->
+                        <div id="tab-propostas" class="tab-content">
+                            <div class="all-proposals-container">
+                                <div class="proposals-header">
+                                    <h3>Todas as Propostas do Cliente</h3>
+                                    <span class="proposals-count" id="proposals-count">0 propostas</span>
+                                </div>
+                                <div class="proposals-list" id="proposals-list">
+                                    <!-- Propostas serão carregadas aqui -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Contratos -->
+                        <div id="tab-contratos" class="tab-content">
+                            <div id="contracts-list">
+                                <!-- Contratos serão preenchidos via JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Tab: Status & Timeline -->
+                        <div id="tab-status" class="tab-content">
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="activity"></i>
+                                    Histórico de Status
+                                </h3>
+                                <div id="status-timeline">
+                                    <!-- Timeline será preenchida via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="voltarFila()">
+                            <i data-feather="arrow-left"></i>
+                            Voltar à Fila
+                        </button>
+                        <button class="btn btn-warning" onclick="prepararWhatsApp()">
+                            <i data-feather="message-circle"></i>
+                            Preparar WhatsApp
+                        </button>
+                        <button class="btn btn-success" onclick="salvarAlteracoes()">
+                            <i data-feather="save"></i>
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/client-manager.js"></script>
+    
+    <script>
+        // Variáveis globais
+        let clientManager;
+        let currentClientId;
+        let currentProposalId;
+        let currentProposal;
+        let currentClient;
+        let allProposals = [];
+
+        // APIs preparadas
+        class PropostaAPI {
+            constructor() {
+                this.baseUrl = '/api/propostas';
+            }
+
+            async atualizarStatus(propostaId, novoStatus, observacoes = '') {
+                const response = await fetch(`${this.baseUrl}/${propostaId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: novoStatus,
+                        observacoes: observacoes,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                return response.json();
+            }
+
+            async buscarProposta(propostaId) {
+                const response = await fetch(`${this.baseUrl}/${propostaId}`);
+                return response.json();
+            }
+        }
+
+        class ContratoAPI {
+            constructor() {
+                this.baseUrl = '/api/contratos';
+            }
+
+            async atualizarStatusContrato(contratoId, novoStatus) {
+                const response = await fetch(`${this.baseUrl}/${contratoId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: novoStatus,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                return response.json();
+            }
+        }
+
+        // Instâncias das APIs
+        const propostaAPI = new PropostaAPI();
+        const contratoAPI = new ContratoAPI();
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar ClientManager
+                if (typeof window.clientManager === 'undefined') {
+                    window.clientManager = new ClientManager();
+                }
+                clientManager = window.clientManager;
+                
+                // Obter parâmetros da URL
+                const urlParams = new URLSearchParams(window.location.search);
+                currentClientId = urlParams.get('clientId');
+                currentProposalId = urlParams.get('proposalId');
+                
+                if (!currentClientId) {
+                    mostrarErro('Parâmetros de cliente não encontrados');
+                    return;
+                }
+                
+                // Carregar dados
+                await carregarDados();
+                
+                console.log('✅ Página de digitação inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                mostrarErro('Erro ao carregar dados da proposta');
+            }
+        });
+
+        // Carregar dados da proposta
+        async function carregarDados() {
+            try {
+                console.log('🔄 Carregando dados do cliente e todas as propostas...');
+                
+                // Buscar dados do servidor
+                const response = await fetch(`/api/cliente/${currentClientId}`);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar dados do cliente');
+                }
+                
+                const clientData = await response.json();
+                currentClient = clientData.cliente || clientData;
+                
+                if (!currentClient) {
+                    throw new Error('Cliente não encontrado');
+                }
+                
+                // Carregar todas as propostas do cliente
+                allProposals = currentClient.propostas || [];
+                
+                if (allProposals.length === 0) {
+                    throw new Error('Nenhuma proposta encontrada para este cliente');
+                }
+                
+                // Se foi especificada uma proposta específica, usar ela como principal
+                if (currentProposalId) {
+                    currentProposal = allProposals.find(p => p.id === currentProposalId);
+                } else {
+                    // Se não foi especificada, usar a primeira proposta como principal
+                    currentProposal = allProposals[0];
+                }
+                
+                // Preencher interface
+                preencherHeaderProposta();
+                preencherTodasPropostas();
+                preencherDadosCliente();
+                preencherContratos();
+                preencherTimeline();
+                
+                // Mostrar conteúdo principal
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+                
+                console.log('✅ Dados carregados com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar dados:', error);
+                mostrarErro('Erro ao carregar dados: ' + error.message);
+            }
+        }
+
+        // Preencher header da proposta
+        function preencherHeaderProposta() {
+            const clientNameEl = document.getElementById('client-name');
+            const clientCpfEl = document.getElementById('client-cpf');
+            const clientPhoneEl = document.getElementById('client-phone');
+            const proposalIdEl = document.getElementById('proposal-id');
+            
+            if (clientNameEl) clientNameEl.textContent = currentClient.nome || 'Nome não informado';
+            if (clientCpfEl) clientCpfEl.textContent = currentClient.cpf || 'CPF não informado';
+            if (clientPhoneEl) clientPhoneEl.textContent = currentClient.telefone || 'Telefone não informado';
+            if (proposalIdEl) proposalIdEl.textContent = currentProposal?.id || '-';
+            
+            // Definir status atual (se o elemento existir)
+            const statusSelect = document.getElementById('status-select');
+            if (statusSelect) {
+                statusSelect.value = currentProposal?.status || 'EM_DIGITACAO';
+            }
+        }
+
+        // Preencher todas as propostas
+        function preencherTodasPropostas() {
+            const proposalsList = document.getElementById('proposals-list');
+            const proposalsCount = document.getElementById('proposals-count');
+            
+            // Atualizar contador
+            proposalsCount.textContent = `${allProposals.length} proposta${allProposals.length !== 1 ? 's' : ''}`;
+            
+            if (allProposals.length === 0) {
+                proposalsList.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="file-text"></i>
+                        <h3>Nenhuma proposta encontrada</h3>
+                        <p>Este cliente não possui propostas cadastradas.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            // Renderizar todas as propostas
+            proposalsList.innerHTML = allProposals.map(proposta => `
+                <div class="proposal-card">
+                    <div class="proposal-card-header">
+                        <div class="proposal-id">${proposta.id}</div>
+                        <div class="proposal-status-control">
+                            <span class="status-badge" style="background-color: ${obterCorStatus(proposta.status)}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                                ${obterTextoStatus(proposta.status)}
+                            </span>
+                            <select class="status-select" onchange="atualizarStatusProposta('${proposta.id}', this.value)" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.8rem;">
+                                <option value="EM_DIGITACAO" ${proposta.status === 'EM_DIGITACAO' ? 'selected' : ''}>Em Digitação</option>
+                                <option value="APROVADA" ${proposta.status === 'APROVADA' ? 'selected' : ''}>Aprovada</option>
+                                <option value="REJEITADA" ${proposta.status === 'REJEITADA' ? 'selected' : ''}>Rejeitada</option>
+                                <option value="PENDENTE" ${proposta.status === 'PENDENTE' ? 'selected' : ''}>Pendente</option>
+                                <option value="FINALIZADA" ${proposta.status === 'FINALIZADA' ? 'selected' : ''}>Finalizada</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="proposal-details">
+                        <!-- CONTRATO ATUAL -->
+                        <div class="contract-section current-contract">
+                            <div class="contract-header">
+                                <i data-feather="file-text" style="width: 16px; height: 16px; color: #3b82f6;"></i>
+                                <span class="contract-title">CONTRATO ATUAL</span>
+                            </div>
+                            <div class="contract-data">
+                                <div class="contract-field">
+                                    <span class="field-label">Banco:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.banco || 'Daycoval'}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.banco || 'Daycoval'}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Parcela:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.valor_parcela || 74.26)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.valor_parcela || 74.26)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_total || 96}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_total || 96}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Parcelas Pagas:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.parcelas_pagas || 36}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.parcelas_pagas || 36}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Taxa:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.taxa_juros_mensal || 1.64}% a.m.
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.taxa_juros_mensal || 1.64}% a.m.')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Saldo Devedor:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.valor_liberado - proposta.contratos?.[0]?.valor_pago || 756.64)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.valor_liberado - proposta.contratos?.[0]?.valor_pago || 756.64)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo Restante:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_restante || 60}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_restante || 60}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NOVO CONTRATO -->
+                        <div class="contract-section new-contract">
+                            <div class="contract-header">
+                                <i data-feather="refresh-cw" style="width: 16px; height: 16px; color: #10b981;"></i>
+                                <span class="contract-title">NOVO CONTRATO</span>
+                            </div>
+                            <div class="contract-data">
+                                <div class="contract-field">
+                                    <span class="field-label">Banco:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.simulacao?.banco || 'C6'}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.simulacao?.banco || 'C6'}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Nova Parcela:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.simulacao?.parcela || 74.26)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.simulacao?.parcela || 74.26)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_total || 96}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_total || 96}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Nova Taxa:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.simulacao?.taxa || 1.85}% a.m.
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.simulacao?.taxa || 1.85}% a.m.')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Troco:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.simulacao?.troco || 410.51)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.simulacao?.troco || 410.51)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proposal-actions">
+                        <button class="btn btn-primary" onclick="visualizarProposta('${proposta.id}')">
+                            <i data-feather="eye"></i>
+                            Visualizar
+                        </button>
+                        <button class="btn btn-danger" onclick="excluirProposta('${proposta.id}')">
+                            <i data-feather="trash-2"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            feather.replace();
+        }
+
+        // Obter cor do status
+        function obterCorStatus(status) {
+            const cores = {
+                'EM_DIGITACAO': '#3b82f6',
+                'APROVADA': '#10b981',
+                'REJEITADA': '#ef4444',
+                'PENDENTE': '#f59e0b',
+                'FINALIZADA': '#6b7280'
+            };
+            return cores[status] || '#6b7280';
+        }
+
+        // Obter texto do status
+        function obterTextoStatus(status) {
+            const textos = {
+                'EM_DIGITACAO': 'Em Digitação',
+                'APROVADA': 'Aprovada',
+                'REJEITADA': 'Rejeitada',
+                'PENDENTE': 'Pendente',
+                'FINALIZADA': 'Finalizada'
+            };
+            return textos[status] || 'Em Digitação';
+        }
+
+        // Atualizar status da proposta
+        function atualizarStatusProposta(propostaId, novoStatus) {
+            const proposta = allProposals.find(p => p.id === propostaId);
+            if (!proposta) return;
+            
+            proposta.status = novoStatus;
+            console.log(`✅ Status da proposta ${propostaId} atualizado para: ${novoStatus}`);
+            
+            // Atualizar visualmente o badge e select
+            const proposalCard = event.target.closest('.proposal-card');
+            const statusBadge = proposalCard.querySelector('.status-badge');
+            const select = event.target;
+            
+            if (statusBadge) {
+                statusBadge.style.backgroundColor = obterCorStatus(novoStatus);
+                statusBadge.textContent = obterTextoStatus(novoStatus);
+            }
+        }
+
+        // Excluir proposta
+        function excluirProposta(propostaId) {
+            if (!confirm(`Tem certeza que deseja excluir a proposta ${propostaId}?`)) {
+                return;
+            }
+            
+            const index = allProposals.findIndex(p => p.id === propostaId);
+            if (index !== -1) {
+                allProposals.splice(index, 1);
+                preencherTodasPropostas(); // Recarregar a lista
+                console.log(`✅ Proposta ${propostaId} excluída com sucesso`);
+            }
+        }
+
+        // Visualizar proposta
+        function visualizarProposta(propostaId) {
+            const proposta = allProposals.find(p => p.id === propostaId);
+            if (!proposta) return;
+            
+            alert(`Proposta: ${proposta.id}\nTipo: ${proposta.tipo}\nValor: ${formatarMoeda(proposta.valor)}\nBanco: ${proposta.banco}\nStatus: ${proposta.status}`);
+        }
+
+        // Preencher dados do cliente
+        function preencherDadosCliente() {
+            // Dados pessoais
+            const personalData = [
+                { label: 'Nome Completo', value: currentClient.nome || 'N/A' },
+                { label: 'CPF', value: currentClient.cpf || 'N/A' },
+                { label: 'Data de Nascimento', value: formatarData(currentClient.dataNascimento) },
+                { label: 'Nome da Mãe', value: currentClient.nomeMae || 'N/A' },
+                { label: 'Telefone', value: currentClient.telefone || 'N/A' },
+                { label: 'Email', value: currentClient.email || 'N/A' }
+            ];
+            
+            document.getElementById('personal-data').innerHTML = personalData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados de endereço
+            const endereco = currentClient.endereco || {};
+            const addressData = [
+                { label: 'CEP', value: endereco.cep || 'N/A' },
+                { label: 'Logradouro', value: endereco.logradouro || 'N/A' },
+                { label: 'Número', value: endereco.numero || 'N/A' },
+                { label: 'Bairro', value: endereco.bairro || 'N/A' },
+                { label: 'Cidade', value: endereco.cidade || 'N/A' },
+                { label: 'UF', value: endereco.uf || 'N/A' }
+            ];
+            
+            document.getElementById('address-data').innerHTML = addressData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados do benefício
+            const beneficio = currentClient.beneficio || {};
+            const benefitData = [
+                { label: 'Número do Benefício', value: beneficio.nb || 'N/A' },
+                { label: 'Espécie', value: beneficio.nomeBeneficio || 'N/A' },
+                { label: 'Valor', value: formatarMoeda(beneficio.valor || 0) },
+                { label: 'DIB', value: formatarData(beneficio.dib) },
+                { label: 'Banco Pagador', value: beneficio.banco_pagamento || 'N/A' }
+            ];
+            
+            document.getElementById('benefit-data').innerHTML = benefitData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados bancários
+            const banco = currentClient.banco || {};
+            const bankingData = [
+                { label: 'Banco', value: banco.nome || 'N/A' },
+                { label: 'Agência', value: banco.agencia || 'N/A' },
+                { label: 'Conta', value: banco.conta || 'N/A' },
+                { label: 'Tipo de Conta', value: banco.tipoConta || 'N/A' }
+            ];
+            
+            document.getElementById('banking-data').innerHTML = bankingData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+        }
+
+        // Preencher contratos
+        function preencherContratos() {
+            const contratos = currentProposal.contratos || [];
+            
+            if (contratos.length === 0) {
+                document.getElementById('contracts-list').innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="file-text"></i>
+                        <h3>Nenhum contrato encontrado</h3>
+                        <p>Esta proposta não possui contratos associados.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            document.getElementById('contracts-list').innerHTML = contratos.map(contrato => `
+                <div class="contract-card">
+                    <div class="contract-header" onclick="toggleContractDetails('${contrato.id}')">
+                        <div>
+                            <div class="contract-title">${contrato.banco || 'Banco não informado'} - ${contrato.contrato || 'Contrato não informado'}</div>
+                            <div class="contract-basic-info">
+                                <span>Parcela: ${formatarMoeda(contrato.valorParcela || 0)}</span>
+                                <span>Prazo: ${contrato.parcelasPagas || 0}/${contrato.parcelas || 0}</span>
+                            </div>
+                        </div>
+                        <button class="contract-toggle" id="toggle-${contrato.id}">
+                            <i data-feather="chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="contract-details" id="details-${contrato.id}">
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">Valor Liberado</span>
+                                <span class="data-value">${formatarMoeda(contrato.valorLiberado || 0)}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Taxa de Juros</span>
+                                <span class="data-value">${contrato.taxaJuros || 'N/A'}%</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">CET</span>
+                                <span class="data-value">${contrato.cet || 'N/A'}%</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Data de Contratação</span>
+                                <span class="data-value">${formatarData(contrato.dataContratacao)}</span>
+                            </div>
+                        </div>
+                        <div class="contract-status-control">
+                            <label>Status do Contrato:</label>
+                            <select onchange="atualizarStatusContrato('${contrato.id}', this.value)">
+                                <option value="ATIVO" ${contrato.status === 'ATIVO' ? 'selected' : ''}>Ativo</option>
+                                <option value="FINALIZADO" ${contrato.status === 'FINALIZADO' ? 'selected' : ''}>Finalizado</option>
+                                <option value="CANCELADO" ${contrato.status === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
+                                <option value="PENDENTE" ${contrato.status === 'PENDENTE' ? 'selected' : ''}>Pendente</option>
+                            </select>
+                            <button class="btn btn-success" onclick="salvarContrato('${contrato.id}')">
+                                <i data-feather="save"></i>
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            feather.replace();
+        }
+
+        // Preencher timeline
+        function preencherTimeline() {
+            const timeline = currentProposal.timeline || [];
+            
+            if (timeline.length === 0) {
+                document.getElementById('status-timeline').innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="clock"></i>
+                        <h3>Nenhum histórico encontrado</h3>
+                        <p>Esta proposta ainda não possui histórico de status.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            document.getElementById('status-timeline').innerHTML = timeline.map(item => `
+                <div class="data-item">
+                    <span class="data-label">${formatarData(item.timestamp)} - ${item.status}</span>
+                    <span class="data-value">${item.observacoes || 'Sem observações'}</span>
+                </div>
+            `).join('');
+        }
+
+        // Mostrar tab
+        function mostrarTab(tabName) {
+            // Esconder todas as tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Mostrar tab selecionada
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Se for a aba de propostas, recarregar os dados
+            if (tabName === 'propostas') {
+                preencherTodasPropostas();
+            }
+            
+            // Atualizar ícones
+            feather.replace();
+        }
+
+        // Toggle detalhes do contrato
+        function toggleContractDetails(contratoId) {
+            const details = document.getElementById(`details-${contratoId}`);
+            const toggle = document.getElementById(`toggle-${contratoId}`);
+            
+            details.classList.toggle('expanded');
+            
+            const icon = toggle.querySelector('i');
+            if (details.classList.contains('expanded')) {
+                icon.setAttribute('data-feather', 'chevron-up');
+            } else {
+                icon.setAttribute('data-feather', 'chevron-down');
+            }
+            
+            feather.replace();
+        }
+
+        // Atualizar status da proposta
+        async function atualizarStatus() {
+            const novoStatus = document.getElementById('status-select').value;
+            
+            try {
+                console.log(`🔄 Atualizando status para: ${novoStatus}`);
+                
+                // Atualizar via API
+                await propostaAPI.atualizarStatus(currentProposalId, novoStatus);
+                
+                // Atualizar localmente
+                currentProposal.status = novoStatus;
+                clientManager.updateProposalStatus(currentClientId, currentProposalId, novoStatus);
+                
+                console.log('✅ Status atualizado com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status:', error);
+                alert('Erro ao atualizar status: ' + error.message);
+            }
+        }
+
+        // Atualizar status do contrato
+        async function atualizarStatusContrato(contratoId, novoStatus) {
+            try {
+                console.log(`🔄 Atualizando status do contrato ${contratoId} para: ${novoStatus}`);
+                
+                // Atualizar via API
+                await contratoAPI.atualizarStatusContrato(contratoId, novoStatus);
+                
+                console.log('✅ Status do contrato atualizado com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status do contrato:', error);
+                alert('Erro ao atualizar status do contrato: ' + error.message);
+            }
+        }
+
+        // Salvar contrato
+        function salvarContrato(contratoId) {
+            console.log(`💾 Salvando contrato ${contratoId}`);
+            alert('Contrato salvo com sucesso!');
+        }
+
+        // Preparar WhatsApp
+        function prepararWhatsApp() {
+            const status = document.getElementById('status-select').value;
+            console.log(`📱 Preparando WhatsApp para status: ${status}`);
+            alert('WhatsApp preparado para envio! (Funcionalidade em desenvolvimento)');
+        }
+
+        // Salvar alterações
+        function salvarAlteracoes() {
+            console.log('💾 Salvando todas as alterações...');
+            alert('Alterações salvas com sucesso!');
+        }
+
+        // Voltar à fila
+        function voltarFila() {
+            window.location.href = '/operacional/digitation-interface.html';
+        }
+
+        // Funções utilitárias
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        function formatarData(data) {
+            if (!data) return 'N/A';
+            // Se já está no formato DD/MM/YYYY, retorna como está
+            if (typeof data === 'string' && data.includes('/')) {
+                return data;
+            }
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        // Função para copiar texto
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                // Mostrar feedback visual
+                const button = event.target.closest('.copy-button');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i data-feather="check"></i>';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('copied');
+                    feather.replace();
+                }, 2000);
+                
+                feather.replace();
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                alert('Erro ao copiar texto');
+            });
+        }
+
+        function mostrarErro(mensagem) {
+            document.getElementById('loading-state').innerHTML = `
+                <div class="empty-state">
+                    <i data-feather="alert-circle" style="color: #ef4444;"></i>
+                    <h3>Erro</h3>
+                    <p>${mensagem}</p>
+                    <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">
+                        <i data-feather="refresh-cw"></i>
+                        Tentar Novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
+
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitar Proposta - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Estilos específicos da digitação de proposta */
+        .proposal-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .proposal-client-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .client-details h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .status-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-dropdown {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .all-proposals-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .proposals-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .proposals-header h3 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .proposals-count {
+            background: #3b82f6;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .proposals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .proposal-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+        }
+
+        .proposal-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border-color: #3b82f6;
+        }
+
+        .proposal-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-id {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+
+        .proposal-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .proposal-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .copy-button {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 0.125rem 0.25rem;
+            font-size: 0.65rem;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 0.25rem;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .copy-button:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .copy-button.copied {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+            padding: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            gap: 0.25rem;
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .contract-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .contract-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .contract-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .contract-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .contract-field {
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem 0;
+            gap: 0.25rem;
+        }
+
+        .field-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .field-value {
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .proposal-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .summary-title {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .summary-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .summary-comparison {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .current-value {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .new-value {
+            color: #059669;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .tabs-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            color: #3b82f6;
+            background: white;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-button:hover {
+            background: #f1f5f9;
+        }
+
+        .tab-content {
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .client-data-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .data-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .data-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .contract-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .contract-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .contract-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .contract-basic-info {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .contract-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 1.2rem;
+        }
+
+        .contract-details {
+            padding: 1rem;
+            display: none;
+        }
+
+        .contract-details.expanded {
+            display: block;
+        }
+
+        .contract-status-control {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #d97706, #b45309);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .proposal-client-info {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .proposal-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitar-proposta.html" class="nav-item active" data-nav="digitar-proposta">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitar Proposta</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                            <i data-feather="file-text"></i>
+                            Digitar Proposta
+                        </h1>
+                        <span class="page-subtitle">Detalhamento e gestão de propostas</span>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <button class="topbar-btn secondary" onclick="carregarDados()">
+                            <i data-feather="refresh-cw"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Loading State -->
+                <div id="loading-state" class="empty-state">
+                    <i data-feather="loader"></i>
+                    <h3>Carregando dados...</h3>
+                    <p>Aguarde enquanto carregamos as informações da proposta.</p>
+                </div>
+
+                <!-- Main Content (hidden initially) -->
+                <div id="main-content" style="display: none;">
+                    <!-- Header da Proposta -->
+                    <div class="proposal-header">
+                        <div class="proposal-client-info">
+                            <div class="client-details">
+                                <h2 id="client-name">Carregando...</h2>
+                                <div class="client-meta">
+                                    <span><i data-feather="user" style="width: 14px; height: 14px;"></i> <span id="client-cpf">-</span></span>
+                                    <span><i data-feather="phone" style="width: 14px; height: 14px;"></i> <span id="client-phone">-</span></span>
+                                    <span><i data-feather="hash" style="width: 14px; height: 14px;"></i> <span id="proposal-id">-</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Tabs de Conteúdo -->
+                    <div class="tabs-container">
+                        <div class="tabs-header">
+                            <button class="tab-button active" onclick="mostrarTab('dados')">
+                                <i data-feather="user"></i>
+                                Dados do Cliente
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('propostas')">
+                                <i data-feather="file-text"></i>
+                                Todas as Propostas
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('contratos')">
+                                <i data-feather="file-text"></i>
+                                Contratos
+                            </button>
+                            <button class="tab-button" onclick="mostrarTab('status')">
+                                <i data-feather="activity"></i>
+                                Status & Timeline
+                            </button>
+                        </div>
+
+                        <!-- Tab: Dados do Cliente -->
+                        <div id="tab-dados" class="tab-content active">
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="user"></i>
+                                    Informações Pessoais
+                                </h3>
+                                <div class="data-grid" id="personal-data">
+                                    <!-- Dados pessoais serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="home"></i>
+                                    Endereço
+                                </h3>
+                                <div class="data-grid" id="address-data">
+                                    <!-- Dados de endereço serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="shield"></i>
+                                    Benefício INSS
+                                </h3>
+                                <div class="data-grid" id="benefit-data">
+                                    <!-- Dados do benefício serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="credit-card"></i>
+                                    Dados Bancários
+                                </h3>
+                                <div class="data-grid" id="banking-data">
+                                    <!-- Dados bancários serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Todas as Propostas -->
+                        <div id="tab-propostas" class="tab-content">
+                            <div class="all-proposals-container">
+                                <div class="proposals-header">
+                                    <h3>Todas as Propostas do Cliente</h3>
+                                    <span class="proposals-count" id="proposals-count">0 propostas</span>
+                                </div>
+                                <div class="proposals-list" id="proposals-list">
+                                    <!-- Propostas serão carregadas aqui -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Contratos -->
+                        <div id="tab-contratos" class="tab-content">
+                            <div id="contracts-list">
+                                <!-- Contratos serão preenchidos via JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Tab: Status & Timeline -->
+                        <div id="tab-status" class="tab-content">
+                            <div class="client-data-section">
+                                <h3 class="section-title">
+                                    <i data-feather="activity"></i>
+                                    Histórico de Status
+                                </h3>
+                                <div id="status-timeline">
+                                    <!-- Timeline será preenchida via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="voltarFila()">
+                            <i data-feather="arrow-left"></i>
+                            Voltar à Fila
+                        </button>
+                        <button class="btn btn-warning" onclick="prepararWhatsApp()">
+                            <i data-feather="message-circle"></i>
+                            Preparar WhatsApp
+                        </button>
+                        <button class="btn btn-success" onclick="salvarAlteracoes()">
+                            <i data-feather="save"></i>
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/client-manager.js"></script>
+    
+    <script>
+        // Variáveis globais
+        let clientManager;
+        let currentClientId;
+        let currentProposalId;
+        let currentProposal;
+        let currentClient;
+        let allProposals = [];
+
+        // APIs preparadas
+        class PropostaAPI {
+            constructor() {
+                this.baseUrl = '/api/propostas';
+            }
+
+            async atualizarStatus(propostaId, novoStatus, observacoes = '') {
+                const response = await fetch(`${this.baseUrl}/${propostaId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: novoStatus,
+                        observacoes: observacoes,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                return response.json();
+            }
+
+            async buscarProposta(propostaId) {
+                const response = await fetch(`${this.baseUrl}/${propostaId}`);
+                return response.json();
+            }
+        }
+
+        class ContratoAPI {
+            constructor() {
+                this.baseUrl = '/api/contratos';
+            }
+
+            async atualizarStatusContrato(contratoId, novoStatus) {
+                const response = await fetch(`${this.baseUrl}/${contratoId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: novoStatus,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                return response.json();
+            }
+        }
+
+        // Instâncias das APIs
+        const propostaAPI = new PropostaAPI();
+        const contratoAPI = new ContratoAPI();
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar ClientManager
+                if (typeof window.clientManager === 'undefined') {
+                    window.clientManager = new ClientManager();
+                }
+                clientManager = window.clientManager;
+                
+                // Obter parâmetros da URL
+                const urlParams = new URLSearchParams(window.location.search);
+                currentClientId = urlParams.get('clientId');
+                currentProposalId = urlParams.get('proposalId');
+                
+                if (!currentClientId) {
+                    mostrarErro('Parâmetros de cliente não encontrados');
+                    return;
+                }
+                
+                // Carregar dados
+                await carregarDados();
+                
+                console.log('✅ Página de digitação inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                mostrarErro('Erro ao carregar dados da proposta');
+            }
+        });
+
+        // Carregar dados da proposta
+        async function carregarDados() {
+            try {
+                console.log('🔄 Carregando dados do cliente e todas as propostas...');
+                
+                // Buscar dados do servidor
+                const response = await fetch(`/api/cliente/${currentClientId}`);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar dados do cliente');
+                }
+                
+                const clientData = await response.json();
+                currentClient = clientData.cliente || clientData;
+                
+                if (!currentClient) {
+                    throw new Error('Cliente não encontrado');
+                }
+                
+                // Carregar todas as propostas do cliente
+                allProposals = currentClient.propostas || [];
+                
+                if (allProposals.length === 0) {
+                    throw new Error('Nenhuma proposta encontrada para este cliente');
+                }
+                
+                // Se foi especificada uma proposta específica, usar ela como principal
+                if (currentProposalId) {
+                    currentProposal = allProposals.find(p => p.id === currentProposalId);
+                } else {
+                    // Se não foi especificada, usar a primeira proposta como principal
+                    currentProposal = allProposals[0];
+                }
+                
+                // Preencher interface
+                preencherHeaderProposta();
+                preencherTodasPropostas();
+                preencherDadosCliente();
+                preencherContratos();
+                preencherTimeline();
+                
+                // Mostrar conteúdo principal
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+                
+                console.log('✅ Dados carregados com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar dados:', error);
+                mostrarErro('Erro ao carregar dados: ' + error.message);
+            }
+        }
+
+        // Preencher header da proposta
+        function preencherHeaderProposta() {
+            const clientNameEl = document.getElementById('client-name');
+            const clientCpfEl = document.getElementById('client-cpf');
+            const clientPhoneEl = document.getElementById('client-phone');
+            const proposalIdEl = document.getElementById('proposal-id');
+            
+            if (clientNameEl) clientNameEl.textContent = currentClient.nome || 'Nome não informado';
+            if (clientCpfEl) clientCpfEl.textContent = currentClient.cpf || 'CPF não informado';
+            if (clientPhoneEl) clientPhoneEl.textContent = currentClient.telefone || 'Telefone não informado';
+            if (proposalIdEl) proposalIdEl.textContent = currentProposal?.id || '-';
+            
+            // Definir status atual (se o elemento existir)
+            const statusSelect = document.getElementById('status-select');
+            if (statusSelect) {
+                statusSelect.value = currentProposal?.status || 'EM_DIGITACAO';
+            }
+        }
+
+        // Preencher todas as propostas
+        function preencherTodasPropostas() {
+            const proposalsList = document.getElementById('proposals-list');
+            const proposalsCount = document.getElementById('proposals-count');
+            
+            // Atualizar contador
+            proposalsCount.textContent = `${allProposals.length} proposta${allProposals.length !== 1 ? 's' : ''}`;
+            
+            if (allProposals.length === 0) {
+                proposalsList.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="file-text"></i>
+                        <h3>Nenhuma proposta encontrada</h3>
+                        <p>Este cliente não possui propostas cadastradas.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            // Renderizar todas as propostas
+            proposalsList.innerHTML = allProposals.map(proposta => `
+                <div class="proposal-card">
+                    <div class="proposal-card-header">
+                        <div class="proposal-id">${proposta.id}</div>
+                        <div class="proposal-status-control">
+                            <span class="status-badge" style="background-color: ${obterCorStatus(proposta.status)}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                                ${obterTextoStatus(proposta.status)}
+                            </span>
+                            <select class="status-select" onchange="atualizarStatusProposta('${proposta.id}', this.value)" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.8rem;">
+                                <option value="EM_DIGITACAO" ${proposta.status === 'EM_DIGITACAO' ? 'selected' : ''}>Em Digitação</option>
+                                <option value="APROVADA" ${proposta.status === 'APROVADA' ? 'selected' : ''}>Aprovada</option>
+                                <option value="REJEITADA" ${proposta.status === 'REJEITADA' ? 'selected' : ''}>Rejeitada</option>
+                                <option value="PENDENTE" ${proposta.status === 'PENDENTE' ? 'selected' : ''}>Pendente</option>
+                                <option value="FINALIZADA" ${proposta.status === 'FINALIZADA' ? 'selected' : ''}>Finalizada</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="proposal-details">
+                        <!-- CONTRATO ATUAL -->
+                        <div class="contract-section current-contract">
+                            <div class="contract-header">
+                                <i data-feather="file-text" style="width: 16px; height: 16px; color: #3b82f6;"></i>
+                                <span class="contract-title">CONTRATO ATUAL</span>
+                            </div>
+                            <div class="contract-data">
+                                <div class="contract-field">
+                                    <span class="field-label">Banco:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.banco || 'Daycoval'}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.banco || 'Daycoval'}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Parcela:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.valor_parcela || 74.26)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.valor_parcela || 74.26)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_total || 96}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_total || 96}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Parcelas Pagas:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.parcelas_pagas || 36}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.parcelas_pagas || 36}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Taxa:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.taxa_juros_mensal || 1.64}% a.m.
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.taxa_juros_mensal || 1.64}% a.m.')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Saldo Devedor:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.valor_liberado - proposta.contratos?.[0]?.valor_pago || 756.64)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.valor_liberado - proposta.contratos?.[0]?.valor_pago || 756.64)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo Restante:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_restante || 60}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_restante || 60}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NOVO CONTRATO -->
+                        <div class="contract-section new-contract">
+                            <div class="contract-header">
+                                <i data-feather="refresh-cw" style="width: 16px; height: 16px; color: #10b981;"></i>
+                                <span class="contract-title">NOVO CONTRATO</span>
+                            </div>
+                            <div class="contract-data">
+                                <div class="contract-field">
+                                    <span class="field-label">Banco:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.simulacao?.banco || 'C6'}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.simulacao?.banco || 'C6'}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Nova Parcela:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.simulacao?.parcela || 74.26)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.simulacao?.parcela || 74.26)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Prazo:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.prazo_total || 96}
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.prazo_total || 96}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Nova Taxa:</span>
+                                    <span class="field-value">
+                                        ${proposta.contratos?.[0]?.simulacao?.taxa || 1.85}% a.m.
+                                        <button class="copy-button" onclick="copiarTexto('${proposta.contratos?.[0]?.simulacao?.taxa || 1.85}% a.m.')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                <div class="contract-field">
+                                    <span class="field-label">Troco:</span>
+                                    <span class="field-value">
+                                        ${formatarMoeda(proposta.contratos?.[0]?.simulacao?.troco || 410.51)}
+                                        <button class="copy-button" onclick="copiarTexto('${formatarMoeda(proposta.contratos?.[0]?.simulacao?.troco || 410.51)}')">
+                                            <i data-feather="copy"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="proposal-actions">
+                        <button class="btn btn-primary" onclick="visualizarProposta('${proposta.id}')">
+                            <i data-feather="eye"></i>
+                            Visualizar
+                        </button>
+                        <button class="btn btn-danger" onclick="excluirProposta('${proposta.id}')">
+                            <i data-feather="trash-2"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            feather.replace();
+        }
+
+        // Obter cor do status
+        function obterCorStatus(status) {
+            const cores = {
+                'EM_DIGITACAO': '#3b82f6',
+                'APROVADA': '#10b981',
+                'REJEITADA': '#ef4444',
+                'PENDENTE': '#f59e0b',
+                'FINALIZADA': '#6b7280'
+            };
+            return cores[status] || '#6b7280';
+        }
+
+        // Obter texto do status
+        function obterTextoStatus(status) {
+            const textos = {
+                'EM_DIGITACAO': 'Em Digitação',
+                'APROVADA': 'Aprovada',
+                'REJEITADA': 'Rejeitada',
+                'PENDENTE': 'Pendente',
+                'FINALIZADA': 'Finalizada'
+            };
+            return textos[status] || 'Em Digitação';
+        }
+
+        // Atualizar status da proposta
+        function atualizarStatusProposta(propostaId, novoStatus) {
+            const proposta = allProposals.find(p => p.id === propostaId);
+            if (!proposta) return;
+            
+            proposta.status = novoStatus;
+            console.log(`✅ Status da proposta ${propostaId} atualizado para: ${novoStatus}`);
+            
+            // Atualizar visualmente o badge e select
+            const proposalCard = event.target.closest('.proposal-card');
+            const statusBadge = proposalCard.querySelector('.status-badge');
+            const select = event.target;
+            
+            if (statusBadge) {
+                statusBadge.style.backgroundColor = obterCorStatus(novoStatus);
+                statusBadge.textContent = obterTextoStatus(novoStatus);
+            }
+        }
+
+        // Excluir proposta
+        function excluirProposta(propostaId) {
+            if (!confirm(`Tem certeza que deseja excluir a proposta ${propostaId}?`)) {
+                return;
+            }
+            
+            const index = allProposals.findIndex(p => p.id === propostaId);
+            if (index !== -1) {
+                allProposals.splice(index, 1);
+                preencherTodasPropostas(); // Recarregar a lista
+                console.log(`✅ Proposta ${propostaId} excluída com sucesso`);
+            }
+        }
+
+        // Visualizar proposta
+        function visualizarProposta(propostaId) {
+            const proposta = allProposals.find(p => p.id === propostaId);
+            if (!proposta) return;
+            
+            alert(`Proposta: ${proposta.id}\nTipo: ${proposta.tipo}\nValor: ${formatarMoeda(proposta.valor)}\nBanco: ${proposta.banco}\nStatus: ${proposta.status}`);
+        }
+
+        // Preencher dados do cliente
+        function preencherDadosCliente() {
+            // Dados pessoais
+            const personalData = [
+                { label: 'Nome Completo', value: currentClient.nome || 'N/A' },
+                { label: 'CPF', value: currentClient.cpf || 'N/A' },
+                { label: 'Data de Nascimento', value: formatarData(currentClient.dataNascimento) },
+                { label: 'Nome da Mãe', value: currentClient.nomeMae || 'N/A' },
+                { label: 'Telefone', value: currentClient.telefone || 'N/A' },
+                { label: 'Email', value: currentClient.email || 'N/A' }
+            ];
+            
+            document.getElementById('personal-data').innerHTML = personalData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados de endereço
+            const endereco = currentClient.endereco || {};
+            const addressData = [
+                { label: 'CEP', value: endereco.cep || 'N/A' },
+                { label: 'Logradouro', value: endereco.logradouro || 'N/A' },
+                { label: 'Número', value: endereco.numero || 'N/A' },
+                { label: 'Bairro', value: endereco.bairro || 'N/A' },
+                { label: 'Cidade', value: endereco.cidade || 'N/A' },
+                { label: 'UF', value: endereco.uf || 'N/A' }
+            ];
+            
+            document.getElementById('address-data').innerHTML = addressData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados do benefício
+            const beneficio = currentClient.beneficio || {};
+            const benefitData = [
+                { label: 'Número do Benefício', value: beneficio.nb || 'N/A' },
+                { label: 'Espécie', value: beneficio.nomeBeneficio || 'N/A' },
+                { label: 'Valor', value: formatarMoeda(beneficio.valor || 0) },
+                { label: 'DIB', value: formatarData(beneficio.dib) },
+                { label: 'Banco Pagador', value: beneficio.banco_pagamento || 'N/A' }
+            ];
+            
+            document.getElementById('benefit-data').innerHTML = benefitData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+
+            // Dados bancários
+            const banco = currentClient.banco || {};
+            const bankingData = [
+                { label: 'Banco', value: banco.nome || 'N/A' },
+                { label: 'Agência', value: banco.agencia || 'N/A' },
+                { label: 'Conta', value: banco.conta || 'N/A' },
+                { label: 'Tipo de Conta', value: banco.tipoConta || 'N/A' }
+            ];
+            
+            document.getElementById('banking-data').innerHTML = bankingData.map(item => 
+                `<div class="data-item">
+                    <span class="data-label">${item.label}</span>
+                    <span class="data-value">
+                        ${item.value}
+                        <button class="copy-button" onclick="copiarTexto('${item.value.replace(/'/g, "\\'")}')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </span>
+                </div>`
+            ).join('');
+        }
+
+        // Preencher contratos
+        function preencherContratos() {
+            const contratos = currentProposal.contratos || [];
+            
+            if (contratos.length === 0) {
+                document.getElementById('contracts-list').innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="file-text"></i>
+                        <h3>Nenhum contrato encontrado</h3>
+                        <p>Esta proposta não possui contratos associados.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            document.getElementById('contracts-list').innerHTML = contratos.map(contrato => `
+                <div class="contract-card">
+                    <div class="contract-header" onclick="toggleContractDetails('${contrato.id}')">
+                        <div>
+                            <div class="contract-title">${contrato.banco || 'Banco não informado'} - ${contrato.contrato || 'Contrato não informado'}</div>
+                            <div class="contract-basic-info">
+                                <span>Parcela: ${formatarMoeda(contrato.valorParcela || 0)}</span>
+                                <span>Prazo: ${contrato.parcelasPagas || 0}/${contrato.parcelas || 0}</span>
+                            </div>
+                        </div>
+                        <button class="contract-toggle" id="toggle-${contrato.id}">
+                            <i data-feather="chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="contract-details" id="details-${contrato.id}">
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <span class="data-label">Valor Liberado</span>
+                                <span class="data-value">${formatarMoeda(contrato.valorLiberado || 0)}</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Taxa de Juros</span>
+                                <span class="data-value">${contrato.taxaJuros || 'N/A'}%</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">CET</span>
+                                <span class="data-value">${contrato.cet || 'N/A'}%</span>
+                            </div>
+                            <div class="data-item">
+                                <span class="data-label">Data de Contratação</span>
+                                <span class="data-value">${formatarData(contrato.dataContratacao)}</span>
+                            </div>
+                        </div>
+                        <div class="contract-status-control">
+                            <label>Status do Contrato:</label>
+                            <select onchange="atualizarStatusContrato('${contrato.id}', this.value)">
+                                <option value="ATIVO" ${contrato.status === 'ATIVO' ? 'selected' : ''}>Ativo</option>
+                                <option value="FINALIZADO" ${contrato.status === 'FINALIZADO' ? 'selected' : ''}>Finalizado</option>
+                                <option value="CANCELADO" ${contrato.status === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
+                                <option value="PENDENTE" ${contrato.status === 'PENDENTE' ? 'selected' : ''}>Pendente</option>
+                            </select>
+                            <button class="btn btn-success" onclick="salvarContrato('${contrato.id}')">
+                                <i data-feather="save"></i>
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            feather.replace();
+        }
+
+        // Preencher timeline
+        function preencherTimeline() {
+            const timeline = currentProposal.timeline || [];
+            
+            if (timeline.length === 0) {
+                document.getElementById('status-timeline').innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="clock"></i>
+                        <h3>Nenhum histórico encontrado</h3>
+                        <p>Esta proposta ainda não possui histórico de status.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            document.getElementById('status-timeline').innerHTML = timeline.map(item => `
+                <div class="data-item">
+                    <span class="data-label">${formatarData(item.timestamp)} - ${item.status}</span>
+                    <span class="data-value">${item.observacoes || 'Sem observações'}</span>
+                </div>
+            `).join('');
+        }
+
+        // Mostrar tab
+        function mostrarTab(tabName) {
+            // Esconder todas as tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Mostrar tab selecionada
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Se for a aba de propostas, recarregar os dados
+            if (tabName === 'propostas') {
+                preencherTodasPropostas();
+            }
+            
+            // Atualizar ícones
+            feather.replace();
+        }
+
+        // Toggle detalhes do contrato
+        function toggleContractDetails(contratoId) {
+            const details = document.getElementById(`details-${contratoId}`);
+            const toggle = document.getElementById(`toggle-${contratoId}`);
+            
+            details.classList.toggle('expanded');
+            
+            const icon = toggle.querySelector('i');
+            if (details.classList.contains('expanded')) {
+                icon.setAttribute('data-feather', 'chevron-up');
+            } else {
+                icon.setAttribute('data-feather', 'chevron-down');
+            }
+            
+            feather.replace();
+        }
+
+        // Atualizar status da proposta
+        async function atualizarStatus() {
+            const novoStatus = document.getElementById('status-select').value;
+            
+            try {
+                console.log(`🔄 Atualizando status para: ${novoStatus}`);
+                
+                // Atualizar via API
+                await propostaAPI.atualizarStatus(currentProposalId, novoStatus);
+                
+                // Atualizar localmente
+                currentProposal.status = novoStatus;
+                clientManager.updateProposalStatus(currentClientId, currentProposalId, novoStatus);
+                
+                console.log('✅ Status atualizado com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status:', error);
+                alert('Erro ao atualizar status: ' + error.message);
+            }
+        }
+
+        // Atualizar status do contrato
+        async function atualizarStatusContrato(contratoId, novoStatus) {
+            try {
+                console.log(`🔄 Atualizando status do contrato ${contratoId} para: ${novoStatus}`);
+                
+                // Atualizar via API
+                await contratoAPI.atualizarStatusContrato(contratoId, novoStatus);
+                
+                console.log('✅ Status do contrato atualizado com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao atualizar status do contrato:', error);
+                alert('Erro ao atualizar status do contrato: ' + error.message);
+            }
+        }
+
+        // Salvar contrato
+        function salvarContrato(contratoId) {
+            console.log(`💾 Salvando contrato ${contratoId}`);
+            alert('Contrato salvo com sucesso!');
+        }
+
+        // Preparar WhatsApp
+        function prepararWhatsApp() {
+            const status = document.getElementById('status-select').value;
+            console.log(`📱 Preparando WhatsApp para status: ${status}`);
+            alert('WhatsApp preparado para envio! (Funcionalidade em desenvolvimento)');
+        }
+
+        // Salvar alterações
+        function salvarAlteracoes() {
+            console.log('💾 Salvando todas as alterações...');
+            alert('Alterações salvas com sucesso!');
+        }
+
+        // Voltar à fila
+        function voltarFila() {
+            window.location.href = '/operacional/digitation-interface.html';
+        }
+
+        // Funções utilitárias
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        function formatarData(data) {
+            if (!data) return 'N/A';
+            // Se já está no formato DD/MM/YYYY, retorna como está
+            if (typeof data === 'string' && data.includes('/')) {
+                return data;
+            }
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        // Função para copiar texto
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                // Mostrar feedback visual
+                const button = event.target.closest('.copy-button');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i data-feather="check"></i>';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('copied');
+                    feather.replace();
+                }, 2000);
+                
+                feather.replace();
+            }).catch(err => {
+                console.error('Erro ao copiar:', err);
+                alert('Erro ao copiar texto');
+            });
+        }
+
+        function mostrarErro(mensagem) {
+            document.getElementById('loading-state').innerHTML = `
+                <div class="empty-state">
+                    <i data-feather="alert-circle" style="color: #ef4444;"></i>
+                    <h3>Erro</h3>
+                    <p>${mensagem}</p>
+                    <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">
+                        <i data-feather="refresh-cw"></i>
+                        Tentar Novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
+
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api-lunas:
+    image: api-lunas:latest
+    container_name: api-lunas
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+    volumes:
+      - ./var:/app/var
+      - ./.env:/app/.env
+    restart: unless-stopped
+    labels:
+      - "com.docker.compose.project=api-lunas"
+      - "com.docker.compose.service=api-lunas"
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-lunas.rule=Host(`api.lunasdigital.com.br`)"
+      - "traefik.http.routers.api-lunas.tls=true"
+      - "traefik.http.routers.api-lunas.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api-lunas.loadbalancer.server.port=3002"
+    networks:
+      - lunas-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0.3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+networks:
+  lunas-network:
+    driver: bridge

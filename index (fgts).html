@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel FGTS - Lunas Digital</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh; color: #334155; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .header p { color: #64748b; font-size: 1.1rem; }
+        .stats-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); text-align: center; border-left: 4px solid #00d4aa; }
+        .stat-card h3 { color: #1e293b; font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .stat-card p { color: #64748b; font-size: 0.9rem; }
+        .main-content { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem; }
+        .left-panel { display: flex; flex-direction: column; gap: 1rem; }
+        .card { background: white; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .card h3 { color: #1e293b; margin-bottom: 0.8rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .upload-section { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 1.2rem; text-align: center; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #00d4aa; background: #f0fdfa; }
+        .file-input { display: none; }
+        .file-label { display: inline-block; padding: 0.6rem 1.2rem; background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 0.9rem; }
+        .file-label:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3); }
+        .controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+        .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .delay-control { display: flex; align-items: center; gap: 0.5rem; }
+        .delay-input { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 100px; }
+        .progress-section { margin-bottom: 1rem; }
+        .progress-bar { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4aa 0%, #5a67d8 50%, #7c3aed 100%); transition: width 0.3s ease; border-radius: 10px; }
+        .progress-text { text-align: center; color: #64748b; font-size: 0.9rem; }
+        .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .results-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        .result-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-left: 4px solid #00d4aa; min-width: 250px; max-height: 400px; display: flex; flex-direction: column; }
+        .result-card.wide { min-width: 100%; }
+        .result-card h4 { color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .result-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; table-layout: fixed; }
+        .result-table th, .result-table td { padding: 0.3rem; text-align: left; border-bottom: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .result-table th { background: #f8fafc; font-weight: 600; color: #475569; }
+        .result-table .col-linha { width: 10%; }
+        .result-table .col-cpf { width: 20%; }
+        .result-table .col-id { width: 10%; }
+        .result-table .col-valor { width: 15%; }
+        .result-table .col-provider { width: 15%; }
+        .result-table .col-status { width: 30%; }
+        .result-table tr:hover { background: #f8fafc; }
+        
+        /* Fixar cabeçalho e botão */
+        .result-table thead { position: sticky; top: 0; z-index: 10; background: white; }
+        .result-table tbody { max-height: 250px; overflow-y: auto; display: block; }
+        .result-table thead, .result-table tbody tr { display: table; width: 100%; table-layout: fixed; }
+        
+        /* Contador fixo no rodapé da caixa */
+        .counter { 
+            margin-top: auto; 
+            padding: 0.75rem; 
+            background: #f8fafc; 
+            border-radius: 8px; 
+            text-align: center; 
+            font-weight: 600; 
+            color: #1e293b; 
+            border-top: 1px solid #e2e8f0;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+        
+        /* Status com retângulos arredondados */
+        .status-badge { 
+            display: inline-block; 
+            padding: 0.25rem 0.75rem; 
+            border-radius: 20px; 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            text-align: center;
+            min-width: 80px;
+        }
+        .status-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-no-auth { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-discarded { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .status-criado { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .status-agendado { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-disparo { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+        .status-reprocessar-rapido { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-reprocess { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-processar { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-processar-rapido { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .logs { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1rem; height: 350px; overflow-y: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #374151; }
+        .log-entry { margin-bottom: 0.5rem; padding: 0.25rem 0; }
+        .log-success { color: #10b981; }
+        .log-error { color: #ef4444; }
+        .log-warning { color: #f59e0b; }
+        .log-info { color: #06b6d4; }
+        .right-panel { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 0; height: fit-content; }
+        
+        /* Barra Lateral de Configurações */
+        .sidebar { position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; background: white; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1); transition: right 0.3s ease; z-index: 1000; overflow-y: auto; }
+        .sidebar.open { right: 0; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-title { font-size: 1.25rem; font-weight: 600; color: #1e293b; }
+        .sidebar-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
+        .sidebar-content { padding: 1.5rem; }
+        .config-section { margin-bottom: 2rem; }
+        .config-section h3 { font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .config-group { margin-bottom: 1rem; }
+        .config-group label { display: block; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+        .config-group input, .config-group select { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; }
+        .config-group input:focus, .config-group select:focus { outline: none; border-color: #00d4aa; box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1); }
+        .config-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .btn-test { background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-test:hover { background: #2563eb; }
+        .btn-save { background: #10b981; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-save:hover { background: #059669; }
+        .btn-cancel { background: #6b7280; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        .btn-cancel:hover { background: #4b5563; }
+        .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; }
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        .status-testing { background: #f59e0b; }
+        
+        /* Botão Toggle da Sidebar */
+        .sidebar-toggle { position: fixed; top: 20px; right: 20px; z-index: 1001; background: linear-gradient(135deg, #00d4aa 0%, #5a67d8 100%); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); transition: all 0.3s ease; }
+        .sidebar-toggle:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4); }
+        
+        @media (max-width: 1200px) { 
+            .results-grid { grid-template-columns: repeat(2, 1fr); }
+            .results-grid-bottom { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) { 
+            .results-grid { grid-template-columns: 1fr; }
+            .results-grid-bottom { grid-template-columns: 1fr; }
+            .sidebar { width: 100%; right: -100%; }
+        }
+  </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Painel de Consulta FGTS</h1>
+            <p>Monitoramento em tempo real das consultas de saldo FGTS</p>
+        </div>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3 id="totalCPFs">0</h3>
+                <p>Total de CPFs</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="processedCPFs">0</h3>
+                <p>Processados</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="successCPFs">0</h3>
+                <p>Sucessos</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="pendingCPFs">0</h3>
+                <p>Pendentes</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="agendadosCPFs">0</h3>
+                <p>Agendados</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="delayAtual">1000ms</h3>
+                <p>Delay Atual</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="card">
+                    <h3>📂 Upload de Arquivo</h3>
+                    <div class="upload-section">
+                        <input type="file" id="csvFile" class="file-input" accept=".csv">
+                        <label for="csvFile" class="file-label">📂 Escolher Arquivo CSV</label>
+                        <p id="fileInfo" style="margin-top: 1rem; color: #64748b;"></p>
+                    </div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnProcessar" class="btn btn-primary" disabled>▶️ Iniciar Processamento</button>
+                        <button id="btnLimpar" class="btn btn-secondary">🗑️ Limpar</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>⚙️ Controles de Processamento</h3>
+                    <div class="controls">
+                        <div class="delay-control">
+                            <label>Delay (ms):</label>
+                            <input type="number" id="delayInput" class="delay-input" value="1000" min="100" max="10000">
+                            <button id="btnAtualizarDelay" class="btn btn-secondary">💾 Atualizar</button>
+                        </div>
+                    </div>
+</div>
+
+                <div class="card">
+                    <h3>📈 Progresso do Processamento</h3>
+                    <div class="progress-section">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div id="progressText" class="progress-text">0% - Aguardando início</div>
+                    </div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnPausar" class="btn btn-danger" disabled>⏸️ Pausar</button>
+                        <button id="btnRetomar" class="btn btn-success" disabled>▶️ Retomar</button>
+                        <button id="btnCancelar" class="btn btn-danger" disabled>✖️ Cancelar</button>
+                    </div>
+</div>
+
+                <div class="card">
+                    <h3>📜 Logs em Tempo Real</h3>
+                    <div id="logs" class="logs"></div>
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button id="btnLimparLogs" class="btn btn-secondary">🗑️ Limpar Logs</button>
+                        <button id="btnExportarCSV" class="btn btn-primary">💾 Exportar CSV</button>
+                    </div>
+</div>
+
+                <div class="card">
+                    <h3>📊 Resultados</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h4>✅ Sucessos</h4>
+                            <div class="counter" id="successCounter">✅ Sucesso | Total: <span id="countSuccess">0</span> | Valor Total: <span id="valorTotalSuccess">0,00</span></div>
+                            <table class="result-table" id="successTable">
+                                <thead>
+                                    <tr>
+                                        <th class="col-linha">Linha</th>
+                                        <th class="col-cpf">CPF</th>
+                                        <th class="col-id">ID</th>
+                                        <th class="col-valor">Valor</th>
+                                        <th class="col-provider">Provider</th>
+                                        <th class="col-status">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>⏳ Pendentes</h4>
+                            <div class="counter" id="pendingCounter">⏳ Pendente | Total: <span id="countPending">0</span></div>
+                            <table class="result-table" id="pendingTable">
+                                <thead>
+                                    <tr>
+                                        <th class="col-linha">Linha</th>
+                                        <th class="col-cpf">CPF</th>
+                                        <th class="col-id">ID</th>
+                                        <th class="col-status">Status</th>
+                                        <th class="col-provider">Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <button id="btnReprocessar" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;" disabled>🔄 Reprocessar Pendentes</button>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>🚫 Não Autorizados</h4>
+                            <div class="counter" id="noAuthCounter">🚫 Não Autorizado | Total: <span id="countNoAuth">0</span></div>
+                            <table class="result-table" id="noAuthTable">
+                                <thead>
+                                    <tr>
+                                        <th class="col-linha">Linha</th>
+                                        <th class="col-cpf">CPF</th>
+                                        <th class="col-id">ID</th>
+                                        <th class="col-status">Status</th>
+                                        <th class="col-provider">Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <button id="btnMudarFase" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;" disabled>📌 Mudar Fase no CRM</button>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>❌ Descartados</h4>
+                            <div class="counter" id="discardedCounter">❌ Descartado | Total: <span id="countDiscarded">0</span></div>
+                            <table class="result-table" id="discardedTable">
+                                <thead>
+                                    <tr>
+                                        <th class="col-linha">Linha</th>
+                                        <th class="col-cpf">CPF</th>
+                                        <th class="col-id">ID</th>
+                                        <th class="col-status">Status</th>
+                                        <th class="col-provider">Provider</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="result-card">
+                            <h4>📅 Agendados</h4>
+                            <div class="counter" id="scheduledCounter">📅 Agendado | Total: <span id="countScheduled">0</span></div>
+                            <table class="result-table" id="scheduledTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Tipo</th>
+                                        <th>Agendado Para</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Seção inferior com Logs de Erro e Cache Persistente -->
+                    <div class="results-grid-bottom">
+                        <div class="result-card wide">
+                            <h4>📋 Logs de Erro</h4>
+                            <div style="margin-bottom: 1rem;">
+                                <button id="btnVerLogs" class="btn btn-secondary" style="margin-right: 0.5rem;">📋 Ver Logs</button>
+                                <button id="btnEstatisticas" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
+                                <button id="btnLimparLogs" class="btn btn-danger">🗑️ Limpar</button>
+                            </div>
+                            <div id="logsContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
+                                <div id="logsContent"></div>
+                            </div>
+                        </div>
+
+                        <div class="result-card wide">
+                            <h4>💾 Cache Persistente</h4>
+                            <div style="margin-bottom: 1rem;">
+                                <button id="btnCacheStats" class="btn btn-secondary" style="margin-right: 0.5rem;">📊 Estatísticas</button>
+                                <button id="btnCachePendentes" class="btn btn-secondary" style="margin-right: 0.5rem;">⏳ Pendentes</button>
+                                <button id="btnCacheLimpar" class="btn btn-danger">🗑️ Limpar Cache</button>
+                            </div>
+                            <div id="cacheContainer" style="display: none; max-height: 300px; overflow-y: auto; background: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem;">
+                                <div id="cacheContent"></div>
+    </div>
+  </div>
+    </div>
+  </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Botão Toggle da Sidebar -->
+<button class="sidebar-toggle" id="sidebarToggle" title="Configurações">
+    ⚙️
+</button>
+
+<!-- Barra Lateral de Configurações -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2 class="sidebar-title">⚙️ Configurações</h2>
+        <button class="sidebar-close" id="sidebarClose">×</button>
+    </div>
+    <div class="sidebar-content">
+        <!-- Seção de Horário Comercial -->
+        <div class="config-section">
+            <h3>⏰ Horário Comercial</h3>
+            <div class="config-group">
+                <label>Horário de Início</label>
+                <input type="time" id="horarioInicio" value="08:00">
+            </div>
+            <div class="config-group">
+                <label>Horário de Fim</label>
+                <input type="time" id="horarioFim" value="22:00">
+            </div>
+            <div class="config-group">
+                <label>Fuso Horário</label>
+                <select id="fusoHorario">
+                    <option value="America/Sao_Paulo">Brasília (GMT-3)</option>
+                    <option value="America/New_York">Nova York (GMT-5)</option>
+                    <option value="Europe/London">Londres (GMT+0)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais FGTS -->
+        <div class="config-section">
+            <h3>🔑 Credenciais FGTS</h3>
+            <div class="config-group">
+                <label>Usuário 1</label>
+                <input type="text" id="fgtsUser1" placeholder="usuario1@email.com">
+            </div>
+            <div class="config-group">
+                <label>Senha 1</label>
+                <input type="password" id="fgtsPass1" placeholder="••••••••">
+            </div>
+            <div class="config-group">
+                <label>Usuário 2</label>
+                <input type="text" id="fgtsUser2" placeholder="usuario2@email.com">
+            </div>
+            <div class="config-group">
+                <label>Senha 2</label>
+                <input type="password" id="fgtsPass2" placeholder="••••••••">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testFgts">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais V8 Sistema -->
+        <div class="config-section">
+            <h3>🔑 Credenciais V8 Sistema</h3>
+            <div class="config-group">
+                <label>Client ID</label>
+                <input type="text" id="v8ClientId" placeholder="seu_client_id">
+            </div>
+            <div class="config-group">
+                <label>Audience</label>
+                <input type="text" id="v8Audience" placeholder="https://bff.v8sistema.com">
+            </div>
+            <div class="config-group">
+                <label>Username</label>
+                <input type="text" id="v8Username" placeholder="usuario@email.com">
+            </div>
+            <div class="config-group">
+                <label>Password</label>
+                <input type="password" id="v8Password" placeholder="••••••••">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testV8">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Credenciais Lunas -->
+        <div class="config-section">
+            <h3>🔑 Credenciais Lunas CRM</h3>
+            <div class="config-group">
+                <label>API Key</label>
+                <input type="password" id="lunasApiKey" placeholder="••••••••••••••••">
+            </div>
+            <div class="config-group">
+                <label>Queue ID</label>
+                <input type="number" id="lunasQueueId" placeholder="25">
+            </div>
+            <div class="config-group">
+                <label>Stage ID</label>
+                <input type="number" id="lunasStageId" placeholder="4">
+            </div>
+            <div class="config-actions">
+                <button class="btn-test" id="testLunas">🧪 Testar</button>
+            </div>
+        </div>
+
+        <!-- Seção de Performance -->
+        <div class="config-section">
+            <h3>⚡ Performance</h3>
+            <div class="config-group">
+                <label>Delay Base (ms)</label>
+                <input type="number" id="delayBase" placeholder="1000" min="100" max="10000">
+            </div>
+            <div class="config-group">
+                <label>Delay Mínimo (ms)</label>
+                <input type="number" id="delayMin" placeholder="500" min="100" max="5000">
+            </div>
+            <div class="config-group">
+                <label>Delay Máximo (ms)</label>
+                <input type="number" id="delayMax" placeholder="5000" min="1000" max="10000">
+            </div>
+            <div class="config-group">
+                <label>Taxa de Erro para Ajuste (%)</label>
+                <input type="number" id="taxaErro" placeholder="10" min="1" max="50">
+            </div>
+        </div>
+
+        <!-- Ações Gerais -->
+        <div class="config-actions">
+            <button class="btn-save" id="saveConfig">💾 Salvar</button>
+            <button class="btn-cancel" id="cancelConfig">❌ Cancelar</button>
+        </div>
+        
+        <!-- Backup e Restore -->
+        <div class="config-section">
+            <h3>💾 Backup e Restore</h3>
+            <div class="config-actions">
+                <button class="btn-test" id="backupConfig">📦 Backup</button>
+                <button class="btn-test" id="exportConfig">📤 Exportar</button>
+                <button class="btn-test" id="restoreConfig">🔄 Restaurar</button>
+  </div>
+            <div id="backupStatus" style="margin-top: 1rem; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem; color: #64748b;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+        const socket = io();
+        
+        // Elementos DOM
+        const csvFile = document.getElementById('csvFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const btnProcessar = document.getElementById('btnProcessar');
+        const btnLimpar = document.getElementById('btnLimpar');
+        const btnPausar = document.getElementById('btnPausar');
+        const btnRetomar = document.getElementById('btnRetomar');
+        const btnCancelar = document.getElementById('btnCancelar');
+        const btnAtualizarDelay = document.getElementById('btnAtualizarDelay');
+        const delayInput = document.getElementById('delayInput');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+const logs = document.getElementById('logs');
+        const btnLimparLogs = document.getElementById('btnLimparLogs');
+        const btnExportarCSV = document.getElementById('btnExportarCSV');
+        const btnReprocessar = document.getElementById('btnReprocessar');
+        const btnMudarFase = document.getElementById('btnMudarFase');
+        
+        // Elementos da Sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const saveConfig = document.getElementById('saveConfig');
+        const cancelConfig = document.getElementById('cancelConfig');
+
+        // Tabelas
+        const successTable = document.getElementById('successTable').querySelector('tbody');
+        const pendingTable = document.getElementById('pendingTable').querySelector('tbody');
+        const noAuthTable = document.getElementById('noAuthTable').querySelector('tbody');
+        const discardedTable = document.getElementById('discardedTable').querySelector('tbody');
+        const scheduledTable = document.getElementById('scheduledTable').querySelector('tbody');
+
+        // Contadores
+        const totalCPFs = document.getElementById('totalCPFs');
+        const processedCPFs = document.getElementById('processedCPFs');
+        const successCPFs = document.getElementById('successCPFs');
+        const pendingCPFs = document.getElementById('pendingCPFs');
+        const agendadosCPFs = document.getElementById('agendadosCPFs');
+        const delayAtual = document.getElementById('delayAtual');
+
+        // Contadores de valores
+        const countSuccess = document.getElementById('countSuccess');
+        const countPending = document.getElementById('countPending');
+        const countNoAuth = document.getElementById('countNoAuth');
+        const countDiscarded = document.getElementById('countDiscarded');
+        const countScheduled = document.getElementById('countScheduled');
+        const valorTotalSuccess = document.getElementById('valorTotalSuccess');
+
+        // Variáveis de controle
+        let isProcessing = false;
+        let isPaused = false;
+        let currentFile = null;
+        let resultados = [];
+
+        // Inicializar
+        function init() {
+            btnProcessar.disabled = true;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = true;
+            btnCancelar.disabled = true;
+            btnReprocessar.disabled = true;
+            btnMudarFase.disabled = true;
+        }
+
+        // Adicionar log
+        function adicionarLog(mensagem, tipo = 'info') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${tipo}`;
+            logEntry.textContent = `[${timestamp}] ${mensagem}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Adicionar resultado às tabelas
+        function adicionarResultado(data) {
+            const { linha, cpf, id, status, valorLiberado, provider, statusDetalhado } = data;
+            const valorFormatado = parseFloat(valorLiberado || 0).toFixed(2);
+            
+            // Verificar se já existe para evitar duplicatas
+            const existingRow = document.querySelector(`tr[data-cpf="${cpf}"][data-id="${id}"]`);
+            if (existingRow) {
+                return; // Já existe, não adicionar duplicata
+            }
+            
+            // Mapear status para exibição com retângulos
+            const statusMap = {
+                'success': 'Sucesso',
+                'pending': 'Pendente',
+                'no_auth': 'Não Autorizado',
+                'descartado': 'Descartado',
+                'criado': 'CRIADO',
+                'agendado': 'AGENDADO',
+                'disparo': 'DISPARO',
+                'reprocessar_rapido': 'RÁPIDO',
+                'reprocess': 'REPROCESS'
+            };
+            
+            const statusText = statusMap[status] || statusMap[statusDetalhado] || status;
+            // Mapear status para classes CSS corretas
+            let statusClass = '';
+            if (status === 'success') {
+                statusClass = statusDetalhado ? `status-${statusDetalhado}` : 'status-success';
+            } else if (status === 'reprocess' || status === 'reprocessar_rapido') {
+                statusClass = 'status-pending';
+            } else if (status === 'no_auth') {
+                statusClass = 'status-no-auth';
+            } else if (status === 'descartado') {
+                statusClass = 'status-discarded';
+            } else if (status === 'pending') {
+                statusClass = 'status-pending';
+            } else {
+                statusClass = `status-${status}`;
+            }
+            
+            const row = document.createElement('tr');
+            row.setAttribute('data-cpf', cpf);
+            row.setAttribute('data-id', id);
+            
+            if (status === 'success') {
+                row.innerHTML = `
+                    <td class="col-linha">${linha || '?'}</td>
+                    <td class="col-cpf">${cpf}</td>
+                    <td class="col-id">${id || 'N/A'}</td>
+                    <td class="col-valor">${valorFormatado.replace('.', ',')}</td>
+                    <td class="col-provider">${provider || 'N/A'}</td>
+                    <td class="col-status"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+                successTable.appendChild(row);
+                atualizarContador('success', valorFormatado);
+            } else {
+                row.innerHTML = `
+                    <td class="col-linha">${linha || '?'}</td>
+                    <td class="col-cpf">${cpf}</td>
+                    <td class="col-id">${id || 'N/A'}</td>
+                    <td class="col-status"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td class="col-provider">${provider || 'N/A'}</td>
+                `;
+                
+                // Adicionar à tabela apropriada
+                switch(status) {
+                    case 'pending':
+                        pendingTable.appendChild(row);
+                        atualizarContador('pending');
+                        break;
+                    case 'no_auth':
+                        noAuthTable.appendChild(row);
+                        atualizarContador('no_auth');
+                        break;
+                    case 'descartado':
+                        discardedTable.appendChild(row);
+                        atualizarContador('descartado');
+                        break;
+                    case 'reprocessar_rapido':
+                        pendingTable.appendChild(row);
+                        atualizarContador('pending');
+                        break;
+                }
+            }
+
+            resultados.push(data);
+        }
+
+        // Adicionar agendamento à tabela
+        function adicionarAgendamento(data) {
+            const { id, tipo, agendadoPara } = data;
+            const dataFormatada = new Date(agendadoPara).toLocaleString('pt-BR');
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${id}</td>
+                <td>${tipo}</td>
+                <td>${dataFormatada}</td>
+                <td>⏳ Agendado</td>
+            `;
+
+            scheduledTable.appendChild(row);
+            atualizarContador('scheduled');
+        }
+
+        // Atualizar contadores
+        function atualizarContador(tipo, valor = 0) {
+            const contadores = {
+                success: { count: countSuccess, valor: valorTotalSuccess },
+                pending: { count: countPending },
+                no_auth: { count: countNoAuth },
+                descartado: { count: countDiscarded },
+                scheduled: { count: countScheduled }
+            };
+
+            const contador = contadores[tipo];
+            if (contador) {
+                const currentCount = parseInt(contador.count.textContent);
+                contador.count.textContent = currentCount + 1;
+
+                if (tipo === 'success' && contador.valor) {
+                    const currentValor = parseFloat(contador.valor.textContent.replace(',', '.'));
+                    const newValor = currentValor + parseFloat(valor);
+                    contador.valor.textContent = `${newValor.toFixed(2).replace('.', ',')}`;
+                }
+            }
+
+            // Atualizar contadores gerais
+            const totalProcessed = parseInt(countSuccess.textContent) + parseInt(countPending.textContent) + 
+                                 parseInt(countNoAuth.textContent) + parseInt(countDiscarded.textContent);
+            processedCPFs.textContent = totalProcessed;
+            successCPFs.textContent = countSuccess.textContent;
+            pendingCPFs.textContent = countPending.textContent;
+        }
+
+        // Event Listeners para Logs de Erro
+        document.getElementById('btnVerLogs').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/logs/erros?limit=20');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const logsContent = document.getElementById('logsContent');
+                    const logsContainer = document.getElementById('logsContainer');
+                    
+                    if (data.errors.length === 0) {
+                        logsContent.innerHTML = '<div style="color: #10b981;">✅ Nenhum erro encontrado!</div>';
+                    } else {
+                        logsContent.innerHTML = data.errors.map(error => 
+                            `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border-left: 4px solid #ef4444;">
+                                <div style="font-weight: bold; color: #ef4444;">${error.split('[')[0]}</div>
+                                <div style="font-size: 0.7rem; color: #64748b;">${error}</div>
+                            </div>`
+                        ).join('');
+                    }
+                    
+                    logsContainer.style.display = logsContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar logs:', error);
+                alert('Erro ao carregar logs de erro');
+            }
+        });
+
+        document.getElementById('btnEstatisticas').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/logs/estatisticas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    const logsContent = document.getElementById('logsContent');
+                    const logsContainer = document.getElementById('logsContainer');
+                    
+                    logsContent.innerHTML = `
+                        <div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;">
+                            <h4 style="color: #1e293b; margin-bottom: 0.5rem;">📊 Estatísticas de Erros</h4>
+                            <div><strong>Total de Erros:</strong> ${stats.total}</div>
+                            <div><strong>Erros Recentes:</strong> ${stats.recent}</div>
+                            <br>
+                            <div><strong>Por Tipo:</strong></div>
+                            ${Object.entries(stats.byType).map(([type, count]) => 
+                                `<div style="margin-left: 1rem;">• ${type}: ${count}</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Por Sistema:</strong></div>
+                            ${Object.entries(stats.bySystem).map(([system, count]) => 
+                                `<div style="margin-left: 1rem;">• ${system}: ${count}</div>`
+                            ).join('')}
+                        </div>
+                    `;
+                    
+                    logsContainer.style.display = logsContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+                alert('Erro ao carregar estatísticas');
+            }
+        });
+
+        document.getElementById('btnLimparLogs').addEventListener('click', async () => {
+            if (confirm('Tem certeza que deseja limpar os logs antigos?')) {
+                try {
+                    const response = await fetch('/fgts/logs/limpar', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Logs antigos removidos com sucesso!');
+                        document.getElementById('logsContainer').style.display = 'none';
+                    } else {
+                        alert('Erro ao limpar logs');
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar logs:', error);
+                    alert('Erro ao limpar logs');
+                }
+            }
+        });
+
+        // Event Listeners para Cache Persistente
+        document.getElementById('btnCacheStats').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/cache/estatisticas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.statistics;
+                    const cacheContent = document.getElementById('cacheContent');
+                    const cacheContainer = document.getElementById('cacheContainer');
+                    
+                    cacheContent.innerHTML = `
+                        <div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;">
+                            <h4 style="color: #1e293b; margin-bottom: 0.5rem;">💾 Estatísticas do Cache Persistente</h4>
+                            <div><strong>Pendentes:</strong> ${stats.pendentes.total}</div>
+                            <div><strong>Tentativas de Cache:</strong> ${stats.tentativasCache.total}</div>
+                            <br>
+                            <div><strong>Pendentes por Status:</strong></div>
+                            ${Object.entries(stats.pendentes.porStatus).map(([status, count]) => 
+                                `<div style="margin-left: 1rem;">• ${status}: ${count}</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Distribuição de Tentativas:</strong></div>
+                            ${Object.entries(stats.tentativasCache.distribuicao).map(([tentativas, count]) => 
+                                `<div style="margin-left: 1rem;">• ${tentativas} tentativas: ${count} CPFs</div>`
+                            ).join('')}
+                            <br>
+                            <div><strong>Estado do Processamento:</strong></div>
+                            <div style="margin-left: 1rem;">• Total CPFs: ${stats.estado.totalCPFs}</div>
+                            <div style="margin-left: 1rem;">• Processados: ${stats.estado.processados}</div>
+                            <div style="margin-left: 1rem;">• Sucessos: ${stats.estado.sucessos}</div>
+                            <div style="margin-left: 1rem;">• Pendentes: ${stats.estado.pendentes}</div>
+                            <div style="margin-left: 1rem;">• Não Autorizados: ${stats.estado.naoAutorizados}</div>
+                            <div style="margin-left: 1rem;">• Descartados: ${stats.estado.descartados}</div>
+                        </div>
+                    `;
+                    
+                    cacheContainer.style.display = cacheContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas do cache:', error);
+                alert('Erro ao carregar estatísticas do cache');
+            }
+        });
+
+        document.getElementById('btnCachePendentes').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fgts/cache/pendentes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const cacheContent = document.getElementById('cacheContent');
+                    const cacheContainer = document.getElementById('cacheContainer');
+                    
+                    if (data.pendentes.length === 0) {
+                        cacheContent.innerHTML = '<div style="color: #10b981;">✅ Nenhum pendente encontrado!</div>';
+                    } else {
+                        cacheContent.innerHTML = data.pendentes.map(pendente => 
+                            `<div style="margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border-left: 4px solid #f59e0b;">
+                                <div style="font-weight: bold; color: #f59e0b;">CPF: ${pendente.cpf}</div>
+                                <div style="font-size: 0.7rem; color: #64748b;">
+                                    Linha: ${pendente.linha} | Status: ${pendente.status} | Provider: ${pendente.provider}
+                                </div>
+                                <div style="font-size: 0.6rem; color: #9ca3af;">
+                                    ${new Date(pendente.timestamp).toLocaleString('pt-BR')}
+                                </div>
+                            </div>`
+                        ).join('');
+                    }
+                    
+                    cacheContainer.style.display = cacheContainer.style.display === 'none' ? 'block' : 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar pendentes:', error);
+                alert('Erro ao carregar pendentes');
+            }
+        });
+
+        document.getElementById('btnCacheLimpar').addEventListener('click', async () => {
+            if (confirm('Tem certeza que deseja limpar TODO o cache persistente? Isso irá remover pendentes e tentativas de cache!')) {
+                try {
+                    const response = await fetch('/fgts/cache/limpar', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Cache persistente limpo com sucesso!');
+                        document.getElementById('cacheContainer').style.display = 'none';
+                    } else {
+                        alert('Erro ao limpar cache persistente');
+                    }
+                } catch (error) {
+                    console.error('Erro ao limpar cache persistente:', error);
+                    alert('Erro ao limpar cache persistente');
+                }
+            }
+        });
+
+        // Event Listeners
+        csvFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                currentFile = e.target.files[0];
+                fileInfo.textContent = `📁 Arquivo selecionado: ${currentFile.name}`;
+                btnProcessar.disabled = false;
+            }
+        });
+
+        btnProcessar.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            isProcessing = true;
+            btnProcessar.disabled = true;
+            btnPausar.disabled = false;
+            btnCancelar.disabled = false;
+
+            const formData = new FormData();
+            formData.append('csvfile', currentFile);
+
+            try {
+                const response = await fetch('/fgts/run', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    adicionarLog('🚀 Processamento iniciado!', 'info');
+                } else {
+                    throw new Error('Erro ao iniciar processamento');
+                }
+            } catch (error) {
+                adicionarLog(`❌ Erro: ${error.message}`, 'error');
+                isProcessing = false;
+                btnProcessar.disabled = false;
+                btnPausar.disabled = true;
+                btnCancelar.disabled = true;
+            }
+        });
+
+        btnLimpar.addEventListener('click', () => {
+            // Limpar tudo
+            resultados = [];
+            successTable.innerHTML = '';
+            pendingTable.innerHTML = '';
+            noAuthTable.innerHTML = '';
+            discardedTable.innerHTML = '';
+            scheduledTable.innerHTML = '';
+            logs.innerHTML = '';
+            
+            // Resetar contadores
+            countSuccess.textContent = '0';
+            countPending.textContent = '0';
+            countNoAuth.textContent = '0';
+            countDiscarded.textContent = '0';
+            countScheduled.textContent = '0';
+            valorTotalSuccess.textContent = 'R$ 0,00';
+            
+            totalCPFs.textContent = '0';
+            processedCPFs.textContent = '0';
+            successCPFs.textContent = '0';
+            pendingCPFs.textContent = '0';
+            agendadosCPFs.textContent = '0';
+            
+            // Resetar progresso
+            progressFill.style.width = '0%';
+            progressText.textContent = '0% - Aguardando início';
+            
+            // Resetar controles
+            isProcessing = false;
+            isPaused = false;
+            currentFile = null;
+            csvFile.value = '';
+            fileInfo.textContent = '';
+            
+            init();
+            adicionarLog('🗑️ Painel limpo', 'info');
+        });
+
+        btnPausar.addEventListener('click', async () => {
+            try {
+                await fetch('/fgts/pause', { method: 'POST' });
+                isPaused = true;
+                btnPausar.disabled = true;
+                btnRetomar.disabled = false;
+                adicionarLog('⏸️ Processamento pausado', 'warning');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao pausar: ${error.message}`, 'error');
+            }
+        });
+
+        btnRetomar.addEventListener('click', async () => {
+            try {
+                await fetch('/fgts/resume', { method: 'POST' });
+                isPaused = false;
+                btnPausar.disabled = false;
+                btnRetomar.disabled = true;
+                adicionarLog('▶️ Processamento retomado', 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao retomar: ${error.message}`, 'error');
+            }
+        });
+
+        btnCancelar.addEventListener('click', () => {
+            isProcessing = false;
+            isPaused = false;
+            btnProcessar.disabled = false;
+            btnPausar.disabled = true;
+            btnRetomar.disabled = true;
+            btnCancelar.disabled = true;
+            adicionarLog('✖️ Processamento cancelado', 'warning');
+        });
+
+        btnAtualizarDelay.addEventListener('click', async () => {
+            const delay = parseInt(delayInput.value);
+            if (isNaN(delay) || delay < 100) {
+                adicionarLog('❌ Delay inválido. Use valores entre 100 e 10000ms', 'error');
+                return;
+            }
+
+            try {
+                await fetch('/fgts/delay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delay })
+                });
+                adicionarLog(`⚡ Delay atualizado para ${delay}ms`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao atualizar delay: ${error.message}`, 'error');
+            }
+        });
+
+        btnLimparLogs.addEventListener('click', () => {
+            logs.innerHTML = '';
+            adicionarLog('🗑️ Logs limpos', 'info');
+        });
+
+        btnExportarCSV.addEventListener('click', () => {
+            if (resultados.length === 0) {
+                adicionarLog('❌ Nenhum resultado para exportar', 'warning');
+    return;
+  }
+
+            const csvContent = [
+                'Linha,CPF,ID,Status,Valor,Provider,StatusDetalhado',
+                ...resultados.map(r => `${r.linha || '?'},${r.cpf},${r.id || 'N/A'},${r.status},${r.valorLiberado || 0},${r.provider || 'N/A'},${r.statusDetalhado || ''}`)
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `resultados_fgts_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            adicionarLog('💾 CSV exportado com sucesso', 'info');
+        });
+
+        btnReprocessar.addEventListener('click', async () => {
+            const cpfsPendentes = Array.from(pendingTable.querySelectorAll('tr'))
+                .map(row => row.cells[1].textContent)
+                .filter(cpf => cpf !== 'CPF');
+
+            if (cpfsPendentes.length === 0) {
+                adicionarLog('❌ Nenhum CPF pendente para reprocessar', 'warning');
+                return;
+            }
+
+            try {
+                await fetch('/fgts/reprocessar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cpfs: cpfsPendentes })
+                });
+                adicionarLog(`🔄 Reprocessando ${cpfsPendentes.length} CPFs pendentes`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao reprocessar: ${error.message}`, 'error');
+            }
+        });
+
+        btnMudarFase.addEventListener('click', async () => {
+            const idsNaoAuth = Array.from(noAuthTable.querySelectorAll('tr'))
+                .map(row => row.cells[2].textContent)
+                .filter(id => id !== 'ID' && id !== 'N/A');
+
+            if (idsNaoAuth.length === 0) {
+                adicionarLog('❌ Nenhum ID válido para mudar fase', 'warning');
+                return;
+            }
+
+            try {
+                await fetch('/fgts/mudarFaseNaoAutorizados', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: idsNaoAuth })
+                });
+                adicionarLog(`📌 Mudando fase para ${idsNaoAuth.length} registros`, 'info');
+            } catch (error) {
+                adicionarLog(`❌ Erro ao mudar fase: ${error.message}`, 'error');
+            }
+        });
+
+        // Socket.IO Events
+        socket.on('log', (message) => {
+            adicionarLog(message, 'info');
+        });
+
+        socket.on('resultadoCPF', (data) => {
+            adicionarResultado(data);
+        });
+
+        socket.on('removerPendente', (data) => {
+            removerResultado('pending', data.cpf, data.linha);
+        });
+
+        socket.on('agendamento', (data) => {
+            adicionarAgendamento(data);
+        });
+
+        socket.on('delayUpdate', (delay) => {
+            delayInput.value = delay;
+            delayAtual.textContent = `${delay}ms`;
+        });
+
+        socket.on('atualizarStatus', (data) => {
+            const { id, statusDetalhado } = data;
+            
+            // Atualizar status na tabela de sucessos
+            const rows = successTable.querySelectorAll('tr');
+            rows.forEach(row => {
+                const idCell = row.cells[2];
+                if (idCell && idCell.textContent === id) {
+                    const statusCell = row.cells[5];
+                    if (statusCell) {
+                        const statusMap = {
+                            'criado': '🆕 CRIADO',
+                            'agendado': '📅 AGENDADO',
+                            'disparo': '📱 DISPARO'
+                        };
+                        const statusText = statusMap[statusDetalhado] || statusDetalhado;
+                        const statusClass = `status-${statusDetalhado}`;
+                        statusCell.innerHTML = `<span class="status-badge ${statusClass}">${statusText}</span>`;
+                    }
+                }
+            });
+        });
+
+        socket.on('progress', (data) => {
+            const { done, total, counters } = data;
+            const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
+            
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${percentage}% - ${done}/${total} CPFs processados`;
+            
+            if (counters) {
+                totalCPFs.textContent = total;
+                successCPFs.textContent = counters.success || 0;
+                pendingCPFs.textContent = counters.pending || 0;
+            }
+        });
+
+        socket.on('totalCPFs', (total) => {
+            totalCPFs.textContent = total;
+        });
+
+        socket.on('delayUpdate', (delay) => {
+            delayInput.value = delay;
+        });
+
+        // Funções da Sidebar
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+        }
+
+        function loadConfig() {
+            // Carregar configurações do servidor
+            fetch('/fgts/config')
+                .then(response => response.json())
+                .then(config => {
+                    // Preencher campos com valores atuais
+                    document.getElementById('horarioInicio').value = config.horarioInicio || '08:00';
+                    document.getElementById('horarioFim').value = config.horarioFim || '22:00';
+                    document.getElementById('fusoHorario').value = config.fusoHorario || 'America/Sao_Paulo';
+                    document.getElementById('delayBase').value = config.delayBase || 1000;
+                    document.getElementById('delayMin').value = config.delayMin || 500;
+                    document.getElementById('delayMax').value = config.delayMax || 5000;
+                    document.getElementById('taxaErro').value = config.taxaErro || 10;
+                    
+                    // Credenciais (apenas mostrar se existem, não os valores)
+                    document.getElementById('fgtsUser1').placeholder = config.fgtsUser1 ? '••••••••••••' : 'usuario1@email.com';
+                    document.getElementById('fgtsUser2').placeholder = config.fgtsUser2 ? '••••••••••••' : 'usuario2@email.com';
+                    document.getElementById('v8ClientId').placeholder = config.v8ClientId ? '••••••••••••' : 'seu_client_id';
+                    document.getElementById('v8Username').placeholder = config.v8Username ? '••••••••••••' : 'usuario@email.com';
+                    document.getElementById('lunasApiKey').placeholder = config.lunasApiKey ? '••••••••••••••••' : '••••••••••••••••';
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar configurações:', error);
+                    adicionarLog('❌ Erro ao carregar configurações', 'error');
+                });
+        }
+
+        function saveConfigToServer() {
+            const config = {
+                horarioInicio: document.getElementById('horarioInicio').value,
+                horarioFim: document.getElementById('horarioFim').value,
+                fusoHorario: document.getElementById('fusoHorario').value,
+                delayBase: parseInt(document.getElementById('delayBase').value),
+                delayMin: parseInt(document.getElementById('delayMin').value),
+                delayMax: parseInt(document.getElementById('delayMax').value),
+                taxaErro: parseInt(document.getElementById('taxaErro').value),
+                fgtsUser1: document.getElementById('fgtsUser1').value,
+                fgtsPass1: document.getElementById('fgtsPass1').value,
+                fgtsUser2: document.getElementById('fgtsUser2').value,
+                fgtsPass2: document.getElementById('fgtsPass2').value,
+                v8ClientId: document.getElementById('v8ClientId').value,
+                v8Audience: document.getElementById('v8Audience').value,
+                v8Username: document.getElementById('v8Username').value,
+                v8Password: document.getElementById('v8Password').value,
+                lunasApiKey: document.getElementById('lunasApiKey').value,
+                lunasQueueId: parseInt(document.getElementById('lunasQueueId').value),
+                lunasStageId: parseInt(document.getElementById('lunasStageId').value)
+            };
+
+            fetch('/fgts/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    adicionarLog('✅ Configurações salvas com sucesso', 'success');
+                    closeSidebar();
+                } else {
+                    adicionarLog(`❌ Erro ao salvar: ${result.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao salvar configurações:', error);
+                adicionarLog('❌ Erro ao salvar configurações', 'error');
+            });
+        }
+
+        function testConnection(api) {
+            const button = document.getElementById(`test${api}`);
+            const originalText = button.textContent;
+            
+            button.textContent = '🔄 Testando...';
+            button.disabled = true;
+
+            fetch(`/fgts/test/${api}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        button.textContent = '✅ Conectado';
+                        button.style.background = '#10b981';
+                        adicionarLog(`✅ ${api} conectado com sucesso`, 'success');
+                    } else {
+                        button.textContent = '❌ Erro';
+                        button.style.background = '#ef4444';
+                        adicionarLog(`❌ Erro na conexão ${api}: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    button.textContent = '❌ Erro';
+                    button.style.background = '#ef4444';
+                    adicionarLog(`❌ Erro na conexão ${api}`, 'error');
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = '#3b82f6';
+                        button.disabled = false;
+                    }, 3000);
+                });
+        }
+
+        // Event Listeners da Sidebar
+        sidebarToggle.addEventListener('click', () => {
+            toggleSidebar();
+            loadConfig();
+        });
+
+        sidebarClose.addEventListener('click', closeSidebar);
+
+        saveConfig.addEventListener('click', saveConfigToServer);
+
+        cancelConfig.addEventListener('click', () => {
+            closeSidebar();
+            loadConfig(); // Recarregar valores originais
+        });
+
+        // Testes de conexão
+        document.getElementById('testFgts').addEventListener('click', () => testConnection('Fgts'));
+        document.getElementById('testV8').addEventListener('click', () => testConnection('V8'));
+        document.getElementById('testLunas').addEventListener('click', () => testConnection('Lunas'));
+        
+        // Backup e Restore
+        document.getElementById('backupConfig').addEventListener('click', createBackup);
+        document.getElementById('exportConfig').addEventListener('click', exportConfig);
+        document.getElementById('restoreConfig').addEventListener('click', restoreConfig);
+
+        // Funções de Backup e Restore
+        function createBackup() {
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Criando backup...';
+            
+            fetch('/fgts/config/backup', { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        statusDiv.textContent = `✅ Backup criado: ${new Date().toLocaleString('pt-BR')}`;
+                        statusDiv.style.color = '#10b981';
+                        
+                        // Salvar backup no localStorage
+                        localStorage.setItem('fgts_config_backup', JSON.stringify(result.data));
+                        
+                        adicionarLog('📦 Backup das configurações criado', 'success');
+                    } else {
+                        statusDiv.textContent = `❌ Erro: ${result.message}`;
+                        statusDiv.style.color = '#ef4444';
+                        adicionarLog(`❌ Erro ao criar backup: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = '❌ Erro ao criar backup';
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog('❌ Erro ao criar backup', 'error');
+                });
+        }
+        
+        function exportConfig() {
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Exportando configurações...';
+            
+            fetch('/fgts/config/export')
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        statusDiv.innerHTML = `
+                            ✅ Exportado: ${result.file}<br>
+                            <small style="color: #64748b;">
+                                📋 Copie as variáveis do arquivo e cole no painel do Render
+                            </small>
+                        `;
+                        statusDiv.style.color = '#10b981';
+                        adicionarLog(`📤 Configurações exportadas para ${result.file}`, 'success');
+                        
+                        // Mostrar instruções detalhadas
+                        showDeployInstructions();
+                    } else {
+                        statusDiv.textContent = `❌ Erro: ${result.message}`;
+                        statusDiv.style.color = '#ef4444';
+                        adicionarLog(`❌ Erro ao exportar: ${result.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    statusDiv.textContent = '❌ Erro ao exportar';
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog('❌ Erro ao exportar configurações', 'error');
+                });
+        }
+        
+        function showDeployInstructions() {
+            const instructions = `
+                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                    <h4 style="color: #0c4a6e; margin-bottom: 0.5rem;">🚀 Instruções para Deploy no Render</h4>
+                    <ol style="color: #0c4a6e; font-size: 0.9rem; line-height: 1.6;">
+                        <li>Abra o arquivo <code>config-export.env</code> no servidor</li>
+                        <li>Copie todas as variáveis (HORARIO_INICIO, DELAY_BASE, etc.)</li>
+                        <li>No painel do Render, vá em <strong>Environment</strong></li>
+                        <li>Cole as variáveis uma por uma</li>
+                        <li>Faça o deploy da aplicação</li>
+                    </ol>
+                    <p style="color: #0c4a6e; font-size: 0.8rem; margin-top: 0.5rem;">
+                        💡 <strong>Dica:</strong> As credenciais (FGTS_USER_1, V8_CLIENT_ID, etc.) devem ser configuradas separadamente no Render
+                    </p>
+                </div>
+            `;
+            
+            // Adicionar instruções ao painel
+            const sidebar = document.getElementById('sidebar');
+            const existingInstructions = sidebar.querySelector('.deploy-instructions');
+            if (existingInstructions) {
+                existingInstructions.remove();
+            }
+            
+            const instructionsDiv = document.createElement('div');
+            instructionsDiv.className = 'deploy-instructions';
+            instructionsDiv.innerHTML = instructions;
+            sidebar.querySelector('.sidebar-content').appendChild(instructionsDiv);
+        }
+        
+        function restoreConfig() {
+            const backupData = localStorage.getItem('fgts_config_backup');
+            if (!backupData) {
+                const statusDiv = document.getElementById('backupStatus');
+                statusDiv.textContent = '❌ Nenhum backup encontrado';
+                statusDiv.style.color = '#ef4444';
+                adicionarLog('❌ Nenhum backup encontrado no localStorage', 'error');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('backupStatus');
+            statusDiv.textContent = '🔄 Restaurando configurações...';
+            
+            const config = JSON.parse(backupData);
+            
+            fetch('/fgts/config/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    statusDiv.textContent = `✅ Restaurado: ${config.backupDate}`;
+                    statusDiv.style.color = '#10b981';
+                    
+                    // Recarregar configurações na sidebar
+                    loadConfig();
+                    
+                    adicionarLog('🔄 Configurações restauradas do backup', 'success');
+                } else {
+                    statusDiv.textContent = `❌ Erro: ${result.message}`;
+                    statusDiv.style.color = '#ef4444';
+                    adicionarLog(`❌ Erro ao restaurar: ${result.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '❌ Erro ao restaurar';
+                statusDiv.style.color = '#ef4444';
+                adicionarLog('❌ Erro ao restaurar configurações', 'error');
+            });
+        }
+
+        // Fechar sidebar ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+                closeSidebar();
+            }
+        });
+
+        // Função para carregar listas do cache
+        async function carregarListasDoCache() {
+            try {
+                const response = await fetch('/fgts/listas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const listas = data.listas;
+                    
+                    // Carregar sucessos
+                    listas.sucessos.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'success',
+                            statusDetalhado: item.statusDetalhado
+                        });
+                    });
+                    
+                    // Carregar pendentes
+                    listas.pendentes.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'pending'
+                        });
+                    });
+                    
+                    // Carregar não autorizados
+                    listas.naoAutorizados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'no_auth'
+                        });
+                    });
+                    
+                    // Carregar descartados
+                    listas.descartados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'descartado'
+                        });
+                    });
+                    
+                    // Carregar agendados
+                    listas.agendados.forEach(item => {
+                        adicionarResultado({
+                            cpf: item.cpf,
+                            id: item.id,
+                            linha: item.linha,
+                            valor: item.valor,
+                            provider: item.provider,
+                            status: 'agendado'
+                        });
+                    });
+                    
+                    console.log('📋 Listas carregadas do cache:', {
+                        sucessos: listas.sucessos.length,
+                        pendentes: listas.pendentes.length,
+                        naoAutorizados: listas.naoAutorizados.length,
+                        descartados: listas.descartados.length,
+                        agendados: listas.agendados.length
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar listas do cache:', error);
+            }
+        }
+
+        // Inicializar
+        init();
+        carregarListasDoCache();
+        adicionarLog('🚀 Painel FGTS iniciado', 'info');
+</script>
+</body>
+</html>
