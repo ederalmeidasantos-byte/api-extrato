@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Operacional - Fila de Digitação</title>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="client-manager.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-header {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem auto;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-icon i {
+            color: white;
+            width: 24px;
+            height: 24px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .filters-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .filter-input {
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-filter {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-filter:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+        }
+
+        .proposals-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .proposals-header {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            padding: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .proposals-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .proposals-count {
+            background: #3b82f6;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .proposals-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .proposal-item {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .proposal-item:hover {
+            background: #f8fafc;
+        }
+
+        .proposal-item:last-child {
+            border-bottom: none;
+        }
+
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-info {
+            flex: 1;
+        }
+
+        .proposal-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .proposal-details {
+            font-size: 0.9rem;
+            color: #64748b;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .proposal-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-processing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-action {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-digitate {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-digitate:hover {
+            background: #2563eb;
+        }
+
+        .btn-view {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #059669;
+        }
+
+        .btn-cancel {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #dc2626;
+        }
+
+        .btn-complete {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-complete:hover {
+            background: #7c3aed;
+        }
+
+        .proposal-timestamp {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-pagination {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-pagination:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+
+        .btn-pagination.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .btn-pagination:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .proposal-details {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>
+                <i data-feather="list" class="feather-icon"></i>
+                Fila de Digitação
+            </h1>
+            <div class="header-actions">
+                <a href="/operacional/digitar-proposta.html" class="btn-header">
+                    <i data-feather="plus" class="feather-icon"></i>
+                    Nova Proposta
+                </a>
+                <a href="/operacional/digitation-interface.html" class="btn-header">
+                    <i data-feather="monitor" class="feather-icon"></i>
+                    Interface de Digitação
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i data-feather="clock" class="feather-icon"></i>
+                </div>
+                <div class="stat-number" id="totalPendentes">0</div>
+                <div class="stat-label">Pendentes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i data-feather="play" class="feather-icon"></i>
+                </div>
+                <div class="stat-number" id="totalProcessando">0</div>
+                <div class="stat-label">Processando</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i data-feather="check-circle" class="feather-icon"></i>
+                </div>
+                <div class="stat-number" id="totalConcluidos">0</div>
+                <div class="stat-label">Concluídos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i data-feather="calendar" class="feather-icon"></i>
+                </div>
+                <div class="stat-number" id="totalHoje">0</div>
+                <div class="stat-label">Hoje</div>
+            </div>
+        </div>
+
+        <div class="filters-section">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select class="filter-input" id="filterStatus">
+                        <option value="">Todos os status</option>
+                        <option value="pending">Pendente</option>
+                        <option value="processing">Processando</option>
+                        <option value="completed">Concluído</option>
+                        <option value="cancelled">Cancelado</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Buscar por nome</label>
+                    <input type="text" class="filter-input" id="filterName" placeholder="Nome do cliente">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Data</label>
+                    <input type="date" class="filter-input" id="filterDate">
+                </div>
+                <div class="filter-group">
+                    <button class="btn-filter" onclick="aplicarFiltros()">
+                        <i data-feather="search" class="feather-icon"></i>
+                        Filtrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="proposals-section">
+            <div class="proposals-header">
+                <div class="proposals-title">
+                    <i data-feather="file-text" class="feather-icon"></i>
+                    Propostas
+                </div>
+                <div class="proposals-count" id="proposalsCount">0 propostas</div>
+            </div>
+            <div class="proposals-list" id="proposalsList">
+                <!-- Propostas serão carregadas aqui -->
+            </div>
+            <div class="pagination" id="pagination">
+                <!-- Paginação será gerada aqui -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let propostas = [];
+        let propostasFiltradas = [];
+        let paginaAtual = 1;
+        const itensPorPagina = 10;
+
+        // Inicializar Feather Icons
+        feather.replace();
+
+        // Carregar propostas do sistema de clientes
+        function carregarPropostas() {
+            const stats = clientManager.getStats();
+            propostas = clientManager.getProposalsByStatus('pending');
+            propostasFiltradas = [...propostas];
+            atualizarEstatisticas();
+            renderizarPropostas();
+        }
+
+        // Atualizar estatísticas
+        function atualizarEstatisticas() {
+            const stats = clientManager.getStats();
+            
+            document.getElementById('totalPendentes').textContent = stats.propostasPendentes;
+            document.getElementById('totalProcessando').textContent = stats.propostasProcessando;
+            document.getElementById('totalConcluidos').textContent = stats.propostasConcluidas;
+            document.getElementById('totalHoje').textContent = stats.totalPropostas;
+        }
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const status = document.getElementById('filterStatus').value;
+            const nome = document.getElementById('filterName').value.toLowerCase();
+            const data = document.getElementById('filterDate').value;
+
+            propostasFiltradas = propostas.filter(proposta => {
+                const matchStatus = !status || proposta.status === status;
+                const matchNome = !nome || proposta.cliente.nome.toLowerCase().includes(nome);
+                const matchData = !data || proposta.timestamp.startsWith(data);
+                
+                return matchStatus && matchNome && matchData;
+            });
+
+            paginaAtual = 1;
+            renderizarPropostas();
+        }
+
+        // Renderizar propostas
+        function renderizarPropostas() {
+            const container = document.getElementById('proposalsList');
+            const totalPropostas = propostasFiltradas.length;
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            const fim = Math.min(inicio + itensPorPagina, totalPropostas);
+            const propostasPagina = propostasFiltradas.slice(inicio, fim);
+
+            document.getElementById('proposalsCount').textContent = `${totalPropostas} propostas`;
+
+            if (propostasPagina.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox" class="feather-icon"></i>
+                        <h3>Nenhuma proposta encontrada</h3>
+                        <p>Não há propostas que correspondam aos filtros aplicados.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            container.innerHTML = propostasPagina.map(proposta => {
+                const data = new Date(proposta.createdAt);
+                const dataFormatada = data.toLocaleDateString('pt-BR');
+                const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div class="proposal-item" onclick="abrirProposta('${proposta.clientId}', '${proposta.id}')">
+                        <div class="proposal-header">
+                            <div class="proposal-info">
+                                <div class="proposal-name">${proposta.cliente.nome}</div>
+                                <div class="proposal-details">
+                                    <span><strong>CPF:</strong> ${proposta.cliente.cpf}</span>
+                                    <span><strong>Contratos:</strong> ${proposta.contratos.length}</span>
+                                    <span><strong>NB:</strong> ${proposta.cliente.nb || 'N/A'}</span>
+                                    <span><strong>Cliente ID:</strong> ${proposta.clientId}</span>
+                                </div>
+                            </div>
+                            <div class="proposal-status status-${proposta.status}">
+                                ${proposta.status === 'pending' ? 'Pendente' : 
+                                  proposta.status === 'processing' ? 'Processando' : 
+                                  proposta.status === 'completed' ? 'Concluído' : 'Cancelado'}
+                            </div>
+                        </div>
+                        <div class="proposal-actions" onclick="event.stopPropagation()">
+                            ${proposta.status === 'pending' ? `
+                                <button class="btn-action btn-digitate" onclick="iniciarDigitation('${proposta.clientId}', '${proposta.id}')">
+                                    <i data-feather="edit" class="feather-icon"></i>
+                                    Digitar
+                                </button>
+                                <button class="btn-action btn-cancel" onclick="cancelarProposta('${proposta.clientId}', '${proposta.id}')">
+                                    <i data-feather="x" class="feather-icon"></i>
+                                    Cancelar
+                                </button>
+                            ` : proposta.status === 'processing' ? `
+                                <button class="btn-action btn-digitate" onclick="continuarDigitation('${proposta.clientId}', '${proposta.id}')">
+                                    <i data-feather="edit" class="feather-icon"></i>
+                                    Continuar
+                                </button>
+                                <button class="btn-action btn-complete" onclick="concluirProposta('${proposta.clientId}', '${proposta.id}')">
+                                    <i data-feather="check" class="feather-icon"></i>
+                                    Concluir
+                                </button>
+                            ` : `
+                                <button class="btn-action btn-view" onclick="visualizarProposta('${proposta.clientId}', '${proposta.id}')">
+                                    <i data-feather="eye" class="feather-icon"></i>
+                                    Visualizar
+                                </button>
+                            `}
+                        </div>
+                        <div class="proposal-timestamp">
+                            Criado em ${dataFormatada} às ${horaFormatada}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            feather.replace();
+            renderizarPaginacao();
+        }
+
+        // Renderizar paginação
+        function renderizarPaginacao() {
+            const totalPaginas = Math.ceil(propostasFiltradas.length / itensPorPagina);
+            const container = document.getElementById('pagination');
+
+            if (totalPaginas <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let paginacao = '';
+
+            // Botão anterior
+            paginacao += `
+                <button class="btn-pagination" ${paginaAtual === 1 ? 'disabled' : ''} onclick="irParaPagina(${paginaAtual - 1})">
+                    <i data-feather="chevron-left" class="feather-icon"></i>
+                </button>
+            `;
+
+            // Números das páginas
+            const inicio = Math.max(1, paginaAtual - 2);
+            const fim = Math.min(totalPaginas, paginaAtual + 2);
+
+            for (let i = inicio; i <= fim; i++) {
+                paginacao += `
+                    <button class="btn-pagination ${i === paginaAtual ? 'active' : ''}" onclick="irParaPagina(${i})">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // Botão próximo
+            paginacao += `
+                <button class="btn-pagination" ${paginaAtual === totalPaginas ? 'disabled' : ''} onclick="irParaPagina(${paginaAtual + 1})">
+                    <i data-feather="chevron-right" class="feather-icon"></i>
+                </button>
+            `;
+
+            container.innerHTML = paginacao;
+            feather.replace();
+        }
+
+        // Ir para página
+        function irParaPagina(pagina) {
+            const totalPaginas = Math.ceil(propostasFiltradas.length / itensPorPagina);
+            if (pagina >= 1 && pagina <= totalPaginas) {
+                paginaAtual = pagina;
+                renderizarPropostas();
+            }
+        }
+
+        // Iniciar digitação
+        function iniciarDigitation(clientId, propostaId) {
+            try {
+                clientManager.updateProposal(clientId, propostaId, { status: 'processing' });
+                carregarPropostas();
+                window.open(`/operacional/digitation-interface.html?clientId=${clientId}&propostaId=${propostaId}`, '_blank');
+            } catch (error) {
+                alert(`❌ Erro ao iniciar digitação: ${error.message}`);
+            }
+        }
+
+        // Continuar digitação
+        function continuarDigitation(clientId, propostaId) {
+            window.open(`/operacional/digitation-interface.html?clientId=${clientId}&propostaId=${propostaId}`, '_blank');
+        }
+
+        // Concluir proposta
+        function concluirProposta(clientId, propostaId) {
+            if (confirm('Tem certeza que deseja marcar esta proposta como concluída?')) {
+                try {
+                    clientManager.updateProposal(clientId, propostaId, { 
+                        status: 'completed',
+                        concluidaEm: new Date().toISOString()
+                    });
+                    carregarPropostas();
+                    alert('✅ Proposta concluída com sucesso!');
+                } catch (error) {
+                    alert(`❌ Erro ao concluir proposta: ${error.message}`);
+                }
+            }
+        }
+
+        // Cancelar proposta
+        function cancelarProposta(clientId, propostaId) {
+            if (confirm('Tem certeza que deseja cancelar esta proposta?')) {
+                try {
+                    clientManager.updateProposal(clientId, propostaId, { 
+                        status: 'cancelled',
+                        canceladaEm: new Date().toISOString()
+                    });
+                    carregarPropostas();
+                    alert('✅ Proposta cancelada com sucesso!');
+                } catch (error) {
+                    alert(`❌ Erro ao cancelar proposta: ${error.message}`);
+                }
+            }
+        }
+
+        // Visualizar proposta
+        function visualizarProposta(clientId, propostaId) {
+            window.open(`/operacional/digitation-interface.html?clientId=${clientId}&propostaId=${propostaId}&view=true`, '_blank');
+        }
+
+        // Abrir proposta (clique na linha)
+        function abrirProposta(clientId, propostaId) {
+            const proposta = clientManager.getClientById(clientId)?.propostas.find(p => p.id === propostaId);
+            
+            if (proposta) {
+                if (proposta.status === 'pending') {
+                    iniciarDigitation(clientId, propostaId);
+                } else {
+                    visualizarProposta(clientId, propostaId);
+                }
+            }
+        }
+
+        // Carregar dados ao inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPropostas();
+        });
+    </script>
+</body>
+</html>
