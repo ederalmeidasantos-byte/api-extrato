@@ -425,9 +425,12 @@ app.post('/api/salvar-cliente', (req, res) => {
         const newCpf = cliente.cpf;
         const newNb = cliente.nb;
         
-        if ((existingCpf && newCpf && existingCpf === newCpf) || 
-            (existingNb && newNb && existingNb === newNb)) {
-          console.log(`✅ Cliente já existe com ID ${dados.id}, atualizando...`);
+        // Validação melhorada: CPF (se ambos preenchidos) OU NB (se ambos preenchidos)
+        const cpfMatch = existingCpf && newCpf && existingCpf.trim() !== '' && newCpf.trim() !== '' && existingCpf === newCpf;
+        const nbMatch = existingNb && newNb && existingNb.toString().trim() !== '' && newNb.toString().trim() !== '' && existingNb.toString() === newNb.toString();
+        
+        if (cpfMatch || nbMatch) {
+          console.log(`✅ Cliente já existe com ID ${dados.id} (CPF: ${cpfMatch ? 'match' : 'no'}, NB: ${nbMatch ? 'match' : 'no'}), atualizando...`);
           finalClientId = dados.id;
           break;
         }
