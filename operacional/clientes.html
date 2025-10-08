@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Principal -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="activity" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/clientes.html" class="nav-item active" data-nav="clientes">
+                        <div class="nav-item-content">
+                            <i data-feather="users" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Clientes</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/clientes/novo.html" class="nav-item" data-nav="novo-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/propostas.html" class="nav-item" data-nav="propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitacao.html" class="nav-item" data-nav="digitacao">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitacao-badge">0</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes/status.html" class="nav-item" data-nav="config-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro.html" class="nav-item" data-nav="kentro">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="breadcrumb">
+                    <a href="/operacional/">
+                        <i data-feather="home" style="width: 16px; height: 16px;"></i>
+                        Dashboard
+                    </a>
+                    <span>></span>
+                    <span>Clientes</span>
+                </div>
+                <div class="page-title">
+                    <i data-feather="users"></i>
+                    <h1>Clientes</h1>
+                </div>
+                <p class="page-subtitle">Gerencie todos os clientes do sistema</p>
+            </div>
+
+            <!-- Page Actions -->
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="novoCliente()">
+                    <i data-feather="user-plus"></i>
+                    Novo Cliente
+                </button>
+                <button class="btn btn-secondary" onclick="exportarClientes()">
+                    <i data-feather="download"></i>
+                    Exportar
+                </button>
+                <button class="btn btn-secondary" onclick="sincronizarKentro()">
+                    <i data-feather="refresh-cw"></i>
+                    Sincronizar Kentro
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-6">
+                <div class="card-content">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="form-group">
+                            <label class="form-label">Buscar</label>
+                            <input type="text" id="filtro-busca" class="form-input" placeholder="Nome, CPF, email...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select id="filtro-status" class="form-select">
+                                <option value="">Todos os status</option>
+                                <option value="ativo">Ativo</option>
+                                <option value="inativo">Inativo</option>
+                                <option value="pendente">Pendente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data de Cadastro</label>
+                            <input type="date" id="filtro-data" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="flex gap-2">
+                                <button class="btn btn-primary" onclick="aplicarFiltros()">
+                                    <i data-feather="search"></i>
+                                    Filtrar
+                                </button>
+                                <button class="btn btn-secondary" onclick="limparFiltros()">
+                                    <i data-feather="x"></i>
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Clientes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-feather="list"></i>
+                        Lista de Clientes
+                        <span class="badge badge-info" id="total-clientes">0</span>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <select id="itens-por-pagina" class="form-select" style="width: auto;" onchange="alterarItensPorPagina()">
+                            <option value="10">10 por página</option>
+                            <option value="25" selected>25 por página</option>
+                            <option value="50">50 por página</option>
+                            <option value="100">100 por página</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selecionar-todos" onchange="selecionarTodos()">
+                                    </th>
+                                    <th>Cliente</th>
+                                    <th>CPF</th>
+                                    <th>Email</th>
+                                    <th>Telefone</th>
+                                    <th>Status</th>
+                                    <th>Propostas</th>
+                                    <th>Cadastro</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lista-clientes">
+                                <tr>
+                                    <td colspan="9" class="text-center">
+                                        <div class="loading"></div>
+                                        <span class="ml-2">Carregando clientes...</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginação -->
+                    <div class="flex items-center justify-between mt-4">
+                        <div class="text-sm text-gray-600">
+                            Mostrando <span id="inicio-pagina">1</span> a <span id="fim-pagina">25</span> de <span id="total-registros">0</span> clientes
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-secondary btn-sm" onclick="paginaAnterior()" id="btn-anterior" disabled>
+                                <i data-feather="chevron-left"></i>
+                                Anterior
+                            </button>
+                            <span class="text-sm text-gray-600" id="info-pagina">Página 1 de 1</span>
+                            <button class="btn btn-secondary btn-sm" onclick="proximaPagina()" id="btn-proximo" disabled>
+                                Próximo
+                                <i data-feather="chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Detalhes do Cliente -->
+    <div id="modal-cliente" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Detalhes do Cliente</h3>
+                <button class="modal-close" onclick="fecharModalCliente()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-cliente-content">
+                <!-- Conteúdo será carregado dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        // Variáveis globais
+        let clientes = [];
+        let clientesFiltrados = [];
+        let paginaAtual = 1;
+        let itensPorPagina = 25;
+        let totalPaginas = 1;
+
+        // Carregar clientes
+        async function carregarClientes() {
+            try {
+                console.log('👥 Carregando clientes...');
+                
+                // Simular carregamento
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Dados simulados (substituir por API real)
+                clientes = [
+                    {
+                        id: 1,
+                        nome: 'João Silva',
+                        cpf: '12345678901',
+                        email: 'joao.silva@email.com',
+                        telefone: '11999999999',
+                        status: 'ativo',
+                        propostas: 3,
+                        cadastro: '2025-10-01',
+                        endereco: 'Rua das Flores, 123',
+                        cidade: 'São Paulo',
+                        estado: 'SP',
+                        cep: '01234-567'
+                    },
+                    {
+                        id: 2,
+                        nome: 'Maria Santos',
+                        cpf: '98765432100',
+                        email: 'maria.santos@email.com',
+                        telefone: '11888888888',
+                        status: 'ativo',
+                        propostas: 1,
+                        cadastro: '2025-10-02',
+                        endereco: 'Av. Paulista, 456',
+                        cidade: 'São Paulo',
+                        estado: 'SP',
+                        cep: '01310-100'
+                    },
+                    {
+                        id: 3,
+                        nome: 'Pedro Costa',
+                        cpf: '11122233344',
+                        email: 'pedro.costa@email.com',
+                        telefone: '11777777777',
+                        status: 'pendente',
+                        propostas: 0,
+                        cadastro: '2025-10-03',
+                        endereco: 'Rua Augusta, 789',
+                        cidade: 'São Paulo',
+                        estado: 'SP',
+                        cep: '01305-000'
+                    }
+                ];
+                
+                clientesFiltrados = [...clientes];
+                atualizarLista();
+                atualizarPaginacao();
+                
+                console.log('✅ Clientes carregados:', clientes.length);
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar clientes:', error);
+                crmLayout.showToast('Erro ao carregar clientes', 'error');
+            }
+        }
+
+        // Atualizar lista de clientes
+        function atualizarLista() {
+            const tbody = document.getElementById('lista-clientes');
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            const fim = inicio + itensPorPagina;
+            const clientesPagina = clientesFiltrados.slice(inicio, fim);
+            
+            if (clientesPagina.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center text-gray-500">
+                            <i data-feather="users" style="width: 48px; height: 48px; margin: 0 auto 1rem; display: block;"></i>
+                            <p>Nenhum cliente encontrado</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = clientesPagina.map(cliente => `
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="cliente-checkbox" value="${cliente.id}">
+                        </td>
+                        <td>
+                            <div>
+                                <div class="font-semibold">${cliente.nome}</div>
+                                <div class="text-sm text-gray-500">ID: ${cliente.id}</div>
+                            </div>
+                        </td>
+                        <td>${crmLayout.formatCPF(cliente.cpf)}</td>
+                        <td>${cliente.email}</td>
+                        <td>${crmLayout.formatPhone(cliente.telefone)}</td>
+                        <td>
+                            <span class="badge ${cliente.status === 'ativo' ? 'badge-success' : cliente.status === 'pendente' ? 'badge-warning' : 'badge-error'}">
+                                ${cliente.status.charAt(0).toUpperCase() + cliente.status.slice(1)}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">${cliente.propostas}</span>
+                        </td>
+                        <td>${crmLayout.formatDate(cliente.cadastro, { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                        <td>
+                            <div class="flex gap-1">
+                                <button class="btn btn-secondary btn-sm" onclick="verCliente(${cliente.id})" title="Ver detalhes">
+                                    <i data-feather="eye"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="editarCliente(${cliente.id})" title="Editar">
+                                    <i data-feather="edit"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="propostasCliente(${cliente.id})" title="Ver propostas">
+                                    <i data-feather="file-text"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            // Atualizar totais
+            document.getElementById('total-clientes').textContent = clientesFiltrados.length;
+            document.getElementById('inicio-pagina').textContent = clientesFiltrados.length > 0 ? inicio + 1 : 0;
+            document.getElementById('fim-pagina').textContent = Math.min(fim, clientesFiltrados.length);
+            document.getElementById('total-registros').textContent = clientesFiltrados.length;
+            
+            // Atualizar ícones
+            feather.replace();
+        }
+
+        // Atualizar paginação
+        function atualizarPaginacao() {
+            totalPaginas = Math.ceil(clientesFiltrados.length / itensPorPagina);
+            
+            document.getElementById('info-pagina').textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+            document.getElementById('btn-anterior').disabled = paginaAtual <= 1;
+            document.getElementById('btn-proximo').disabled = paginaAtual >= totalPaginas;
+        }
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const busca = document.getElementById('filtro-busca').value.toLowerCase();
+            const status = document.getElementById('filtro-status').value;
+            const data = document.getElementById('filtro-data').value;
+            
+            clientesFiltrados = clientes.filter(cliente => {
+                const matchBusca = !busca || 
+                    cliente.nome.toLowerCase().includes(busca) ||
+                    cliente.cpf.includes(busca) ||
+                    cliente.email.toLowerCase().includes(busca);
+                
+                const matchStatus = !status || cliente.status === status;
+                
+                const matchData = !data || cliente.cadastro === data;
+                
+                return matchBusca && matchStatus && matchData;
+            });
+            
+            paginaAtual = 1;
+            atualizarLista();
+            atualizarPaginacao();
+        }
+
+        // Limpar filtros
+        function limparFiltros() {
+            document.getElementById('filtro-busca').value = '';
+            document.getElementById('filtro-status').value = '';
+            document.getElementById('filtro-data').value = '';
+            
+            clientesFiltrados = [...clientes];
+            paginaAtual = 1;
+            atualizarLista();
+            atualizarPaginacao();
+        }
+
+        // Paginação
+        function paginaAnterior() {
+            if (paginaAtual > 1) {
+                paginaAtual--;
+                atualizarLista();
+                atualizarPaginacao();
+            }
+        }
+
+        function proximaPagina() {
+            if (paginaAtual < totalPaginas) {
+                paginaAtual++;
+                atualizarLista();
+                atualizarPaginacao();
+            }
+        }
+
+        function alterarItensPorPagina() {
+            itensPorPagina = parseInt(document.getElementById('itens-por-pagina').value);
+            paginaAtual = 1;
+            atualizarLista();
+            atualizarPaginacao();
+        }
+
+        // Seleção
+        function selecionarTodos() {
+            const checkbox = document.getElementById('selecionar-todos');
+            const checkboxes = document.querySelectorAll('.cliente-checkbox');
+            
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+        }
+
+        // Ações
+        function novoCliente() {
+            window.location.href = '/operacional/clientes/novo.html';
+        }
+
+        function verCliente(id) {
+            const cliente = clientes.find(c => c.id === id);
+            if (!cliente) return;
+            
+            const modal = document.getElementById('modal-cliente');
+            const content = document.getElementById('modal-cliente-content');
+            
+            content.innerHTML = `
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-4">Informações Pessoais</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm text-gray-600">Nome Completo</label>
+                                <p class="font-medium">${cliente.nome}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">CPF</label>
+                                <p class="font-medium">${crmLayout.formatCPF(cliente.cpf)}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Email</label>
+                                <p class="font-medium">${cliente.email}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Telefone</label>
+                                <p class="font-medium">${crmLayout.formatPhone(cliente.telefone)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Endereço</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm text-gray-600">Endereço</label>
+                                <p class="font-medium">${cliente.endereco}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Cidade</label>
+                                <p class="font-medium">${cliente.cidade}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Estado</label>
+                                <p class="font-medium">${cliente.estado}</p>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">CEP</label>
+                                <p class="font-medium">${cliente.cep}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 pt-6 border-t">
+                    <h4 class="font-semibold mb-4">Informações do Sistema</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-sm text-gray-600">Status</label>
+                            <p class="font-medium">
+                                <span class="badge ${cliente.status === 'ativo' ? 'badge-success' : cliente.status === 'pendente' ? 'badge-warning' : 'badge-error'}">
+                                    ${cliente.status.charAt(0).toUpperCase() + cliente.status.slice(1)}
+                                </span>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600">Propostas</label>
+                            <p class="font-medium">${cliente.propostas}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600">Data de Cadastro</label>
+                            <p class="font-medium">${crmLayout.formatDate(cliente.cadastro)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            crmLayout.showModal('modal-cliente');
+            feather.replace();
+        }
+
+        function editarCliente(id) {
+            window.location.href = `/operacional/clientes/editar.html?id=${id}`;
+        }
+
+        function propostasCliente(id) {
+            window.location.href = `/operacional/propostas.html?cliente=${id}`;
+        }
+
+        function fecharModalCliente() {
+            crmLayout.hideModal('modal-cliente');
+        }
+
+        function exportarClientes() {
+            crmLayout.showToast('Funcionalidade em desenvolvimento', 'info');
+        }
+
+        function sincronizarKentro() {
+            crmLayout.showToast('Sincronizando com Kentro...', 'info');
+            // Implementar sincronização
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar clientes
+                await carregarClientes();
+                
+                console.log('✅ Página de clientes inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                crmLayout.showToast('Erro ao inicializar página', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

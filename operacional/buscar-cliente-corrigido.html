@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar Cliente - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Estilos específicos da busca de cliente */
+        .search-filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .search-row {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .search-group input,
+        .search-group select {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .search-group input:focus,
+        .search-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .client-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .client-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .client-info {
+            flex: 1;
+        }
+
+        .client-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .client-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .client-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .proposals-badge {
+            background: #f0f9ff;
+            color: #0369a1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .empty-search {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-search i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .search-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-actions {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .client-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .client-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .client-actions {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item active" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitation-badge">0</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="buscar-propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                            <i data-feather="search"></i>
+                            Buscar Cliente
+                        </h1>
+                        <span class="page-subtitle">Encontre clientes por CPF, nome ou telefone</span>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <button class="topbar-btn secondary" onclick="location.reload()">
+                            <i data-feather="refresh-cw"></i>
+                            Atualizar
+                        </button>
+                        <button class="topbar-btn secondary" onclick="criarDadosTeste()">
+                            <i data-feather="database"></i>
+                            Dados Teste
+                        </button>
+                        <a href="/operacional/formulario-cliente.html" class="topbar-btn primary">
+                            <i data-feather="user-plus"></i>
+                            Novo Cliente
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Estatísticas -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-clients">0</div>
+                        <div class="stat-label">Total de Clientes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="clients-with-proposals">0</div>
+                        <div class="stat-label">Com Propostas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="active-proposals">0</div>
+                        <div class="stat-label">Propostas Ativas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="completed-proposals">0</div>
+                        <div class="stat-label">Propostas Finalizadas</div>
+                    </div>
+                </div>
+
+                <!-- Filtros de Busca -->
+                <div class="search-filters">
+                    <div class="search-row">
+                        <div class="search-group">
+                            <label for="search-type">Tipo de Busca</label>
+                            <select id="search-type" onchange="updateSearchPlaceholder()">
+                                <option value="cpf">CPF</option>
+                                <option value="nome">Nome</option>
+                                <option value="telefone">Telefone</option>
+                                <option value="email">Email</option>
+                                <option value="nb">NB (Número do Benefício)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="search-group">
+                            <label for="search-input">Termo de Busca</label>
+                            <input type="text" id="search-input" placeholder="Digite o CPF..." onkeyup="handleSearchKeyup(event)">
+                        </div>
+                        
+                        <div class="search-group">
+                            <label for="status-filter">Status</label>
+                            <select id="status-filter" onchange="buscarClientes()">
+                                <option value="">Todos</option>
+                                <option value="com-propostas">Com Propostas</option>
+                                <option value="sem-propostas">Sem Propostas</option>
+                            </select>
+                        </div>
+                        
+                        <div class="search-actions">
+                            <button class="btn btn-primary" onclick="buscarClientes()">
+                                <i data-feather="search"></i>
+                                Buscar
+                            </button>
+                            <button class="btn btn-secondary" onclick="limparBusca()">
+                                <i data-feather="x"></i>
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados da Busca -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i data-feather="users"></i>
+                            Resultados da Busca (<span id="results-count">0</span>)
+                        </h2>
+                    </div>
+                    <div class="card-content">
+                        <div id="search-results">
+                            <!-- Instrução inicial -->
+                            <div class="empty-search">
+                                <i data-feather="user-search"></i>
+                                <h3>Pesquise por clientes</h3>
+                                <p>Use os filtros acima para encontrar clientes por CPF, nome, telefone ou email.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/client-manager.js?v=20250103270000"></script>
+    
+    <script>
+        let clientManager;
+        let allClients = [];
+        let filteredClients = [];
+        
+        // Inicializar Feather Icons
+        feather.replace();
+        
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Debug do localStorage
+                console.log('🔍 DEBUG - Conteúdo do localStorage:');
+                const storageData = localStorage.getItem('clientManager');
+                console.log('🔍 DEBUG - Dados brutos:', storageData);
+                
+                if (storageData) {
+                    const parsed = JSON.parse(storageData);
+                    console.log('🔍 DEBUG - Dados parseados:', parsed);
+                    console.log('🔍 DEBUG - Clientes encontrados:', parsed.clients?.length || 0);
+                }
+                
+                // Carregar ClientManager sempre do servidor
+                if (typeof window.clientManager === 'undefined') {
+                    window.clientManager = new ClientManager();
+                }
+                clientManager = window.clientManager;
+                
+                // Inicializar sempre (busca dados do servidor)
+                await clientManager.initialize();
+                
+                console.log('🔍 DEBUG - ClientManager:', clientManager);
+                console.log('🔍 DEBUG - Clients Map:', clientManager.clients);
+                console.log('🔍 DEBUG - Clients Map size:', clientManager.clients.size);
+                
+                // Carregar clientes
+                await carregarClientes();
+                
+                console.log('🔍 DEBUG - AllClients array:', allClients);
+                console.log('🔍 DEBUG - AllClients length:', allClients.length);
+                
+                // Atualizar estatísticas
+                atualizarEstatisticas();
+                
+                // Verificar parâmetros da URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const searchParam = urlParams.get('search');
+                const typeParam = urlParams.get('type');
+                
+                if (searchParam && typeParam) {
+                    console.log('🔍 Parâmetros da URL detectados:', { search: searchParam, type: typeParam });
+                    
+                    // Configurar filtros com base nos parâmetros
+                    document.getElementById('search-type').value = typeParam;
+                    document.getElementById('search-input').value = searchParam;
+                    updateSearchPlaceholder();
+                    
+                    // Executar busca automaticamente
+                    buscarClientes();
+                } else {
+                    // Mostrar todos os clientes por padrão
+                    if (allClients.length > 0) {
+                        console.log('📋 Mostrando todos os clientes por padrão...');
+                        filteredClients = [...allClients];
+                        renderizarResultados();
+                    } else {
+                        console.log('⚠️ Nenhum cliente encontrado, criando dados de teste...');
+                        criarDadosTeste();
+                    }
+                }
+                
+                console.log('✅ Busca de clientes inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar busca:', error);
+                mostrarErro('Erro ao carregar sistema de busca');
+            }
+        });
+        
+        // Carregar todos os clientes
+        async function carregarClientes() {
+            try {
+                console.log('🔄 Carregando clientes...');
+                
+                // Garantir que o ClientManager está inicializado
+                if (!clientManager || clientManager.clients.size === 0) {
+                    console.log('🔄 ClientManager vazio, inicializando...');
+                    await clientManager.initialize();
+                }
+                
+                allClients = [];
+                
+                // Converter Map para Array
+                clientManager.clients.forEach((cliente, clientId) => {
+                    allClients.push({
+                        id: clientId,
+                        ...cliente,
+                        propostas: cliente.propostas || []
+                    });
+                });
+                
+                console.log(`📊 ${allClients.length} clientes carregados`);
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar clientes:', error);
+                throw error;
+            }
+        }
+        
+
+        // Criar dados de teste
+        function criarDadosTeste() {
+            try {
+                console.log('🎯 Criando cliente de teste...');
+                
+                // Dados do cliente de teste
+                const clienteTeste = {
+                    nome: 'João Silva Santos',
+                    cpf: '123.456.789-01',
+                    telefone: '(11) 99999-9999',
+                    email: 'joao.silva@email.com',
+                    nb: '123456789'
+                };
+                
+                // Criar cliente
+                const clientId = clientManager.createOrUpdateClient(clienteTeste);
+                console.log('✅ Cliente teste criado:', clientId);
+                
+                // Dados da proposta de teste
+                const propostaTeste = {
+                    extrato: { 
+                        id: 'teste_7025',
+                        cliente: clienteTeste,
+                        margens: { disponivel_emprestimo: 1500.00 }
+                    },
+                    contratos: [
+                        {
+                            contrato: '12345678901',
+                            banco: '237',
+                            valor_parcela: 250.00,
+                            simulacao: { troco: 2500.00 }
+                        }
+                    ],
+                    status: 'CLIENTE_ACEITOU',
+                    origem: 'simulador_teste'
+                };
+                
+                // Adicionar proposta
+                const proposalId = clientManager.addProposalToClient(clientId, propostaTeste);
+                console.log('✅ Proposta teste criada:', proposalId);
+                
+                // Recarregar clientes
+                carregarClientes();
+                atualizarEstatisticas();
+                
+                // Mostrar mensagem
+                mostrarMensagem('Cliente de teste criado! Use CPF "123.456.789-01" para buscar.');
+                
+            } catch (error) {
+                console.error('❌ Erro ao criar dados de teste:', error);
+                mostrarErro('Erro ao criar dados de teste: ' + error.message);
+            }
+        }
+        
+        // Atualizar estatísticas
+        function atualizarEstatisticas() {
+            const totalClients = allClients.length;
+            const clientsWithProposals = allClients.filter(c => c.propostas && c.propostas.length > 0).length;
+            const activeProposals = allClients.reduce((sum, c) => {
+                if (!c.propostas) return sum;
+                return sum + c.propostas.filter(p => ['CLIENTE_ACEITOU', 'PREENCHENDO_DADOS'].includes(p.status)).length;
+            }, 0);
+            const completedProposals = allClients.reduce((sum, c) => {
+                if (!c.propostas) return sum;
+                return sum + c.propostas.filter(p => ['FINALIZADA', 'completed'].includes(p.status)).length;
+            }, 0);
+            
+            console.log(`📊 Estatísticas calculadas:`);
+            console.log(`   Total: ${totalClients}`);
+            console.log(`   Com Propostas: ${clientsWithProposals}`);
+            console.log(`   Ativas: ${activeProposals}`);
+            console.log(`   Finalizadas: ${completedProposals}`);
+            
+            document.getElementById('total-clients').textContent = totalClients;
+            document.getElementById('clients-with-proposals').textContent = clientsWithProposals;
+            document.getElementById('active-proposals').textContent = activeProposals;
+            document.getElementById('completed-proposals').textContent = completedProposals;
+        }
+        
+        // Atualizar placeholder do campo de busca
+        function updateSearchPlaceholder() {
+            const searchType = document.getElementById('search-type').value;
+            const searchInput = document.getElementById('search-input');
+            
+            const placeholders = {
+                cpf: 'Digite o CPF (apenas números ou formatado)',
+                nome: 'Digite o nome do cliente',
+                telefone: 'Digite o telefone',
+                email: 'Digite o email',
+                nb: 'Digite o número do benefício'
+            };
+            
+            searchInput.placeholder = placeholders[searchType] || 'Digite o termo de busca';
+            searchInput.value = '';
+        }
+        
+        // Handle keyup no campo de busca
+        function handleSearchKeyup(event) {
+            if (event.key === 'Enter') {
+                buscarClientes();
+            }
+        }
+        
+        // Buscar clientes
+        function buscarClientes() {
+            const searchType = document.getElementById('search-type').value;
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            console.log('🔍 Buscando clientes...', { searchType, searchTerm, statusFilter });
+            
+            // Se não há filtros, mostrar todos
+            if (!searchTerm && !statusFilter) {
+                console.log('📋 Nenhum filtro aplicado, mostrando todos os clientes...');
+                filteredClients = [...allClients];
+                renderizarResultados();
+                return;
+            }
+            
+            filteredClients = allClients.filter(cliente => {
+                let matchesSearch = true;
+                let matchesStatus = true;
+                
+                // Filtro por termo de busca
+                if (searchTerm) {
+                    switch (searchType) {
+                        case 'cpf':
+                            const cpfClean = cliente.cpf?.replace(/\D/g, '') || '';
+                            const searchClean = searchTerm.replace(/\D/g, '');
+                            matchesSearch = cpfClean.includes(searchClean);
+                            break;
+                        case 'nome':
+                            matchesSearch = cliente.nome?.toLowerCase().includes(searchTerm) || false;
+                            break;
+                        case 'telefone':
+                            const telefoneClean = cliente.telefone?.replace(/\D/g, '') || '';
+                            const searchTelClean = searchTerm.replace(/\D/g, '');
+                            matchesSearch = telefoneClean.includes(searchTelClean);
+                            break;
+                        case 'email':
+                            matchesSearch = cliente.email?.toLowerCase().includes(searchTerm) || false;
+                            break;
+                        case 'nb':
+                            matchesSearch = cliente.nb?.toLowerCase().includes(searchTerm) || false;
+                            break;
+                        default:
+                            matchesSearch = false;
+                    }
+                }
+                
+                // Filtro por status
+                if (statusFilter) {
+                    switch (statusFilter) {
+                        case 'com-propostas':
+                            matchesStatus = cliente.propostas.length > 0;
+                            break;
+                        case 'sem-propostas':
+                            matchesStatus = cliente.propostas.length === 0;
+                            break;
+                    }
+                }
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            console.log(`📊 ${filteredClients.length} clientes encontrados`);
+            renderizarResultados();
+        }
+        
+        // Renderizar resultados
+        function renderizarResultados() {
+            const container = document.getElementById('search-results');
+            const counter = document.getElementById('results-count');
+            
+            console.log(`🎨 Renderizando ${filteredClients.length} clientes...`);
+            counter.textContent = filteredClients.length;
+            
+            if (filteredClients.length === 0) {
+                console.log('📋 Nenhum cliente para renderizar, mostrando mensagem vazia');
+                container.innerHTML = `
+                    <div class="empty-search">
+                        <i data-feather="search-x"></i>
+                        <h3>Nenhum cliente encontrado</h3>
+                        <p>Tente ajustar os filtros de busca ou usar outros termos.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            console.log('🎨 Criando HTML para cada cliente...');
+            const html = filteredClients.map((cliente, index) => {
+                console.log(`   Cliente ${index + 1}:`, cliente.nome, `(${cliente.cpf})`);
+                return criarItemCliente(cliente);
+            }).join('');
+            
+            console.log('🎨 Inserindo HTML no container...');
+            container.innerHTML = html;
+            feather.replace();
+            console.log('✅ Renderização concluída!');
+        }
+        
+        // Criar HTML do item de cliente
+        function criarItemCliente(cliente) {
+            // Extrair dados corretamente das diferentes estruturas
+            const nome = cliente.nome || cliente.dadosCompletos?.nome || 'Nome não informado';
+            const cpf = cliente.cpf || cliente.dadosCompletos?.cpf || 'CPF não informado';
+            const telefone = cliente.telefone || cliente.dadosCompletos?.telefone || 'Tel. não informado';
+            const email = cliente.email || cliente.dadosCompletos?.email || 'Não informado';
+            
+            // NB pode estar em diferentes locais dependendo da estrutura
+            let nb = 'Não informado';
+            if (cliente.beneficio?.nb) {
+                nb = cliente.beneficio.nb; // ISABEL: estrutura direta
+            } else if (cliente.dadosCompletos?.beneficio?.numero) {
+                nb = cliente.dadosCompletos.beneficio.numero; // FRANCISCO: estrutura aninhada
+            }
+            
+            const propostas = cliente.propostas?.length || 0;
+            const propostasAtivas = cliente.propostas?.filter(p => 
+                ['CLIENTE_ACEITOU', 'PREENCHENDO_DADOS'].includes(p.status)
+            ).length || 0;
+            
+            const dataCriacao = cliente.dataCriacao ? 
+                new Date(cliente.dataCriacao).toLocaleDateString('pt-BR') : 
+                'Não informado';
+            
+            return `
+                <div class="client-item">
+                    <div class="client-header">
+                        <div class="client-info">
+                            <div class="client-name">${nome} <span style="color: #64748b; font-size: 0.8em;">ID: ${cliente.id}</span></div>
+                            <div class="client-meta">
+                                <span><i data-feather="user" style="width: 14px; height: 14px;"></i> ${cpf}</span>
+                                <span><i data-feather="phone" style="width: 14px; height: 14px;"></i> ${telefone}</span>
+                                <span><i data-feather="calendar" style="width: 14px; height: 14px;"></i> ${dataCriacao}</span>
+                            </div>
+                        </div>
+                        ${propostas > 0 ? `<div class="proposals-badge">${propostas} proposta${propostas > 1 ? 's' : ''}</div>` : ''}
+                    </div>
+                    
+                    <div class="client-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value">${email}</span>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">NB</span>
+                            <span class="detail-value">${nb}</span>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Propostas Ativas</span>
+                            <span class="detail-value">${propostasAtivas}</span>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Total Propostas</span>
+                            <span class="detail-value">${propostas}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="client-actions">
+                        <button class="btn btn-primary" onclick="abrirCrmCliente('${cliente.id}')">
+                            <i data-feather="external-link"></i>
+                            Abrir
+                        </button>
+                        
+                        <button class="btn btn-danger" onclick="excluirCliente('${cliente.id}', '${cliente.nome}')">
+                            <i data-feather="trash-2"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Abrir CRM do cliente
+        function abrirCrmCliente(clientId) {
+            const url = `/operacional/crm-cliente.html?clientId=${clientId}`;
+            window.open(url, '_blank');
+        }
+        
+        // Excluir cliente e todos os contratos ativos
+        function excluirCliente(clientId, nomeCliente) {
+            // Confirmar exclusão
+            const confirmar = confirm(
+                `⚠️ ATENÇÃO! Esta ação irá excluir permanentemente:\n\n` +
+                `• Cliente: ${nomeCliente}\n` +
+                `• Todas as propostas do cliente\n` +
+                `• Todos os contratos ativos\n` +
+                `• Histórico completo\n\n` +
+                `Esta ação NÃO pode ser desfeita!\n\n` +
+                `Tem certeza que deseja continuar?`
+            );
+            
+            if (!confirmar) {
+                return;
+            }
+            
+            // Segunda confirmação para segurança
+            const confirmarFinal = confirm(
+                `🚨 CONFIRMAÇÃO FINAL 🚨\n\n` +
+                `Digite "EXCLUIR" (sem aspas) na próxima caixa para confirmar a exclusão do cliente ${nomeCliente}.`
+            );
+            
+            if (!confirmarFinal) {
+                return;
+            }
+            
+            // Solicitar digitação de "EXCLUIR"
+            const confirmacao = prompt(
+                `Para excluir permanentemente o cliente ${nomeCliente}, digite "EXCLUIR" (maiúsculo):`
+            );
+            
+            if (confirmacao !== "EXCLUIR") {
+                alert('❌ Exclusão cancelada. Texto de confirmação incorreto.');
+                return;
+            }
+            
+            try {
+                // Buscar dados do cliente
+                const cliente = clientManager.getClientById(clientId);
+                
+                if (!cliente) {
+                    alert('❌ Cliente não encontrado.');
+                    return;
+                }
+                
+                // Contar itens para feedback
+                const propostas = cliente.propostas ? cliente.propostas.length : 0;
+                let totalContratos = 0;
+                
+                if (cliente.propostas) {
+                    cliente.propostas.forEach(proposta => {
+                        const contratos = proposta.contratos || [];
+                        totalContratos += contratos.length;
+                    });
+                }
+                
+                // Excluir cliente do sistema
+                const sucesso = clientManager.deleteClient(clientId);
+                
+                if (sucesso) {
+                    // Feedback visual
+                    alert(
+                        `✅ Cliente excluído com sucesso!\n\n` +
+                        `📊 Itens removidos:\n` +
+                        `• Cliente: ${nomeCliente}\n` +
+                        `• Propostas: ${propostas}\n` +
+                        `• Contratos: ${totalContratos}`
+                    );
+                    
+                    // Recarregar busca
+                    buscarClientes();
+                    
+                    // Atualizar estatísticas
+                    atualizarEstatisticas();
+                    
+                    console.log(`✅ Cliente ${clientId} excluído:`, {
+                        nome: nomeCliente,
+                        propostas: propostas,
+                        contratos: totalContratos
+                    });
+                    
+                } else {
+                    alert('❌ Erro ao excluir cliente. Tente novamente.');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao excluir cliente:', error);
+                alert('❌ Erro inesperado ao excluir cliente: ' + error.message);
+            }
+        }
+        
+        // Limpar busca
+        function limparBusca() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-type').value = 'cpf';
+            document.getElementById('status-filter').value = '';
+            updateSearchPlaceholder();
+            
+            // Mostrar todos os clientes
+            console.log('🧹 Limpando filtros e mostrando todos os clientes...');
+            filteredClients = [...allClients];
+            renderizarResultados();
+        }
+        
+        // Mostrar mensagem
+        function mostrarMensagem(mensagem) {
+            const container = document.getElementById('search-results');
+            container.innerHTML = `
+                <div class="empty-search">
+                    <i data-feather="info"></i>
+                    <h3>Informação</h3>
+                    <p>${mensagem}</p>
+                </div>
+            `;
+            feather.replace();
+        }
+        
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            const container = document.getElementById('search-results');
+            container.innerHTML = `
+                <div class="empty-search">
+                    <i data-feather="alert-circle" style="color: #ef4444;"></i>
+                    <h3>Erro</h3>
+                    <p>${mensagem}</p>
+                    <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 1rem;">
+                        <i data-feather="refresh-cw"></i>
+                        Tentar Novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
+        
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+        
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>
+

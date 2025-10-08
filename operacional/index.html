@@ -30,10 +30,10 @@
 
             <!-- Sidebar Navigation -->
             <nav class="sidebar-nav">
-                <!-- Dashboard -->
+                <!-- Principal -->
                 <div class="nav-section">
                     <h4 class="nav-section-title">Principal</h4>
-                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                    <a href="/operacional/" class="nav-item active" data-nav="dashboard">
                         <div class="nav-item-content">
                             <i data-feather="home" class="nav-item-icon"></i>
                             <span class="nav-item-text">Dashboard</span>
@@ -41,7 +41,7 @@
                     </a>
                     <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
                         <div class="nav-item-content">
-                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <i data-feather="activity" class="nav-item-icon"></i>
                             <span class="nav-item-text">Simulador</span>
                         </div>
                     </a>
@@ -50,13 +50,13 @@
                 <!-- Clientes -->
                 <div class="nav-section">
                     <h4 class="nav-section-title">Clientes</h4>
-                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="search-client">
+                    <a href="/operacional/clientes.html" class="nav-item" data-nav="clientes">
                         <div class="nav-item-content">
-                            <i data-feather="search" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Buscar Cliente</span>
+                            <i data-feather="users" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Clientes</span>
                         </div>
                     </a>
-                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="new-client">
+                    <a href="/operacional/clientes/novo.html" class="nav-item" data-nav="novo-cliente">
                         <div class="nav-item-content">
                             <i data-feather="user-plus" class="nav-item-icon"></i>
                             <span class="nav-item-text">Novo Cliente</span>
@@ -67,28 +67,17 @@
                 <!-- Operacional -->
                 <div class="nav-section">
                     <h4 class="nav-section-title">Operacional</h4>
-                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation">
-                        <div class="nav-item-content">
-                            <i data-feather="edit-3" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Fila de Digitação</span>
-                            <span class="nav-badge" id="digitation-badge">0</span>
-                        </div>
-                    </a>
-                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="proposals">
+                    <a href="/operacional/propostas.html" class="nav-item" data-nav="propostas">
                         <div class="nav-item-content">
                             <i data-feather="file-text" class="nav-item-icon"></i>
                             <span class="nav-item-text">Propostas</span>
                         </div>
                     </a>
-                </div>
-
-                <!-- Integração -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Integração</h4>
-                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro">
+                    <a href="/operacional/digitacao.html" class="nav-item" data-nav="digitacao">
                         <div class="nav-item-content">
-                            <i data-feather="link" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Kentro API</span>
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitacao-badge">0</span>
                         </div>
                     </a>
                 </div>
@@ -96,10 +85,21 @@
                 <!-- Configurações -->
                 <div class="nav-section">
                     <h4 class="nav-section-title">Configurações</h4>
-                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                    <a href="/operacional/configuracoes/status.html" class="nav-item" data-nav="config-status">
                         <div class="nav-item-content">
                             <i data-feather="settings" class="nav-item-icon"></i>
                             <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro.html" class="nav-item" data-nav="kentro">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
                         </div>
                     </a>
                 </div>
@@ -119,246 +119,169 @@
             </div>
         </aside>
 
-        <!-- Overlay para mobile -->
-        <div class="sidebar-overlay"></div>
-
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Topbar -->
-            <header class="topbar">
-                <div class="topbar-content">
-                    <div>
-                        <h1 class="page-title">
-                            <i data-feather="home"></i>
-                            Dashboard
-                        </h1>
-                        <span class="page-subtitle">Central de controle do sistema operacional</span>
-                    </div>
-                    <div class="topbar-actions">
-                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
-                            <i data-feather="menu"></i>
-                        </button>
-                        <a href="/INSS/simulador.html" class="topbar-btn">
-                            <i data-feather="calculator"></i>
-                            Simulador
-                        </a>
-                        <button class="topbar-btn secondary" onclick="location.reload()">
-                            <i data-feather="refresh-cw"></i>
-                            Atualizar
-                        </button>
-                    </div>
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="breadcrumb">
+                    <a href="/operacional/">
+                        <i data-feather="home" style="width: 16px; height: 16px;"></i>
+                        Dashboard
+                    </a>
                 </div>
-            </header>
+                <div class="page-title">
+                    <i data-feather="home"></i>
+                    <h1>Dashboard</h1>
+                </div>
+                <p class="page-subtitle">Visão geral do sistema e métricas importantes</p>
+            </div>
 
-            <!-- Content Area -->
-            <div class="content-area">
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon blue">
-                                <i data-feather="users"></i>
-                            </div>
-                        </div>
-                        <div class="stat-value" id="total-clients">-</div>
-                        <div class="stat-label">Clientes Cadastrados</div>
-                        <div class="stat-change positive">
-                            <i data-feather="trending-up"></i>
-                            <span>+12% este mês</span>
-                        </div>
-                    </div>
+            <!-- Page Actions -->
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="atualizarDashboard()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar
+                </button>
+                <button class="btn btn-secondary" onclick="exportarRelatorio()">
+                    <i data-feather="download"></i>
+                    Exportar Relatório
+                </button>
+            </div>
 
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon green">
-                                <i data-feather="file-text"></i>
+            <!-- Métricas Principais -->
+            <div class="grid grid-cols-4 mb-6">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Total de Clientes</p>
+                                <p class="text-2xl font-bold text-gray-900" id="total-clientes">-</p>
+                                <p class="text-sm text-green-600" id="clientes-crescimento">+0% este mês</p>
                             </div>
-                        </div>
-                        <div class="stat-value" id="total-proposals">-</div>
-                        <div class="stat-label">Propostas Criadas</div>
-                        <div class="stat-change positive">
-                            <i data-feather="trending-up"></i>
-                            <span>+8% esta semana</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon yellow">
-                                <i data-feather="clock"></i>
+                            <div class="p-3 bg-blue-100 rounded-full">
+                                <i data-feather="users" class="text-blue-600" style="width: 24px; height: 24px;"></i>
                             </div>
-                        </div>
-                        <div class="stat-value" id="pending-digitation">-</div>
-                        <div class="stat-label">Aguardando Digitação</div>
-                        <div class="stat-change">
-                            <i data-feather="minus"></i>
-                            <span>Fila atual</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div class="stat-icon green">
-                                <i data-feather="check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="stat-value" id="completed-today">-</div>
-                        <div class="stat-label">Finalizadas Hoje</div>
-                        <div class="stat-change positive">
-                            <i data-feather="trending-up"></i>
-                            <span>Meta: 50</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <div class="content-card">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Propostas Ativas</p>
+                                <p class="text-2xl font-bold text-gray-900" id="propostas-ativas">-</p>
+                                <p class="text-sm text-green-600" id="propostas-crescimento">+0% este mês</p>
+                            </div>
+                            <div class="p-3 bg-green-100 rounded-full">
+                                <i data-feather="file-text" class="text-green-600" style="width: 24px; height: 24px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-content">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Em Digitação</p>
+                                <p class="text-2xl font-bold text-gray-900" id="em-digitacao">-</p>
+                                <p class="text-sm text-orange-600" id="digitacao-tempo">Tempo médio: -</p>
+                            </div>
+                            <div class="p-3 bg-orange-100 rounded-full">
+                                <i data-feather="edit-3" class="text-orange-600" style="width: 24px; height: 24px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-content">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Valor Total</p>
+                                <p class="text-2xl font-bold text-gray-900" id="valor-total">-</p>
+                                <p class="text-sm text-green-600" id="valor-crescimento">+0% este mês</p>
+                            </div>
+                            <div class="p-3 bg-purple-100 rounded-full">
+                                <i data-feather="dollar-sign" class="text-purple-600" style="width: 24px; height: 24px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos e Tabelas -->
+            <div class="grid grid-cols-2 mb-6">
+                <!-- Gráfico de Status -->
+                <div class="card">
                     <div class="card-header">
-                        <h2 class="card-title">
-                            <i data-feather="zap"></i>
-                            Ações Rápidas
-                        </h2>
+                        <h3 class="card-title">
+                            <i data-feather="pie-chart"></i>
+                            Status das Propostas
+                        </h3>
                     </div>
                     <div class="card-content">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-                            <a href="/operacional/buscar-cliente.html" style="
-                                display: flex;
-                                align-items: center;
-                                gap: 1rem;
-                                padding: 1.5rem;
-                                background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-                                border: 1px solid #0ea5e9;
-                                border-radius: 12px;
-                                text-decoration: none;
-                                color: #0c4a6e;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(14, 165, 233, 0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: linear-gradient(135deg, #0ea5e9, #0284c7);
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    color: white;
-                                ">
-                                    <i data-feather="search" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div>
-                                    <h3 style="font-weight: 600; margin-bottom: 0.25rem;">Buscar Cliente</h3>
-                                    <p style="font-size: 0.9rem; opacity: 0.8;">Localizar por CPF ou NB</p>
-                                </div>
-                            </a>
-
-                            <a href="/operacional/formulario-cliente.html" style="
-                                display: flex;
-                                align-items: center;
-                                gap: 1rem;
-                                padding: 1.5rem;
-                                background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-                                border: 1px solid #22c55e;
-                                border-radius: 12px;
-                                text-decoration: none;
-                                color: #14532d;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(34, 197, 94, 0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: linear-gradient(135deg, #22c55e, #16a34a);
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    color: white;
-                                ">
-                                    <i data-feather="user-plus" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div>
-                                    <h3 style="font-weight: 600; margin-bottom: 0.25rem;">Novo Cliente</h3>
-                                    <p style="font-size: 0.9rem; opacity: 0.8;">Cadastrar cliente</p>
-                                </div>
-                            </a>
-
-                            <a href="/operacional/digitation-interface.html" style="
-                                display: flex;
-                                align-items: center;
-                                gap: 1rem;
-                                padding: 1.5rem;
-                                background: linear-gradient(135deg, #fffbeb, #fef3c7);
-                                border: 1px solid #f59e0b;
-                                border-radius: 12px;
-                                text-decoration: none;
-                                color: #92400e;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(245, 158, 11, 0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: linear-gradient(135deg, #f59e0b, #d97706);
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    color: white;
-                                ">
-                                    <i data-feather="edit-3" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div>
-                                    <h3 style="font-weight: 600; margin-bottom: 0.25rem;">Fila de Digitação</h3>
-                                    <p style="font-size: 0.9rem; opacity: 0.8;">Processar propostas</p>
-                                </div>
-                            </a>
-
-                            <a href="/INSS/simulador.html" style="
-                                display: flex;
-                                align-items: center;
-                                gap: 1rem;
-                                padding: 1.5rem;
-                                background: linear-gradient(135deg, #fdf4ff, #fae8ff);
-                                border: 1px solid #a855f7;
-                                border-radius: 12px;
-                                text-decoration: none;
-                                color: #581c87;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(168, 85, 247, 0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: linear-gradient(135deg, #a855f7, #9333ea);
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    color: white;
-                                ">
-                                    <i data-feather="calculator" style="width: 24px; height: 24px;"></i>
-                                </div>
-                                <div>
-                                    <h3 style="font-weight: 600; margin-bottom: 0.25rem;">Simulador</h3>
-                                    <p style="font-size: 0.9rem; opacity: 0.8;">Simular empréstimos</p>
-                                </div>
-                            </a>
+                        <div id="grafico-status" style="height: 300px;">
+                            <div class="flex items-center justify-center h-full">
+                                <div class="loading loading-lg"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Recent Activity -->
-                <div class="content-card">
+                <!-- Atividades Recentes -->
+                <div class="card">
                     <div class="card-header">
-                        <h2 class="card-title">
+                        <h3 class="card-title">
                             <i data-feather="activity"></i>
-                            Atividade Recente
-                        </h2>
+                            Atividades Recentes
+                        </h3>
                     </div>
                     <div class="card-content">
-                        <div id="recent-activity">
-                            <div style="text-align: center; padding: 3rem; color: #64748b;">
-                                <i data-feather="clock" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.5;"></i>
-                                <p>Carregando atividades recentes...</p>
+                        <div id="atividades-recentes">
+                            <div class="flex items-center justify-center h-full">
+                                <div class="loading loading-lg"></div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Propostas Pendentes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-feather="clock"></i>
+                        Propostas Pendentes
+                    </h3>
+                    <a href="/operacional/propostas.html" class="btn btn-secondary btn-sm">
+                        Ver Todas
+                        <i data-feather="arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Produto</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th>Data</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="propostas-pendentes">
+                                <tr>
+                                    <td colspan="6" class="text-center">
+                                        <div class="loading"></div>
+                                        <span class="ml-2">Carregando...</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -367,163 +290,152 @@
 
     <!-- Scripts -->
     <script src="/operacional/assets/crm-layout.js"></script>
-    <script src="/operacional/client-manager.js"></script>
-    
     <script>
-        // Inicializar Feather Icons
-        feather.replace();
-        
-        // Carregar estatísticas
-        document.addEventListener('DOMContentLoaded', async () => {
+        // Variáveis globais
+        let dashboardData = {};
+
+        // Carregar dados do dashboard
+        async function carregarDashboard() {
             try {
-                // Carregar ClientManager
-                if (typeof window.clientManager === 'undefined') {
-                    window.clientManager = new ClientManager();
-                }
+                console.log('📊 Carregando dados do dashboard...');
                 
-                // Calcular estatísticas
-                const stats = calcularEstatisticas();
+                // Simular carregamento de dados
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Dados simulados (substituir por API real)
+                dashboardData = {
+                    totalClientes: 1247,
+                    clientesCrescimento: 12.5,
+                    propostasAtivas: 856,
+                    propostasCrescimento: 8.3,
+                    emDigitacao: 42,
+                    digitacaoTempo: '2h 15min',
+                    valorTotal: 12500000,
+                    valorCrescimento: 15.2,
+                    propostasPendentes: [
+                        {
+                            id: 1,
+                            cliente: 'João Silva',
+                            produto: 'Empréstimo Consignado',
+                            valor: 15000,
+                            status: 'Pendente',
+                            data: '2025-10-08',
+                            statusCor: '#f59e0b'
+                        },
+                        {
+                            id: 2,
+                            cliente: 'Maria Santos',
+                            produto: 'Portabilidade',
+                            valor: 22500,
+                            status: 'Em Análise',
+                            data: '2025-10-07',
+                            statusCor: '#3b82f6'
+                        },
+                        {
+                            id: 3,
+                            cliente: 'Pedro Costa',
+                            produto: 'RMC',
+                            valor: 18750,
+                            status: 'Aguardando Assinatura',
+                            data: '2025-10-06',
+                            statusCor: '#8b5cf6'
+                        }
+                    ]
+                };
                 
                 // Atualizar interface
-                document.getElementById('total-clients').textContent = stats.totalClients;
-                document.getElementById('total-proposals').textContent = stats.totalProposals;
-                document.getElementById('pending-digitation').textContent = stats.pendingDigitation;
-                document.getElementById('completed-today').textContent = stats.completedToday;
+                atualizarInterface();
                 
-                // Atualizar badge da fila
-                if (window.crmLayout) {
-                    window.crmLayout.updateBadge('digitation', stats.pendingDigitation);
-                }
-                
-                // Carregar atividade recente
-                carregarAtividadeRecente();
+                console.log('✅ Dashboard carregado com sucesso');
                 
             } catch (error) {
-                console.error('Erro ao carregar estatísticas:', error);
-            }
-        });
-        
-        function calcularEstatisticas() {
-            try {
-                let totalClients = 0;
-                let totalProposals = 0;
-                let pendingDigitation = 0;
-                let completedToday = 0;
-                
-                const hoje = new Date().toISOString().split('T')[0];
-                
-                if (window.clientManager && window.clientManager.clients) {
-                    totalClients = window.clientManager.clients.size;
-                    
-                    window.clientManager.clients.forEach(client => {
-                        if (client.propostas) {
-                            totalProposals += client.propostas.length;
-                            
-                            client.propostas.forEach(proposal => {
-                                if (proposal.status === 'CLIENTE_ACEITOU' || proposal.status === 'PREENCHENDO_DADOS') {
-                                    pendingDigitation++;
-                                }
-                                
-                                if (proposal.status === 'FINALIZADA' && proposal.dataFinalizacao?.startsWith(hoje)) {
-                                    completedToday++;
-                                }
-                            });
-                        }
-                    });
-                }
-                
-                return {
-                    totalClients,
-                    totalProposals,
-                    pendingDigitation,
-                    completedToday
-                };
-                
-            } catch (error) {
-                console.error('Erro ao calcular estatísticas:', error);
-                return {
-                    totalClients: '?',
-                    totalProposals: '?',
-                    pendingDigitation: '?',
-                    completedToday: '?'
-                };
+                console.error('❌ Erro ao carregar dashboard:', error);
+                crmLayout.showToast('Erro ao carregar dados do dashboard', 'error');
             }
         }
-        
-        function carregarAtividadeRecente() {
-            const container = document.getElementById('recent-activity');
+
+        // Atualizar interface com os dados
+        function atualizarInterface() {
+            // Métricas principais
+            document.getElementById('total-clientes').textContent = dashboardData.totalClientes.toLocaleString();
+            document.getElementById('clientes-crescimento').textContent = `+${dashboardData.clientesCrescimento}% este mês`;
             
-            // Simular atividades recentes
-            const atividades = [
-                { tipo: 'novo_cliente', descricao: 'Cliente João Silva cadastrado', tempo: '5 min atrás', icone: 'user-plus', cor: '#22c55e' },
-                { tipo: 'proposta', descricao: 'Proposta #1234 criada', tempo: '12 min atrás', icone: 'file-text', cor: '#3b82f6' },
-                { tipo: 'digitacao', descricao: 'Proposta #1233 finalizada', tempo: '25 min atrás', icone: 'check-circle', cor: '#10b981' },
-                { tipo: 'simulacao', descricao: 'Simulação realizada - CPF 123.456.789-00', tempo: '1h atrás', icone: 'calculator', cor: '#a855f7' }
-            ];
+            document.getElementById('propostas-ativas').textContent = dashboardData.propostasAtivas.toLocaleString();
+            document.getElementById('propostas-crescimento').textContent = `+${dashboardData.propostasCrescimento}% este mês`;
             
-            container.innerHTML = atividades.map(ativ => `
-                <div style="
-                    display: flex;
-                    align-items: center;
-                    padding: 1rem 0;
-                    border-bottom: 1px solid #f1f5f9;
-                ">
-                    <div style="
-                        width: 40px;
-                        height: 40px;
-                        background: ${ativ.cor}20;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-right: 1rem;
-                    ">
-                        <i data-feather="${ativ.icone}" style="width: 20px; height: 20px; color: ${ativ.cor};"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <p style="font-weight: 500; margin-bottom: 0.25rem;">${ativ.descricao}</p>
-                        <p style="font-size: 0.85rem; color: #64748b;">${ativ.tempo}</p>
-                    </div>
-                </div>
+            document.getElementById('em-digitacao').textContent = dashboardData.emDigitacao;
+            document.getElementById('digitacao-tempo').textContent = `Tempo médio: ${dashboardData.digitacaoTempo}`;
+            
+            document.getElementById('valor-total').textContent = crmLayout.formatCurrency(dashboardData.valorTotal);
+            document.getElementById('valor-crescimento').textContent = `+${dashboardData.valorCrescimento}% este mês`;
+            
+            // Propostas pendentes
+            const tbody = document.getElementById('propostas-pendentes');
+            tbody.innerHTML = dashboardData.propostasPendentes.map(proposta => `
+                <tr>
+                    <td><strong>${proposta.cliente}</strong></td>
+                    <td>${proposta.produto}</td>
+                    <td>${crmLayout.formatCurrency(proposta.valor)}</td>
+                    <td>
+                        <span class="badge" style="background-color: ${proposta.statusCor}; color: white;">
+                            ${proposta.status}
+                        </span>
+                    </td>
+                    <td>${crmLayout.formatDate(proposta.data, { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="verProposta(${proposta.id})">
+                            <i data-feather="eye"></i>
+                            Ver
+                        </button>
+                    </td>
+                </tr>
             `).join('');
             
+            // Atualizar ícones
             feather.replace();
         }
-        
-        // Mostrar menu mobile
-        const toggleMobileMenu = () => {
-            const sidebar = document.querySelector('.sidebar');
-            const overlay = document.querySelector('.sidebar-overlay');
-            
-            sidebar.classList.toggle('mobile-open');
-            overlay.classList.toggle('active');
-        };
-        
-        // Configurar botão mobile
-        const mobileBtn = document.querySelector('.mobile-menu-btn');
-        if (mobileBtn) {
-            mobileBtn.addEventListener('click', toggleMobileMenu);
-            
-            // Mostrar botão em mobile
-            const showMobileButton = () => {
-                const isMobile = window.innerWidth <= 1024;
-                mobileBtn.style.display = isMobile ? 'flex' : 'none';
-            };
-            
-            window.addEventListener('resize', showMobileButton);
-            showMobileButton();
+
+        // Atualizar dashboard
+        async function atualizarDashboard() {
+            crmLayout.showToast('Atualizando dashboard...', 'info');
+            await carregarDashboard();
+            crmLayout.showToast('Dashboard atualizado!', 'success');
         }
-    </script>
-</body>
-</html>
-            const showMobileButton = () => {
-                const isMobile = window.innerWidth <= 1024;
-                mobileBtn.style.display = isMobile ? 'flex' : 'none';
-            };
-            
-            window.addEventListener('resize', showMobileButton);
-            showMobileButton();
+
+        // Exportar relatório
+        function exportarRelatorio() {
+            crmLayout.showToast('Funcionalidade em desenvolvimento', 'info');
         }
+
+        // Ver proposta
+        function verProposta(id) {
+            window.location.href = `/operacional/propostas/detalhes.html?id=${id}`;
+        }
+
+        // Atualizar badge de digitação
+        function atualizarBadgeDigitacao() {
+            crmLayout.updateBadge('digitacao', dashboardData.emDigitacao || 0);
+        }
+
+        // Inicializar dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar dados
+                await carregarDashboard();
+                
+                // Atualizar badge
+                atualizarBadgeDigitacao();
+                
+                console.log('✅ Dashboard inicializado');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar dashboard:', error);
+                crmLayout.showToast('Erro ao inicializar dashboard', 'error');
+            }
+        });
     </script>
 </body>
 </html>

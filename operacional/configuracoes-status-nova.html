@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .config-content {
+            padding: 1.5rem;
+        }
+
+        .status-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .status-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: white;
+        }
+
+        .status-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .status-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .status-desc {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .page-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .whatsapp-config {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .whatsapp-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .whatsapp-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #d1d5db;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .variables-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .variable-tag {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .config-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .preview-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Menu Padrão -->
+        <div id="menu-container"></div>
+        
+        <!-- Área de Conteúdo -->
+        <div class="content-area">
+            <!-- Breadcrumb -->
+            <div id="breadcrumb-container"></div>
+            
+            <!-- Conteúdo Principal -->
+            <main class="page-content">
+                <div class="config-container">
+                    <!-- Status do Formulário -->
+                    <div class="config-section">
+                        <div class="config-header">
+                            <div class="config-title">
+                                <i data-feather="file-text"></i>
+                                Status do Formulário
+                            </div>
+                            <div class="config-info">
+                                <i data-feather="info"></i>
+                                Apenas cores podem ser editadas - nomes e códigos são fixos
+                            </div>
+                        </div>
+                        <div class="config-content">
+                            <div id="status-formulario-list" class="status-list">
+                                <div class="empty-state">
+                                    <i data-feather="loader"></i>
+                                    <h3>Carregando...</h3>
+                                    <p>Aguarde enquanto carregamos os status.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Produtos -->
+                    <div class="config-section">
+                        <div class="config-header">
+                            <div class="config-title">
+                                <i data-feather="package"></i>
+                                Produtos
+                            </div>
+                        </div>
+                        <div class="config-content">
+                            <div class="page-actions">
+                                <h3>Configure os produtos disponíveis</h3>
+                                <button class="btn btn-primary" onclick="adicionarProduto()">
+                                    <i data-feather="plus"></i>
+                                    Adicionar Produto
+                                </button>
+                            </div>
+                            <div id="produtos-list" class="status-list">
+                                <div class="empty-state">
+                                    <i data-feather="loader"></i>
+                                    <h3>Carregando...</h3>
+                                    <p>Aguarde enquanto carregamos os produtos.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status da Proposta -->
+                    <div class="config-section">
+                        <div class="config-header">
+                            <div class="config-title">
+                                <i data-feather="check-circle"></i>
+                                Status da Proposta
+                            </div>
+                        </div>
+                        <div class="config-content">
+                            <div class="page-actions">
+                                <h3>Configure os status disponíveis para propostas</h3>
+                                <button class="btn btn-primary" onclick="adicionarStatus('proposta')">
+                                    <i data-feather="plus"></i>
+                                    Adicionar Status
+                                </button>
+                            </div>
+                            <div id="status-proposta-list" class="status-list">
+                                <div class="empty-state">
+                                    <i data-feather="loader"></i>
+                                    <h3>Carregando...</h3>
+                                    <p>Aguarde enquanto carregamos os status.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Editar Status</h3>
+                <button class="modal-close" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nome do Status</label>
+                    <input type="text" id="edit-nome" class="form-input" placeholder="Ex: Etapa 1 - Dados">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <textarea id="edit-descricao" class="form-textarea" placeholder="Descrição do status..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Cor</label>
+                    <input type="color" id="edit-cor" class="form-input" value="#3b82f6">
+                    <div class="preview-badge" id="preview-badge">Preview</div>
+                </div>
+
+                <!-- Configuração WhatsApp -->
+                <div class="whatsapp-config">
+                    <div class="whatsapp-header">
+                        <i data-feather="message-circle"></i>
+                        <strong>Configuração WhatsApp</strong>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="whatsapp-toggle">
+                            <label class="form-label">Ativar notificação WhatsApp</label>
+                            <div class="toggle-switch" id="whatsapp-toggle" onclick="toggleWhatsApp()">
+                                <div class="toggle-slider"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="whatsapp-config" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Template da Mensagem</label>
+                            <textarea id="edit-template" class="form-textarea" placeholder="Olá {nome}, sua proposta está em {etapa}..."></textarea>
+                            <div class="variables-list">
+                                <span class="variable-tag">{nome}</span>
+                                <span class="variable-tag">{etapa}</span>
+                                <span class="variable-tag">{valor}</span>
+                                <span class="variable-tag">{banco}</span>
+                                <span class="variable-tag">{produto}</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Prioridade</label>
+                            <select id="edit-prioridade" class="form-input">
+                                <option value="normal">Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Delay (minutos)</label>
+                            <input type="number" id="edit-delay" class="form-input" value="0" min="0" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado global
+        let statusConfig = null;
+        let editandoTipo = null;
+        let editandoId = null;
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarMenu();
+            carregarBreadcrumb();
+            carregarConfiguracoes();
+            inicializarEventos();
+        });
+
+        // Carregar menu padrão
+        async function carregarMenu() {
+            try {
+                const response = await fetch('/operacional/menu-padrao.html');
+                const html = await response.text();
+                document.getElementById('menu-container').innerHTML = html;
+                feather.replace();
+            } catch (error) {
+                console.error('Erro ao carregar menu:', error);
+            }
+        }
+
+        // Carregar breadcrumb
+        function carregarBreadcrumb() {
+            const breadcrumb = `
+                <nav class="breadcrumb">
+                    <a href="/operacional">Dashboard</a>
+                    <span>></span>
+                    <a href="#">Configurações</a>
+                    <span>></span>
+                    <span>Status & Produtos</span>
+                </nav>
+            `;
+            document.getElementById('breadcrumb-container').innerHTML = breadcrumb;
+        }
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            try {
+                const response = await fetch('/api/status-config');
+                statusConfig = await response.json();
+                
+                renderizarStatusFormulario();
+                renderizarProdutos();
+                renderizarStatusProposta();
+                
+                feather.replace();
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        }
+
+        // Renderizar status do formulário
+        function renderizarStatusFormulario() {
+            const container = document.getElementById('status-formulario-list');
+            
+            if (!statusConfig.statusFormulario || statusConfig.statusFormulario.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="file-text"></i>
+                        <h3>Nenhum status encontrado</h3>
+                        <p>Não há status de formulário configurados.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = statusConfig.statusFormulario.map(status => `
+                <div class="status-item">
+                    <div class="status-info">
+                        <div class="status-badge" style="background-color: ${status.cor}">
+                            ${status.nome}
+                        </div>
+                        <div class="status-details">
+                            <div class="status-name">${status.nome}</div>
+                            <div class="status-desc">${status.descricao || 'Sem descrição'}</div>
+                        </div>
+                    </div>
+                    <div class="status-actions">
+                        <button class="btn btn-secondary" onclick="editarStatus('formulario', '${status.id}')">
+                            <i data-feather="edit"></i>
+                            Editar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Renderizar produtos
+        function renderizarProdutos() {
+            const container = document.getElementById('produtos-list');
+            
+            if (!statusConfig.produtos || statusConfig.produtos.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="package"></i>
+                        <h3>Nenhum produto encontrado</h3>
+                        <p>Não há produtos configurados.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = statusConfig.produtos.map(produto => `
+                <div class="status-item">
+                    <div class="status-info">
+                        <div class="status-badge" style="background-color: ${produto.cor}">
+                            ${produto.nome}
+                        </div>
+                        <div class="status-details">
+                            <div class="status-name">${produto.nome}</div>
+                            <div class="status-desc">${produto.descricao || 'Sem descrição'}</div>
+                        </div>
+                    </div>
+                    <div class="status-actions">
+                        <button class="btn btn-secondary" onclick="editarProduto('${produto.id}')">
+                            <i data-feather="edit"></i>
+                            Editar
+                        </button>
+                        <button class="btn btn-danger" onclick="excluirProduto('${produto.id}')">
+                            <i data-feather="trash-2"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Renderizar status da proposta
+        function renderizarStatusProposta() {
+            const container = document.getElementById('status-proposta-list');
+            
+            if (!statusConfig.statusProposta || statusConfig.statusProposta.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="check-circle"></i>
+                        <h3>Nenhum status encontrado</h3>
+                        <p>Não há status de proposta configurados.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = statusConfig.statusProposta.map(status => `
+                <div class="status-item">
+                    <div class="status-info">
+                        <div class="status-badge" style="background-color: ${status.cor}">
+                            ${status.nome}
+                        </div>
+                        <div class="status-details">
+                            <div class="status-name">${status.nome}</div>
+                            <div class="status-desc">${status.descricao || 'Sem descrição'}</div>
+                            ${status.whatsapp && status.whatsapp.ativo ? 
+                                '<div style="font-size: 0.75rem; color: #10b981;"><i data-feather="message-circle"></i> WhatsApp ativo</div>' : 
+                                ''
+                            }
+                        </div>
+                    </div>
+                    <div class="status-actions">
+                        <button class="btn btn-secondary" onclick="editarStatus('proposta', '${status.id}')">
+                            <i data-feather="edit"></i>
+                            Editar
+                        </button>
+                        <button class="btn btn-danger" onclick="excluirStatus('${status.id}')">
+                            <i data-feather="trash-2"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Inicializar eventos
+        function inicializarEventos() {
+            // Preview de cor em tempo real
+            document.getElementById('edit-cor').addEventListener('input', function() {
+                const preview = document.getElementById('preview-badge');
+                preview.style.backgroundColor = this.value;
+            });
+        }
+
+        // Adicionar produto
+        function adicionarProduto() {
+            editandoTipo = 'produto';
+            editandoId = null;
+            abrirModal('Adicionar Produto');
+            limparFormulario();
+        }
+
+        // Adicionar status
+        function adicionarStatus(tipo) {
+            editandoTipo = tipo;
+            editandoId = null;
+            abrirModal(`Adicionar Status ${tipo === 'proposta' ? 'da Proposta' : 'do Formulário'}`);
+            limparFormulario();
+        }
+
+        // Editar produto
+        function editarProduto(id) {
+            const produto = statusConfig.produtos.find(p => p.id === id);
+            if (!produto) return;
+
+            editandoTipo = 'produto';
+            editandoId = id;
+            abrirModal('Editar Produto');
+            preencherFormulario(produto);
+        }
+
+        // Editar status
+        function editarStatus(tipo, id) {
+            const lista = tipo === 'proposta' ? statusConfig.statusProposta : statusConfig.statusFormulario;
+            const status = lista.find(s => s.id === id);
+            if (!status) return;
+
+            editandoTipo = tipo;
+            editandoId = id;
+            abrirModal(`Editar Status ${tipo === 'proposta' ? 'da Proposta' : 'do Formulário'}`);
+            preencherFormulario(status);
+        }
+
+        // Abrir modal
+        function abrirModal(titulo) {
+            document.getElementById('modal-title').textContent = titulo;
+            document.getElementById('edit-modal').style.display = 'block';
+            feather.replace();
+        }
+
+        // Fechar modal
+        function fecharModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            limparFormulario();
+        }
+
+        // Limpar formulário
+        function limparFormulario() {
+            document.getElementById('edit-nome').value = '';
+            document.getElementById('edit-descricao').value = '';
+            document.getElementById('edit-cor').value = '#3b82f6';
+            document.getElementById('whatsapp-toggle').classList.remove('active');
+            document.getElementById('whatsapp-config').style.display = 'none';
+            document.getElementById('edit-template').value = '';
+            document.getElementById('edit-prioridade').value = 'normal';
+            document.getElementById('edit-delay').value = '0';
+            
+            // Atualizar preview
+            const preview = document.getElementById('preview-badge');
+            preview.style.backgroundColor = '#3b82f6';
+        }
+
+        // Preencher formulário
+        function preencherFormulario(item) {
+            document.getElementById('edit-nome').value = item.nome || '';
+            document.getElementById('edit-descricao').value = item.descricao || '';
+            document.getElementById('edit-cor').value = item.cor || '#3b82f6';
+            
+            // Configuração WhatsApp (apenas para status de proposta)
+            if (editandoTipo === 'proposta' && item.whatsapp) {
+                const toggle = document.getElementById('whatsapp-toggle');
+                const config = document.getElementById('whatsapp-config');
+                
+                if (item.whatsapp.ativo) {
+                    toggle.classList.add('active');
+                    config.style.display = 'block';
+                    document.getElementById('edit-template').value = item.whatsapp.template || '';
+                    document.getElementById('edit-prioridade').value = item.whatsapp.prioridade || 'normal';
+                    document.getElementById('edit-delay').value = item.whatsapp.delay || 0;
+                }
+            }
+            
+            // Atualizar preview
+            const preview = document.getElementById('preview-badge');
+            preview.style.backgroundColor = item.cor || '#3b82f6';
+        }
+
+        // Toggle WhatsApp
+        function toggleWhatsApp() {
+            const toggle = document.getElementById('whatsapp-toggle');
+            const config = document.getElementById('whatsapp-config');
+            
+            toggle.classList.toggle('active');
+            config.style.display = toggle.classList.contains('active') ? 'block' : 'none';
+        }
+
+        // Salvar edição
+        async function salvarEdicao() {
+            const nome = document.getElementById('edit-nome').value.trim();
+            const descricao = document.getElementById('edit-descricao').value.trim();
+            const cor = document.getElementById('edit-cor').value;
+            
+            if (!nome) {
+                alert('Nome é obrigatório');
+                return;
+            }
+
+            const item = {
+                nome,
+                descricao,
+                cor,
+                editavel: true
+            };
+
+            // Configuração WhatsApp (apenas para status de proposta)
+            if (editandoTipo === 'proposta') {
+                const whatsappAtivo = document.getElementById('whatsapp-toggle').classList.contains('active');
+                item.whatsapp = {
+                    ativo: whatsappAtivo,
+                    template: whatsappAtivo ? document.getElementById('edit-template').value.trim() : '',
+                    prioridade: whatsappAtivo ? document.getElementById('edit-prioridade').value : 'normal',
+                    delay: whatsappAtivo ? parseInt(document.getElementById('edit-delay').value) || 0 : 0,
+                    variaveis: ['nome', 'etapa', 'valor', 'banco', 'produto']
+                };
+            }
+
+            try {
+                if (editandoId) {
+                    // Atualizar existente
+                    await atualizarItem(item);
+                } else {
+                    // Criar novo
+                    await criarItem(item);
+                }
+                
+                fecharModal();
+                carregarConfiguracoes();
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                alert('Erro ao salvar configuração');
+            }
+        }
+
+        // Atualizar item
+        async function atualizarItem(item) {
+            const response = await fetch('/api/status-config', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tipo: editandoTipo,
+                    id: editandoId,
+                    dados: item
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao atualizar item');
+            }
+        }
+
+        // Criar item
+        async function criarItem(item) {
+            const response = await fetch('/api/status-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tipo: editandoTipo,
+                    dados: item
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao criar item');
+            }
+        }
+
+        // Excluir produto
+        async function excluirProduto(id) {
+            if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+
+            try {
+                const response = await fetch('/api/status-config', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tipo: 'produto',
+                        id: id
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao excluir produto');
+                }
+
+                carregarConfiguracoes();
+            } catch (error) {
+                console.error('Erro ao excluir:', error);
+                alert('Erro ao excluir produto');
+            }
+        }
+
+        // Excluir status
+        async function excluirStatus(id) {
+            if (!confirm('Tem certeza que deseja excluir este status?')) return;
+
+            try {
+                const response = await fetch('/api/status-config', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tipo: 'proposta',
+                        id: id
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao excluir status');
+                }
+
+                carregarConfiguracoes();
+            } catch (error) {
+                console.error('Erro ao excluir:', error);
+                alert('Erro ao excluir status');
+            }
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            console.error(mensagem);
+            // Implementar notificação de erro
+        }
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /**
- * CRM Layout Controller
+ * CRM Layout Controller - Sistema Lunas Digital
  * Controla sidebar, navegação e funcionalidades globais
  */
 
@@ -8,6 +8,7 @@ class CRMLayout {
         this.sidebar = null;
         this.sidebarOverlay = null;
         this.currentPage = '';
+        this.isLoading = false;
         
         this.init();
     }
@@ -39,6 +40,9 @@ class CRMLayout {
         // Configurar responsivo
         this.setupResponsive();
         
+        // Configurar notificações
+        this.setupNotifications();
+        
         console.log('✅ CRM Layout inicializado');
     }
 
@@ -61,6 +65,23 @@ class CRMLayout {
         const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
         if (isCollapsed) {
             this.sidebar.classList.add('collapsed');
+        }
+
+        // Criar overlay para mobile se não existir
+        if (!this.sidebarOverlay) {
+            this.sidebarOverlay = document.createElement('div');
+            this.sidebarOverlay.className = 'sidebar-overlay';
+            this.sidebarOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                display: none;
+            `;
+            document.body.appendChild(this.sidebarOverlay);
         }
     }
 
@@ -92,6 +113,13 @@ class CRMLayout {
 
         // Redimensionamento da janela
         window.addEventListener('resize', () => this.handleResize());
+
+        // Fechar modais com ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeAllModals();
+            }
+        });
     }
 
     toggleSidebar() {
@@ -116,7 +144,7 @@ class CRMLayout {
         if (!this.sidebar || !this.sidebarOverlay) return;
 
         this.sidebar.classList.add('mobile-open');
-        this.sidebarOverlay.classList.add('active');
+        this.sidebarOverlay.style.display = 'block';
         document.body.style.overflow = 'hidden';
     }
 
@@ -124,7 +152,7 @@ class CRMLayout {
         if (!this.sidebar || !this.sidebarOverlay) return;
 
         this.sidebar.classList.remove('mobile-open');
-        this.sidebarOverlay.classList.remove('active');
+        this.sidebarOverlay.style.display = 'none';
         document.body.style.overflow = '';
     }
 
@@ -155,6 +183,44 @@ class CRMLayout {
             // Fechar sidebar em modo mobile
             this.closeMobileSidebar();
         }
+    }
+
+    setupResponsive() {
+        // Configurar responsividade básica
+        const handleResize = () => {
+            const isMobile = window.innerWidth < 768;
+            const sidebar = document.querySelector('.sidebar');
+            
+            if (sidebar) {
+                if (isMobile) {
+                    sidebar.classList.add('sidebar-mobile');
+                } else {
+                    sidebar.classList.remove('sidebar-mobile');
+                }
+            }
+        };
+
+        // Executar na inicialização
+        handleResize();
+        
+        // Escutar mudanças de tamanho
+        window.addEventListener('resize', handleResize);
+    }
+
+    setupNotifications() {
+        // Configurar sistema de notificações
+        this.notificationContainer = document.createElement('div');
+        this.notificationContainer.id = 'notification-container';
+        this.notificationContainer.style.cssText = `
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        `;
+        document.body.appendChild(this.notificationContainer);
     }
 
     // Utilitários para badges de notificação
@@ -188,20 +254,7 @@ class CRMLayout {
             loading = document.createElement('div');
             loading.id = loadingId;
             loading.innerHTML = `
-                <div style="
-                    width: 20px;
-                    height: 20px;
-                    border: 2px solid #e2e8f0;
-                    border-top: 2px solid #3b82f6;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                "></div>
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                </style>
+                <div class="loading"></div>
             `;
             topbarActions.prepend(loading);
         } else if (!show && loading) {
@@ -238,41 +291,45 @@ class CRMLayout {
         const toast = document.createElement('div');
         
         const colors = {
-            success: 'bg-green-500',
-            error: 'bg-red-500',
-            warning: 'bg-yellow-500',
-            info: 'bg-blue-500'
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        const icons = {
+            success: 'check-circle',
+            error: 'x-circle',
+            warning: 'alert-triangle',
+            info: 'info'
         };
         
         toast.id = toastId;
-        toast.className = `fixed top-4 right-4 ${colors[type] || colors.info} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300`;
         toast.style.cssText = `
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+            position: relative;
+            background: ${colors[type] || colors.info};
             color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            z-index: 9999;
             transform: translateX(100%);
             transition: transform 0.3s ease;
             max-width: 400px;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         `;
         
         toast.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i data-feather="${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : type === 'warning' ? 'alert-triangle' : 'info'}" style="width: 20px; height: 20px;"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: white; margin-left: 1rem; cursor: pointer; opacity: 0.8;">
-                    <i data-feather="x" style="width: 16px; height: 16px;"></i>
-                </button>
-            </div>
+            <i data-feather="${icons[type] || icons.info}" style="width: 20px; height: 20px; flex-shrink: 0;"></i>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: white; cursor: pointer; opacity: 0.8; padding: 0.25rem;">
+                <i data-feather="x" style="width: 16px; height: 16px;"></i>
+            </button>
         `;
         
-        document.body.appendChild(toast);
+        this.notificationContainer.appendChild(toast);
         
         // Ativar feather icons
         if (typeof feather !== 'undefined') {
@@ -295,26 +352,161 @@ class CRMLayout {
         }, duration);
     }
 
-    setupResponsive() {
-        // Configurar responsividade básica
-        const handleResize = () => {
-            const isMobile = window.innerWidth < 768;
-            const sidebar = document.querySelector('.sidebar');
-            
-            if (sidebar) {
-                if (isMobile) {
-                    sidebar.classList.add('sidebar-mobile');
-                } else {
-                    sidebar.classList.remove('sidebar-mobile');
-                }
-            }
-        };
+    // Fechar todos os modais
+    closeAllModals() {
+        const modals = document.querySelectorAll('.modal.active');
+        modals.forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
 
-        // Executar na inicialização
-        handleResize();
+    // Mostrar modal
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    // Fechar modal
+    hideModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Fazer requisição com loading
+    async request(url, options = {}) {
+        this.isLoading = true;
+        this.showTopbarLoading(true);
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            this.showToast('Erro na requisição: ' + error.message, 'error');
+            throw error;
+        } finally {
+            this.isLoading = false;
+            this.showTopbarLoading(false);
+        }
+    }
+
+    // Confirmar ação
+    confirm(message, title = 'Confirmar') {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">
+                            <i data-feather="x"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>${message}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove(); window.crmLayout.confirmResolve(false)">
+                            Cancelar
+                        </button>
+                        <button class="btn btn-danger" onclick="this.closest('.modal').remove(); window.crmLayout.confirmResolve(true)">
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+            
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+            
+            window.crmLayout.confirmResolve = resolve;
+        });
+    }
+
+    // Formatar data
+    formatDate(date, options = {}) {
+        const defaultOptions = {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
         
-        // Escutar mudanças de tamanho
-        window.addEventListener('resize', handleResize);
+        return new Date(date).toLocaleDateString('pt-BR', { ...defaultOptions, ...options });
+    }
+
+    // Formatar moeda
+    formatCurrency(value) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(value);
+    }
+
+    // Formatar CPF
+    formatCPF(cpf) {
+        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    }
+
+    // Formatar telefone
+    formatPhone(phone) {
+        return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    }
+
+    // Validar CPF
+    validateCPF(cpf) {
+        cpf = cpf.replace(/[^\d]/g, '');
+        
+        if (cpf.length !== 11) return false;
+        if (/^(\d)\1{10}$/.test(cpf)) return false;
+        
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+            sum += parseInt(cpf.charAt(i)) * (10 - i);
+        }
+        let remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(9))) return false;
+        
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+            sum += parseInt(cpf.charAt(i)) * (11 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(10))) return false;
+        
+        return true;
+    }
+
+    // Validar email
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
     }
 }
 
