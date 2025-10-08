@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Principal -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="activity" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/clientes.html" class="nav-item" data-nav="clientes">
+                        <div class="nav-item-content">
+                            <i data-feather="users" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Clientes</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/clientes/novo.html" class="nav-item" data-nav="novo-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/propostas.html" class="nav-item" data-nav="propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitacao.html" class="nav-item" data-nav="digitacao">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitacao-badge">0</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes/status.html" class="nav-item active" data-nav="config-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro.html" class="nav-item" data-nav="kentro">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="breadcrumb">
+                    <a href="/operacional/">
+                        <i data-feather="home" style="width: 16px; height: 16px;"></i>
+                        Dashboard
+                    </a>
+                    <span>></span>
+                    <span>Configurações</span>
+                    <span>></span>
+                    <span>Status & Produtos</span>
+                </div>
+                <div class="page-title">
+                    <i data-feather="settings"></i>
+                    <h1>Configurações de Status</h1>
+                </div>
+                <p class="page-subtitle">Gerencie status e produtos do sistema</p>
+            </div>
+
+            <!-- Page Actions -->
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="carregarConfiguracoes()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar
+                </button>
+                <button class="btn btn-secondary" onclick="salvarConfiguracoes()">
+                    <i data-feather="save"></i>
+                    Salvar
+                </button>
+            </div>
+
+            <!-- Status do Formulário -->
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-feather="file-text"></i>
+                        Status do Formulário
+                    </h3>
+                    <div class="text-sm text-gray-600">
+                        <i data-feather="info"></i>
+                        Apenas cores podem ser editadas - nomes e códigos são fixos
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="status-formulario-list" class="grid grid-cols-3 gap-4">
+                        <div class="flex items-center justify-center h-32">
+                            <div class="loading loading-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produtos -->
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-feather="package"></i>
+                        Produtos
+                    </h3>
+                    <div class="flex gap-2">
+                        <button class="btn btn-primary btn-sm" onclick="sincronizarProdutosSimulador()">
+                            <i data-feather="refresh-cw"></i>
+                            Sincronizar Simulador
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="adicionarProduto()">
+                            <i data-feather="plus"></i>
+                            Adicionar Produto
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="status-produtos-list" class="grid grid-cols-3 gap-4">
+                        <div class="flex items-center justify-center h-32">
+                            <div class="loading loading-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status da Proposta -->
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i data-feather="check-circle"></i>
+                        Status da Proposta
+                    </h3>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="adicionarStatus('proposta')">
+                            <i data-feather="plus"></i>
+                            Adicionar Status
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="status-proposta-list" class="grid grid-cols-3 gap-4">
+                        <div class="flex items-center justify-center h-32">
+                            <div class="loading loading-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Editar Status</h3>
+                <button class="modal-close" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nome do Status</label>
+                    <input type="text" id="edit-nome" class="form-input" placeholder="Ex: Etapa 1 - Dados">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" id="edit-descricao" class="form-input" placeholder="Ex: Cliente preenchendo dados pessoais">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Cor</label>
+                    <div class="color-picker" id="color-picker">
+                        <!-- Cores serão carregadas via JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Configurações de WhatsApp -->
+                <div id="whatsapp-config" class="hidden">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="edit-whatsapp-enabled" onchange="toggleWhatsAppConfig()">
+                            Enviar notificação WhatsApp
+                        </label>
+                    </div>
+                    <div id="whatsapp-fields" class="hidden">
+                        <div class="form-group">
+                            <label class="form-label">Mensagem WhatsApp</label>
+                            <textarea id="edit-whatsapp-message" class="form-textarea" placeholder="Digite a mensagem que será enviada..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Horário de Envio</label>
+                            <select id="edit-whatsapp-time" class="form-select">
+                                <option value="imediato">Imediato</option>
+                                <option value="9h">9:00</option>
+                                <option value="14h">14:00</option>
+                                <option value="18h">18:00</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-section" style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0;">
+                    <h4 class="font-semibold mb-4">Preview em Tempo Real</h4>
+                    <div class="flex items-center gap-4">
+                        <span class="badge" id="preview-badge" style="font-size: 1rem; padding: 0.75rem 1.5rem;">Nome do Status</span>
+                        <div class="text-sm text-gray-600">
+                            <div>Cor: <span id="preview-color">#3b82f6</span></div>
+                            <div>WhatsApp: <span id="preview-whatsapp">Desabilitado</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="salvarStatus()">
+                    <i data-feather="save"></i>
+                    Salvar Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        // Variáveis globais
+        let statusConfig = {};
+        let currentEditType = '';
+        let currentEditId = '';
+        let currentEditData = null;
+
+        // Cores disponíveis
+        const coresDisponiveis = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+            '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1',
+            '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
+        ];
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            try {
+                console.log('🔄 Carregando configurações...');
+                
+                // Simular carregamento (substituir por API real)
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                statusConfig = {
+                    statusFormulario: [
+                        {
+                            id: 'etapa1',
+                            nome: 'Etapa 1 - Dados',
+                            descricao: 'Cliente preenchendo dados pessoais',
+                            cor: '#3b82f6',
+                            fixo: true,
+                            editavel: false
+                        },
+                        {
+                            id: 'etapa2',
+                            nome: 'Etapa 2 - Documentos',
+                            descricao: 'Cliente enviando documentos',
+                            cor: '#10b981',
+                            fixo: true,
+                            editavel: false
+                        },
+                        {
+                            id: 'etapa3',
+                            nome: 'Etapa 3 - Análise',
+                            descricao: 'Sistema analisando dados',
+                            cor: '#f59e0b',
+                            fixo: true,
+                            editavel: false
+                        }
+                    ],
+                    produtos: [
+                        {
+                            id: 1,
+                            nome: 'Empréstimo Consignado',
+                            descricao: 'Empréstimo com desconto em folha',
+                            cor: '#3b82f6',
+                            origem: 'calculo'
+                        },
+                        {
+                            id: 2,
+                            nome: 'Portabilidade',
+                            descricao: 'Transferência de empréstimo entre bancos',
+                            cor: '#10b981',
+                            origem: 'calculo'
+                        },
+                        {
+                            id: 3,
+                            nome: 'RMC',
+                            descricao: 'Refinanciamento de cartão de crédito',
+                            cor: '#f59e0b',
+                            origem: 'manual'
+                        }
+                    ],
+                    statusProposta: [
+                        {
+                            id: 'pendente',
+                            nome: 'Pendente',
+                            descricao: 'Aguardando análise',
+                            cor: '#f59e0b',
+                            whatsapp: {
+                                enabled: true,
+                                message: 'Sua proposta está em análise. Em breve entraremos em contato!',
+                                time: 'imediato'
+                            }
+                        },
+                        {
+                            id: 'aprovada',
+                            nome: 'Aprovada',
+                            descricao: 'Proposta aprovada',
+                            cor: '#10b981',
+                            whatsapp: {
+                                enabled: true,
+                                message: 'Parabéns! Sua proposta foi aprovada. Em breve receberá os documentos para assinatura.',
+                                time: 'imediato'
+                            }
+                        },
+                        {
+                            id: 'rejeitada',
+                            nome: 'Rejeitada',
+                            descricao: 'Proposta rejeitada',
+                            cor: '#ef4444',
+                            whatsapp: {
+                                enabled: true,
+                                message: 'Infelizmente sua proposta não foi aprovada. Entre em contato para mais informações.',
+                                time: 'imediato'
+                            }
+                        }
+                    ]
+                };
+                
+                // Renderizar status
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configurações carregadas com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configurações:', error);
+                crmLayout.showToast('Erro ao carregar configurações', 'error');
+            }
+        }
+
+        // Renderizar status
+        function renderizarStatus(tipo) {
+            const container = document.getElementById(`status-${tipo}-list`);
+            let statusList = [];
+            
+            if (tipo === 'formulario') {
+                statusList = statusConfig.statusFormulario || [];
+            } else if (tipo === 'proposta') {
+                statusList = statusConfig.statusProposta || [];
+            }
+            
+            if (statusList.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center text-gray-500 py-8">
+                        <i data-feather="inbox" style="width: 48px; height: 48px; margin: 0 auto 1rem; display: block;"></i>
+                        <p>Nenhum status encontrado</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = statusList.map(status => `
+                    <div class="card">
+                        <div class="card-content">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="badge" style="background-color: ${status.cor || '#3b82f6'}; color: white; font-size: 1rem; padding: 0.75rem 1.5rem;">
+                                        ${status.nome || 'Status'}
+                                    </span>
+                                    ${status.whatsapp?.enabled ? '<i data-feather="message-circle" class="text-green-600" title="WhatsApp ativado"></i>' : ''}
+                                </div>
+                                <div class="flex gap-1">
+                                    ${status.editavel !== false ? `
+                                        <button class="btn btn-secondary btn-sm" onclick="editarStatus('${tipo}', '${status.id}')" title="Editar">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" onclick="excluirStatus('${tipo}', '${status.id}')" title="Excluir">
+                                            <i data-feather="trash-2"></i>
+                                        </button>
+                                    ` : `
+                                        <button class="btn btn-secondary btn-sm" onclick="editarCor('${tipo}', '${status.id}')" title="Editar Cor">
+                                            <i data-feather="palette"></i>
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-2">${status.descricao || 'Sem descrição'}</div>
+                            ${status.fixo ? '<div class="text-xs text-green-600 font-medium">🔒 Fixo</div>' : ''}
+                            ${status.whatsapp?.enabled ? `
+                                <div class="text-xs text-blue-600 font-medium mt-2">
+                                    📱 WhatsApp: ${status.whatsapp.time === 'imediato' ? 'Imediato' : status.whatsapp.time}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Renderizar produtos
+        function renderizarProdutos() {
+            const container = document.getElementById('status-produtos-list');
+            const produtos = statusConfig.produtos || [];
+            
+            if (produtos.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center text-gray-500 py-8">
+                        <i data-feather="inbox" style="width: 48px; height: 48px; margin: 0 auto 1rem; display: block;"></i>
+                        <p>Nenhum produto encontrado</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = produtos.map(produto => `
+                    <div class="card">
+                        <div class="card-content">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="badge" style="background-color: ${produto.cor || '#3b82f6'}; color: white; font-size: 1rem; padding: 0.75rem 1.5rem;">
+                                        ${produto.nome || 'Produto'}
+                                    </span>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button class="btn btn-secondary btn-sm" onclick="editarStatus('produtos', '${produto.id}')" title="Editar">
+                                        <i data-feather="edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="excluirStatus('produtos', '${produto.id}')" title="Excluir">
+                                        <i data-feather="trash-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-2">${produto.descricao || 'Sem descrição'}</div>
+                            <div class="text-xs ${produto.origem === 'calculo' ? 'text-green-600' : 'text-orange-600'} font-medium">
+                                ${produto.origem === 'calculo' ? '🧮 Calculado' : '✏️ Manual'}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Funções de edição
+        function adicionarProduto() {
+            abrirModal('produtos', null, {
+                nome: '',
+                descricao: '',
+                cor: '#3B82F6',
+                origem: 'manual'
+            });
+        }
+
+        function adicionarStatus(tipo) {
+            abrirModal(tipo, null, {
+                nome: '',
+                descricao: '',
+                cor: '#3B82F6',
+                whatsapp: {
+                    enabled: false,
+                    message: '',
+                    time: 'imediato'
+                }
+            });
+        }
+
+        function editarStatus(tipo, id) {
+            const status = encontrarStatus(tipo, id);
+            if (status) {
+                abrirModal(tipo, id, status);
+            }
+        }
+
+        function editarCor(tipo, id) {
+            const status = encontrarStatus(tipo, id);
+            if (status) {
+                abrirModal(tipo, id, status, true);
+            }
+        }
+
+        function excluirStatus(tipo, id) {
+            if (confirm('Tem certeza que deseja excluir este status?')) {
+                if (tipo === 'formulario') {
+                    statusConfig.statusFormulario = statusConfig.statusFormulario.filter(s => s.id !== id);
+                } else if (tipo === 'proposta') {
+                    statusConfig.statusProposta = statusConfig.statusProposta.filter(s => s.id !== id);
+                } else if (tipo === 'produtos') {
+                    statusConfig.produtos = statusConfig.produtos.filter(s => s.id != id);
+                }
+                
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                crmLayout.showToast('Status excluído com sucesso!', 'success');
+            }
+        }
+
+        function encontrarStatus(tipo, id) {
+            if (tipo === 'formulario') {
+                return statusConfig.statusFormulario?.find(s => s.id === id);
+            } else if (tipo === 'proposta') {
+                return statusConfig.statusProposta?.find(s => s.id === id);
+            } else if (tipo === 'produtos') {
+                return statusConfig.produtos?.find(s => s.id == id);
+            }
+            return null;
+        }
+
+        // Abrir modal de edição
+        function abrirModal(tipo, id, dados, apenasCor = false) {
+            currentEditType = tipo;
+            currentEditId = id;
+            currentEditData = dados;
+
+            const modal = document.getElementById('edit-modal');
+            const titulo = document.getElementById('modal-title');
+            const nomeInput = document.getElementById('edit-nome');
+            const descricaoInput = document.getElementById('edit-descricao');
+            const whatsappConfig = document.getElementById('whatsapp-config');
+
+            // Configurar título
+            if (apenasCor) {
+                titulo.textContent = 'Editar Cor do Status';
+            } else if (id) {
+                titulo.textContent = 'Editar Status';
+            } else {
+                titulo.textContent = 'Adicionar Status';
+            }
+
+            // Preencher campos
+            nomeInput.value = dados.nome || '';
+            descricaoInput.value = dados.descricao || '';
+
+            // Desabilitar campos se for apenas cor
+            nomeInput.disabled = apenasCor;
+            descricaoInput.disabled = apenasCor;
+
+            // Configurar WhatsApp (apenas para status de proposta)
+            if (tipo === 'proposta') {
+                whatsappConfig.classList.remove('hidden');
+                const whatsappEnabled = document.getElementById('edit-whatsapp-enabled');
+                const whatsappMessage = document.getElementById('edit-whatsapp-message');
+                const whatsappTime = document.getElementById('edit-whatsapp-time');
+                
+                whatsappEnabled.checked = dados.whatsapp?.enabled || false;
+                whatsappMessage.value = dados.whatsapp?.message || '';
+                whatsappTime.value = dados.whatsapp?.time || 'imediato';
+                
+                toggleWhatsAppConfig();
+            } else {
+                whatsappConfig.classList.add('hidden');
+            }
+
+            // Carregar seletor de cores
+            carregarSeletorCores(dados.cor || '#3B82F6');
+
+            // Atualizar preview
+            atualizarPreview();
+
+            // Mostrar modal
+            crmLayout.showModal('edit-modal');
+            feather.replace();
+        }
+
+        function toggleWhatsAppConfig() {
+            const enabled = document.getElementById('edit-whatsapp-enabled').checked;
+            const fields = document.getElementById('whatsapp-fields');
+            
+            if (enabled) {
+                fields.classList.remove('hidden');
+            } else {
+                fields.classList.add('hidden');
+            }
+            
+            atualizarPreview();
+        }
+
+        function carregarSeletorCores(corSelecionada) {
+            const container = document.getElementById('color-picker');
+            container.innerHTML = '';
+
+            coresDisponiveis.forEach(cor => {
+                const div = document.createElement('div');
+                div.className = `color-option ${cor === corSelecionada ? 'selected' : ''}`;
+                div.style.cssText = `
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    border: 3px solid transparent;
+                    transition: all 0.2s ease;
+                    background-color: ${cor};
+                    display: inline-block;
+                    margin: 4px;
+                `;
+                div.onclick = () => selecionarCor(cor);
+                container.appendChild(div);
+            });
+        }
+
+        function selecionarCor(cor) {
+            // Remover seleção anterior
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Selecionar nova cor
+            event.target.classList.add('selected');
+
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        function atualizarPreview() {
+            const nome = document.getElementById('edit-nome').value || 'Nome do Status';
+            const corSelecionada = document.querySelector('.color-option.selected');
+            const cor = corSelecionada ? corSelecionada.style.backgroundColor : '#3B82F6';
+            const whatsappEnabled = document.getElementById('edit-whatsapp-enabled')?.checked || false;
+            
+            const preview = document.getElementById('preview-badge');
+            const previewColor = document.getElementById('preview-color');
+            const previewWhatsapp = document.getElementById('preview-whatsapp');
+            
+            if (preview) {
+                preview.textContent = nome;
+                preview.style.backgroundColor = cor;
+            }
+            
+            if (previewColor) {
+                previewColor.textContent = cor;
+            }
+            
+            if (previewWhatsapp) {
+                previewWhatsapp.textContent = whatsappEnabled ? 'Ativado' : 'Desabilitado';
+            }
+        }
+
+        function fecharModal() {
+            crmLayout.hideModal('edit-modal');
+            
+            // Limpar dados
+            currentEditType = '';
+            currentEditId = '';
+            currentEditData = null;
+        }
+
+        function salvarStatus() {
+            const nome = document.getElementById('edit-nome').value.trim();
+            const descricao = document.getElementById('edit-descricao').value.trim();
+            const cor = document.querySelector('.color-option.selected')?.style.backgroundColor || '#3B82F6';
+            const whatsappEnabled = document.getElementById('edit-whatsapp-enabled')?.checked || false;
+            const whatsappMessage = document.getElementById('edit-whatsapp-message')?.value || '';
+            const whatsappTime = document.getElementById('edit-whatsapp-time')?.value || 'imediato';
+
+            if (!nome) {
+                crmLayout.showToast('Nome é obrigatório', 'error');
+                return;
+            }
+
+            // Preparar dados para salvar
+            const dadosAtualizados = {
+                ...currentEditData,
+                nome,
+                descricao,
+                cor
+            };
+
+            // Adicionar configurações de WhatsApp para status de proposta
+            if (currentEditType === 'proposta') {
+                dadosAtualizados.whatsapp = {
+                    enabled: whatsappEnabled,
+                    message: whatsappMessage,
+                    time: whatsappTime
+                };
+            }
+
+            // Atualizar dados localmente
+            if (currentEditType === 'formulario') {
+                const index = statusConfig.statusFormulario.findIndex(s => s.id === currentEditId);
+                if (index !== -1) {
+                    statusConfig.statusFormulario[index] = { ...statusConfig.statusFormulario[index], ...dadosAtualizados };
+                } else {
+                    statusConfig.statusFormulario.push(dadosAtualizados);
+                }
+            } else if (currentEditType === 'proposta') {
+                const index = statusConfig.statusProposta.findIndex(s => s.id === currentEditId);
+                if (index !== -1) {
+                    statusConfig.statusProposta[index] = { ...statusConfig.statusProposta[index], ...dadosAtualizados };
+                } else {
+                    statusConfig.statusProposta.push(dadosAtualizados);
+                }
+            } else if (currentEditType === 'produtos') {
+                const index = statusConfig.produtos.findIndex(s => s.id == currentEditId);
+                if (index !== -1) {
+                    statusConfig.produtos[index] = { ...statusConfig.produtos[index], ...dadosAtualizados };
+                } else {
+                    statusConfig.produtos.push(dadosAtualizados);
+                }
+            }
+
+            // Atualizar interface
+            renderizarStatus('formulario');
+            renderizarProdutos();
+            renderizarStatus('proposta');
+            
+            crmLayout.showToast('Status salvo com sucesso!', 'success');
+            fecharModal();
+        }
+
+        function sincronizarProdutosSimulador() {
+            crmLayout.showToast('Sincronizando produtos com simulador...', 'info');
+            // Implementar sincronização
+        }
+
+        function salvarConfiguracoes() {
+            crmLayout.showToast('Configurações salvas com sucesso!', 'success');
+            // Implementar salvamento via API
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar configurações
+                await carregarConfiguracoes();
+                
+                // Adicionar event listeners para preview em tempo real
+                const nomeInput = document.getElementById('edit-nome');
+                if (nomeInput) {
+                    nomeInput.addEventListener('input', atualizarPreview);
+                }
+                
+                console.log('✅ Página de configuração inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                crmLayout.showToast('Erro ao carregar configurações', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
