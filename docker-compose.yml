@@ -5,7 +5,7 @@ services:
     build: .
     container_name: api-lunas
     ports:
-      - "3002:3002"
+      - "3002:3000"
     environment:
       - NODE_ENV=production
       - PORT=3002
