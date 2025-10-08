@@ -1471,6 +1471,350 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ====== STATUS CONFIG ROUTES ======
+app.get('/api/status-config', async (req, res) => {
+  try {
+    console.log('📋 [CONFIG] Carregando configurações de status...');
+    
+    // Verificar se arquivo de configuração existe
+    const configPath = path.join(__dirname, 'var', 'data', 'status-config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      console.log('⚠️ [CONFIG] Arquivo de configuração não encontrado, criando padrão...');
+      
+      // Criar configuração padrão
+      const defaultConfig = {
+        statusFormulario: [
+          {
+            id: "dados_pessoais",
+            nome: "Dados Pessoais",
+            descricao: "Etapa de coleta de dados pessoais",
+            cor: "#3B82F6",
+            editavel: false
+          },
+          {
+            id: "dados_bancarios",
+            nome: "Dados Bancários",
+            descricao: "Etapa de coleta de dados bancários",
+            cor: "#10B981",
+            editavel: false
+          },
+          {
+            id: "dados_beneficio",
+            nome: "Dados do Benefício",
+            descricao: "Etapa de coleta de dados do benefício",
+            cor: "#F59E0B",
+            editavel: false
+          },
+          {
+            id: "confirmacao",
+            nome: "Confirmação",
+            descricao: "Etapa de confirmação dos dados",
+            cor: "#8B5CF6",
+            editavel: false
+          }
+        ],
+        produtos: [
+          {
+            id: 1,
+            nome: "Empréstimo Consignado",
+            descricao: "Empréstimo com desconto em folha",
+            cor: "#3B82F6",
+            origem: "calculo",
+            simuladorId: "inss",
+            editavel: true
+          },
+          {
+            id: 2,
+            nome: "Portabilidade",
+            descricao: "Transferência de empréstimo entre bancos",
+            cor: "#10B981",
+            origem: "calculo",
+            simuladorId: "inss",
+            editavel: true
+          },
+          {
+            id: 3,
+            nome: "RMC",
+            descricao: "Refinanciamento de cartão de crédito",
+            cor: "#F59E0B",
+            origem: "manual",
+            editavel: true
+          },
+          {
+            id: 4,
+            nome: "RCC",
+            descricao: "Refinanciamento de cartão de crédito",
+            cor: "#8B5CF6",
+            origem: "manual",
+            editavel: true
+          }
+        ],
+        statusProposta: [
+          {
+            id: "digitando",
+            nome: "Digitando",
+            descricao: "Proposta sendo digitada",
+            cor: "#F59E0B",
+            editavel: true,
+            whatsapp: {
+              ativo: false,
+              template: "Olá {nome}, sua proposta está sendo digitada. Aguarde nosso retorno.",
+              prioridade: "normal",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          },
+          {
+            id: "cancelado",
+            nome: "Cancelado",
+            descricao: "Proposta cancelada",
+            cor: "#EF4444",
+            editavel: true,
+            whatsapp: {
+              ativo: false,
+              template: "Olá {nome}, sua proposta foi cancelada.",
+              prioridade: "normal",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          },
+          {
+            id: "aprovado",
+            nome: "Aprovado",
+            descricao: "Proposta aprovada",
+            cor: "#10B981",
+            editavel: true,
+            whatsapp: {
+              ativo: true,
+              template: "🎉 Parabéns {nome}! Sua proposta foi aprovada no valor de {valor}. Em breve você receberá mais informações sobre a liberação.",
+              prioridade: "alta",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          },
+          {
+            id: "em_analise",
+            nome: "Em Análise",
+            descricao: "Proposta em análise",
+            cor: "#3B82F6",
+            editavel: true,
+            whatsapp: {
+              ativo: false,
+              template: "Olá {nome}, sua proposta está em análise. Aguarde nosso retorno.",
+              prioridade: "normal",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          },
+          {
+            id: "ag_saldo_cip",
+            nome: "Aguardando Saldo CIP",
+            descricao: "Aguardando saldo no CIP",
+            cor: "#F59E0B",
+            editavel: true,
+            whatsapp: {
+              ativo: false,
+              template: "Olá {nome}, sua proposta está aguardando saldo no CIP.",
+              prioridade: "normal",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          },
+          {
+            id: "rejeitado",
+            nome: "Rejeitado",
+            descricao: "Proposta rejeitada",
+            cor: "#EF4444",
+            editavel: true,
+            whatsapp: {
+              ativo: true,
+              template: "Olá {nome}, infelizmente sua proposta não foi aprovada no momento. Nossa equipe entrará em contato para orientações sobre próximos passos.",
+              prioridade: "normal",
+              delay: 0,
+              variaveis: ["nome", "etapa", "valor", "banco", "produto"]
+            }
+          }
+        ]
+      };
+      
+      // Salvar configuração padrão
+      fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+      console.log('✅ [CONFIG] Configuração padrão criada');
+    }
+    
+    // Ler configuração
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    console.log(`✅ [CONFIG] Configuração carregada: ${config.statusProposta.length} status, ${config.produtos.length} produtos`);
+    
+    res.json(config);
+    
+  } catch (error) {
+    console.error('❌ [CONFIG] Erro ao carregar configurações:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao carregar configurações de status'
+    });
+  }
+});
+
+// Atualizar configuração de status
+app.put('/api/status-config', async (req, res) => {
+  try {
+    const { tipo, id, dados } = req.body;
+    console.log(`📝 [CONFIG] Atualizando ${tipo} ID: ${id}`);
+    
+    const configPath = path.join(__dirname, 'var', 'data', 'status-config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Configuração não encontrada'
+      });
+    }
+    
+    // Ler configuração atual
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    // Atualizar item
+    if (tipo === 'produto') {
+      const index = config.produtos.findIndex(p => p.id === id);
+      if (index !== -1) {
+        config.produtos[index] = { ...config.produtos[index], ...dados };
+      }
+    } else if (tipo === 'proposta') {
+      const index = config.statusProposta.findIndex(s => s.id === id);
+      if (index !== -1) {
+        config.statusProposta[index] = { ...config.statusProposta[index], ...dados };
+      }
+    } else if (tipo === 'formulario') {
+      const index = config.statusFormulario.findIndex(s => s.id === id);
+      if (index !== -1) {
+        config.statusFormulario[index] = { ...config.statusFormulario[index], ...dados };
+      }
+    }
+    
+    // Salvar configuração atualizada
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    
+    console.log(`✅ [CONFIG] ${tipo} ${id} atualizado com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Configuração atualizada com sucesso'
+    });
+    
+  } catch (error) {
+    console.error('❌ [CONFIG] Erro ao atualizar configuração:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao atualizar configuração'
+    });
+  }
+});
+
+// Criar nova configuração
+app.post('/api/status-config', async (req, res) => {
+  try {
+    const { tipo, dados } = req.body;
+    console.log(`➕ [CONFIG] Criando novo ${tipo}`);
+    
+    const configPath = path.join(__dirname, 'var', 'data', 'status-config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Configuração não encontrada'
+      });
+    }
+    
+    // Ler configuração atual
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    // Gerar novo ID
+    let novoId;
+    if (tipo === 'produto') {
+      novoId = Math.max(...config.produtos.map(p => p.id), 0) + 1;
+      config.produtos.push({ id: novoId, ...dados });
+    } else if (tipo === 'proposta') {
+      novoId = `status_${Date.now()}`;
+      config.statusProposta.push({ id: novoId, ...dados });
+    } else if (tipo === 'formulario') {
+      novoId = `form_${Date.now()}`;
+      config.statusFormulario.push({ id: novoId, ...dados });
+    }
+    
+    // Salvar configuração atualizada
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    
+    console.log(`✅ [CONFIG] Novo ${tipo} criado com ID: ${novoId}`);
+    
+    res.json({
+      success: true,
+      message: 'Configuração criada com sucesso',
+      id: novoId
+    });
+    
+  } catch (error) {
+    console.error('❌ [CONFIG] Erro ao criar configuração:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao criar configuração'
+    });
+  }
+});
+
+// Excluir configuração
+app.delete('/api/status-config', async (req, res) => {
+  try {
+    const { tipo, id } = req.body;
+    console.log(`🗑️ [CONFIG] Excluindo ${tipo} ID: ${id}`);
+    
+    const configPath = path.join(__dirname, 'var', 'data', 'status-config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Configuração não encontrada'
+      });
+    }
+    
+    // Ler configuração atual
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    // Remover item
+    if (tipo === 'produto') {
+      config.produtos = config.produtos.filter(p => p.id !== id);
+    } else if (tipo === 'proposta') {
+      config.statusProposta = config.statusProposta.filter(s => s.id !== id);
+    } else if (tipo === 'formulario') {
+      config.statusFormulario = config.statusFormulario.filter(s => s.id !== id);
+    }
+    
+    // Salvar configuração atualizada
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    
+    console.log(`✅ [CONFIG] ${tipo} ${id} excluído com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Configuração excluída com sucesso'
+    });
+    
+  } catch (error) {
+    console.error('❌ [CONFIG] Erro ao excluir configuração:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao excluir configuração'
+    });
+  }
+});
+
 // ================== INICIALIZAÇÃO ==================
 
 app.listen(PORT, '0.0.0.0', () => {
