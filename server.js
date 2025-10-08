@@ -150,7 +150,7 @@ app.post("/extrair", async (req, res) => {
 
 // Rota para simulador com injeção de dados
 app.get("/simulador", async (req, res) => {
-  const simuladorPath = path.join("/var/www/html", "inss", "simulador.html");
+  const simuladorPath = path.join(__dirname, "INSS", "simulador.html");
   if (!fs.existsSync(simuladorPath)) {
     return res.status(404).json({ error: "Simulador não encontrado" });
   }
@@ -199,7 +199,7 @@ app.get("/simulador", async (req, res) => {
 
 // Rota para simulador com ID específico (ex: /simulador/7537)
 app.get("/simulador/:id", async (req, res) => {
-  const simuladorPath = path.join("/var/www/html", "inss", "simulador.html");
+  const simuladorPath = path.join(__dirname, "INSS", "simulador.html");
   if (!fs.existsSync(simuladorPath)) {
     return res.status(404).json({ error: "Simulador não encontrado" });
   }
@@ -1825,3 +1825,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📋 INSS: http://localhost:${PORT}/inss`);
   console.log(`🤖 ChatGPT: http://localhost:${PORT}/api/chatgpt-kentro`);
 });
+
+// Diretório raiz (mesmo diretório onde está o server.js)
+const rootDir = path.resolve(__dirname, '..');
