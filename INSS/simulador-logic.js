@@ -1311,7 +1311,11 @@ async function carregarDados() {
         // Se há ID da Kentro, sincronizar dados
         if (kentroId) {
             console.log(`🔄 Sincronizando com Kentro ID: ${kentroId}`);
+            console.log(`🔍 Debug - kentroId type: ${typeof kentroId}`);
+            console.log(`🔍 Debug - kentroId value: "${kentroId}"`);
             await sincronizarComKentro(kentroId);
+        } else {
+            console.log('⚠️ Nenhum ID da Kentro encontrado para sincronização');
         }
         
         return;
