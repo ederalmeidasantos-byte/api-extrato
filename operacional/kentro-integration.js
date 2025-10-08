@@ -737,10 +737,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = KentroIntegration;
 }
 
-
-        return '';
-    }
-
     /**
      * Mapear código/nome do banco para nome completo
      */
