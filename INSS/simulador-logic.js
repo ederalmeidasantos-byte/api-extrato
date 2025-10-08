@@ -1257,7 +1257,21 @@ async function carregarDados() {
     
     // SEMPRE verificar ID da URL primeiro
     const urlParams = new URLSearchParams(window.location.search);
-    const extratoId = urlParams.get('extrato') || urlParams.get('id') || urlParams.get('extratoId');
+    const extratoParam = urlParams.get('extrato') || urlParams.get('id') || urlParams.get('extratoId');
+    
+    // Extrair ID da Kentro do parâmetro extrato (formato: timestamp-kentroId)
+    let extratoId = extratoParam;
+    let kentroId = null;
+    
+    if (extratoParam && extratoParam.includes('-')) {
+        const partes = extratoParam.split('-');
+        if (partes.length >= 2) {
+            extratoId = partes[0]; // timestamp
+            kentroId = partes[1];  // ID da Kentro
+            console.log(`🔍 ID da Kentro extraído: ${kentroId}`);
+            console.log(`🔍 Extrato ID: ${extratoId}`);
+        }
+    }
     
     // Verificar parâmetros de cliente
     const clienteParams = {
@@ -1296,6 +1310,13 @@ async function carregarDados() {
         console.log(`📋 Carregando simulação específica para ID: ${extratoId}`);
         // Carregar simulação específica via API
         await carregarSimulacaoPorId(extratoId);
+        
+        // Se há ID da Kentro, sincronizar dados
+        if (kentroId) {
+            console.log(`🔄 Sincronizando com Kentro ID: ${kentroId}`);
+            await sincronizarComKentro(kentroId);
+        }
+        
         return;
     }
     
@@ -3676,6 +3697,94 @@ function simularTodosContratos() {
     console.log('✅ Contratos re-renderizados após simulação');
     
     console.log('✅ Todos os contratos foram simulados automaticamente');
+}
+
+// Função para sincronizar com Kentro e atualizar dados do cliente
+async function sincronizarComKentro(kentroId) {
+    try {
+        console.log(`🔄 Iniciando sincronização com Kentro ID: ${kentroId}`);
+        
+        // Buscar dados da Kentro
+        const kentroResponse = await fetch(`/api/kentro/oportunidade/${kentroId}`);
+        const kentroData = await kentroResponse.json();
+        
+        if (!kentroData.success || !kentroData.oportunidade) {
+            console.warn('⚠️ Dados da Kentro não encontrados ou inválidos');
+            return;
+        }
+        
+        console.log('✅ Dados da Kentro obtidos:', kentroData.oportunidade);
+        
+        // Extrair dados pessoais da Kentro
+        const formsdata = kentroData.oportunidade.formsdata || {};
+        const dadosKentro = {
+            nome: kentroData.oportunidade.title || cliente.nome,
+            cpf: formsdata['98011220'] || cliente.cpf,
+            telefone: formsdata['98167d80'] || cliente.telefone,
+            email: formsdata['9e7f92b0'] || cliente.email,
+            nascimento: formsdata['0bfc6250'] || cliente.nascimento,
+            nomeMae: formsdata['917456f0'] || cliente.nomeMae,
+            endereco: {
+                cep: formsdata['3271f710'] || '',
+                logradouro: formsdata['25178280'] || '',
+                numero: formsdata['f6384400'] || '',
+                complemento: '',
+                bairro: formsdata['bairro'] || '',
+                cidade: formsdata['cidade'] || '',
+                uf: formsdata['uf'] || ''
+            }
+        };
+        
+        // Atualizar dados do cliente com informações da Kentro
+        console.log('📝 Atualizando dados do cliente com informações da Kentro...');
+        Object.assign(cliente, dadosKentro);
+        
+        // Atualizar interface
+        atualizarInterfaceCliente();
+        
+        // Salvar no sistema Lunas
+        if (window.clientManager) {
+            const clientId = window.clientManager.createOrUpdateClient({
+                ...cliente,
+                kentroId: kentroId,
+                sincronizado: true,
+                dataUltimaSync: new Date().toISOString()
+            });
+            
+            console.log(`✅ Cliente atualizado no sistema Lunas: ${clientId}`);
+        }
+        
+        console.log('✅ Sincronização com Kentro concluída!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar com Kentro:', error);
+    }
+}
+
+// Função para atualizar interface com dados do cliente
+function atualizarInterfaceCliente() {
+    // Atualizar campos na interface
+    const nomeField = document.querySelector('input[name="nome"]');
+    if (nomeField && cliente.nome) {
+        nomeField.value = cliente.nome;
+    }
+    
+    const cpfField = document.querySelector('input[name="cpf"]');
+    if (cpfField && cliente.cpf) {
+        cpfField.value = cliente.cpf;
+    }
+    
+    const telefoneField = document.querySelector('input[name="telefone"]');
+    if (telefoneField && cliente.telefone) {
+        telefoneField.value = cliente.telefone;
+    }
+    
+    const emailField = document.querySelector('input[name="email"]');
+    if (emailField && cliente.email) {
+        emailField.value = cliente.email;
+    }
+    
+    console.log('✅ Interface atualizada com dados da Kentro');
 }
 
 // Função para sincronizar dados Kentro + Extrato no sistema Lunas
