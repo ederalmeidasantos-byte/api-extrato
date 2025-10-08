@@ -1257,20 +1257,17 @@ async function carregarDados() {
     
     // SEMPRE verificar ID da URL primeiro
     const urlParams = new URLSearchParams(window.location.search);
-    const extratoParam = urlParams.get('extrato') || urlParams.get('id') || urlParams.get('extratoId');
+    const extratoId = urlParams.get('extrato') || urlParams.get('id') || urlParams.get('extratoId');
     
-    // Extrair ID da Kentro do parâmetro extrato (formato: timestamp-kentroId)
-    let extratoId = extratoParam;
-    let kentroId = null;
+    // Buscar ID da Kentro como parâmetro separado
+    const kentroId = urlParams.get('idoportunidade') || urlParams.get('kentroId');
     
-    if (extratoParam && extratoParam.includes('-')) {
-        const partes = extratoParam.split('-');
-        if (partes.length >= 2) {
-            extratoId = partes[0]; // timestamp
-            kentroId = partes[1];  // ID da Kentro
-            console.log(`🔍 ID da Kentro extraído: ${kentroId}`);
-            console.log(`🔍 Extrato ID: ${extratoId}`);
-        }
+    if (kentroId) {
+        console.log(`🔍 ID da Kentro (idoportunidade): ${kentroId}`);
+    }
+    
+    if (extratoId) {
+        console.log(`🔍 Extrato ID: ${extratoId}`);
     }
     
     // Verificar parâmetros de cliente
