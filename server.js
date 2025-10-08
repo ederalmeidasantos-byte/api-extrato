@@ -1009,7 +1009,7 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
     }
     
     // Buscar cliente real na Kentro
-    const kentroIntegration = require('./operacional/kentro-integration.js');
+             const kentroIntegration = require('./operacional/kentro-integration.cjs');
     const kentro = new kentroIntegration();
     
     let cliente = null;
@@ -1082,7 +1082,7 @@ app.get('/api/kentro/oportunidade/:id', async (req, res) => {
     console.log(`🔍 [KENTRO] Buscando oportunidade: ${id}`);
     
     // Buscar dados reais da Kentro usando o ID da oportunidade
-    const kentroIntegration = require('./operacional/kentro-integration.js');
+             const kentroIntegration = require('./operacional/kentro-integration.cjs');
     const kentro = new kentroIntegration();
     
     const oportunidade = await kentro.buscarOportunidadePorId(id);
