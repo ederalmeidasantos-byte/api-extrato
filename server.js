@@ -991,22 +991,62 @@ app.post('/api/sincronizar-dados-cliente', (req, res) => {
   }
 });
 
-// Endpoints Kentro (mock)
-app.post('/kentro/buscar-cliente', (req, res) => {
+// Endpoints Kentro (integração real)
+app.post('/kentro/buscar-cliente', async (req, res) => {
   try {
-    const { cpf } = req.body;
-    console.log(`🔍 [KENTRO] Buscando cliente: ${cpf}`);
+    const { cpf, email } = req.body;
+    console.log(`🔍 [KENTRO] Buscando cliente: CPF=${cpf}, Email=${email}`);
     
-    // Mock response
-        res.json({ 
-          success: true, 
-      cliente: {
-        cpf: cpf,
-        nome: 'Cliente Teste',
-        encontrado: false
-      }
-    });
+    // Usar email como identificador principal (conforme documentação Kentro)
+    const identificador = email || cpf;
+    console.log(`🔍 [KENTRO] Usando identificador: ${identificador}`);
+    
+    if (!identificador) {
+      return res.json({ 
+        success: false, 
+        error: 'CPF ou email é obrigatório'
+      });
+    }
+    
+    // Buscar cliente real na Kentro
+    const kentroIntegration = require('./operacional/kentro-integration.js');
+    const kentro = new kentroIntegration();
+    
+    let cliente = null;
+    
+    // Tentar buscar por email primeiro (recomendado pela Kentro)
+    if (email) {
+      cliente = await kentro.buscarPorEmail(email);
+    }
+    
+    // Se não encontrou por email, tentar por CPF
+    if (!cliente && cpf) {
+      cliente = await kentro.buscarPorCpf(cpf);
+    }
+    
+    if (cliente) {
+      console.log(`✅ [KENTRO] Cliente encontrado: ${cliente.nome}`);
+      res.json({ 
+        success: true, 
+        cliente: {
+          ...cliente,
+          encontrado: true
+        }
+      });
+    } else {
+      console.log(`⚠️ [KENTRO] Cliente não encontrado: ${identificador}`);
+      res.json({ 
+        success: true, 
+        cliente: {
+          cpf: cpf,
+          email: email,
+          nome: 'Cliente não encontrado',
+          encontrado: false
+        }
+      });
+    }
   } catch (error) {
+    console.error('❌ [KENTRO] Erro ao buscar cliente:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
