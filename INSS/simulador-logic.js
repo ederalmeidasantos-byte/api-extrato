@@ -2463,7 +2463,7 @@ async function abrirDigitar() {
         
         const clienteData = {
             nome: cliente.nome || '',
-            cpf: cliente.cpf || '',
+            cpf: cliente.cpf || window.cpfCache || localStorage.getItem('cpfCache') || '',
             nascimento: cliente.nascimento || '',
             telefone: cliente.telefone || '',
             email: cliente.email || '',
@@ -2672,7 +2672,10 @@ function abrirDigitarManual() {
     // Salvar dados da proposta no localStorage (modo antigo)
     const dadosProposta = {
         id: propostaId,
-        cliente: cliente,
+        cliente: {
+            ...cliente,
+            cpf: cliente.cpf || window.cpfCache || localStorage.getItem('cpfCache') || ''
+        },
         margens: margens,
         contratos: contratos.filter(c => c.aprovado && c.simulacao && c.simulacao.aprovado),
         timestamp: new Date().toISOString(),
