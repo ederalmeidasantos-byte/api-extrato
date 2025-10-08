@@ -3,12 +3,12 @@ version: '3.8'
 services:
   api-lunas:
     build: .
-    container_name: api-lunas
+    container_name: api-lunas-container
     ports:
       - "3002:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3002
+      - PORT=3000
       - GIT_REPO=https://github.com/seu-usuario/api-lunas.git
       - GIT_BRANCH=master
     volumes:
@@ -16,12 +16,6 @@ services:
       - ./.env:/app/.env
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api-lunas.rule=Host(`api.lunasdigital.com.br`)"
-      - "traefik.http.routers.api-lunas.tls=true"
-      - "traefik.http.routers.api-lunas.tls.certresolver=letsencrypt"
-      - "traefik.http.services.api-lunas.loadbalancer.server.port=3002"
     networks:
       - lunas-network
 

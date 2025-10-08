@@ -450,7 +450,8 @@ class ClientManager {
             });
             
             // Enviar para servidor com nova lógica
-            const response = await fetch('/api/salvar-cliente', {
+            const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://lunasdigital.com.br';
+            const response = await fetch(`${baseUrl}/api/salvar-cliente`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -732,7 +733,8 @@ class ClientManager {
             console.log(' Iniciando sincronização com servidor...');
             
             // Buscar clientes do servidor
-            const responseClientes = await fetch('/api/sincronizar-clientes');
+            const baseUrl = window.location.hostname === 'localhost' ? '' : 'https://lunasdigital.com.br';
+            const responseClientes = await fetch(`${baseUrl}/api/sincronizar-clientes`);
             const dataClientes = await responseClientes.json();
             
             if (!dataClientes.success) {
