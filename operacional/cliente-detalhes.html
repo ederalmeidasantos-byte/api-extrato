@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes do Cliente - CRM LUNAS</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CRM Layout CSS -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .page-content {
+            padding: 2rem;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .breadcrumb a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .client-header {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .client-main-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+        
+        .client-name {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+        
+        .client-cpf {
+            font-size: 1.125rem;
+            color: #6b7280;
+        }
+        
+        .client-status {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .client-status.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .client-status.inactive {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+        
+        .client-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .detail-section {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .info-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .info-value {
+            color: #111827;
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .propostas-list {
+            margin-top: 1rem;
+        }
+        
+        .proposta-item {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .proposta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposta-id {
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .proposta-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .proposta-status.aprovada {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .proposta-status.pendente {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .proposta-status.rejeitada {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .proposta-details {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #ef4444;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <img src="/operacional/assets/logo-lunas.png" alt="CRM LUNAS" />
+                    <span>CRM LUNAS</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-feather="menu"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h4>Principal</h4>
+                    <ul>
+                        <li>
+                            <a href="/" class="nav-link">
+                                <i data-feather="home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/clientes" class="nav-link">
+                                <i data-feather="users"></i>
+                                <span>Clientes</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/propostas" class="nav-link">
+                                <i data-feather="file-text"></i>
+                                <span>Propostas</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h4>Operacional</h4>
+                    <ul>
+                        <li>
+                            <a href="/configuracoes" class="nav-link">
+                                <i data-feather="settings"></i>
+                                <span>Configurações</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/relatorios" class="nav-link">
+                                <i data-feather="bar-chart-2"></i>
+                                <span>Relatórios</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- Breadcrumb -->
+                <div class="breadcrumb">
+                    <a href="/">Dashboard</a>
+                    <i data-feather="chevron-right"></i>
+                    <a href="/clientes">Clientes</a>
+                    <i data-feather="chevron-right"></i>
+                    <span>Detalhes</span>
+                </div>
+
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">Detalhes do Cliente</h1>
+                    <div>
+                        <button class="btn btn-secondary" onclick="window.history.back()">
+                            <i data-feather="arrow-left"></i>
+                            Voltar
+                        </button>
+                        <button class="btn btn-primary" onclick="editCliente()">
+                            <i data-feather="edit"></i>
+                            Editar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Client Details Container -->
+                <div id="clientDetailsContainer">
+                    <div class="loading">
+                        <i data-feather="loader"></i>
+                        <p>Carregando detalhes do cliente...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        class ClienteDetalhes {
+            constructor() {
+                this.clientId = this.getClientIdFromUrl();
+                this.cliente = null;
+                this.init();
+            }
+
+            getClientIdFromUrl() {
+                const path = window.location.pathname;
+                const match = path.match(/\/cliente\/(\d+)/);
+                return match ? match[1] : null;
+            }
+
+            async init() {
+                if (!this.clientId) {
+                    this.showError('ID do cliente não encontrado');
+                    return;
+                }
+
+                try {
+                    await this.loadCliente();
+                    this.renderCliente();
+                } catch (error) {
+                    console.error('Erro ao carregar cliente:', error);
+                    this.showError('Erro ao carregar detalhes do cliente');
+                }
+            }
+
+            async loadCliente() {
+                try {
+                    const response = await fetch(`/api/clientes/${this.clientId}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.cliente = data.cliente;
+                    } else {
+                        throw new Error(data.message || 'Cliente não encontrado');
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar cliente:', error);
+                    throw error;
+                }
+            }
+
+            renderCliente() {
+                if (!this.cliente) {
+                    this.showError('Cliente não encontrado');
+                    return;
+                }
+
+                const container = document.getElementById('clientDetailsContainer');
+                
+                container.innerHTML = `
+                    <!-- Client Header -->
+                    <div class="client-header">
+                        <div class="client-main-info">
+                            <div>
+                                <h1 class="client-name">${this.cliente.nome || 'Nome não informado'}</h1>
+                                <p class="client-cpf">CPF: ${this.formatCPF(this.cliente.cpf || '')}</p>
+                            </div>
+                            <div class="client-status ${this.cliente.status || 'inactive'}">
+                                ${this.cliente.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client Details Grid -->
+                    <div class="client-details">
+                        <!-- Dados Pessoais -->
+                        <div class="detail-section">
+                            <h3 class="section-title">
+                                <i data-feather="user"></i>
+                                Dados Pessoais
+                            </h3>
+                            <div class="info-item">
+                                <span class="info-label">Nome Completo:</span>
+                                <span class="info-value">${this.cliente.nome || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">CPF:</span>
+                                <span class="info-value">${this.formatCPF(this.cliente.cpf || '')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Data de Nascimento:</span>
+                                <span class="info-value">${this.formatDate(this.cliente.dataNascimento) || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Telefone:</span>
+                                <span class="info-value">${this.formatPhone(this.cliente.telefone) || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">${this.cliente.email || 'Não informado'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Endereço -->
+                        <div class="detail-section">
+                            <h3 class="section-title">
+                                <i data-feather="map-pin"></i>
+                                Endereço
+                            </h3>
+                            <div class="info-item">
+                                <span class="info-label">CEP:</span>
+                                <span class="info-value">${this.formatCEP(this.cliente.cep) || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Endereço:</span>
+                                <span class="info-value">${this.cliente.endereco || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Número:</span>
+                                <span class="info-value">${this.cliente.numero || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Bairro:</span>
+                                <span class="info-value">${this.cliente.bairro || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Cidade:</span>
+                                <span class="info-value">${this.cliente.cidade || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Estado:</span>
+                                <span class="info-value">${this.cliente.estado || 'Não informado'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Dados Bancários -->
+                        <div class="detail-section">
+                            <h3 class="section-title">
+                                <i data-feather="credit-card"></i>
+                                Dados Bancários
+                            </h3>
+                            <div class="info-item">
+                                <span class="info-label">Banco:</span>
+                                <span class="info-value">${this.cliente.banco || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Agência:</span>
+                                <span class="info-value">${this.cliente.agencia || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Conta:</span>
+                                <span class="info-value">${this.cliente.conta || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Tipo de Conta:</span>
+                                <span class="info-value">${this.cliente.tipoConta || 'Não informado'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Propostas -->
+                        <div class="detail-section">
+                            <h3 class="section-title">
+                                <i data-feather="file-text"></i>
+                                Propostas
+                            </h3>
+                            <div class="propostas-list" id="propostasList">
+                                ${this.renderPropostas()}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                feather.replace();
+            }
+
+            renderPropostas() {
+                if (!this.cliente.propostas || this.cliente.propostas.length === 0) {
+                    return '<p style="color: #6b7280; font-style: italic;">Nenhuma proposta encontrada</p>';
+                }
+
+                return this.cliente.propostas.map(proposta => `
+                    <div class="proposta-item">
+                        <div class="proposta-header">
+                            <span class="proposta-id">Proposta #${proposta.id || 'N/A'}</span>
+                            <span class="proposta-status ${proposta.status || 'pendente'}">
+                                ${this.getStatusText(proposta.status)}
+                            </span>
+                        </div>
+                        <div class="proposta-details">
+                            <div>Valor: ${this.formatCurrency(proposta.valor || 0)}</div>
+                            <div>Parcelas: ${proposta.parcelas || 'N/A'}</div>
+                            <div>Data: ${this.formatDate(proposta.dataCriacao)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            getStatusText(status) {
+                const statusMap = {
+                    'aprovada': 'Aprovada',
+                    'pendente': 'Pendente',
+                    'rejeitada': 'Rejeitada',
+                    'analise': 'Em Análise'
+                };
+                return statusMap[status] || 'Pendente';
+            }
+
+            formatCPF(cpf) {
+                if (!cpf) return 'Não informado';
+                return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            }
+
+            formatPhone(phone) {
+                if (!phone) return 'Não informado';
+                return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            }
+
+            formatCEP(cep) {
+                if (!cep) return 'Não informado';
+                return cep.replace(/(\d{5})(\d{3})/, '$1-$2');
+            }
+
+            formatDate(date) {
+                if (!date) return 'Não informado';
+                return new Date(date).toLocaleDateString('pt-BR');
+            }
+
+            formatCurrency(value) {
+                return new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                }).format(value);
+            }
+
+            showError(message) {
+                const container = document.getElementById('clientDetailsContainer');
+                container.innerHTML = `
+                    <div class="error">
+                        <i data-feather="alert-circle"></i>
+                        <h3>Erro</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+                feather.replace();
+            }
+        }
+
+        function editCliente() {
+            const clientId = window.location.pathname.match(/\/cliente\/(\d+)/)?.[1];
+            if (clientId) {
+                window.location.href = `/cliente/${clientId}/editar`;
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new ClienteDetalhes();
+        });
+    </script>
+</body>
+</html>

@@ -3,285 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Sistema Operacional Lunas</title>
+    <title>Dashboard - CRM LUNAS</title>
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
     
-    <!-- CRM Layout Styles -->
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CRM Layout CSS -->
     <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .dashboard-content {
+            padding: 2rem;
+        }
+        
+        .welcome-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .welcome-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .welcome-subtitle {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+        
+        .stat-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .stat-icon.primary {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .stat-icon.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .stat-icon.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .stat-icon.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-change {
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .stat-change.positive {
+            color: #10b981;
+        }
+        
+        .stat-change.negative {
+            color: #ef4444;
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .action-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .action-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+        }
+        
+        .action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .action-icon.primary {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .action-icon.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .action-icon.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .action-icon.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .action-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #111827;
+        }
+        
+        .action-description {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .recent-activity {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-size: 1.125rem;
+        }
+        
+        .activity-icon.primary {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .activity-icon.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .activity-icon.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-title {
+            font-weight: 500;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+        
+        .activity-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+    </style>
 </head>
 <body>
     <div class="crm-container">
         <!-- Sidebar -->
-        <aside class="sidebar">
-            <!-- Sidebar Header -->
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <a href="/operacional/" class="logo">
-                    <div class="logo-icon">
-                        <i data-feather="hexagon"></i>
-                    </div>
-                    <span class="logo-text">Lunas Digital</span>
+                <a href="/" class="logo">
+                    <img src="/operacional/assets/logo-lunas.png" alt="CRM LUNAS" />
+                    <span>CRM LUNAS</span>
                 </a>
-                <button class="sidebar-toggle">
-                    <i data-feather="chevron-left"></i>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-feather="menu"></i>
                 </button>
             </div>
-
-            <!-- Sidebar Navigation -->
+            
             <nav class="sidebar-nav">
-                <!-- Principal -->
                 <div class="nav-section">
-                    <h4 class="nav-section-title">Principal</h4>
-                    <a href="/operacional/" class="nav-item active" data-nav="dashboard">
-                        <div class="nav-item-content">
-                            <i data-feather="home" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Dashboard</span>
-                        </div>
-                    </a>
-                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
-                        <div class="nav-item-content">
-                            <i data-feather="activity" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Simulador</span>
-                        </div>
-                    </a>
+                    <h4>Principal</h4>
+                    <ul>
+                        <li>
+                            <a href="/" class="nav-link active">
+                                <i data-feather="home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/clientes" class="nav-link">
+                                <i data-feather="users"></i>
+                                <span>Clientes</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/propostas" class="nav-link">
+                                <i data-feather="file-text"></i>
+                                <span>Propostas</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
-
-                <!-- Clientes -->
+                
                 <div class="nav-section">
-                    <h4 class="nav-section-title">Clientes</h4>
-                    <a href="/operacional/clientes.html" class="nav-item" data-nav="clientes">
-                        <div class="nav-item-content">
-                            <i data-feather="users" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Clientes</span>
-                        </div>
-                    </a>
-                    <a href="/operacional/clientes/novo.html" class="nav-item" data-nav="novo-cliente">
-                        <div class="nav-item-content">
-                            <i data-feather="user-plus" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Novo Cliente</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Operacional -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Operacional</h4>
-                    <a href="/operacional/propostas.html" class="nav-item" data-nav="propostas">
-                        <div class="nav-item-content">
-                            <i data-feather="file-text" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Propostas</span>
-                        </div>
-                    </a>
-                    <a href="/operacional/digitacao.html" class="nav-item" data-nav="digitacao">
-                        <div class="nav-item-content">
-                            <i data-feather="edit-3" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Fila de Digitação</span>
-                            <span class="nav-badge" id="digitacao-badge">0</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Configurações -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Configurações</h4>
-                    <a href="/operacional/configuracoes-status-backup.html" class="nav-item" data-nav="config-status">
-                        <div class="nav-item-content">
-                            <i data-feather="settings" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Status & Produtos</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Integração -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Integração</h4>
-                    <a href="/operacional/kentro.html" class="nav-item" data-nav="kentro">
-                        <div class="nav-item-content">
-                            <i data-feather="link" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Kentro API</span>
-                        </div>
-                    </a>
+                    <h4>Operacional</h4>
+                    <ul>
+                        <li>
+                            <a href="/configuracoes" class="nav-link">
+                                <i data-feather="settings"></i>
+                                <span>Configurações</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/relatorios" class="nav-link">
+                                <i data-feather="bar-chart-2"></i>
+                                <span>Relatórios</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </nav>
-
-            <!-- Sidebar Footer -->
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <i data-feather="user"></i>
-                    </div>
-                    <div class="user-details">
-                        <div class="user-name">Operador</div>
-                        <div class="user-role">Sistema Lunas</div>
-                    </div>
-                </div>
-            </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Page Header -->
-            <div class="page-header">
-                <div class="breadcrumb">
-                    <a href="/operacional/">
-                        <i data-feather="home" style="width: 16px; height: 16px;"></i>
-                        Dashboard
+            <div class="dashboard-content">
+                <!-- Welcome Section -->
+                <div class="welcome-card">
+                    <h1 class="welcome-title">Bem-vindo ao CRM LUNAS</h1>
+                    <p class="welcome-subtitle">Gerencie seus clientes e propostas de forma eficiente</p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <h3 class="stat-title">Total de Clientes</h3>
+                            <div class="stat-icon primary">
+                                <i data-feather="users"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="totalClientes">-</div>
+                        <div class="stat-change positive" id="clientesHoje">
+                            <i data-feather="trending-up"></i>
+                            <span id="clientesHojeText">- hoje</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <h3 class="stat-title">Propostas Ativas</h3>
+                            <div class="stat-icon success">
+                                <i data-feather="file-text"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="propostasAtivas">-</div>
+                        <div class="stat-change positive">
+                            <i data-feather="trending-up"></i>
+                            <span id="totalPropostas">- total</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <h3 class="stat-title">Receita Total</h3>
+                            <div class="stat-icon warning">
+                                <i data-feather="dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="receitaTotal">-</div>
+                        <div class="stat-change positive">
+                            <i data-feather="trending-up"></i>
+                            <span>+12.5% vs mês anterior</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <h3 class="stat-title">Taxa de Conversão</h3>
+                            <div class="stat-icon danger">
+                                <i data-feather="target"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value" id="taxaConversao">-</div>
+                        <div class="stat-change positive">
+                            <i data-feather="trending-up"></i>
+                            <span>+2.5% vs mês anterior</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <a href="/clientes" class="action-card">
+                        <div class="action-icon primary">
+                            <i data-feather="users"></i>
+                        </div>
+                        <h3 class="action-title">Gerenciar Clientes</h3>
+                        <p class="action-description">Visualize, edite e gerencie todos os clientes</p>
+                    </a>
+
+                    <a href="/propostas" class="action-card">
+                        <div class="action-icon success">
+                            <i data-feather="file-text"></i>
+                        </div>
+                        <h3 class="action-title">Propostas</h3>
+                        <p class="action-description">Gerencie propostas e contratos</p>
+                    </a>
+
+                    <a href="/configuracoes" class="action-card">
+                        <div class="action-icon warning">
+                            <i data-feather="settings"></i>
+                        </div>
+                        <h3 class="action-title">Configurações</h3>
+                        <p class="action-description">Configure status e integrações</p>
+                    </a>
+
+                    <a href="/relatorios" class="action-card">
+                        <div class="action-icon danger">
+                            <i data-feather="bar-chart-2"></i>
+                        </div>
+                        <h3 class="action-title">Relatórios</h3>
+                        <p class="action-description">Visualize relatórios e analytics</p>
                     </a>
                 </div>
-                <div class="page-title">
-                    <i data-feather="home"></i>
-                    <h1>Dashboard</h1>
-                </div>
-                <p class="page-subtitle">Visão geral do sistema e métricas importantes</p>
-            </div>
 
-            <!-- Page Actions -->
-            <div class="page-actions">
-                <button class="btn btn-primary" onclick="atualizarDashboard()">
-                    <i data-feather="refresh-cw"></i>
-                    Atualizar
-                </button>
-                <button class="btn btn-secondary" onclick="exportarRelatorio()">
-                    <i data-feather="download"></i>
-                    Exportar Relatório
-                </button>
-            </div>
-
-            <!-- Métricas Principais -->
-            <div class="grid grid-cols-4 mb-6">
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Total de Clientes</p>
-                                <p class="text-2xl font-bold text-gray-900" id="total-clientes">-</p>
-                                <p class="text-sm text-green-600" id="clientes-crescimento">+0% este mês</p>
-                            </div>
-                            <div class="p-3 bg-blue-100 rounded-full">
-                                <i data-feather="users" class="text-blue-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Propostas Ativas</p>
-                                <p class="text-2xl font-bold text-gray-900" id="propostas-ativas">-</p>
-                                <p class="text-sm text-green-600" id="propostas-crescimento">+0% este mês</p>
-                            </div>
-                            <div class="p-3 bg-green-100 rounded-full">
-                                <i data-feather="file-text" class="text-green-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Em Digitação</p>
-                                <p class="text-2xl font-bold text-gray-900" id="em-digitacao">-</p>
-                                <p class="text-sm text-orange-600" id="digitacao-tempo">Tempo médio: -</p>
-                            </div>
-                            <div class="p-3 bg-orange-100 rounded-full">
-                                <i data-feather="edit-3" class="text-orange-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Valor Total</p>
-                                <p class="text-2xl font-bold text-gray-900" id="valor-total">-</p>
-                                <p class="text-sm text-green-600" id="valor-crescimento">+0% este mês</p>
-                            </div>
-                            <div class="p-3 bg-purple-100 rounded-full">
-                                <i data-feather="dollar-sign" class="text-purple-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gráficos e Tabelas -->
-            <div class="grid grid-cols-2 mb-6">
-                <!-- Gráfico de Status -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i data-feather="pie-chart"></i>
-                            Status das Propostas
-                        </h3>
-                    </div>
-                    <div class="card-content">
-                        <div id="grafico-status" style="height: 300px;">
-                            <div class="flex items-center justify-center h-full">
-                                <div class="loading loading-lg"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Atividades Recentes -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i data-feather="activity"></i>
-                            Atividades Recentes
-                        </h3>
-                    </div>
-                    <div class="card-content">
-                        <div id="atividades-recentes">
-                            <div class="flex items-center justify-center h-full">
-                                <div class="loading loading-lg"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Propostas Pendentes -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h2 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
                         <i data-feather="clock"></i>
-                        Propostas Pendentes
-                    </h3>
-                    <a href="/operacional/propostas.html" class="btn btn-secondary btn-sm">
-                        Ver Todas
-                        <i data-feather="arrow-right"></i>
-                    </a>
-                </div>
-                <div class="card-content">
-                    <div class="table-container">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Produto</th>
-                                    <th>Valor</th>
-                                    <th>Status</th>
-                                    <th>Data</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="propostas-pendentes">
-                                <tr>
-                                    <td colspan="6" class="text-center">
-                                        <div class="loading"></div>
-                                        <span class="ml-2">Carregando...</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        Atividade Recente
+                    </h2>
+                    <div id="recentActivity">
+                        <div class="activity-item">
+                            <div class="activity-icon primary">
+                                <i data-feather="user-plus"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Novo cliente cadastrado</div>
+                                <div class="activity-time">Há 2 minutos</div>
+                            </div>
+                        </div>
+
+                        <div class="activity-item">
+                            <div class="activity-icon success">
+                                <i data-feather="file-text"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Proposta aprovada</div>
+                                <div class="activity-time">Há 15 minutos</div>
+                            </div>
+                        </div>
+
+                        <div class="activity-item">
+                            <div class="activity-icon warning">
+                                <i data-feather="edit"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">Proposta editada</div>
+                                <div class="activity-time">Há 1 hora</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,150 +460,65 @@
     <!-- Scripts -->
     <script src="/operacional/assets/crm-layout.js"></script>
     <script>
-        // Variáveis globais
-        let dashboardData = {};
+        // Dashboard specific functionality
+        class Dashboard {
+            constructor() {
+                this.init();
+            }
 
-        // Carregar dados do dashboard
-        async function carregarDashboard() {
-            try {
-                console.log('📊 Carregando dados do dashboard...');
+            async init() {
+                try {
+                    await this.loadStats();
+                    this.setupEventListeners();
+                } catch (error) {
+                    console.error('Erro ao inicializar dashboard:', error);
+                }
+            }
+
+            async loadStats() {
+                try {
+                    const response = await fetch('/api/dashboard/stats');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.updateStats(data.stats);
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar estatísticas:', error);
+                }
+            }
+
+            updateStats(stats) {
+                document.getElementById('totalClientes').textContent = stats.totalClientes || 0;
+                document.getElementById('clientesHojeText').textContent = `${stats.clientesHoje || 0} hoje`;
+                document.getElementById('propostasAtivas').textContent = stats.propostasAtivas || 0;
+                document.getElementById('totalPropostas').textContent = `${stats.totalPropostas || 0} total`;
+                document.getElementById('receitaTotal').textContent = this.formatCurrency(stats.receitaTotal || 0);
                 
-                // Simular carregamento de dados
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Dados simulados (substituir por API real)
-                dashboardData = {
-                    totalClientes: 1247,
-                    clientesCrescimento: 12.5,
-                    propostasAtivas: 856,
-                    propostasCrescimento: 8.3,
-                    emDigitacao: 42,
-                    digitacaoTempo: '2h 15min',
-                    valorTotal: 12500000,
-                    valorCrescimento: 15.2,
-                    propostasPendentes: [
-                        {
-                            id: 1,
-                            cliente: 'João Silva',
-                            produto: 'Empréstimo Consignado',
-                            valor: 15000,
-                            status: 'Pendente',
-                            data: '2025-10-08',
-                            statusCor: '#f59e0b'
-                        },
-                        {
-                            id: 2,
-                            cliente: 'Maria Santos',
-                            produto: 'Portabilidade',
-                            valor: 22500,
-                            status: 'Em Análise',
-                            data: '2025-10-07',
-                            statusCor: '#3b82f6'
-                        },
-                        {
-                            id: 3,
-                            cliente: 'Pedro Costa',
-                            produto: 'RMC',
-                            valor: 18750,
-                            status: 'Aguardando Assinatura',
-                            data: '2025-10-06',
-                            statusCor: '#8b5cf6'
-                        }
-                    ]
-                };
-                
-                // Atualizar interface
-                atualizarInterface();
-                
-                console.log('✅ Dashboard carregado com sucesso');
-                
-            } catch (error) {
-                console.error('❌ Erro ao carregar dashboard:', error);
-                crmLayout.showToast('Erro ao carregar dados do dashboard', 'error');
+                // Calcular taxa de conversão
+                const taxaConversao = stats.totalClientes > 0 ? 
+                    ((stats.propostasAtivas / stats.totalClientes) * 100).toFixed(1) : 0;
+                document.getElementById('taxaConversao').textContent = `${taxaConversao}%`;
+            }
+
+            formatCurrency(value) {
+                return new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                }).format(value);
+            }
+
+            setupEventListeners() {
+                // Auto refresh stats every 5 minutes
+                setInterval(() => {
+                    this.loadStats();
+                }, 5 * 60 * 1000);
             }
         }
 
-        // Atualizar interface com os dados
-        function atualizarInterface() {
-            // Métricas principais
-            document.getElementById('total-clientes').textContent = dashboardData.totalClientes.toLocaleString();
-            document.getElementById('clientes-crescimento').textContent = `+${dashboardData.clientesCrescimento}% este mês`;
-            
-            document.getElementById('propostas-ativas').textContent = dashboardData.propostasAtivas.toLocaleString();
-            document.getElementById('propostas-crescimento').textContent = `+${dashboardData.propostasCrescimento}% este mês`;
-            
-            document.getElementById('em-digitacao').textContent = dashboardData.emDigitacao;
-            document.getElementById('digitacao-tempo').textContent = `Tempo médio: ${dashboardData.digitacaoTempo}`;
-            
-            document.getElementById('valor-total').textContent = crmLayout.formatCurrency(dashboardData.valorTotal);
-            document.getElementById('valor-crescimento').textContent = `+${dashboardData.valorCrescimento}% este mês`;
-            
-            // Propostas pendentes
-            const tbody = document.getElementById('propostas-pendentes');
-            tbody.innerHTML = dashboardData.propostasPendentes.map(proposta => `
-                <tr>
-                    <td><strong>${proposta.cliente}</strong></td>
-                    <td>${proposta.produto}</td>
-                    <td>${crmLayout.formatCurrency(proposta.valor)}</td>
-                    <td>
-                        <span class="badge" style="background-color: ${proposta.statusCor}; color: white;">
-                            ${proposta.status}
-                        </span>
-                    </td>
-                    <td>${crmLayout.formatDate(proposta.data, { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick="verProposta(${proposta.id})">
-                            <i data-feather="eye"></i>
-                            Ver
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-            
-            // Atualizar ícones
-            feather.replace();
-        }
-
-        // Atualizar dashboard
-        async function atualizarDashboard() {
-            crmLayout.showToast('Atualizando dashboard...', 'info');
-            await carregarDashboard();
-            crmLayout.showToast('Dashboard atualizado!', 'success');
-        }
-
-        // Exportar relatório
-        function exportarRelatorio() {
-            crmLayout.showToast('Funcionalidade em desenvolvimento', 'info');
-        }
-
-        // Ver proposta
-        function verProposta(id) {
-            window.location.href = `/operacional/propostas/detalhes.html?id=${id}`;
-        }
-
-        // Atualizar badge de digitação
-        function atualizarBadgeDigitacao() {
-            crmLayout.updateBadge('digitacao', dashboardData.emDigitacao || 0);
-        }
-
-        // Inicializar dashboard
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Inicializar Feather Icons
-                feather.replace();
-                
-                // Carregar dados
-                await carregarDashboard();
-                
-                // Atualizar badge
-                atualizarBadgeDigitacao();
-                
-                console.log('✅ Dashboard inicializado');
-                
-            } catch (error) {
-                console.error('❌ Erro ao inicializar dashboard:', error);
-                crmLayout.showToast('Erro ao inicializar dashboard', 'error');
-            }
+        // Initialize dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new Dashboard();
         });
     </script>
 </body>

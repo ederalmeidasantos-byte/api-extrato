@@ -22,11 +22,14 @@ class CRMLayout {
         }
     }
 
-    setup() {
+    async setup() {
         console.log('🎨 Inicializando CRM Layout...');
         
         // Identificar página atual
         this.currentPage = this.getCurrentPage();
+        
+        // Carregar template do menu/side bar centralizado
+        await this.loadSidebarTemplate();
         
         // Configurar sidebar
         this.setupSidebar();
@@ -44,6 +47,35 @@ class CRMLayout {
         this.setupNotifications();
         
         console.log('✅ CRM Layout inicializado');
+    }
+
+    async loadSidebarTemplate() {
+        try {
+            const container = document.querySelector('.sidebar');
+            if (!container) {
+                console.warn('⚠️ Sidebar não encontrada para injeção do menu');
+                return;
+            }
+            // Evitar recarregar se já existir conteúdo básico
+            if (container.dataset.loaded === 'true') {
+                return;
+            }
+            const version = (window.CRM_MENU_VERSION || 'v1');
+            const resp = await fetch(`/operacional/assets/menu.html?v=${version}`, { cache: 'no-store' });
+            if (!resp.ok) {
+                console.warn('⚠️ Falha ao carregar menu.html:', resp.status);
+                return;
+            }
+            const html = await resp.text();
+            container.innerHTML = html;
+            container.dataset.loaded = 'true';
+            // Ativar feather icons após injeção
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao injetar menu centralizado:', e.message);
+        }
     }
 
     getCurrentPage() {

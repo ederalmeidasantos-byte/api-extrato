@@ -4,740 +4,642 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fila de Digitação - Sistema Operacional Lunas</title>
-    
-    <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
-    
-    <!-- CRM Layout Styles -->
     <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #1e293b;
+            color: white;
+            padding: 1rem;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            background: #f8fafc;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 28px;
+        }
+        
+        .btn-maximize {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-maximize:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .btn-maximize.maximized {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        
+        .layout {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .layout.maximized .cliente-panel {
+            display: none;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 700;
+            color: #374151;
+        }
+        
+        .panel-body {
+            padding: 1.5rem;
+        }
+        
+        /* Cliente */
+        .cliente-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f0f9ff;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .cliente-info {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .cliente-info strong {
+            font-size: 18px;
+            color: #0c4a6e;
+            font-weight: 700;
+        }
+        
+        .cliente-info span {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .cliente-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .btn-digitar {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-digitar:hover {
+            background: #2563eb;
+        }
+        
+        /* Propostas */
+        .propostas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .propostas-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .btn-action {
+            background: white;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-action:hover {
+            background: #f9fafb;
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        
+        .proposta-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+            border-left: 4px solid #10b981;
+        }
+        
+        .proposta-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+        
+        .proposta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .proposta-titulo {
+            font-weight: 700;
+            color: #1f2937;
+            font-size: 16px;
+        }
+        
+        .proposta-status {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .proposta-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-proposta {
+            background: white;
+            border: 1px solid #d1d5db;
+            color: #6b7280;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        
+        .btn-proposta:hover {
+            background: #f9fafb;
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        
+        .btn-proposta.danger:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        
+        .proposta-metrics {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+        }
+        
+        .metrics {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .metric-value {
+            font-size: 14px;
+            color: #1f2937;
+            font-weight: 700;
+        }
+        
+        .proposta-meta {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 1024px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            .layout.maximized .cliente-panel {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="crm-container">
-        <!-- Sidebar -->
+    <div class="container">
         <aside class="sidebar">
-            <!-- Sidebar Header -->
-            <div class="sidebar-header">
-                <a href="/operacional/" class="logo">
-                    <div class="logo-icon">
-                        <i data-feather="hexagon"></i>
-                    </div>
-                    <span class="logo-text">Lunas Digital</span>
+            <div style="margin-bottom: 2rem;">
+                <h2 style="margin: 0; color: white;">Lunas Digital</h2>
+            </div>
+            <nav>
+                <a href="/operacional/" style="display: block; color: #94a3b8; text-decoration: none; padding: 0.75rem 0; border-bottom: 1px solid #334155;">
+                    <i data-feather="home" style="width: 16px; height: 16px; margin-right: 0.75rem;"></i> Dashboard
                 </a>
-                <button class="sidebar-toggle">
-                    <i data-feather="chevron-left"></i>
-                </button>
-            </div>
-
-            <!-- Sidebar Navigation -->
-            <nav class="sidebar-nav">
-                <!-- Principal -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Principal</h4>
-                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
-                        <div class="nav-item-content">
-                            <i data-feather="home" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Dashboard</span>
-                        </div>
-                    </a>
-                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
-                        <div class="nav-item-content">
-                            <i data-feather="activity" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Simulador</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Clientes -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Clientes</h4>
-                    <a href="/operacional/clientes.html" class="nav-item" data-nav="clientes">
-                        <div class="nav-item-content">
-                            <i data-feather="users" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Clientes</span>
-                        </div>
-                    </a>
-                    <a href="/operacional/clientes/novo.html" class="nav-item" data-nav="novo-cliente">
-                        <div class="nav-item-content">
-                            <i data-feather="user-plus" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Novo Cliente</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Operacional -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Operacional</h4>
-                    <a href="/operacional/propostas.html" class="nav-item" data-nav="propostas">
-                        <div class="nav-item-content">
-                            <i data-feather="file-text" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Propostas</span>
-                        </div>
-                    </a>
-                    <a href="/operacional/digitacao.html" class="nav-item active" data-nav="digitacao">
-                        <div class="nav-item-content">
-                            <i data-feather="edit-3" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Fila de Digitação</span>
-                            <span class="nav-badge" id="digitacao-badge">0</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Configurações -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Configurações</h4>
-                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="config-status">
-                        <div class="nav-item-content">
-                            <i data-feather="settings" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Status & Produtos</span>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Integração -->
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Integração</h4>
-                    <a href="/operacional/kentro.html" class="nav-item" data-nav="kentro">
-                        <div class="nav-item-content">
-                            <i data-feather="link" class="nav-item-icon"></i>
-                            <span class="nav-item-text">Kentro API</span>
-                        </div>
-                    </a>
-                </div>
+                <a href="/operacional/clientes.html" style="display: block; color: #94a3b8; text-decoration: none; padding: 0.75rem 0; border-bottom: 1px solid #334155;">
+                    <i data-feather="users" style="width: 16px; height: 16px; margin-right: 0.75rem;"></i> Clientes
+                </a>
+                <a href="/operacional/digitacao.html" style="display: block; color: white; text-decoration: none; padding: 0.75rem 0; border-bottom: 1px solid #334155; font-weight: 600;">
+                    <i data-feather="edit-3" style="width: 16px; height: 16px; margin-right: 0.75rem;"></i> Fila de Digitação
+                </a>
+                <a href="/operacional/configuracoes-status.html" style="display: block; color: #94a3b8; text-decoration: none; padding: 0.75rem 0; border-bottom: 1px solid #334155;">
+                    <i data-feather="settings" style="width: 16px; height: 16px; margin-right: 0.75rem;"></i> Configurações
+                </a>
             </nav>
-
-            <!-- Sidebar Footer -->
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <i data-feather="user"></i>
-                    </div>
-                    <div class="user-details">
-                        <div class="user-name">Operador</div>
-                        <div class="user-role">Sistema Lunas</div>
-                    </div>
-                </div>
-            </div>
         </aside>
-
-        <!-- Main Content -->
+        
         <main class="main-content">
-            <!-- Page Header -->
-            <div class="page-header">
-                <div class="breadcrumb">
-                    <a href="/operacional/">
-                        <i data-feather="home" style="width: 16px; height: 16px;"></i>
-                        Dashboard
-                    </a>
-                    <span>></span>
-                    <span>Fila de Digitação</span>
-                </div>
-                <div class="page-title">
-                    <i data-feather="edit-3"></i>
-                    <h1>Fila de Digitação</h1>
-                </div>
-                <p class="page-subtitle">Gerencie a fila de propostas para digitação</p>
+            <div class="header">
+                <h1><i data-feather="edit-3"></i> Fila de Digitação</h1>
             </div>
-
-            <!-- Page Actions -->
-            <div class="page-actions">
-                <button class="btn btn-primary" onclick="pegarProxima()">
-                    <i data-feather="play"></i>
-                    Pegar Próxima
-                </button>
-                <button class="btn btn-secondary" onclick="atualizarFila()">
-                    <i data-feather="refresh-cw"></i>
-                    Atualizar Fila
-                </button>
-                <button class="btn btn-secondary" onclick="exportarFila()">
-                    <i data-feather="download"></i>
-                    Exportar
-                </button>
-            </div>
-
-            <!-- Estatísticas da Fila -->
-            <div class="grid grid-cols-4 mb-6">
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Total na Fila</p>
-                                <p class="text-2xl font-bold text-gray-900" id="total-fila">-</p>
-                                <p class="text-sm text-blue-600" id="fila-crescimento">+0 hoje</p>
+            
+            <div class="layout" id="layout">
+                <!-- Cliente -->
+                <div class="panel cliente-panel">
+                    <div class="panel-body">
+                        <div class="cliente-row">
+                            <div class="cliente-info">
+                                <strong id="cliNome">Selecione um cliente</strong>
+                                <span id="cliCPF">CPF —</span>
+                                <span id="cliTelefone">—</span>
                             </div>
-                            <div class="p-3 bg-blue-100 rounded-full">
-                                <i data-feather="clock" class="text-blue-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Em Digitação</p>
-                                <p class="text-2xl font-bold text-gray-900" id="em-digitacao">-</p>
-                                <p class="text-sm text-orange-600" id="digitacao-tempo">Tempo médio: -</p>
-                            </div>
-                            <div class="p-3 bg-orange-100 rounded-full">
-                                <i data-feather="edit-3" class="text-orange-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Finalizadas Hoje</p>
-                                <p class="text-2xl font-bold text-gray-900" id="finalizadas-hoje">-</p>
-                                <p class="text-sm text-green-600" id="finalizadas-produtividade">Produtividade: -</p>
-                            </div>
-                            <div class="p-3 bg-green-100 rounded-full">
-                                <i data-feather="check-circle" class="text-green-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-content">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 mb-1">Pendentes</p>
-                                <p class="text-2xl font-bold text-gray-900" id="pendentes">-</p>
-                                <p class="text-sm text-red-600" id="pendentes-tempo">Tempo médio: -</p>
-                            </div>
-                            <div class="p-3 bg-red-100 rounded-full">
-                                <i data-feather="alert-circle" class="text-red-600" style="width: 24px; height: 24px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filtros -->
-            <div class="card mb-6">
-                <div class="card-content">
-                    <div class="grid grid-cols-4 gap-4">
-                        <div class="form-group">
-                            <label class="form-label">Status</label>
-                            <select id="filtro-status" class="form-select">
-                                <option value="">Todos os status</option>
-                                <option value="pendente">Pendente</option>
-                                <option value="digitando">Em Digitação</option>
-                                <option value="revisao">Em Revisão</option>
-                                <option value="finalizada">Finalizada</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Prioridade</label>
-                            <select id="filtro-prioridade" class="form-select">
-                                <option value="">Todas as prioridades</option>
-                                <option value="alta">Alta</option>
-                                <option value="normal">Normal</option>
-                                <option value="baixa">Baixa</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Data de Entrada</label>
-                            <input type="date" id="filtro-data" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="flex gap-2">
-                                <button class="btn btn-primary" onclick="aplicarFiltros()">
-                                    <i data-feather="search"></i>
-                                    Filtrar
+                            <div class="cliente-actions">
+                                <button class="btn-digitar" id="btnDigitar" disabled>
+                                    <i data-feather="type"></i> Digitar
                                 </button>
-                                <button class="btn btn-secondary" onclick="limparFiltros()">
-                                    <i data-feather="x"></i>
-                                    Limpar
+                                <button class="btn-maximize" id="btnMaximize">
+                                    <i data-feather="maximize"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="cliente-selector">
+                            <select id="clienteSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; background: white; margin-top: 1rem;">
+                                <option value="">Selecionar cliente...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Propostas -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="propostas-header">
+                            <span>Propostas</span>
+                            <div class="propostas-actions">
+                                <button class="btn-action" id="btnAtualizar">
+                                    <i data-feather="refresh-cw"></i> Atualizar
+                                </button>
+                                <button class="btn-action" id="btnNova">
+                                    <i data-feather="plus"></i> Nova
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Lista da Fila -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i data-feather="list"></i>
-                        Fila de Digitação
-                        <span class="badge badge-info" id="total-fila-badge">0</span>
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <button class="btn btn-secondary btn-sm" onclick="ordenarPorPrioridade()">
-                            <i data-feather="arrow-up"></i>
-                            Ordenar por Prioridade
-                        </button>
-                        <button class="btn btn-secondary btn-sm" onclick="ordenarPorData()">
-                            <i data-feather="calendar"></i>
-                            Ordenar por Data
-                        </button>
-                    </div>
-                </div>
-                <div class="card-content">
-                    <div class="table-container">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Prioridade</th>
-                                    <th>Cliente</th>
-                                    <th>Produto</th>
-                                    <th>Valor</th>
-                                    <th>Status</th>
-                                    <th>Entrada</th>
-                                    <th>Tempo</th>
-                                    <th>Operador</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lista-fila">
-                                <tr>
-                                    <td colspan="9" class="text-center">
-                                        <div class="loading"></div>
-                                        <span class="ml-2">Carregando fila...</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="panel-body">
+                        <div id="listaPropostas">
+                            <!-- Propostas serão carregadas aqui -->
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Modal de Digitação -->
-    <div id="modal-digitacao" class="modal">
-        <div class="modal-content" style="max-width: 1200px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title">Digitação de Proposta</h3>
-                <button class="modal-close" onclick="fecharModalDigitacao()">
-                    <i data-feather="x"></i>
-                </button>
-            </div>
-            <div class="modal-body" id="modal-digitacao-content">
-                <!-- Conteúdo será carregado dinamicamente -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="/operacional/assets/crm-layout.js"></script>
     <script>
-        // Variáveis globais
-        let fila = [];
-        let filaFiltrada = [];
-        let propostaAtual = null;
+        // Dados reais
+        let clientes = [];
+        let propostas = [];
+        let clienteAtual = null;
+        let propostasCliente = [];
 
-        // Carregar fila de digitação
-        async function carregarFila() {
+        function formatCurrency(value) {
+            if (typeof value === 'string') {
+                value = parseFloat(value.replace(/[^\d,.-]/g, '').replace(',', '.'));
+            }
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value || 0);
+        }
+
+        function formatCPF(cpf) {
+            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+
+        function formatPhone(phone) {
+            return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+        }
+
+        async function carregarClientes() {
             try {
-                console.log('📝 Carregando fila de digitação...');
-                
-                // Simular carregamento
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Dados simulados (substituir por API real)
-                fila = [
+                const response = await fetch('/api/clientes');
+                if (!response.ok) throw new Error('Erro ao carregar clientes');
+                clientes = await response.json();
+                console.log('Clientes carregados:', clientes.length);
+            } catch (error) {
+                console.error('Erro ao carregar clientes:', error);
+                // Fallback para dados mock
+                clientes = [
                     {
-                        id: 1,
-                        cliente: 'João Silva',
-                        cpf: '12345678901',
-                        produto: 'Empréstimo Consignado',
-                        valor: 15000,
-                        status: 'pendente',
-                        prioridade: 'alta',
-                        entrada: '2025-10-08T10:30:00',
-                        tempo: '2h 15min',
-                        operador: null,
-                        dados: {
-                            nome: 'João Silva',
-                            cpf: '12345678901',
-                            email: 'joao.silva@email.com',
-                            telefone: '11999999999',
-                            nascimento: '1985-05-15',
-                            endereco: 'Rua das Flores, 123',
-                            cidade: 'São Paulo',
-                            estado: 'SP',
-                            cep: '01234-567'
-                        }
-                    },
-                    {
-                        id: 2,
-                        cliente: 'Maria Santos',
-                        cpf: '98765432100',
-                        produto: 'Portabilidade',
-                        valor: 22500,
-                        status: 'digitando',
-                        prioridade: 'normal',
-                        entrada: '2025-10-08T09:15:00',
-                        tempo: '3h 45min',
-                        operador: 'Operador 1',
-                        dados: {
-                            nome: 'Maria Santos',
-                            cpf: '98765432100',
-                            email: 'maria.santos@email.com',
-                            telefone: '11888888888',
-                            nascimento: '1990-08-22',
-                            endereco: 'Av. Paulista, 456',
-                            cidade: 'São Paulo',
-                            estado: 'SP',
-                            cep: '01310-100'
-                        }
-                    },
-                    {
-                        id: 3,
-                        cliente: 'Pedro Costa',
-                        cpf: '11122233344',
-                        produto: 'RMC',
-                        valor: 18750,
-                        status: 'revisao',
-                        prioridade: 'baixa',
-                        entrada: '2025-10-07T14:20:00',
-                        tempo: '1h 30min',
-                        operador: 'Operador 2',
-                        dados: {
-                            nome: 'Pedro Costa',
-                            cpf: '11122233344',
-                            email: 'pedro.costa@email.com',
-                            telefone: '11777777777',
-                            nascimento: '1988-12-10',
-                            endereco: 'Rua Augusta, 789',
-                            cidade: 'São Paulo',
-                            estado: 'SP',
-                            cep: '01305-000'
+                        id: "1",
+                        dadosCompletos: {
+                            nome: "MARIA SILVA SANTOS",
+                            cpf: "12345678901",
+                            telefone: "11999887766"
                         }
                     }
                 ];
-                
-                filaFiltrada = [...fila];
-                atualizarLista();
-                atualizarEstatisticas();
-                
-                console.log('✅ Fila carregada:', fila.length);
-                
-            } catch (error) {
-                console.error('❌ Erro ao carregar fila:', error);
-                crmLayout.showToast('Erro ao carregar fila de digitação', 'error');
             }
         }
 
-        // Atualizar lista da fila
-        function atualizarLista() {
-            const tbody = document.getElementById('lista-fila');
-            
-            if (filaFiltrada.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="text-center text-gray-500">
-                            <i data-feather="inbox" style="width: 48px; height: 48px; margin: 0 auto 1rem; display: block;"></i>
-                            <p>Nenhuma proposta na fila</p>
-                        </td>
-                    </tr>
-                `;
-            } else {
-                tbody.innerHTML = filaFiltrada.map(item => `
-                    <tr>
-                        <td>
-                            <span class="badge ${item.prioridade === 'alta' ? 'badge-error' : item.prioridade === 'normal' ? 'badge-warning' : 'badge-info'}">
-                                ${item.prioridade.charAt(0).toUpperCase() + item.prioridade.slice(1)}
-                            </span>
-                        </td>
-                        <td>
-                            <div>
-                                <div class="font-semibold">${item.cliente}</div>
-                                <div class="text-sm text-gray-500">${crmLayout.formatCPF(item.cpf)}</div>
-                            </div>
-                        </td>
-                        <td>${item.produto}</td>
-                        <td>${crmLayout.formatCurrency(item.valor)}</td>
-                        <td>
-                            <span class="badge ${item.status === 'pendente' ? 'badge-warning' : item.status === 'digitando' ? 'badge-info' : item.status === 'revisao' ? 'badge-warning' : 'badge-success'}">
-                                ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                            </span>
-                        </td>
-                        <td>${crmLayout.formatDate(item.entrada, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td>${item.tempo}</td>
-                        <td>${item.operador || '-'}</td>
-                        <td>
-                            <div class="flex gap-1">
-                                ${item.status === 'pendente' ? `
-                                    <button class="btn btn-primary btn-sm" onclick="iniciarDigitacao(${item.id})" title="Iniciar Digitação">
-                                        <i data-feather="play"></i>
-                                    </button>
-                                ` : item.status === 'digitando' ? `
-                                    <button class="btn btn-warning btn-sm" onclick="continuarDigitacao(${item.id})" title="Continuar Digitação">
-                                        <i data-feather="edit"></i>
-                                    </button>
-                                    <button class="btn btn-success btn-sm" onclick="finalizarDigitacao(${item.id})" title="Finalizar">
-                                        <i data-feather="check"></i>
-                                    </button>
-                                ` : `
-                                    <button class="btn btn-secondary btn-sm" onclick="verProposta(${item.id})" title="Ver Detalhes">
-                                        <i data-feather="eye"></i>
-                                    </button>
-                                `}
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-            
-            // Atualizar totais
-            document.getElementById('total-fila-badge').textContent = filaFiltrada.length;
-            
-            // Atualizar ícones
-            feather.replace();
-        }
-
-        // Atualizar estatísticas
-        function atualizarEstatisticas() {
-            const totalFila = fila.length;
-            const emDigitacao = fila.filter(item => item.status === 'digitando').length;
-            const finalizadasHoje = fila.filter(item => item.status === 'finalizada').length;
-            const pendentes = fila.filter(item => item.status === 'pendente').length;
-            
-            document.getElementById('total-fila').textContent = totalFila;
-            document.getElementById('fila-crescimento').textContent = `+${Math.floor(Math.random() * 10)} hoje`;
-            
-            document.getElementById('em-digitacao').textContent = emDigitacao;
-            document.getElementById('digitacao-tempo').textContent = 'Tempo médio: 2h 30min';
-            
-            document.getElementById('finalizadas-hoje').textContent = finalizadasHoje;
-            document.getElementById('finalizadas-produtividade').textContent = 'Produtividade: 85%';
-            
-            document.getElementById('pendentes').textContent = pendentes;
-            document.getElementById('pendentes-tempo').textContent = 'Tempo médio: 1h 45min';
-            
-            // Atualizar badge da sidebar
-            crmLayout.updateBadge('digitacao', emDigitacao);
-        }
-
-        // Aplicar filtros
-        function aplicarFiltros() {
-            const status = document.getElementById('filtro-status').value;
-            const prioridade = document.getElementById('filtro-prioridade').value;
-            const data = document.getElementById('filtro-data').value;
-            
-            filaFiltrada = fila.filter(item => {
-                const matchStatus = !status || item.status === status;
-                const matchPrioridade = !prioridade || item.prioridade === prioridade;
-                const matchData = !data || item.entrada.startsWith(data);
-                
-                return matchStatus && matchPrioridade && matchData;
-            });
-            
-            atualizarLista();
-        }
-
-        // Limpar filtros
-        function limparFiltros() {
-            document.getElementById('filtro-status').value = '';
-            document.getElementById('filtro-prioridade').value = '';
-            document.getElementById('filtro-data').value = '';
-            
-            filaFiltrada = [...fila];
-            atualizarLista();
-        }
-
-        // Ações da fila
-        function pegarProxima() {
-            const proxima = filaFiltrada.find(item => item.status === 'pendente');
-            if (proxima) {
-                iniciarDigitacao(proxima.id);
-            } else {
-                crmLayout.showToast('Nenhuma proposta pendente na fila', 'info');
-            }
-        }
-
-        function iniciarDigitacao(id) {
-            const proposta = fila.find(item => item.id === id);
-            if (!proposta) return;
-            
-            proposta.status = 'digitando';
-            proposta.operador = 'Operador Atual';
-            propostaAtual = proposta;
-            
-            abrirModalDigitacao(proposta);
-            atualizarLista();
-            atualizarEstatisticas();
-            
-            crmLayout.showToast('Digitação iniciada', 'success');
-        }
-
-        function continuarDigitacao(id) {
-            const proposta = fila.find(item => item.id === id);
-            if (!proposta) return;
-            
-            propostaAtual = proposta;
-            abrirModalDigitacao(proposta);
-        }
-
-        function finalizarDigitacao(id) {
-            const proposta = fila.find(item => item.id === id);
-            if (!proposta) return;
-            
-            if (confirm('Tem certeza que deseja finalizar a digitação desta proposta?')) {
-                proposta.status = 'finalizada';
-                proposta.operador = null;
-                propostaAtual = null;
-                
-                atualizarLista();
-                atualizarEstatisticas();
-                
-                crmLayout.showToast('Proposta finalizada com sucesso', 'success');
-            }
-        }
-
-        function verProposta(id) {
-            const proposta = fila.find(item => item.id === id);
-            if (!proposta) return;
-            
-            crmLayout.showToast('Funcionalidade em desenvolvimento', 'info');
-        }
-
-        // Modal de digitação
-        function abrirModalDigitacao(proposta) {
-            const modal = document.getElementById('modal-digitacao');
-            const content = document.getElementById('modal-digitacao-content');
-            
-            content.innerHTML = `
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <h4 class="font-semibold mb-4">Dados do Cliente</h4>
-                        <div class="space-y-3">
-                            <div class="form-group">
-                                <label class="form-label">Nome Completo</label>
-                                <input type="text" class="form-input" value="${proposta.dados.nome}" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">CPF</label>
-                                <input type="text" class="form-input" value="${crmLayout.formatCPF(proposta.dados.cpf)}" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-input" value="${proposta.dados.email}">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Telefone</label>
-                                <input type="text" class="form-input" value="${crmLayout.formatPhone(proposta.dados.telefone)}">
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="font-semibold mb-4">Dados da Proposta</h4>
-                        <div class="space-y-3">
-                            <div class="form-group">
-                                <label class="form-label">Produto</label>
-                                <input type="text" class="form-input" value="${proposta.produto}" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Valor</label>
-                                <input type="text" class="form-input" value="${crmLayout.formatCurrency(proposta.valor)}" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Status</label>
-                                <select class="form-select">
-                                    <option value="digitando" selected>Em Digitação</option>
-                                    <option value="revisao">Em Revisão</option>
-                                    <option value="finalizada">Finalizada</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Observações</label>
-                                <textarea class="form-textarea" placeholder="Digite observações sobre a proposta..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-6 pt-6 border-t">
-                    <div class="flex justify-end gap-3">
-                        <button class="btn btn-secondary" onclick="fecharModalDigitacao()">
-                            <i data-feather="x"></i>
-                            Cancelar
-                        </button>
-                        <button class="btn btn-warning" onclick="salvarRascunho()">
-                            <i data-feather="save"></i>
-                            Salvar Rascunho
-                        </button>
-                        <button class="btn btn-success" onclick="finalizarProposta()">
-                            <i data-feather="check"></i>
-                            Finalizar Proposta
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            crmLayout.showModal('modal-digitacao');
-            feather.replace();
-        }
-
-        function fecharModalDigitacao() {
-            crmLayout.hideModal('modal-digitacao');
-        }
-
-        function salvarRascunho() {
-            crmLayout.showToast('Rascunho salvo com sucesso', 'success');
-        }
-
-        function finalizarProposta() {
-            if (confirm('Tem certeza que deseja finalizar esta proposta?')) {
-                if (propostaAtual) {
-                    propostaAtual.status = 'finalizada';
-                    propostaAtual.operador = null;
-                    propostaAtual = null;
-                }
-                
-                fecharModalDigitacao();
-                atualizarLista();
-                atualizarEstatisticas();
-                
-                crmLayout.showToast('Proposta finalizada com sucesso', 'success');
-            }
-        }
-
-        // Ordenação
-        function ordenarPorPrioridade() {
-            filaFiltrada.sort((a, b) => {
-                const prioridades = { alta: 3, normal: 2, baixa: 1 };
-                return prioridades[b.prioridade] - prioridades[a.prioridade];
-            });
-            atualizarLista();
-        }
-
-        function ordenarPorData() {
-            filaFiltrada.sort((a, b) => new Date(a.entrada) - new Date(b.entrada));
-            atualizarLista();
-        }
-
-        function atualizarFila() {
-            carregarFila();
-            crmLayout.showToast('Fila atualizada', 'success');
-        }
-
-        function exportarFila() {
-            crmLayout.showToast('Funcionalidade em desenvolvimento', 'info');
-        }
-
-        // Inicializar página
-        document.addEventListener('DOMContentLoaded', async () => {
+        async function carregarPropostas() {
             try {
-                // Inicializar Feather Icons
-                feather.replace();
-                
-                // Carregar fila
-                await carregarFila();
-                
-                console.log('✅ Página de digitação inicializada');
-                
+                const response = await fetch('/api/propostas');
+                if (!response.ok) throw new Error('Erro ao carregar propostas');
+                propostas = await response.json();
+                console.log('Propostas carregadas:', propostas.length);
             } catch (error) {
-                console.error('❌ Erro ao inicializar página:', error);
-                crmLayout.showToast('Erro ao inicializar página', 'error');
+                console.error('Erro ao carregar propostas:', error);
+                propostas = [];
+            }
+        }
+
+        function popularSeletorClientes() {
+            const select = document.getElementById('clienteSelect');
+            select.innerHTML = '<option value="">Selecionar cliente...</option>';
+            
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente.id;
+                option.textContent = `${cliente.dadosCompletos.nome} - ${formatCPF(cliente.dadosCompletos.cpf)}`;
+                select.appendChild(option);
+            });
+        }
+
+        function selecionarCliente(cliente) {
+            clienteAtual = cliente;
+            propostasCliente = propostas.filter(p => p.clientId === cliente.id);
+            
+            // Atualizar interface do cliente
+            document.getElementById('cliNome').textContent = cliente.dadosCompletos.nome;
+            document.getElementById('cliCPF').textContent = 'CPF ' + formatCPF(cliente.dadosCompletos.cpf);
+            document.getElementById('cliTelefone').textContent = formatPhone(cliente.dadosCompletos.telefone);
+            
+            // Habilitar botão digitar
+            document.getElementById('btnDigitar').disabled = false;
+            
+            renderPropostas();
+        }
+
+        function renderPropostas() {
+            const container = document.getElementById('listaPropostas');
+            container.innerHTML = '';
+            
+            if (propostasCliente.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <i data-feather="inbox" style="width: 48px; height: 48px; margin-bottom: 1rem;"></i>
+                        <p>Nenhuma proposta encontrada para este cliente</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            propostasCliente.forEach(proposta => {
+                const div = document.createElement('div');
+                div.className = 'proposta-item';
+                
+                // Extrair dados dos contratos
+                const contratos = proposta.contratos || [];
+                const contratoPrincipal = contratos.find(c => c.selecionado) || contratos[0];
+                
+                const banco = contratoPrincipal?.banco || 'N/A';
+                const produto = 'Portabilidade com troco';
+                const parcela = contratoPrincipal?.valor_parcela || 0;
+                const saldo = contratoPrincipal?.saldo_devedor || 0;
+                const taxa = contratoPrincipal?.taxa_juros_mensal || 0;
+                const prazo = contratoPrincipal?.prazo_restante || 0;
+                
+                div.innerHTML = `
+                    <div class="proposta-header">
+                        <div class="proposta-titulo">Banco ${banco} • ${produto}</div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <span class="proposta-status">${proposta.status || 'Na Fila'}</span>
+                            <div class="proposta-actions">
+                                <button class="btn-proposta btn-visualizar" data-id="${proposta.id}">
+                                    <i data-feather="eye"></i> Visualizar
+                                </button>
+                                <button class="btn-proposta btn-cancelar danger" data-id="${proposta.id}">
+                                    <i data-feather="x"></i> Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="proposta-metrics">
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-label">Parcela</div>
+                                <div class="metric-value">${formatCurrency(parcela)}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Saldo</div>
+                                <div class="metric-value">${formatCurrency(saldo)}</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Taxa</div>
+                                <div class="metric-value">${taxa}% a.m.</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Prazo</div>
+                                <div class="metric-value">${prazo}x</div>
+                            </div>
+                        </div>
+                        <div class="proposta-meta">ID ${proposta.id} • ${new Date(proposta.timestamp).toLocaleString('pt-BR')}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            
+            // Adicionar event listeners
+            container.querySelectorAll('.btn-visualizar').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    const proposta = propostasCliente.find(p => p.id === id);
+                    if (proposta) {
+                        alert(`Visualizar proposta ${id}\nCliente: ${proposta.cliente.nome}\nStatus: ${proposta.status}`);
+                    }
+                });
+            });
+            
+            container.querySelectorAll('.btn-cancelar').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if (confirm('Cancelar esta proposta?')) {
+                        // Aqui você pode implementar a lógica para cancelar a proposta
+                        console.log('Cancelando proposta:', id);
+                        // Atualizar a lista após cancelamento
+                        propostasCliente = propostasCliente.filter(p => p.id !== id);
+                        renderPropostas();
+                    }
+                });
+            });
+            
+            // Re-inicializar ícones
+            feather.replace();
+        }
+
+        function toggleMaximize() {
+            const layout = document.getElementById('layout');
+            const btn = document.getElementById('btnMaximize');
+            
+            layout.classList.toggle('maximized');
+            
+            if (layout.classList.contains('maximized')) {
+                btn.innerHTML = '<i data-feather="minimize"></i> Restaurar';
+            } else {
+                btn.innerHTML = '<i data-feather="maximize"></i> Maximizar propostas';
+            }
+            
+            feather.replace();
+        }
+
+        // Event listeners
+        document.getElementById('btnMaximize').addEventListener('click', toggleMaximize);
+        document.getElementById('btnDigitar').addEventListener('click', () => {
+            if (clienteAtual) {
+                alert(`Redirecionar para página de digitação do cliente: ${clienteAtual.dadosCompletos.nome}`);
+            }
+        });
+        document.getElementById('btnAtualizar').addEventListener('click', async () => {
+            await carregarPropostas();
+            if (clienteAtual) {
+                selecionarCliente(clienteAtual);
+            }
+        });
+        document.getElementById('btnNova').addEventListener('click', () => {
+            if (clienteAtual) {
+                alert(`Criar nova proposta para: ${clienteAtual.dadosCompletos.nome}`);
+            } else {
+                alert('Selecione um cliente primeiro');
+            }
+        });
+        document.getElementById('clienteSelect').addEventListener('change', (e) => {
+            const clienteId = e.target.value;
+            if (clienteId) {
+                const cliente = clientes.find(c => c.id === clienteId);
+                if (cliente) {
+                    selecionarCliente(cliente);
+                }
+            } else {
+                // Limpar seleção
+                clienteAtual = null;
+                propostasCliente = [];
+                document.getElementById('cliNome').textContent = 'Selecione um cliente';
+                document.getElementById('cliCPF').textContent = 'CPF —';
+                document.getElementById('cliTelefone').textContent = '—';
+                document.getElementById('btnDigitar').disabled = true;
+                renderPropostas();
+            }
+        });
+
+        // Atalho teclado F
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.altKey) {
+                toggleMaximize();
+            }
+        });
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', async () => {
+            feather.replace();
+            
+            // Carregar dados
+            await carregarClientes();
+            await carregarPropostas();
+            
+            // Popular seletor de clientes
+            popularSeletorClientes();
+            
+            // Selecionar primeiro cliente se existir
+            if (clientes.length > 0) {
+                document.getElementById('clienteSelect').value = clientes[0].id;
+                selecionarCliente(clientes[0]);
             }
         });
     </script>

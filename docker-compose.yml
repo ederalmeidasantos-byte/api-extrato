@@ -1,43 +1,39 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  api-lunas:
+  api:
     build: .
-    container_name: api-lunas-container
-    ports:
-      - "3002:3000"
+    container_name: api-lunas
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      - GIT_REPO=https://github.com/seu-usuario/api-lunas.git
-      - GIT_BRANCH=master
+      - PORT=3002
     volumes:
-      - ./var:/app/var
-      - ./.env:/app/.env
-      - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+      - ./var/data:/usr/src/app/var/data
+      - ./logs:/usr/src/app/logs
     networks:
-      - lunas-network
+      - web
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
-    ports:
-      - "9000:9000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-      - ./deploy-webhook.sh:/deploy-webhook.sh:ro
-      - ./deploy-webhook.ps1:/deploy-webhook.ps1:ro
-    environment:
-      - PORTAINER_WEBHOOKS_ENABLED=true
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: lunas-nginx
     restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-lunasdigital-fixed.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
     networks:
-      - lunas-network
+      - web
 
 networks:
-  lunas-network:
+  web:
     driver: bridge
-
-volumes:
-  portainer_data:

@@ -1,29 +1,37 @@
-# Dockerfile para API Lunas
-FROM node:18-alpine
+FROM node:20-alpine
 
-# Definir diretório de trabalho
-WORKDIR /app
+# Instalar dependências do sistema para PDF
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    musl-dev \
+    giflib-dev \
+    pixman-dev \
+    pangomm-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
 
-# Instalar dependências do sistema
-RUN apk add --no-cache git
+# Configurar diretório de trabalho
+WORKDIR /usr/src/app
 
-# Copiar package.json e package-lock.json
+# Copiar package files
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci --only=production
+RUN npm ci --production
 
-# Copiar código da aplicação
+# Copiar código fonte
 COPY . .
 
 # Criar diretórios necessários
-RUN mkdir -p var/data/clientes var/data/extratos var/data/logs
-
-# Definir permissões
-RUN chmod +x deploy-webhook.sh
+RUN mkdir -p var/data/extratos var/data/clientes var/data/propostas var/data/uploads
 
 # Expor porta
-EXPOSE 3000
+EXPOSE 3002
 
 # Comando de inicialização
 CMD ["node", "server.js"]

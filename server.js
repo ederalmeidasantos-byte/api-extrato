@@ -21,6 +21,8 @@ import multer from 'multer';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -37,6 +39,295 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/operacional', express.static(path.join(__dirname, 'operacional')));
 app.use('/fgts', express.static(path.join(__dirname, 'fgts')));
 app.use('/inss', express.static(path.join(__dirname, 'INSS')));
+
+// ================== MULTI-TENANT HELPERS & AUTH ==================
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function getTenantDir(companyId) {
+  const base = path.join(__dirname, 'var', 'data', 'tenants', companyId);
+  ensureDir(base);
+  return base;
+}
+
+function getTenantSubdir(companyId, sub) {
+  const dir = path.join(getTenantDir(companyId), sub);
+  ensureDir(dir);
+  return dir;
+}
+
+function signToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+}
+
+function authMiddleware(req, res, next) {
+  try {
+    const header = req.headers['authorization'] || req.headers['Authorization'];
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Não autenticado' });
+    }
+    const token = header.substring('Bearer '.length);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.auth = decoded; // { companyId, userId, role }
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, error: 'Token inválido' });
+  }
+}
+
+// Registro de empresa e admin
+app.post('/api/auth/register-company', async (req, res) => {
+  try {
+    const { companyId, companyName, adminEmail, adminPassword } = req.body;
+    if (!companyId || !adminEmail || !adminPassword) {
+      return res.status(400).json({ success: false, error: 'companyId, adminEmail e adminPassword são obrigatórios' });
+    }
+    const tenantDir = getTenantDir(companyId);
+    const usersDir = getTenantSubdir(companyId, 'users');
+    const companyFile = path.join(tenantDir, 'company.json');
+
+    if (!fs.existsSync(companyFile)) {
+      fs.writeFileSync(companyFile, JSON.stringify({ id: companyId, name: companyName || companyId, createdAt: new Date().toISOString() }, null, 2));
+    }
+
+    // Criar usuário admin
+    const userId = 'admin';
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    const userFile = path.join(usersDir, `${userId}.json`);
+    fs.writeFileSync(userFile, JSON.stringify({ id: userId, email: adminEmail, role: 'admin', passwordHash }, null, 2));
+
+    const token = signToken({ companyId, userId, role: 'admin' });
+    return res.json({ success: true, companyId, userId, token });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { companyId, email, password } = req.body;
+    if (!companyId || !email || !password) {
+      return res.status(400).json({ success: false, error: 'companyId, email e password são obrigatórios' });
+    }
+    const usersDir = getTenantSubdir(companyId, 'users');
+    // Procurar usuário por email
+    const files = fs.existsSync(usersDir) ? fs.readdirSync(usersDir).filter(f => f.endsWith('.json')) : [];
+    let user = null;
+    for (const f of files) {
+      const u = JSON.parse(fs.readFileSync(path.join(usersDir, f), 'utf8'));
+      if (u.email && u.email.toLowerCase() === email.toLowerCase()) { user = u; break; }
+    }
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Usuário não encontrado' });
+    }
+    const ok = await bcrypt.compare(password, user.passwordHash || '');
+    if (!ok) {
+      return res.status(401).json({ success: false, error: 'Senha inválida' });
+    }
+    const token = signToken({ companyId, userId: user.id, role: user.role || 'seller' });
+    return res.json({ success: true, token, user: { id: user.id, email: user.email, role: user.role } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Perfil
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  return res.json({ success: true, auth: req.auth });
+});
+
+// ================== ENDPOINTS MULTI-TENANT (NOVOS) ==================
+
+// Clientes por empresa: /api/t/:companyId/clients
+app.get('/api/t/:companyId/clients', (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const dir = getTenantSubdir(companyId, 'clientes');
+    const arquivos = fs.readdirSync(dir).filter(a => a.endsWith('.json'));
+    const clientes = arquivos.map(a => JSON.parse(fs.readFileSync(path.join(dir, a), 'utf8')));
+    res.json({ success: true, clients: clientes, total: clientes.length });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/t/:companyId/clients', (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const dir = getTenantSubdir(companyId, 'clientes');
+    const cliente = req.body.cliente || req.body.clientData || req.body;
+    if (!cliente || !cliente.nome) {
+      return res.status(400).json({ success: false, error: 'Cliente inválido' });
+    }
+    // Gerar ID sequencial por tenant
+    const arquivos = fs.readdirSync(dir).filter(a => a.endsWith('.json'));
+    const existingIds = new Set(arquivos.map(a => parseInt(path.basename(a, '.json'))).filter(n => !isNaN(n)));
+    let nextId = 1; while (existingIds.has(nextId)) nextId++;
+    cliente.id = cliente.id || nextId.toString();
+    fs.writeFileSync(path.join(dir, `${cliente.id}.json`), JSON.stringify(cliente, null, 2));
+    res.json({ success: true, cliente });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/t/:companyId/clients/:id', (req, res) => {
+  try {
+    const { companyId, id } = req.params;
+    const dir = getTenantSubdir(companyId, 'clientes');
+    const cliente = req.body.cliente || req.body;
+    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ ...cliente, id }, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/t/:companyId/clients/:id', (req, res) => {
+  try {
+    const { companyId, id } = req.params;
+    const dir = getTenantSubdir(companyId, 'clientes');
+    const p = path.join(dir, `${id}.json`);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Propostas por empresa
+app.post('/api/t/:companyId/propostas', (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const dir = getTenantSubdir(companyId, 'propostas');
+    const proposta = req.body.proposta || req.body.dados || req.body;
+    if (!proposta || typeof proposta !== 'object') {
+      return res.status(400).json({ success: false, error: 'Proposta inválida' });
+    }
+    if (!proposta.id) {
+      proposta.id = `prop_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+    fs.writeFileSync(path.join(dir, `${proposta.id}.json`), JSON.stringify(proposta, null, 2));
+    res.json({ success: true, proposta });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Status-config por empresa
+app.get('/api/t/:companyId/status-config', (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const cfgPath = path.join(getTenantDir(companyId), 'status-config.json');
+    if (!fs.existsSync(cfgPath)) {
+      // inicializa com o mesmo default global
+      const defaultConfig = {
+        statusFormulario: [
+          { id: 'dados_pessoais', nome: 'Dados Pessoais', descricao: 'Etapa de coleta de dados pessoais', cor: '#3B82F6', editavel: false },
+          { id: 'dados_bancarios', nome: 'Dados Bancários', descricao: 'Etapa de coleta de dados bancários', cor: '#10B981', editavel: false },
+          { id: 'dados_beneficio', nome: 'Dados do Benefício', descricao: 'Etapa de coleta de dados do benefício', cor: '#F59E0B', editavel: false },
+          { id: 'confirmacao', nome: 'Confirmação', descricao: 'Etapa de confirmação dos dados', cor: '#8B5CF6', editavel: false }
+        ],
+        produtos: [
+          { id: 1, nome: 'Empréstimo Consignado', descricao: 'Empréstimo com desconto em folha', cor: '#3B82F6', origem: 'calculo', simuladorId: 'inss', editavel: true },
+          { id: 2, nome: 'Portabilidade', descricao: 'Transferência de empréstimo entre bancos', cor: '#10B981', origem: 'calculo', simuladorId: 'inss', editavel: true }
+        ],
+        statusProposta: [ { id: 'digitando', nome: 'Digitando', cor: '#F59E0B', editavel: true } ]
+      };
+      fs.writeFileSync(cfgPath, JSON.stringify(defaultConfig, null, 2));
+    }
+    const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/t/:companyId/status-config', (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const cfgPath = path.join(getTenantDir(companyId), 'status-config.json');
+    if (!fs.existsSync(cfgPath)) return res.status(404).json({ success: false, error: 'Config não encontrada' });
+    const current = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    const { tipo, id, dados } = req.body;
+    if (tipo === 'produto') {
+      const i = current.produtos.findIndex(p => p.id === id);
+      if (i !== -1) current.produtos[i] = { ...current.produtos[i], ...dados };
+    } else if (tipo === 'proposta') {
+      const i = current.statusProposta.findIndex(s => s.id === id);
+      if (i !== -1) current.statusProposta[i] = { ...current.statusProposta[i], ...dados };
+    } else if (tipo === 'formulario') {
+      const i = current.statusFormulario.findIndex(s => s.id === id);
+      if (i !== -1) current.statusFormulario[i] = { ...current.statusFormulario[i], ...dados };
+    }
+    fs.writeFileSync(cfgPath, JSON.stringify(current, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/t/:companyId/status-config', (req, res) => {
+  try {
+    const { companyId } = req.params; const { tipo, dados } = req.body;
+    const cfgPath = path.join(getTenantDir(companyId), 'status-config.json');
+    if (!fs.existsSync(cfgPath)) return res.status(404).json({ success: false, error: 'Config não encontrada' });
+    const current = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    let novoId;
+    if (tipo === 'produto') {
+      novoId = Math.max(...current.produtos.map(p => p.id), 0) + 1;
+      current.produtos.push({ id: novoId, ...dados });
+    } else if (tipo === 'proposta') {
+      novoId = `status_${Date.now()}`;
+      current.statusProposta.push({ id: novoId, ...dados });
+    } else if (tipo === 'formulario') {
+      novoId = `form_${Date.now()}`;
+      current.statusFormulario.push({ id: novoId, ...dados });
+    }
+    fs.writeFileSync(cfgPath, JSON.stringify(current, null, 2));
+    res.json({ success: true, id: novoId });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/t/:companyId/status-config', (req, res) => {
+  try {
+    const { companyId } = req.params; const { tipo, id } = req.body;
+    const cfgPath = path.join(getTenantDir(companyId), 'status-config.json');
+    if (!fs.existsSync(cfgPath)) return res.status(404).json({ success: false, error: 'Config não encontrada' });
+    const current = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    if (tipo === 'produto') current.produtos = current.produtos.filter(p => p.id !== id);
+    else if (tipo === 'proposta') current.statusProposta = current.statusProposta.filter(s => s.id !== id);
+    else if (tipo === 'formulario') current.statusFormulario = current.statusFormulario.filter(s => s.id !== id);
+    fs.writeFileSync(cfgPath, JSON.stringify(current, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Simulador por empresa: injeta COMPANY_ID no HTML
+app.get('/c/:companyId/simulador', (req, res) => {
+  try {
+    const simuladorPath = path.join(__dirname, 'INSS', 'simulador.html');
+    if (!fs.existsSync(simuladorPath)) return res.status(404).send('Simulador não encontrado');
+    const { companyId } = req.params;
+    let html = fs.readFileSync(simuladorPath, 'utf-8');
+    const inject = `\n<script>window.COMPANY_ID = ${JSON.stringify(companyId)};</script>\n`;
+    html = html.replace('</head>', `${inject}</head>`);
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Erro ao carregar simulador');
+  }
+});
 
 // Configuração do Multer para uploads
 const storage = multer.diskStorage({
@@ -1008,9 +1299,10 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
       });
     }
     
-    // Buscar cliente real na Kentro
-             const kentroIntegration = require('./operacional/kentro-integration.cjs');
-    const kentro = new kentroIntegration();
+    // Buscar cliente real na Kentro (CJS import dentro de ESM)
+    const kentroIntegrationModule = await import('./operacional/kentro-integration.cjs');
+    const KentroIntegration = kentroIntegrationModule.default || kentroIntegrationModule;
+    const kentro = new KentroIntegration();
     
     let cliente = null;
     
@@ -1081,9 +1373,10 @@ app.get('/api/kentro/oportunidade/:id', async (req, res) => {
     const { id } = req.params;
     console.log(`🔍 [KENTRO] Buscando oportunidade: ${id}`);
     
-    // Buscar dados reais da Kentro usando o ID da oportunidade
-             const kentroIntegration = require('./operacional/kentro-integration.cjs');
-    const kentro = new kentroIntegration();
+    // Buscar dados reais da Kentro usando o ID da oportunidade (CJS import dentro de ESM)
+    const kentroIntegrationModule = await import('./operacional/kentro-integration.cjs');
+    const KentroIntegration = kentroIntegrationModule.default || kentroIntegrationModule;
+    const kentro = new KentroIntegration();
     
     const oportunidade = await kentro.buscarOportunidadePorId(id);
     
