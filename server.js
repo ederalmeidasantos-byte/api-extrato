@@ -1107,6 +1107,55 @@ app.get('/api/kentro/oportunidade/:id', async (req, res) => {
   }
 });
 
+// Endpoint para remover clientes duplicados
+app.post('/api/remover-clientes', (req, res) => {
+  try {
+    const { clientIds } = req.body;
+    console.log(`🗑️ [CLIENTE] Removendo clientes duplicados: ${clientIds.join(', ')}`);
+    
+    if (!Array.isArray(clientIds) || clientIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lista de IDs de clientes é obrigatória'
+      });
+    }
+    
+    let removidos = 0;
+    const erros = [];
+    
+    clientIds.forEach(clientId => {
+      try {
+        const filePath = path.join(__dirname, 'var', 'data', 'clientes', `cliente_${clientId}.json`);
+        
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`✅ [CLIENTE] Cliente ${clientId} removido com sucesso`);
+          removidos++;
+        } else {
+          console.log(`⚠️ [CLIENTE] Arquivo do cliente ${clientId} não encontrado`);
+        }
+      } catch (error) {
+        console.error(`❌ [CLIENTE] Erro ao remover cliente ${clientId}:`, error.message);
+        erros.push({ clientId, error: error.message });
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: `${removidos} cliente(s) removido(s) com sucesso`,
+      removidos,
+      erros: erros.length > 0 ? erros : null
+    });
+    
+  } catch (error) {
+    console.error('❌ [CLIENTE] Erro ao remover clientes:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Endpoint para carregar dados do extrato processado
 app.get('/extrato/:fileId/raw', (req, res) => {
   try {
