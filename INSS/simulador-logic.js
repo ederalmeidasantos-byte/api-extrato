@@ -21,6 +21,21 @@ const configSimulador = {
       if (hostname === '72.60.159.149') {
         return 'http://72.60.159.149:3002';
       }
+      
+      // Domínio de produção
+      if (hostname === 'lunasdigital.com.br' || hostname === 'www.lunasdigital.com.br') {
+        return 'https://lunasdigital.com.br';
+      }
+      
+      // Subdomínio INSS
+      if (hostname === 'inss.lunasdigital.com.br') {
+        return 'https://inss.lunasdigital.com.br';
+      }
+      
+      // Subdomínio API
+      if (hostname === 'api.lunasdigital.com.br') {
+        return 'https://api.lunasdigital.com.br';
+      }
     }
     // Caso contrário, usa o servidor de produção
     return 'https://lunasdigital.com.br';
@@ -1308,12 +1323,19 @@ async function carregarDados() {
         // Carregar simulação específica via API
         await carregarSimulacaoPorId(extratoId);
         
-        // Se há ID da Kentro, sincronizar dados
+        // Se há ID da Kentro, sincronizar dados com fallback robusto
         if (kentroId) {
             console.log(`🔄 Sincronizando com Kentro ID: ${kentroId}`);
             console.log(`🔍 Debug - kentroId type: ${typeof kentroId}`);
             console.log(`🔍 Debug - kentroId value: "${kentroId}"`);
-            await sincronizarComKentro(kentroId);
+            
+            try {
+                await sincronizarComKentro(kentroId);
+            } catch (error) {
+                console.warn('⚠️ Falha na sincronização com Kentro, continuando sem dados externos:', error.message);
+                console.log('ℹ️ O simulador continuará funcionando normalmente com os dados disponíveis');
+                // Continuar normalmente sem dados da Kentro
+            }
         } else {
             console.log('⚠️ Nenhum ID da Kentro encontrado para sincronização');
         }
@@ -2539,7 +2561,7 @@ async function abrirDigitar() {
                 origem: 'INSS - Simulador'
             },
             contratos: contratosFormatados,
-            status: 'pending',
+            status: 'NA_FILA',
             origem: 'simulador',
             extratoId: extratoAtual?.id || null,
             statusProdutos: '1', // ID do produto: 1 = Portabilidade c/ Troco
@@ -3372,14 +3394,35 @@ async function uploadExtrato(file, cpf) {
         `;
         document.body.appendChild(loadingMsg);
         
-        // 1. Buscar cliente na Kentro pelo CPF
-        console.log(`🔍 Buscando cliente na Kentro com CPF: ${cpf}`);
-        let idoportunidade;
+        // 1. Verificar cache do CPF primeiro
+        console.log(`💾 Verificando cache do CPF: ${cpf}`);
+        let idoportunidade = null;
+        let clientId = null;
         
-        // Tornar idoportunidade global para uso posterior
-        window.idoportunidade = null;
+        // Verificar cache local
+        const cacheKey = `cpf_${cpf}`;
+        const cachedData = localStorage.getItem(cacheKey);
         
-        try {
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                idoportunidade = parsed.idoportunidade;
+                clientId = parsed.clientId;
+                window.idoportunidade = idoportunidade;
+                console.log(`✅ Dados encontrados no cache: ID Oportunidade: ${idoportunidade}, Client ID: ${clientId}`);
+                document.getElementById('loading-text').textContent = 'Dados encontrados no cache! Processando extrato...';
+            } catch (e) {
+                console.warn('⚠️ Erro ao ler cache, continuando sem cache');
+            }
+        }
+        
+        // Se não tem cache, buscar na Kentro
+        if (!idoportunidade) {
+            console.log(`🔍 Buscando cliente na Kentro com CPF: ${cpf}`);
+            // Tornar idoportunidade global para uso posterior
+            window.idoportunidade = null;
+        
+            try {
             // Atualizar loading
             document.getElementById('loading-text').textContent = 'Buscando cliente na Kentro...';
             
@@ -3388,7 +3431,10 @@ async function uploadExtrato(file, cpf) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ cpf: cpf })
+                body: JSON.stringify({ 
+                    cpf: cpf,
+                    email: cliente.email || '' // Enviar e-mail para buscar na Kentro
+                })
             });
             
             if (kentroResponse.ok) {
@@ -3398,6 +3444,16 @@ async function uploadExtrato(file, cpf) {
                     window.idoportunidade = idoportunidade; // Tornar global
                     console.log(`✅ Cliente encontrado na Kentro. ID Oportunidade: ${idoportunidade}`);
                     document.getElementById('loading-text').textContent = 'Cliente encontrado! Processando extrato...';
+                    
+                    // Salvar no cache
+                    const cacheData = {
+                        idoportunidade: idoportunidade,
+                        clientId: clientId,
+                        timestamp: Date.now(),
+                        cpf: cpf
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    console.log(`💾 Dados salvos no cache para CPF: ${cpf}`);
                 } else {
                     throw new Error('Cliente não encontrado na Kentro');
                 }
@@ -3430,6 +3486,16 @@ async function uploadExtrato(file, cpf) {
                     window.idoportunidade = idoportunidade; // Tornar global
                     console.log(`✅ Nova oportunidade criada na Kentro. ID: ${idoportunidade}`);
                     document.getElementById('loading-text').textContent = 'Nova oportunidade criada! Processando extrato...';
+                    
+                    // Salvar no cache
+                    const cacheData = {
+                        idoportunidade: idoportunidade,
+                        clientId: clientId,
+                        timestamp: Date.now(),
+                        cpf: cpf
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    console.log(`💾 Nova oportunidade salva no cache para CPF: ${cpf}`);
                 } else {
                     throw new Error('Erro ao criar oportunidade na Kentro');
                 }
@@ -3487,6 +3553,68 @@ async function uploadExtrato(file, cpf) {
                 window.idoportunidade = null;
             }
         }
+        
+        // 2. Salvar CPF na base de dados se não foi salvo ainda
+        if (!clientId) {
+            console.log(`💾 Salvando CPF na base de dados: ${cpf}`);
+            document.getElementById('loading-text').textContent = 'Salvando CPF na base de dados...';
+            
+            try {
+                const clienteBasico = {
+                    id: `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    cpf: cpf,
+                    nome: 'Cliente Simulador',
+                    nb: '',
+                    especie: '',
+                    telefone: '',
+                    email: '',
+                    nascimento: '',
+                    nomeMae: '',
+                    endereco: {},
+                    beneficio: {},
+                    contratos: [],
+                    contratosRMC: [],
+                    contratosRCC: [],
+                    margens: {},
+                    propostas: [],
+                    kentroId: idoportunidade,
+                    fonte: 'simulador_cpf',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                // Salvar na base de dados (porta 3003)
+                const dbResponse = await fetch(`${configSimulador.apiUrl.replace(':3002', ':3003')}/api/clientes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(clienteBasico)
+                });
+                
+                if (dbResponse.ok) {
+                    const dbResult = await dbResponse.json();
+                    clientId = dbResult.cliente.id;
+                    console.log(`✅ Cliente salvo na base de dados (ID: ${clientId}) com CPF: ${cpf}`);
+                    
+                    // Atualizar cache com clientId
+                    const cacheData = {
+                        idoportunidade: idoportunidade,
+                        clientId: clientId,
+                        timestamp: Date.now(),
+                        cpf: cpf
+                    };
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+                    console.log(`💾 ClientId salvo no cache para CPF: ${cpf}`);
+                } else {
+                    console.warn('⚠️ Erro ao salvar na base de dados, continuando...');
+                }
+            } catch (dbError) {
+                console.warn('⚠️ Erro ao salvar na base de dados:', dbError.message);
+            }
+        }
+        
+        } // Fechamento do bloco try/catch interno da Kentro
         
         // 3. Fazer upload do extrato com ID da oportunidade
         const formData = new FormData();
@@ -3708,8 +3836,20 @@ async function sincronizarComKentro(kentroId) {
     try {
         console.log(`🔄 Iniciando sincronização com Kentro ID: ${kentroId}`);
         
-        // Buscar dados da Kentro
-        const kentroResponse = await fetch(`/api/kentro/oportunidade/${kentroId}`);
+        // Buscar dados da Kentro com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+        
+        const kentroResponse = await fetch(`/api/kentro/oportunidade/${kentroId}`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!kentroResponse.ok) {
+            throw new Error(`Erro HTTP: ${kentroResponse.status} - ${kentroResponse.statusText}`);
+        }
+        
         const kentroData = await kentroResponse.json();
         
         if (!kentroData.success || !kentroData.oportunidade) {
@@ -3761,7 +3901,16 @@ async function sincronizarComKentro(kentroId) {
         console.log('✅ Sincronização com Kentro concluída!');
         
     } catch (error) {
-        console.error('❌ Erro ao sincronizar com Kentro:', error);
+        if (error.name === 'AbortError') {
+            console.warn('⏰ Timeout na sincronização com Kentro (10s)');
+        } else if (error.message.includes('Failed to fetch')) {
+            console.warn('🌐 Erro de conexão com Kentro - API pode estar indisponível');
+        } else {
+            console.error('❌ Erro ao sincronizar com Kentro:', error.message);
+        }
+        
+        // Re-throw o erro para que seja capturado pelo try/catch da função chamadora
+        throw error;
     }
 }
 
