@@ -1036,21 +1036,30 @@ app.post('/kentro/criar-oportunidade', (req, res) => {
   }
 });
 
-app.get('/api/kentro/oportunidade/:id', (req, res) => {
+app.get('/api/kentro/oportunidade/:id', async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`🔍 [KENTRO] Buscando oportunidade: ${id}`);
     
-    // Mock response
-    res.json({ 
-      success: true, 
-      oportunidade: {
-        id: id,
-        status: 'ativa',
-        dados: {}
-      }
-    });
+    // Buscar dados reais da Kentro usando o ID da oportunidade
+    const kentroIntegration = require('./operacional/kentro-integration.js');
+    const kentro = new kentroIntegration();
+    
+    const oportunidade = await kentro.buscarOportunidadePorId(id);
+    
+    if (oportunidade) {
+      res.json({ 
+        success: true, 
+        oportunidade: oportunidade
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        error: 'Oportunidade não encontrada na Kentro'
+      });
+    }
   } catch (error) {
+    console.error('❌ [KENTRO] Erro ao buscar oportunidade:', error);
     res.status(500).json({
       success: false,
       error: error.message
