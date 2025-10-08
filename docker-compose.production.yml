@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # API Principal
+  api-lunas:
+    build: .
+    container_name: api-lunas-container
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./var:/app/var
+      - ./.env:/app/.env
+    restart: unless-stopped
+    networks:
+      - lunas-network
+
+  # Sistema Operacional (CRM)
+  operacional:
+    build:
+      context: .
+      dockerfile: Dockerfile.operacional
+    container_name: operacional-container
+    ports:
+      - "3003:80"
+    depends_on:
+      - api-lunas
+    restart: unless-stopped
+    networks:
+      - lunas-network
+
+networks:
+  lunas-network:
+    driver: bridge

@@ -9,9 +9,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
+      - GIT_REPO=https://github.com/seu-usuario/api-lunas.git
+      - GIT_BRANCH=master
     volumes:
       - ./var:/app/var
       - ./.env:/app/.env
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -30,6 +33,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
+      - ./deploy-webhook.sh:/deploy-webhook.sh:ro
+      - ./deploy-webhook.ps1:/deploy-webhook.ps1:ro
+    environment:
+      - PORTAINER_WEBHOOKS_ENABLED=true
     restart: unless-stopped
     networks:
       - lunas-network

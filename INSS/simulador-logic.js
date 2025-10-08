@@ -2418,7 +2418,7 @@ async function abrirDigitar() {
                     // Inicializar com sincronização híbrida
                     await window.clientManager.initialize();
                     console.log('✅ ClientManager inicializado com dados sincronizados');
-                    setTimeout(() => abrirDigitar(), 100);
+                    // Removido setTimeout automático - função só será chamada quando necessário
                 } catch (error) {
                     console.error('❌ Erro ao inicializar ClientManager:', error);
                     alert('❌ Erro ao sincronizar dados. Abrindo modo manual...');

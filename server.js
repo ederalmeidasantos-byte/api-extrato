@@ -401,10 +401,52 @@ app.post('/api/salvar-cliente', (req, res) => {
       fs.mkdirSync(clientesPath, { recursive: true });
     }
     
-    // Gerar ID se não existir
-    if (!cliente.id) {
-      cliente.id = `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Verificar se cliente já existe (por CPF ou NB) e gerar ID sequencial
+    const arquivos = fs.readdirSync(clientesPath).filter(arquivo => arquivo.endsWith('.json'));
+    const existingIds = new Set();
+    let finalClientId = cliente.id;
+    
+    // Verificar se já existe cliente com este CPF ou NB
+    for (const arquivo of arquivos) {
+      try {
+        const dados = JSON.parse(fs.readFileSync(path.join(clientesPath, arquivo), 'utf8'));
+        
+        // Coletar IDs existentes
+        if (dados.id) {
+          const id = parseInt(dados.id);
+          if (!isNaN(id)) {
+            existingIds.add(id);
+          }
+        }
+        
+        // Verificar se é o mesmo cliente (mesmo CPF ou NB)
+        const existingCpf = dados.dadosCompletos?.cpf || dados.cpf;
+        const existingNb = dados.dadosCompletos?.nb || dados.nb;
+        const newCpf = cliente.cpf;
+        const newNb = cliente.nb;
+        
+        if ((existingCpf && newCpf && existingCpf === newCpf) || 
+            (existingNb && newNb && existingNb === newNb)) {
+          console.log(`✅ Cliente já existe com ID ${dados.id}, atualizando...`);
+          finalClientId = dados.id;
+          break;
+        }
+      } catch (error) {
+        console.warn(`Erro ao ler arquivo ${arquivo}:`, error.message);
+      }
     }
+    
+    // Se não encontrou cliente existente, criar novo ID sequencial
+    if (!finalClientId || finalClientId === cliente.id) {
+      let nextId = 1;
+      while (existingIds.has(nextId)) {
+        nextId++;
+      }
+      finalClientId = nextId.toString();
+      console.log(`🆔 Novo ClientID sequencial gerado: ${finalClientId} (total: ${arquivos.length + 1})`);
+    }
+    
+    cliente.id = finalClientId;
     
     const arquivoPath = path.join(clientesPath, `${cliente.id}.json`);
     fs.writeFileSync(arquivoPath, JSON.stringify(cliente, null, 2));
@@ -866,7 +908,7 @@ app.post('/api/processar-extrato', upload.single('extrato'), async (req, res) =>
 
     // Integrar com o sistema real de extração de PDF
     try {
-      const { extrairDeUpload } = await import('./extrair_pdf.js');
+      const { extrairDeUpload } = await import('./INSS/extrair_pdf.js');
       
       const pdfPath = req.file.path;
       const jsonDir = path.join(__dirname, 'var/data/extratos');
