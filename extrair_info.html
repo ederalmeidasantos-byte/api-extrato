@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endpoint /extrair - Lunas Digital</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .method {
+            background: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .example {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Endpoint /extrair</h1>
+        
+        <div class="info">
+            <h3>📋 Informações</h3>
+            <p><strong>Descrição:</strong> Endpoint para extração de dados de extrato PDF</p>
+            <p><strong>Método:</strong> <span class="method">POST</span></p>
+            <p><strong>Status:</strong> ✅ Funcionando</p>
+        </div>
+
+        <div class="info">
+            <h3>⚠️ Importante</h3>
+            <p>Este endpoint aceita apenas requisições <strong>POST</strong> com dados JSON.</p>
+            <p>Para usar via navegador, utilize ferramentas como Postman, Insomnia ou DevTools.</p>
+        </div>
+
+        <h3>📝 Exemplo de Uso</h3>
+        <div class="example">
+POST /extrair HTTP/1.1
+Host: inss.lunasdigital.com.br
+Content-Type: application/json
+
+{
+  "fileId": "7539",
+  "idoportunidade": "123"
+}
+        </div>
+
+        <h3>🔗 Links Úteis</h3>
+        <a href="/inss/simulador.html" class="btn">🎯 Ir para Simulador</a>
+        <a href="/api/calcular/7539" class="btn">📊 Testar API Calcular</a>
+    </div>
+</body>
+</html>
+

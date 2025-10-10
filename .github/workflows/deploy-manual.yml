@@ -1,0 +1,100 @@
+name: 🔧 Deploy Manual FGTS
+
+on:
+  workflow_dispatch: # Apenas execução manual
+    inputs:
+      environment:
+        description: 'Ambiente de deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      force_restart:
+        description: 'Forçar reinicialização completa'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy-manual:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 72.60.159.149 >> ~/.ssh/known_hosts
+        
+    - name: 📊 Informações do deploy
+      run: |
+        echo "🚀 DEPLOY MANUAL INICIADO"
+        echo "🌍 Ambiente: ${{ github.event.inputs.environment }}"
+        echo "🔄 Forçar restart: ${{ github.event.inputs.force_restart }}"
+        echo "👤 Executado por: ${{ github.actor }}"
+        echo "📅 Data: $(date)"
+        
+    - name: 📤 Deploy dos arquivos
+      run: |
+        echo "📤 Fazendo deploy dos arquivos..."
+        
+        # Lista de arquivos para deploy
+        scp fgts/server.js root@72.60.159.149:/root/fgts/
+        scp fgts/fgts_csv.js root@72.60.159.149:/root/fgts/
+        scp fgts/index.html root@72.60.159.149:/root/fgts/
+        scp fgts/package.json root@72.60.159.149:/root/fgts/
+        scp fgts/error-logger.js root@72.60.159.149:/root/fgts/
+        scp fgts/config-manager.js root@72.60.159.149:/root/fgts/
+        scp fgts/cache-persistente.js root@72.60.159.149:/root/fgts/
+        scp fgts/proxy-config.js root@72.60.159.149:/root/fgts/
+        
+        echo "✅ Arquivos deployados com sucesso!"
+        
+    - name: 🐳 Gerenciar container
+      run: |
+        if [ "${{ github.event.inputs.force_restart }}" = "true" ]; then
+          echo "🔄 Forçando reinicialização completa..."
+          ssh root@72.60.159.149 "docker stop fgts-lunasdigital && docker start fgts-lunasdigital"
+        else
+          echo "🔄 Reiniciando container..."
+          ssh root@72.60.159.149 "docker restart fgts-lunasdigital"
+        fi
+        
+        echo "⏳ Aguardando container inicializar..."
+        sleep 20
+        
+    - name: 🧪 Testes de verificação
+      run: |
+        echo "🔍 Verificando status do container..."
+        CONTAINER_STATUS=$(ssh root@72.60.159.149 "docker ps | grep fgts")
+        echo "📊 Status: $CONTAINER_STATUS"
+        
+        echo "🧪 Testando API..."
+        API_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3005/fgts/contadores-tempo-real")
+        echo "📊 API Response: $API_RESPONSE"
+        
+        # Verificar se contém dados válidos
+        if echo "$API_RESPONSE" | grep -q "sucessos"; then
+          echo "✅ API funcionando corretamente!"
+        else
+          echo "❌ API não está respondendo corretamente"
+          exit 1
+        fi
+        
+    - name: 📋 Relatório final
+      run: |
+        echo "📋 RELATÓRIO DE DEPLOY"
+        echo "===================="
+        echo "✅ Deploy concluído com sucesso!"
+        echo "🌍 Ambiente: ${{ github.event.inputs.environment }}"
+        echo "🌐 URL: http://72.60.159.149:3005"
+        echo "👤 Executado por: ${{ github.actor }}"
+        echo "📅 Concluído em: $(date)"
+        echo "🔄 Container reiniciado: Sim"
+        echo "🧪 Testes: Aprovados"

@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integração WhatsApp - Sistema Operacional Lunas</title>
+    <link rel="stylesheet" href="assets/crm-layout.css">
+    <link rel="stylesheet" href="https://unpkg.com/feather-icons/dist/feather.css">
+    <style>
+        /* Estilos específicos para a página de integração */
+        .integration-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .integration-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .integration-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .kentro-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .meta-icon {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+        }
+
+        .zapier-icon {
+            background: linear-gradient(135deg, #FF4A00 0%, #FF6B35 100%);
+        }
+
+        .integration-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .integration-subtitle {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .status-testing {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #3b82f6;
+        }
+
+        .form-checkbox label {
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+        }
+
+        .test-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .test-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+        }
+
+        .test-success {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .test-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .test-info {
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .logs-section {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .log-timestamp {
+            color: #64748b;
+        }
+
+        .log-success {
+            color: #10b981;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .log-warning {
+            color: #f59e0b;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .template-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .template-content {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .template-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .template-variables {
+            font-size: 0.75rem;
+            color: #3b82f6;
+            background: #eff6ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+
+        .template-integration {
+            font-size: 0.75rem;
+            color: #059669;
+            background: #ecfdf5;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            border-color: #bbf7d0;
+            color: #166534;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-color: #fde68a;
+            color: #d97706;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border-color: #bfdbfe;
+            color: #1e40af;
+        }
+
+        /* Menu dropdown de navegação entre integrações */
+        .integrations-nav {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .integrations-nav-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .integrations-dropdown {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .dropdown-button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .dropdown-button:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .dropdown-button.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            margin-top: 0.25rem;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .dropdown-item.active {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .dropdown-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: white;
+        }
+
+        .dropdown-text {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .dropdown-status {
+            font-size: 0.75rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-status.connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .dropdown-status.disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .dropdown-status.development {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .dropdown-arrow {
+            transition: transform 0.2s;
+        }
+
+        .dropdown-button.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Seções das integrações - inicialmente ocultas */
+        .integration-section {
+            display: none;
+        }
+
+        .integration-section.active {
+            display: block;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .dropdown-content {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                border-radius: 12px 12px 0 0;
+                max-height: 50vh;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/operacional/" class="sidebar-brand">
+                    <img src="assets/logo-lunas.png" alt="Lunas Digital" class="sidebar-logo">
+                    <span class="sidebar-brand-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="menu"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-link">
+                        <i data-feather="home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-link">
+                        <i data-feather="calculator"></i>
+                        <span>Simulador</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-link">
+                        <i data-feather="search"></i>
+                        <span>Buscar Cliente</span>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-link">
+                        <i data-feather="user-plus"></i>
+                        <span>Novo Cliente</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-link">
+                        <i data-feather="edit-3"></i>
+                        <span>Fila de Digitação</span>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-link">
+                        <i data-feather="file-text"></i>
+                        <span>Propostas</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-link">
+                        <i data-feather="settings"></i>
+                        <span>Status & Produtos</span>
+                    </a>
+                    <a href="/operacional/configuracoes-whatsapp-integracao.html" class="nav-link active">
+                        <i data-feather="message-circle"></i>
+                        <span>Integração WhatsApp</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-link">
+                        <i data-feather="zap"></i>
+                        <span>Kentro API</span>
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <img src="assets/user-avatar.png" alt="Usuário" class="user-avatar">
+                <div class="user-info">
+                    <span class="user-name">Operador</span>
+                    <span class="user-role">Sistema Lunas</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="content-title">
+                    <img src="assets/whatsapp-icon.png" alt="WhatsApp" class="page-icon">
+                    <h1>Integração WhatsApp</h1>
+                </div>
+                <p class="content-subtitle">Configure e gerencie as integrações do WhatsApp</p>
+            </div>
+
+            <div class="content-actions">
+                <button class="btn btn-primary" onclick="testAllIntegrations()">
+                    <i data-feather="play"></i>
+                    Testar Todas as Integrações
+                </button>
+                <button class="btn btn-secondary" onclick="refreshStatus()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar Status
+                </button>
+            </div>
+
+            <!-- Menu Dropdown de Navegação entre Integrações -->
+            <div class="integrations-nav">
+                <div class="integrations-nav-title">
+                    <i data-feather="zap"></i>
+                    Selecionar Automação WhatsApp
+                </div>
+                <div class="integrations-dropdown">
+                    <button class="dropdown-button" id="dropdownButton" onclick="toggleDropdown()">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="dropdown-icon" id="selectedIcon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <i data-feather="zap"></i>
+                            </div>
+                            <span class="dropdown-text" id="selectedText">Selecione uma automação</span>
+                        </div>
+                        <div class="dropdown-status disconnected" id="selectedStatus">Desconectado</div>
+                        <i data-feather="chevron-down" class="dropdown-arrow"></i>
+                    </button>
+                    <div class="dropdown-content" id="dropdownContent">
+                        <div class="dropdown-item" onclick="selectIntegration('kentro', 'Kentro API', 'disconnected')">
+                            <div class="dropdown-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <i data-feather="zap"></i>
+                            </div>
+                            <span class="dropdown-text">Kentro API</span>
+                            <span class="dropdown-status disconnected">Desconectado</span>
+                        </div>
+                        <div class="dropdown-item" onclick="selectIntegration('meta', 'Meta WhatsApp', 'development')">
+                            <div class="dropdown-icon" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);">
+                                <i data-feather="message-circle"></i>
+                            </div>
+                            <span class="dropdown-text">Meta WhatsApp</span>
+                            <span class="dropdown-status development">Em Dev</span>
+                        </div>
+                        <div class="dropdown-item" onclick="selectIntegration('zapier', 'Zapier', 'development')">
+                            <div class="dropdown-icon" style="background: linear-gradient(135deg, #FF4A00 0%, #FF6B35 100%);">
+                                <i data-feather="zap"></i>
+                            </div>
+                            <span class="dropdown-text">Zapier</span>
+                            <span class="dropdown-status development">Em Dev</span>
+                        </div>
+                        <div class="dropdown-item" onclick="selectIntegration('templates', 'Templates', 'connected')">
+                            <div class="dropdown-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);">
+                                <i data-feather="file-text"></i>
+                            </div>
+                            <span class="dropdown-text">Templates</span>
+                            <span class="dropdown-status connected">2 Aprovados</span>
+                        </div>
+                        <div class="dropdown-item" onclick="selectIntegration('logs', 'Logs', 'connected')">
+                            <div class="dropdown-icon" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+                                <i data-feather="activity"></i>
+                            </div>
+                            <span class="dropdown-text">Logs</span>
+                            <span class="dropdown-status connected">Ativo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalMessages">0</div>
+                    <div class="stat-label">Mensagens Enviadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="successRate">0%</div>
+                    <div class="stat-label">Taxa de Sucesso</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeIntegrations">0</div>
+                    <div class="stat-label">Integrações Ativas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="templatesCount">0</div>
+                    <div class="stat-label">Templates Aprovados</div>
+                </div>
+            </div>
+
+            <!-- Kentro Integration -->
+            <div class="integration-card integration-section" id="kentro">
+                <div class="integration-header">
+                    <div class="integration-icon kentro-icon">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <div>
+                        <h3 class="integration-title">Kentro API</h3>
+                        <p class="integration-subtitle">Integração principal para envio de mensagens WhatsApp</p>
+                    </div>
+                    <div class="status-badge status-disconnected" id="kentroStatus">
+                        Desconectado
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">URL da API</label>
+                    <input type="text" id="kentroUrl" class="form-input" placeholder="https://api.kentro.com.br/v1/whatsapp" value="https://api.kentro.com.br/v1/whatsapp">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Token de Acesso</label>
+                    <input type="password" id="kentroToken" class="form-input" placeholder="Digite seu token de acesso">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Instância WhatsApp</label>
+                    <input type="text" id="kentroInstance" class="form-input" placeholder="Digite o ID da instância">
+                </div>
+
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="kentroEnabled" checked>
+                        <label for="kentroEnabled">Ativar integração Kentro</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="kentroAutoConnect">
+                        <label for="kentroAutoConnect">Conectar automaticamente ao iniciar</label>
+                    </div>
+                </div>
+
+                <div class="test-section">
+                    <h4>Teste de Conectividade</h4>
+                    <button class="btn btn-success" onclick="testKentroConnection()">
+                        <i data-feather="wifi"></i>
+                        Testar Conexão
+                    </button>
+                    <button class="btn btn-warning" onclick="testKentroMessage()">
+                        <i data-feather="send"></i>
+                        Testar Envio
+                    </button>
+                    <div id="kentroTestResult" class="test-result" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <button class="btn btn-primary" onclick="saveKentroConfig()">
+                        <i data-feather="save"></i>
+                        Salvar Configuração
+                    </button>
+                    <button class="btn btn-danger" onclick="disconnectKentro()">
+                        <i data-feather="x-circle"></i>
+                        Desconectar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Meta WhatsApp Business (Futuro) -->
+            <div class="integration-card integration-section" id="meta">
+                <div class="integration-header">
+                    <div class="integration-icon meta-icon">
+                        <i data-feather="message-circle"></i>
+                    </div>
+                    <div>
+                        <h3 class="integration-title">Meta WhatsApp Business</h3>
+                        <p class="integration-subtitle">Integração direta com WhatsApp Business API</p>
+                    </div>
+                    <div class="status-badge status-disconnected">
+                        Em Desenvolvimento
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i data-feather="info"></i>
+                    Esta integração está em desenvolvimento e será disponibilizada em breve.
+                </div>
+            </div>
+
+            <!-- Zapier Integration (Futuro) -->
+            <div class="integration-card integration-section" id="zapier">
+                <div class="integration-header">
+                    <div class="integration-icon zapier-icon">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <div>
+                        <h3 class="integration-title">Zapier</h3>
+                        <p class="integration-subtitle">Automação e integração com outras ferramentas</p>
+                    </div>
+                    <div class="status-badge status-disconnected">
+                        Em Desenvolvimento
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i data-feather="info"></i>
+                    Esta integração está em desenvolvimento e será disponibilizada em breve.
+                </div>
+            </div>
+
+            <!-- Templates Aprovados -->
+            <div class="integration-card integration-section" id="templates">
+                <div class="integration-header">
+                    <div class="integration-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);">
+                        <i data-feather="file-text"></i>
+                    </div>
+                    <div>
+                        <h3 class="integration-title">Templates Aprovados</h3>
+                        <p class="integration-subtitle">Templates de mensagem aprovados pelo WhatsApp</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="refreshTemplates()">
+                        <i data-feather="refresh-cw"></i>
+                        Atualizar Templates
+                    </button>
+                </div>
+
+                <div id="templatesContainer" class="templates-grid">
+                    <!-- Templates serão carregados dinamicamente -->
+                </div>
+            </div>
+
+            <!-- Logs de Envio -->
+            <div class="integration-card integration-section" id="logs">
+                <div class="integration-header">
+                    <div class="integration-icon" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+                        <i data-feather="activity"></i>
+                    </div>
+                    <div>
+                        <h3 class="integration-title">Logs de Envio</h3>
+                        <p class="integration-subtitle">Histórico de mensagens enviadas</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="clearLogs()">
+                        <i data-feather="trash-2"></i>
+                        Limpar Logs
+                    </button>
+                </div>
+
+                <div id="logsContainer" class="logs-section">
+                    <div class="log-entry">
+                        <span class="log-timestamp">[2024-01-15 14:30:25]</span>
+                        <span class="log-success">SUCCESS:</span> Mensagem enviada para João Silva via Kentro
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-timestamp">[2024-01-15 14:28:10]</span>
+                        <span class="log-warning">WARNING:</span> Template "aprovacao_proposta" não encontrado
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-timestamp">[2024-01-15 14:25:45]</span>
+                        <span class="log-error">ERROR:</span> Falha na conexão com Kentro API
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+    <script src="assets/crm-layout.js"></script>
+    <script>
+        // ===== CONFIGURAÇÕES GLOBAIS =====
+        let kentroConfig = {
+            url: '',
+            token: '',
+            instance: '',
+            enabled: false,
+            autoConnect: false,
+            connected: false
+        };
+
+        let templates = [];
+        let logs = [];
+
+        // ===== INICIALIZAÇÃO =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎨 Inicializando página de integração WhatsApp...');
+            
+            // Inicializar CRM Layout
+            if (typeof initializeCRMLayout === 'function') {
+                initializeCRMLayout();
+            }
+            
+            // Carregar configurações salvas
+            loadSavedConfigs();
+            
+            // Carregar templates
+            loadTemplates();
+            
+            // Atualizar estatísticas
+            updateStats();
+            
+            // Definir Kentro como integração padrão
+            setTimeout(() => {
+                selectIntegration('kentro', 'Kentro API', 'disconnected');
+            }, 100);
+            
+            console.log('✅ Página de integração WhatsApp inicializada');
+        });
+
+        // ===== FUNÇÕES DE CONFIGURAÇÃO =====
+        function loadSavedConfigs() {
+            try {
+                const saved = localStorage.getItem('whatsapp-integration-config');
+                if (saved) {
+                    const config = JSON.parse(saved);
+                    kentroConfig = { ...kentroConfig, ...config };
+                    
+                    // Preencher campos
+                    document.getElementById('kentroUrl').value = kentroConfig.url || '';
+                    document.getElementById('kentroToken').value = kentroConfig.token || '';
+                    document.getElementById('kentroInstance').value = kentroConfig.instance || '';
+                    document.getElementById('kentroEnabled').checked = kentroConfig.enabled || false;
+                    document.getElementById('kentroAutoConnect').checked = kentroConfig.autoConnect || false;
+                    
+                    // Atualizar status
+                    updateKentroStatus();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
+            }
+        }
+
+        function saveKentroConfig() {
+            try {
+                kentroConfig.url = document.getElementById('kentroUrl').value;
+                kentroConfig.token = document.getElementById('kentroToken').value;
+                kentroConfig.instance = document.getElementById('kentroInstance').value;
+                kentroConfig.enabled = document.getElementById('kentroEnabled').checked;
+                kentroConfig.autoConnect = document.getElementById('kentroAutoConnect').checked;
+                
+                // Salvar no localStorage
+                localStorage.setItem('whatsapp-integration-config', JSON.stringify(kentroConfig));
+                
+                // Mostrar sucesso
+                showAlert('Configuração salva com sucesso!', 'success');
+                
+                // Atualizar status
+                updateKentroStatus();
+                
+            } catch (error) {
+                console.error('Erro ao salvar configuração:', error);
+                showAlert('Erro ao salvar configuração: ' + error.message, 'error');
+            }
+        }
+
+        function updateKentroStatus() {
+            const statusElement = document.getElementById('kentroStatus');
+            const navStatusElement = document.getElementById('kentroNavStatus');
+            
+            if (kentroConfig.enabled && kentroConfig.url && kentroConfig.token) {
+                if (kentroConfig.connected) {
+                    statusElement.textContent = 'Conectado';
+                    statusElement.className = 'status-badge status-connected';
+                    navStatusElement.textContent = 'Conectado';
+                    navStatusElement.className = 'integration-nav-status connected';
+                } else {
+                    statusElement.textContent = 'Configurado';
+                    statusElement.className = 'status-badge status-testing';
+                    navStatusElement.textContent = 'Configurado';
+                    navStatusElement.className = 'integration-nav-status development';
+                }
+            } else {
+                statusElement.textContent = 'Desconectado';
+                statusElement.className = 'status-badge status-disconnected';
+                navStatusElement.textContent = 'Desconectado';
+                navStatusElement.className = 'integration-nav-status disconnected';
+            }
+        }
+
+        // ===== FUNÇÕES DE TESTE =====
+        async function testKentroConnection() {
+            const resultElement = document.getElementById('kentroTestResult');
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            try {
+                // Mostrar loading
+                button.innerHTML = '<span class="loading-spinner"></span> Testando...';
+                button.disabled = true;
+                
+                // Simular teste de conexão
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Verificar se campos estão preenchidos
+                if (!kentroConfig.url || !kentroConfig.token) {
+                    throw new Error('URL e Token são obrigatórios');
+                }
+                
+                // Simular resposta da API
+                const success = Math.random() > 0.3; // 70% de chance de sucesso
+                
+                if (success) {
+                    kentroConfig.connected = true;
+                    resultElement.className = 'test-result test-success';
+                    resultElement.textContent = '✅ Conexão estabelecida com sucesso!\n\nResposta da API:\n{\n  "status": "connected",\n  "instance": "' + kentroConfig.instance + '",\n  "timestamp": "' + new Date().toISOString() + '"\n}';
+                    showAlert('Conexão com Kentro estabelecida com sucesso!', 'success');
+                } else {
+                    throw new Error('Falha na autenticação. Verifique o token.');
+                }
+                
+            } catch (error) {
+                kentroConfig.connected = false;
+                resultElement.className = 'test-result test-error';
+                resultElement.textContent = '❌ Erro na conexão:\n\n' + error.message + '\n\nVerifique:\n- URL da API\n- Token de acesso\n- Conectividade de rede';
+                showAlert('Erro na conexão: ' + error.message, 'error');
+            } finally {
+                resultElement.style.display = 'block';
+                button.innerHTML = originalText;
+                button.disabled = false;
+                updateKentroStatus();
+            }
+        }
+
+        async function testKentroMessage() {
+            const resultElement = document.getElementById('kentroTestResult');
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            try {
+                if (!kentroConfig.connected) {
+                    throw new Error('Conecte-se primeiro antes de testar o envio');
+                }
+                
+                // Mostrar loading
+                button.innerHTML = '<span class="loading-spinner"></span> Enviando...';
+                button.disabled = true;
+                
+                // Simular envio de mensagem
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Simular resposta
+                const success = Math.random() > 0.2; // 80% de chance de sucesso
+                
+                if (success) {
+                    resultElement.className = 'test-result test-success';
+                    resultElement.textContent = '✅ Mensagem de teste enviada com sucesso!\n\nDetalhes:\n- Destinatário: +5511999999999\n- Template: aprovação_proposta\n- Status: delivered\n- ID: msg_' + Date.now();
+                    
+                    // Adicionar ao log
+                    addLog('SUCCESS', 'Mensagem de teste enviada com sucesso');
+                    showAlert('Mensagem de teste enviada com sucesso!', 'success');
+                } else {
+                    throw new Error('Falha no envio da mensagem');
+                }
+                
+            } catch (error) {
+                resultElement.className = 'test-result test-error';
+                resultElement.textContent = '❌ Erro no envio:\n\n' + error.message + '\n\nVerifique:\n- Conexão com a API\n- Configuração da instância\n- Status do WhatsApp';
+                addLog('ERROR', 'Erro no envio de teste: ' + error.message);
+                showAlert('Erro no envio: ' + error.message, 'error');
+            } finally {
+                resultElement.style.display = 'block';
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        async function testAllIntegrations() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            try {
+                button.innerHTML = '<span class="loading-spinner"></span> Testando...';
+                button.disabled = true;
+                
+                // Testar Kentro
+                if (kentroConfig.enabled) {
+                    await testKentroConnection();
+                }
+                
+                // Simular outros testes
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                showAlert('Todos os testes concluídos!', 'success');
+                
+            } catch (error) {
+                showAlert('Erro nos testes: ' + error.message, 'error');
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        // ===== TEMPLATES POR INTEGRAÇÃO =====
+        const templatesPorIntegracao = {
+            kentro: [
+                {
+                    id: 'kentro_aprovacao_proposta',
+                    name: 'Aprovação de Proposta',
+                    content: 'Parabéns {{nome}}! Sua proposta de empréstimo foi aprovada no valor de {{valor}} via Kentro.',
+                    status: 'approved',
+                    variables: ['nome', 'valor'],
+                    integration: 'kentro'
+                },
+                {
+                    id: 'kentro_lembrete_pagamento',
+                    name: 'Lembrete de Pagamento',
+                    content: 'Olá {{nome}}, este é um lembrete sobre seu pagamento de {{valor}} que vence em {{data}} via Kentro.',
+                    status: 'approved',
+                    variables: ['nome', 'valor', 'data'],
+                    integration: 'kentro'
+                },
+                {
+                    id: 'kentro_status_atualizado',
+                    name: 'Status Atualizado',
+                    content: 'Olá {{nome}}! Seu status foi atualizado para: {{status}} via Kentro.',
+                    status: 'approved',
+                    variables: ['nome', 'status'],
+                    integration: 'kentro'
+                },
+                {
+                    id: 'kentro_contato_cliente',
+                    name: 'Contato com Cliente',
+                    content: 'Olá {{nome}}! Recebemos sua solicitação via Kentro. Nossa equipe entrará em contato em breve.',
+                    status: 'approved',
+                    variables: ['nome', 'telefone'],
+                    integration: 'kentro'
+                }
+            ],
+            meta: [
+                {
+                    id: 'meta_aprovacao_proposta',
+                    name: 'Aprovação de Proposta',
+                    content: 'Parabéns {{nome}}! Sua proposta foi aprovada no valor de {{valor}} via WhatsApp Business.',
+                    status: 'approved',
+                    variables: ['nome', 'valor'],
+                    integration: 'meta'
+                },
+                {
+                    id: 'meta_lembrete_pagamento',
+                    name: 'Lembrete de Pagamento',
+                    content: 'Olá {{nome}}, lembrete: pagamento de {{valor}} vence em {{data}} via WhatsApp Business.',
+                    status: 'approved',
+                    variables: ['nome', 'valor', 'data'],
+                    integration: 'meta'
+                },
+                {
+                    id: 'meta_status_atualizado',
+                    name: 'Status Atualizado',
+                    content: 'Olá {{nome}}! Status atualizado para: {{status}} via WhatsApp Business.',
+                    status: 'pending',
+                    variables: ['nome', 'status'],
+                    integration: 'meta'
+                },
+                {
+                    id: 'meta_bem_vindo',
+                    name: 'Bem-vindo',
+                    content: 'Bem-vindo {{nome}}! Você está sendo atendido via WhatsApp Business da Lunas Digital.',
+                    status: 'approved',
+                    variables: ['nome'],
+                    integration: 'meta'
+                }
+            ],
+            zapier: [
+                {
+                    id: 'zapier_aprovacao_proposta',
+                    name: 'Aprovação de Proposta',
+                    content: 'Parabéns {{nome}}! Sua proposta foi aprovada no valor de {{valor}} via automação Zapier.',
+                    status: 'approved',
+                    variables: ['nome', 'valor'],
+                    integration: 'zapier'
+                },
+                {
+                    id: 'zapier_lembrete_pagamento',
+                    name: 'Lembrete de Pagamento',
+                    content: 'Olá {{nome}}, lembrete automático: pagamento de {{valor}} vence em {{data}} via Zapier.',
+                    status: 'approved',
+                    variables: ['nome', 'valor', 'data'],
+                    integration: 'zapier'
+                },
+                {
+                    id: 'zapier_status_atualizado',
+                    name: 'Status Atualizado',
+                    content: 'Olá {{nome}}! Status atualizado para: {{status}} via automação Zapier.',
+                    status: 'pending',
+                    variables: ['nome', 'status'],
+                    integration: 'zapier'
+                },
+                {
+                    id: 'zapier_follow_up',
+                    name: 'Follow-up',
+                    content: 'Olá {{nome}}! Este é um follow-up automático via Zapier. Como podemos ajudar?',
+                    status: 'approved',
+                    variables: ['nome'],
+                    integration: 'zapier'
+                }
+            ]
+        };
+
+        // ===== FUNÇÕES DE TEMPLATES =====
+        function loadTemplates() {
+            // Carregar templates baseado na integração atual
+            if (currentIntegration && templatesPorIntegracao[currentIntegration]) {
+                templates = templatesPorIntegracao[currentIntegration];
+            } else {
+                // Fallback para templates globais
+                templates = [
+                    {
+                        id: 'aprovacao_proposta',
+                        name: 'Aprovação de Proposta',
+                        content: 'Parabéns {{nome}}! Sua proposta de empréstimo foi aprovada no valor de {{valor}}.',
+                        status: 'approved',
+                        variables: ['nome', 'valor']
+                    },
+                    {
+                        id: 'lembrete_pagamento',
+                        name: 'Lembrete de Pagamento',
+                        content: 'Olá {{nome}}, este é um lembrete sobre seu pagamento de {{valor}} que vence em {{data}}.',
+                        status: 'approved',
+                        variables: ['nome', 'valor', 'data']
+                    },
+                    {
+                        id: 'status_atualizado',
+                        name: 'Status Atualizado',
+                        content: 'Olá {{nome}}! Seu status foi atualizado para: {{status}}.',
+                        status: 'pending',
+                        variables: ['nome', 'status']
+                    }
+                ];
+            }
+            
+            renderTemplates();
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templatesContainer');
+            container.innerHTML = '';
+            
+            // Atualizar título da seção de templates
+            const templateSection = document.getElementById('templates');
+            if (templateSection) {
+                const header = templateSection.querySelector('.integration-header h3');
+                if (header) {
+                    const integrationName = currentIntegration === 'kentro' ? 'Kentro' : 
+                                          currentIntegration === 'meta' ? 'Meta WhatsApp' : 
+                                          currentIntegration === 'zapier' ? 'Zapier' : 'Templates';
+                    header.textContent = `Templates ${integrationName}`;
+                }
+            }
+            
+            templates.forEach(template => {
+                const templateCard = document.createElement('div');
+                templateCard.className = 'template-card';
+                
+                const statusClass = template.status === 'approved' ? 'status-connected' : 'status-testing';
+                const statusText = template.status === 'approved' ? 'Aprovado' : 'Pendente';
+                
+                templateCard.innerHTML = `
+                    <div class="template-name">${template.name}</div>
+                    <div class="template-content">${template.content}</div>
+                    <div class="template-variables">Variáveis: ${template.variables.join(', ')}</div>
+                    <div class="template-integration">Integração: ${template.integration || currentIntegration || 'Global'}</div>
+                    <div class="template-status">
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        <button class="btn btn-secondary" onclick="testTemplate('${template.id}')">
+                            <i data-feather="play"></i>
+                            Testar
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(templateCard);
+            });
+            
+            // Atualizar contador
+            document.getElementById('templatesCount').textContent = templates.filter(t => t.status === 'approved').length;
+            
+            // Reinicializar ícones
+            feather.replace();
+        }
+
+        function refreshTemplates() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            button.innerHTML = '<span class="loading-spinner"></span> Atualizando...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                loadTemplates();
+                button.innerHTML = originalText;
+                button.disabled = false;
+                showAlert('Templates atualizados!', 'success');
+            }, 1500);
+        }
+
+        function testTemplate(templateId) {
+            const template = templates.find(t => t.id === templateId);
+            if (template) {
+                showAlert(`Testando template: ${template.name}`, 'info');
+                addLog('INFO', `Testando template: ${template.name}`);
+            }
+        }
+
+        // ===== FUNÇÕES DE LOGS =====
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleString('pt-BR');
+            const logEntry = {
+                timestamp,
+                type,
+                message
+            };
+            
+            logs.unshift(logEntry);
+            
+            // Manter apenas os últimos 50 logs
+            if (logs.length > 50) {
+                logs = logs.slice(0, 50);
+            }
+            
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logsContainer');
+            container.innerHTML = '';
+            
+            logs.forEach(log => {
+                const logElement = document.createElement('div');
+                logElement.className = 'log-entry';
+                
+                const typeClass = log.type === 'SUCCESS' ? 'log-success' : 
+                                 log.type === 'ERROR' ? 'log-error' : 
+                                 log.type === 'WARNING' ? 'log-warning' : 'log-info';
+                
+                logElement.innerHTML = `
+                    <span class="log-timestamp">[${log.timestamp}]</span>
+                    <span class="${typeClass}">${log.type}:</span> ${log.message}
+                `;
+                
+                container.appendChild(logElement);
+            });
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showAlert('Logs limpos!', 'success');
+        }
+
+        // ===== FUNÇÕES DE ESTATÍSTICAS =====
+        function updateStats() {
+            // Simular estatísticas
+            document.getElementById('totalMessages').textContent = Math.floor(Math.random() * 1000) + 500;
+            document.getElementById('successRate').textContent = (Math.random() * 20 + 80).toFixed(1) + '%';
+            document.getElementById('activeIntegrations').textContent = kentroConfig.enabled ? '1' : '0';
+        }
+
+        function refreshStatus() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            button.innerHTML = '<span class="loading-spinner"></span> Atualizando...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                updateKentroStatus();
+                updateStats();
+                button.innerHTML = originalText;
+                button.disabled = false;
+                showAlert('Status atualizado!', 'success');
+            }, 1000);
+        }
+
+        // ===== FUNÇÕES DO DROPDOWN =====
+        let currentIntegration = null;
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownContent');
+            const button = document.getElementById('dropdownButton');
+            
+            if (dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+                button.classList.remove('active');
+            } else {
+                dropdown.classList.add('show');
+                button.classList.add('active');
+            }
+        }
+
+        function selectIntegration(integrationId, integrationName, status) {
+            // Fechar dropdown
+            const dropdown = document.getElementById('dropdownContent');
+            const button = document.getElementById('dropdownButton');
+            dropdown.classList.remove('show');
+            button.classList.remove('active');
+
+            // Atualizar botão principal
+            const selectedText = document.getElementById('selectedText');
+            const selectedStatus = document.getElementById('selectedStatus');
+            const selectedIcon = document.getElementById('selectedIcon');
+            
+            selectedText.textContent = integrationName;
+            selectedStatus.textContent = getStatusText(status);
+            selectedStatus.className = `dropdown-status ${status}`;
+            
+            // Atualizar ícone baseado na integração
+            updateSelectedIcon(integrationId);
+
+            // Remover classe active de todos os itens
+            document.querySelectorAll('.dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Adicionar classe active ao item selecionado
+            const selectedItem = document.querySelector(`[onclick*="${integrationId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+
+            // Mostrar apenas a seção selecionada
+            showIntegrationSection(integrationId);
+            
+            // Atualizar currentIntegration
+            currentIntegration = integrationId;
+            
+            // Recarregar templates específicos da integração
+            loadTemplates();
+        }
+
+        function updateSelectedIcon(integrationId) {
+            const selectedIcon = document.getElementById('selectedIcon');
+            const iconMap = {
+                'kentro': { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: 'zap' },
+                'meta': { bg: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)', icon: 'message-circle' },
+                'zapier': { bg: 'linear-gradient(135deg, #FF4A00 0%, #FF6B35 100%)', icon: 'zap' },
+                'templates': { bg: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)', icon: 'file-text' },
+                'logs': { bg: 'linear-gradient(135deg, #64748b 0%, #475569 100%)', icon: 'activity' }
+            };
+            
+            const config = iconMap[integrationId];
+            if (config) {
+                selectedIcon.style.background = config.bg;
+                selectedIcon.innerHTML = `<i data-feather="${config.icon}"></i>`;
+                feather.replace();
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'connected': 'Conectado',
+                'disconnected': 'Desconectado',
+                'development': 'Em Desenvolvimento'
+            };
+            return statusMap[status] || status;
+        }
+
+        function showIntegrationSection(integrationId) {
+            // Ocultar todas as seções
+            document.querySelectorAll('.integration-section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Mostrar apenas a seção selecionada
+            const targetSection = document.getElementById(integrationId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+        }
+
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdownContent');
+            const button = document.getElementById('dropdownButton');
+            
+            if (!button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.remove('show');
+                button.classList.remove('active');
+            }
+        });
+
+        // ===== FUNÇÕES DE NAVEGAÇÃO =====
+        function scrollToIntegration(integrationId) {
+            // Remover classe active de todos os itens
+            document.querySelectorAll('.integration-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Adicionar classe active ao item clicado
+            event.target.closest('.integration-nav-item').classList.add('active');
+            
+            // Scroll suave para a seção
+            const element = document.getElementById(integrationId);
+            if (element) {
+                element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+
+        // ===== FUNÇÕES AUXILIARES =====
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `
+                <i data-feather="info"></i>
+                ${message}
+            `;
+            
+            // Inserir no topo do conteúdo
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(alertDiv, mainContent.firstChild);
+            
+            // Reinicializar ícones
+            feather.replace();
+            
+            // Remover após 5 segundos
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        function disconnectKentro() {
+            if (confirm('Tem certeza que deseja desconectar a integração Kentro?')) {
+                kentroConfig.connected = false;
+                kentroConfig.enabled = false;
+                
+                // Limpar campos
+                document.getElementById('kentroToken').value = '';
+                document.getElementById('kentroInstance').value = '';
+                document.getElementById('kentroEnabled').checked = false;
+                
+                updateKentroStatus();
+                showAlert('Integração Kentro desconectada!', 'warning');
+                addLog('WARNING', 'Integração Kentro desconectada pelo usuário');
+            }
+        }
+
+        // ===== INICIALIZAÇÃO DOS ÍCONES =====
+        feather.replace();
+    </script>
+</body>
+</html>

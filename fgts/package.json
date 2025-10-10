@@ -1,0 +1,22 @@
+{
+  "name": "fgts-sistema",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sistema FGTS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "multer": "^1.4.4",
+    "node-fetch": "^3.3.2",
+    "p-queue": "^7.4.1",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0",
+    "csv-parse": "^5.5.0",
+    "qs": "^6.11.0",
+    "https-proxy-agent": "^7.0.2"
+  }
+}

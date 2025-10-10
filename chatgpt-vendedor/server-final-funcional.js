@@ -1,5 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import agentToolsHandler from './agent-builder-tools-handler.js';
 
 const app = express();
 const PORT = 3004;
@@ -7,6 +8,9 @@ const PORT = 3004;
 // Middleware básico do Express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Registrar handler das Agent Builder Tools
+app.use('/api', agentToolsHandler);
 
 console.log('🤖 ChatGPT Vendedor FINAL FUNCIONAL rodando na porta', PORT);
 

@@ -1188,6 +1188,7 @@ function atualizarDadosCliente() {
     const especieElement = document.getElementById('clienteEspecie');
     const origemElement = document.getElementById('clienteOrigem');
     const dataElement = document.getElementById('clienteData');
+    const kentroIdElement = document.getElementById('clienteKentroId');
     
     console.log('👤 Elementos encontrados:', {
         nome: nomeElement ? 'SIM' : 'NÃO',
@@ -1220,6 +1221,13 @@ function atualizarDadosCliente() {
     if (dataElement) {
         dataElement.textContent = cliente.dataExtrato || '-';
         console.log('👤 Data definida:', cliente.dataExtrato || '-');
+    }
+    
+    if (kentroIdElement) {
+        // Mostrar KentroID se disponível
+        const kentroId = window.idoportunidade || extratoAtual?.idoportunidade || '-';
+        kentroIdElement.textContent = kentroId === 'null' ? 'Não associado' : kentroId;
+        console.log('👤 KentroID definido:', kentroId === 'null' ? 'Não associado' : kentroId);
     }
     
     console.log('✅ Dados do cliente atualizados!');
@@ -2451,97 +2459,60 @@ async function abrirDigitar() {
     }
     
     try {
-        // Verificar se o ClientManager está disponível
-        if (typeof window.clientManager === 'undefined') {
-            // Criar um script tag para carregar o client-manager
-            const script = document.createElement('script');
-            script.src = '/operacional/client-manager.js?v=20250103210000';
-            script.onload = async () => {
-                console.log('✅ ClientManager carregado, inicializando com sincronização...');
-                try {
-                    // Inicializar com sincronização híbrida
-                    await window.clientManager.initialize();
-                    console.log('✅ ClientManager inicializado com dados sincronizados');
-                    // Removido setTimeout automático - função só será chamada quando necessário
-                } catch (error) {
-                    console.error('❌ Erro ao inicializar ClientManager:', error);
-                    alert('❌ Erro ao sincronizar dados. Abrindo modo manual...');
-                    abrirDigitarManual();
+        // Remover dependência do client-manager.js
+        // Salvar proposta diretamente no banco de dados
+        
+        // Obter CPF de todas as fontes possíveis
+        const cpfCliente = cliente.cpf || window.cpfCache || localStorage.getItem('cpfCache') || extratoAtual?.cpf || '';
+        
+        // Obter clientId do cache ou criar novo
+        let clientId = localStorage.getItem(`clientId_${cpfCliente}`);
+        
+        if (!clientId) {
+            console.log('💾 Salvando cliente no banco de dados...');
+            console.log('🔍 CPF do cliente:', cpfCliente);
+            
+            if (!cpfCliente) {
+                alert('❌ CPF não encontrado. Não é possível salvar a proposta.');
+                return;
+            }
+            
+            // Salvar cliente primeiro
+            const clienteParams = new URLSearchParams();
+            clienteParams.append('clientData[cpf]', cpfCliente);
+            clienteParams.append('clientData[nome]', cliente.nome || extratoAtual?.cliente || '');
+            clienteParams.append('clientData[nb]', cliente.nb || extratoAtual?.beneficio?.numero || '');
+            clienteParams.append('clientData[telefone]', cliente.telefone || '');
+            clienteParams.append('clientData[email]', cliente.email || '');
+            clienteParams.append('clientData[nascimento]', cliente.nascimento || '');
+            clienteParams.append('clientData[kentroId]', window.idoportunidade || '');
+            clienteParams.append('clientData[fonte]', 'simulador_proposta');
+            
+            try {
+                const clienteResponse = await fetch('/api/salvar-cliente', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: clienteParams
+                });
+                
+                if (clienteResponse.ok) {
+                    const clienteResult = await clienteResponse.json();
+                    clientId = clienteResult.clientId;
+                    console.log('✅ Cliente salvo com ID:', clientId);
+                    localStorage.setItem(`clientId_${cliente.cpf}`, clientId);
+                } else {
+                    throw new Error('Erro ao salvar cliente');
                 }
-            };
-            script.onerror = () => {
-                console.error('❌ Erro ao carregar ClientManager');
-                alert('❌ Erro ao conectar com sistema operacional. Abrindo modo manual...');
-                abrirDigitarManual();
-            };
-            document.head.appendChild(script);
-            return;
+            } catch (error) {
+                console.error('❌ Erro ao salvar cliente:', error);
+                alert('❌ Erro ao salvar cliente. Tente novamente.');
+                return;
+            }
         }
         
-        // Preparar dados do cliente para o sistema operacional - NOVA LÓGICA INTEGRADA
-        // Definir variáveis que podem não estar definidas
-        const contratosRMC = [];
-        const contratosRCC = [];
-        
-        const clienteData = {
-            nome: cliente.nome || '',
-            cpf: cliente.cpf || window.cpfCache || localStorage.getItem('cpfCache') || '',
-            nascimento: cliente.nascimento || '',
-            telefone: cliente.telefone || '',
-            email: cliente.email || '',
-            nb: cliente.nb || '',
-            endereco: {
-                cep: cliente.cep || '',
-                logradouro: cliente.logradouro || '',
-                numero: cliente.numero || '',
-                complemento: cliente.complemento || '',
-                bairro: cliente.bairro || '',
-                cidade: cliente.cidade || '',
-                uf: cliente.uf || ''
-            },
-            // Dados do extrato para enriquecimento
-            beneficio: {
-                numero: cliente.nb || '',
-                especie: cliente.especie || '',
-                nomeBeneficio: cliente.nomeBeneficio || '',
-                valor: cliente.valor_beneficio || '',
-                banco_pagamento: cliente.banco_pagamento || '',
-                agencia: cliente.agencia || '',
-                conta: cliente.conta || '',
-                origem: cliente.origem || 'INSS',
-                dataExtrato: cliente.dataExtrato || ''
-            },
-            contratos: contratosAtivos || [],
-            contratosRMC: contratosRMC || [],
-            contratosRCC: contratosRCC || [],
-            margens: margens || {},
-            kentroId: null // Será preenchido pelo servidor
-        };
-        
-        // Preparar contratos para o sistema operacional
-        const contratosFormatados = contratosAtivos.map((c, index) => ({
-            id: index + 1,
-            banco: c.simulacao?.bancoNovo || c.banco?.nome || 'Não definido',
-            parcelas: 96,
-            valorParcela: c.simulacao ? `R$ ${c.simulacao.parcela?.toFixed(2)}` : 'R$ 0,00',
-            taxa: c.simulacao ? `${c.simulacao.taxa}%` : '0%',
-            troco: c.simulacao ? `R$ ${c.simulacao.troco?.toFixed(2)}` : 'R$ 0,00',
-            editando: false
-        }));
-        
-        // Criar ou atualizar cliente no sistema operacional
-        let clientId;
-        try {
-            clientId = await window.clientManager.createOrUpdateClient(clienteData);
-            console.log('✅ Cliente criado/atualizado:', clientId);
-        } catch (error) {
-            console.error('❌ Erro ao criar cliente:', error);
-            alert(`❌ Erro ao salvar cliente: ${error.message}\n\nTentando modo manual...`);
-            abrirDigitarManual();
-            return;
-        }
-        
-        // Calcular resumo da proposta para o clientManager
+        // Calcular resumo da proposta
         const primeiroContratoResumo = contratosAtivos[0] || {};
         const bancoAtualResumo = primeiroContratoResumo.banco || 'N/A';
         const bancoNovoResumo = primeiroContratoResumo.simulacao?.banco || 'N/A';
@@ -2553,73 +2524,30 @@ async function abrirDigitar() {
         const saldoDevedorResumo = contratosAtivos.reduce((sum, c) => sum + (c.saldo_devedor || 0), 0);
         const numeroContratoResumo = primeiroContratoResumo.contrato || 'N/A';
         
-        // Dados da proposta
-        const proposalData = {
-            extrato: {
-                data: new Date().toISOString().split('T')[0],
-                margem: margens.margem_disponivel_empretimo || 'R$ 0,00',
-                origem: 'INSS - Simulador'
-            },
-            contratos: contratosFormatados,
-            status: 'NA_FILA',
-            origem: 'simulador',
-            extratoId: extratoAtual?.id || null,
-            statusProdutos: '1', // ID do produto: 1 = Portabilidade c/ Troco
-            // Resumo da proposta para exibição na fila
-            bancoAtual: bancoAtualResumo,
-            bancoNovo: bancoNovoResumo,
-            parcelaAtual: parcelaAtualResumo,
-            parcelaNova: parcelaNovaResumo,
-            prazoAtual: prazoAtualResumo,
-            prazoNovo: prazoNovoResumo,
-            trocoTotal: trocoTotalResumo,
-            saldoDevedor: saldoDevedorResumo,
-            numeroContrato: numeroContratoResumo,
-            dataCriacao: new Date().toISOString(),
-            dataAtualizacao: new Date().toISOString()
-        };
+        // Preparar dados da proposta para salvar no servidor
+        const primeiroContrato = contratosAtivos[0] || {};
+        const bancoAtual = primeiroContrato.banco || 'N/A';
+        const bancoNovo = primeiroContrato.simulacao?.banco || 'N/A';
+        const parcelaAtual = primeiroContrato.valor_parcela || 0;
+        const parcelaNova = primeiroContrato.simulacao?.parcela || 0;
+        const prazoAtual = primeiroContrato.parcelas_pagas || 0;
+        const prazoNovo = primeiroContrato.prazo_total || 0;
+        const trocoTotal = contratosAtivos.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0);
+        const saldoDevedor = contratosAtivos.reduce((sum, c) => sum + (c.saldo_devedor || 0), 0);
+        const numeroContrato = primeiroContrato.contrato || 'N/A';
         
-        // Adicionar proposta ao cliente
-        try {
-            const proposalId = window.clientManager.addProposalToClient(clientId, proposalData);
-            console.log('✅ Proposta criada:', proposalId);
-            
-            // Atualizar status para "CLIENTE_ACEITOU"
-            window.clientManager.updateProposalStatus(clientId, proposalId, 'CLIENTE_ACEITOU', {
-                origem: 'simulador',
-                extratoId: extratoAtual?.id || null
-            });
-
-            // Criar ID único para a proposta (compatível com o servidor)
-            const propostaId = `proposta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
-            // Preparar dados da proposta para salvar no servidor
-            // Calcular resumo da proposta
-            const primeiroContrato = contratosAtivos[0] || {};
-            const bancoAtual = primeiroContrato.banco || 'N/A';
-            const bancoNovo = primeiroContrato.simulacao?.banco || 'N/A';
-            const parcelaAtual = primeiroContrato.valor_parcela || 0;
-            const parcelaNova = primeiroContrato.simulacao?.parcela || 0;
-            const prazoAtual = primeiroContrato.parcelas_pagas || 0;
-            const prazoNovo = primeiroContrato.prazo_total || 0;
-            const trocoTotal = contratosAtivos.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0);
-            const saldoDevedor = contratosAtivos.reduce((sum, c) => sum + (c.saldo_devedor || 0), 0);
-            const numeroContrato = primeiroContrato.contrato || 'N/A';
-            
-            const dadosProposta = {
-                id: propostaId,
-                clientId: clientId,
-                proposalId: proposalId, // ID do clientManager
+        const dadosProposta = {
+            clientId: clientId,
+            cpf: cpfCliente,
+            kentroId: window.idoportunidade || null,
+            status: 'Na fila', // Status conforme solicitado
+            origem: 'INSS_SIMULADOR',
+            statusProdutos: '1', // ID do produto: 1 = Portabilidade c/ Troco
+            dados: {
                 cliente: cliente,
                 margens: margens,
                 contratos: contratosAtivos,
-                timestamp: new Date().toISOString(),
-                tipo: 'proposta_cliente',
-                status: 'CLIENTE_ACEITOU',
-                origem: 'simulador',
                 extratoId: extratoAtual?.id || null,
-                idoportunidade: window.idoportunidade || null, // Incluir ID da Kentro
-                statusProdutos: '1', // ID do produto: 1 = Portabilidade c/ Troco (calculado pelo simulador)
                 // Resumo da proposta para exibição na fila
                 bancoAtual: bancoAtual,
                 bancoNovo: bancoNovo,
@@ -2629,54 +2557,64 @@ async function abrirDigitar() {
                 prazoNovo: prazoNovo,
                 trocoTotal: trocoTotal,
                 saldoDevedor: saldoDevedor,
-                numeroContrato: numeroContrato,
-                dataCriacao: new Date().toISOString()
-            };
-            
-            // Salvar proposta no servidor
-            console.log('💾 Salvando proposta no servidor:', propostaId);
-            try {
-                const response = await fetch('/api/salvar-proposta', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        propostaId: propostaId,
-                        dados: dadosProposta
-                    })
-                });
-                
-                const result = await response.json();
-                console.log('✅ Proposta salva no servidor:', result);
-                
-                if (result.success) {
-                    // Sincronizar dados Kentro + Extrato no sistema Lunas
-                    if (window.idoportunidade && clientId) {
-                        console.log('🔄 Sincronizando dados Kentro + Extrato...');
-                        await sincronizarDadosCliente(clientId, window.idoportunidade, cliente);
-                    }
-                    
-                    // Gerar link completo
-                    const linkCompleto = `${window.location.origin}/detalhesdaproposta/${propostaId}`;
-                    console.log('🔗 Link gerado:', linkCompleto);
-                    
-                    // Mostrar modal com opções
-                    mostrarModalProposta(linkCompleto);
-                } else {
-                    console.error('❌ Erro ao salvar proposta:', result.error);
-                    alert('Erro ao salvar proposta: ' + result.error);
-                }
-            } catch (error) {
-                console.error('❌ Erro ao salvar proposta:', error);
-                alert('Erro ao salvar proposta: ' + error.message);
+                numeroContrato: numeroContrato
             }
-
-            let formUrl = `/detalhesdaproposta/${propostaId}`;
+        };
+        
+        // Salvar proposta no servidor usando URLSearchParams
+        console.log('💾 Salvando proposta no servidor...');
+        try {
+            const propostaParams = new URLSearchParams();
+            propostaParams.append('propostaData[clientId]', dadosProposta.clientId);
+            propostaParams.append('propostaData[cpf]', dadosProposta.cpf);
+            propostaParams.append('propostaData[kentroId]', dadosProposta.kentroId || '');
+            propostaParams.append('propostaData[status]', dadosProposta.status);
+            propostaParams.append('propostaData[origem]', dadosProposta.origem);
+            propostaParams.append('propostaData[statusProdutos]', dadosProposta.statusProdutos);
+            propostaParams.append('propostaData[dados]', JSON.stringify(dadosProposta.dados));
             
+            console.log('📤 Enviando proposta para o servidor...');
+            const response = await fetch('/api/salvar-proposta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: propostaParams
+            });
+            
+            console.log('📡 Resposta recebida:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ Proposta salva no servidor:', result);
+            
+            if (result.success) {
+                // Usar o ID sequencial retornado pelo servidor
+                const propostaIdSequencial = result.propostaId;
+                console.log('📝 ID da proposta sequencial:', propostaIdSequencial);
+                
+                // Sincronizar dados Kentro + Extrato no sistema Lunas
+                if (window.idoportunidade && clientId) {
+                    console.log('🔄 Sincronizando dados Kentro + Extrato...');
+                    await sincronizarDadosCliente(clientId, window.idoportunidade, cliente);
+                }
+                
+                // Gerar link completo usando ID sequencial
+                const linkCompleto = `${window.location.origin}/detalhesdaproposta/${propostaIdSequencial}`;
+                console.log('🔗 Link gerado:', linkCompleto);
+                
+                // Mostrar modal com opções
+                mostrarModalProposta(linkCompleto);
+            } else {
+                console.error('❌ Erro ao salvar proposta:', result.error);
+                alert('Erro ao salvar proposta: ' + result.error);
+            }
         } catch (error) {
-            console.error('❌ Erro ao criar proposta:', error);
-            alert(`❌ Erro ao criar proposta: ${error.message}`);
+            console.error('❌ Erro ao salvar proposta:', error);
+            alert('Erro ao salvar proposta: ' + error.message);
         }
         
     } catch (error) {
@@ -3552,7 +3490,8 @@ async function uploadExtrato(file, cpf) {
                 idoportunidade = null;
                 window.idoportunidade = null;
             }
-        }
+        } // Fecha catch (kentroError)
+        } // Fecha if (!idoportunidade)
         
         // 2. Salvar CPF na base de dados se não foi salvo ainda
         if (!clientId) {
@@ -3561,7 +3500,6 @@ async function uploadExtrato(file, cpf) {
             
             try {
                 const clienteBasico = {
-                    id: `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     cpf: cpf,
                     nome: 'Cliente Simulador',
                     nb: '',
@@ -3578,23 +3516,31 @@ async function uploadExtrato(file, cpf) {
                     margens: {},
                     propostas: [],
                     kentroId: idoportunidade,
-                    fonte: 'simulador_cpf',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    fonte: 'simulador_cpf'
                 };
                 
-                // Salvar na base de dados (porta 3003)
-                const dbResponse = await fetch(`${configSimulador.apiUrl.replace(':3002', ':3003')}/api/clientes`, {
+                // Usar form-data para evitar problemas de parsing JSON
+                const formData = new FormData();
+                formData.append('clientData[cpf]', clienteBasico.cpf);
+                formData.append('clientData[nome]', clienteBasico.nome);
+                formData.append('clientData[nb]', clienteBasico.nb);
+                formData.append('clientData[especie]', clienteBasico.especie);
+                formData.append('clientData[telefone]', clienteBasico.telefone);
+                formData.append('clientData[email]', clienteBasico.email);
+                formData.append('clientData[nascimento]', clienteBasico.nascimento);
+                formData.append('clientData[nomeMae]', clienteBasico.nomeMae);
+                formData.append('clientData[kentroId]', clienteBasico.kentroId || '');
+                formData.append('clientData[fonte]', clienteBasico.fonte);
+                
+                // Salvar na base de dados usando o novo endpoint
+                const dbResponse = await fetch(`${configSimulador.apiUrl}/api/salvar-cliente`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(clienteBasico)
+                    body: formData
                 });
                 
                 if (dbResponse.ok) {
                     const dbResult = await dbResponse.json();
-                    clientId = dbResult.cliente.id;
+                    clientId = dbResult.clientId;
                     console.log(`✅ Cliente salvo na base de dados (ID: ${clientId}) com CPF: ${cpf}`);
                     
                     // Atualizar cache com clientId
@@ -3614,43 +3560,102 @@ async function uploadExtrato(file, cpf) {
             }
         }
         
-        } // Fechamento do bloco try/catch interno da Kentro
-        
         // 3. Fazer upload do extrato com ID da oportunidade
-        const formData = new FormData();
-        formData.append('extrato', file);
-        formData.append('idoportunidade', idoportunidade);
-        formData.append('cpf', cpf);
-        
-        console.log(`📤 Fazendo upload com idoportunidade: ${idoportunidade} e CPF: ${cpf}`);
-        
-        // Fazer upload usando configuração de ambiente
-        const response = await fetch(`${configSimulador.apiUrl}/api/processar-extrato`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Erro no upload: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        // Remover loading
-        if (loadingMsg && loadingMsg.parentNode) {
-            loadingMsg.parentNode.removeChild(loadingMsg);
-        }
-        
-        if (result.success) {
-            // Carregar dados do extrato
-            await carregarSimulacaoPorId(result.fileId);
-            alert('✅ Extrato processado com sucesso!');
-        } else {
-            alert(`❌ Erro ao processar extrato: ${result.error || 'Erro desconhecido'}`);
+        try {
+            const formData = new FormData();
+            formData.append('extrato', file);
+            formData.append('idoportunidade', idoportunidade);
+            formData.append('cpf', cpf);
+            
+            console.log(`📤 Fazendo upload com idoportunidade: ${idoportunidade} e CPF: ${cpf}`);
+            
+            // Fazer upload usando configuração de ambiente
+            const response = await fetch(`${configSimulador.apiUrl}/api/processar-extrato`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro no upload: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            // Remover loading
+            if (loadingMsg && loadingMsg.parentNode) {
+                loadingMsg.parentNode.removeChild(loadingMsg);
+            }
+            
+            if (result.success) {
+                // Carregar dados do extrato
+                await carregarSimulacaoPorId(result.fileId);
+                
+                // Salvar proposta na base de dados
+                if (clientId) {
+                    try {
+                        console.log(`💾 Salvando proposta na base de dados para cliente ${clientId}`);
+                        
+                        const propostaData = {
+                            clientId: clientId,
+                            cpf: cpf,
+                            kentroId: idoportunidade,
+                            fileId: result.fileId,
+                            status: 'SIMULACAO_CONCLUIDA',
+                            origem: 'INSS_SIMULADOR',
+                            dados: {
+                                extratoProcessado: true,
+                                margens: window.margens || {},
+                                contratos: window.contratos || [],
+                                trocoTotal: window.trocoTotal || 0
+                            }
+                        };
+                        
+                        // Usar form-data para evitar problemas de parsing JSON
+                        const propostaFormData = new FormData();
+                        propostaFormData.append('propostaData[clientId]', propostaData.clientId);
+                        propostaFormData.append('propostaData[cpf]', propostaData.cpf);
+                        propostaFormData.append('propostaData[kentroId]', propostaData.kentroId || '');
+                        propostaFormData.append('propostaData[fileId]', propostaData.fileId);
+                        propostaFormData.append('propostaData[status]', propostaData.status);
+                        propostaFormData.append('propostaData[origem]', propostaData.origem);
+                        propostaFormData.append('propostaData[dados][extratoProcessado]', 'true');
+                        propostaFormData.append('propostaData[dados][trocoTotal]', propostaData.dados.trocoTotal);
+                        
+                        const propostaResponse = await fetch(`${configSimulador.apiUrl}/api/salvar-proposta`, {
+                            method: 'POST',
+                            body: propostaFormData
+                        });
+                        
+                        if (propostaResponse.ok) {
+                            const propostaResult = await propostaResponse.json();
+                            console.log(`✅ Proposta salva com ID: ${propostaResult.propostaId}`);
+                        } else {
+                            console.warn('⚠️ Erro ao salvar proposta, continuando...');
+                        }
+                    } catch (propostaError) {
+                        console.warn('⚠️ Erro ao salvar proposta:', propostaError.message);
+                    }
+                }
+                
+                alert('✅ Extrato processado com sucesso!');
+            } else {
+                alert(`❌ Erro ao processar extrato: ${result.error || 'Erro desconhecido'}`);
+            }
+            
+        } catch (error) {
+            console.error('Erro no upload:', error);
+            
+            // Remover loading se ainda estiver visível
+            const loadingMsg = document.querySelector('div[style*="position: fixed"]');
+            if (loadingMsg && loadingMsg.parentNode) {
+                loadingMsg.parentNode.removeChild(loadingMsg);
+            }
+            
+            alert(`❌ Erro ao fazer upload do extrato: ${error.message}`);
         }
         
     } catch (error) {
-        console.error('Erro no upload:', error);
+        console.error('❌ Erro geral no uploadExtrato:', error);
         
         // Remover loading se ainda estiver visível
         const loadingMsg = document.querySelector('div[style*="position: fixed"]');
@@ -3658,7 +3663,7 @@ async function uploadExtrato(file, cpf) {
             loadingMsg.parentNode.removeChild(loadingMsg);
         }
         
-        alert(`❌ Erro ao fazer upload do extrato: ${error.message}`);
+        alert(`❌ Erro ao processar extrato: ${error.message}`);
     }
 }
 

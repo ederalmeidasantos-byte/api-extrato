@@ -3,453 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clientes - CRM LUNAS</title>
+    <title>Clientes - CRM Lunas Digital</title>
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- CRM Layout CSS -->
-    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        .page-content {
-            padding: 2rem;
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
+        .card-hover {
+            transition: transform 0.2s ease-in-out;
         }
-        
-        .page-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #111827;
-        }
-        
-        .search-container {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .search-input {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            transition: border-color 0.2s;
-        }
-        
-        .search-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .filter-select {
-            padding: 0.75rem 1rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            background: white;
-            cursor: pointer;
-        }
-        
-        .clients-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .client-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        
-        .client-card:hover {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        .card-hover:hover {
             transform: translateY(-2px);
-            border-color: #3b82f6;
-        }
-        
-        .client-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-        
-        .client-name {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 0.25rem;
-        }
-        
-        .client-cpf {
-            font-size: 0.875rem;
-            color: #6b7280;
-        }
-        
-        .client-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .client-status.active {
-            background: rgba(16, 185, 129, 0.1);
-            color: #10b981;
-        }
-        
-        .client-status.inactive {
-            background: rgba(107, 114, 128, 0.1);
-            color: #6b7280;
-        }
-        
-        .client-info {
-            margin-bottom: 1rem;
-        }
-        
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-        }
-        
-        .info-label {
-            color: #6b7280;
-        }
-        
-        .info-value {
-            color: #111827;
-            font-weight: 500;
-        }
-        
-        .client-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        
-        .btn {
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .btn-primary {
-            background: #3b82f6;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #2563eb;
-        }
-        
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-        }
-        
-        .btn-secondary:hover {
-            background: #e5e7eb;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #6b7280;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #6b7280;
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
         }
     </style>
 </head>
-<body>
-    <div class="crm-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <a href="/" class="logo">
-                    <img src="/operacional/assets/logo-lunas.png" alt="CRM LUNAS" />
-                    <span>CRM LUNAS</span>
-                </a>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i data-feather="menu"></i>
-                </button>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="flex items-center space-x-3 hover:opacity-80">
+                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                            <i data-feather="hexagon" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold">CRM Lunas Digital</h1>
+                            <p class="text-blue-100">Gestão de Clientes</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-colors">
+                        <i data-feather="home" class="w-4 h-4 inline mr-2"></i>
+                        Dashboard
+                    </a>
+                    <a href="/propostas" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-colors">
+                        <i data-feather="file-text" class="w-4 h-4 inline mr-2"></i>
+                        Propostas
+                    </a>
+                </div>
             </div>
-            
-            <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <h4>Principal</h4>
-                    <ul>
-                        <li>
-                            <a href="/" class="nav-link">
-                                <i data-feather="home"></i>
-                                <span>Dashboard</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/clientes" class="nav-link active">
-                                <i data-feather="users"></i>
-                                <span>Clientes</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/propostas" class="nav-link">
-                                <i data-feather="file-text"></i>
-                                <span>Propostas</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="nav-section">
-                    <h4>Operacional</h4>
-                    <ul>
-                        <li>
-                            <a href="/configuracoes" class="nav-link">
-                                <i data-feather="settings"></i>
-                                <span>Configurações</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/relatorios" class="nav-link">
-                                <i data-feather="bar-chart-2"></i>
-                                <span>Relatórios</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-        </aside>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="page-content">
-                <!-- Page Header -->
-                <div class="page-header">
-                    <h1 class="page-title">Clientes</h1>
-                    <button class="btn btn-primary" onclick="window.location.href='/cliente/novo'">
-                        <i data-feather="plus"></i>
-                        Novo Cliente
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-900">Clientes</h2>
+                    <p class="text-gray-600 mt-2">Gerencie todos os clientes cadastrados no sistema</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white rounded-lg shadow-md px-4 py-2">
+                        <span class="text-sm text-gray-600">Total: </span>
+                        <span id="total-clientes" class="font-bold text-blue-600">0</span>
+                    </div>
+                    <button onclick="loadClientes()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-feather="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                        Atualizar
                     </button>
                 </div>
+            </div>
+        </div>
 
-                <!-- Search and Filters -->
-                <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nome, CPF ou telefone...">
-                    <select class="filter-select" id="statusFilter">
-                        <option value="">Todos os status</option>
-                        <option value="active">Ativo</option>
-                        <option value="inactive">Inativo</option>
+        <!-- Search and Filters -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Buscar por nome</label>
+                    <input type="text" id="search-nome" placeholder="Digite o nome do cliente..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Buscar por CPF</label>
+                    <input type="text" id="search-cpf" placeholder="Digite o CPF..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Filtrar por fonte</label>
+                    <select id="filter-fonte" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Todas as fontes</option>
+                        <option value="simulador_cpf">Simulador CPF</option>
+                        <option value="simulador_proposta">Simulador Proposta</option>
+                        <option value="simulador_extrato">Simulador Extrato</option>
+                        <option value="formulario_cliente">Formulário Cliente</option>
                     </select>
                 </div>
+            </div>
+        </div>
 
-                <!-- Clients Grid -->
-                <div id="clientsContainer">
-                    <div class="loading">
-                        <i data-feather="loader"></i>
-                        <p>Carregando clientes...</p>
-                    </div>
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p class="mt-2 text-gray-600">Carregando clientes...</p>
+        </div>
+
+        <!-- Clients Table -->
+        <div id="clients-content" class="hidden">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPF</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Benefício</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fonte</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Client rows will be rendered here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
 
-    <!-- Scripts -->
-    <script src="/operacional/assets/crm-layout.js"></script>
+        <!-- No Results -->
+        <div id="no-results" class="hidden text-center py-12">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-feather="users" class="w-8 h-8 text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhum cliente encontrado</h3>
+            <p class="text-gray-600">Tente ajustar os filtros de busca.</p>
+        </div>
+    </main>
+
     <script>
-        class ClientesManager {
-            constructor() {
-                this.clientes = [];
-                this.filteredClientes = [];
-                this.init();
-            }
+        let allClientes = [];
+        let filteredClientes = [];
 
-            async init() {
-                try {
-                    await this.loadClientes();
-                    this.setupEventListeners();
-                    this.renderClientes();
-                } catch (error) {
-                    console.error('Erro ao inicializar clientes:', error);
-                    this.showError('Erro ao carregar clientes');
-                }
-            }
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            feather.replace();
+            loadClientes();
+            setupEventListeners();
+        });
 
-            async loadClientes() {
-                try {
-                    const response = await fetch('/api/clientes');
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.clientes = data.clientes || [];
-                        this.filteredClientes = [...this.clientes];
-                    } else {
-                        throw new Error(data.message || 'Erro ao carregar clientes');
-                    }
-                } catch (error) {
-                    console.error('Erro ao carregar clientes:', error);
-                    throw error;
-                }
-            }
+        function setupEventListeners() {
+            document.getElementById('search-nome').addEventListener('input', filterClientes);
+            document.getElementById('search-cpf').addEventListener('input', filterClientes);
+            document.getElementById('filter-fonte').addEventListener('change', filterClientes);
+        }
 
-            setupEventListeners() {
-                const searchInput = document.getElementById('searchInput');
-                const statusFilter = document.getElementById('statusFilter');
-
-                searchInput.addEventListener('input', () => {
-                    this.filterClientes();
-                });
-
-                statusFilter.addEventListener('change', () => {
-                    this.filterClientes();
-                });
-            }
-
-            filterClientes() {
-                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-                const statusFilter = document.getElementById('statusFilter').value;
-
-                this.filteredClientes = this.clientes.filter(cliente => {
-                    const matchesSearch = !searchTerm || 
-                        cliente.nome?.toLowerCase().includes(searchTerm) ||
-                        cliente.cpf?.includes(searchTerm) ||
-                        cliente.telefone?.includes(searchTerm);
-
-                    const matchesStatus = !statusFilter || 
-                        (statusFilter === 'active' && cliente.status === 'active') ||
-                        (statusFilter === 'inactive' && cliente.status === 'inactive');
-
-                    return matchesSearch && matchesStatus;
-                });
-
-                this.renderClientes();
-            }
-
-            renderClientes() {
-                const container = document.getElementById('clientsContainer');
-
-                if (this.filteredClientes.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i data-feather="users"></i>
-                            <h3>Nenhum cliente encontrado</h3>
-                            <p>Tente ajustar os filtros de busca</p>
-                        </div>
-                    `;
-                    feather.replace();
-                    return;
-                }
-
-                const clientsHTML = this.filteredClientes.map(cliente => `
-                    <div class="client-card" onclick="window.location.href='/cliente/${cliente.id}'">
-                        <div class="client-header">
-                            <div>
-                                <div class="client-name">${cliente.nome || 'Nome não informado'}</div>
-                                <div class="client-cpf">CPF: ${this.formatCPF(cliente.cpf || '')}</div>
-                            </div>
-                            <div class="client-status ${cliente.status || 'inactive'}">
-                                ${cliente.status === 'active' ? 'Ativo' : 'Inativo'}
-                            </div>
-                        </div>
-                        
-                        <div class="client-info">
-                            <div class="info-item">
-                                <span class="info-label">Telefone:</span>
-                                <span class="info-value">${this.formatPhone(cliente.telefone || '')}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Email:</span>
-                                <span class="info-value">${cliente.email || 'Não informado'}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Propostas:</span>
-                                <span class="info-value">${cliente.propostas || 0}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="client-actions">
-                            <button class="btn btn-primary" onclick="event.stopPropagation(); window.location.href='/cliente/${cliente.id}'">
-                                <i data-feather="eye"></i>
-                                Ver Detalhes
-                            </button>
-                            <button class="btn btn-secondary" onclick="event.stopPropagation(); this.editCliente(${cliente.id})">
-                                <i data-feather="edit"></i>
-                                Editar
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-
-                container.innerHTML = clientsHTML;
-                feather.replace();
-            }
-
-            formatCPF(cpf) {
-                if (!cpf) return 'Não informado';
-                return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-            }
-
-            formatPhone(phone) {
-                if (!phone) return 'Não informado';
-                return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-            }
-
-            editCliente(id) {
-                window.location.href = `/cliente/${id}/editar`;
-            }
-
-            showError(message) {
-                const container = document.getElementById('clientsContainer');
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i data-feather="alert-circle"></i>
-                        <h3>Erro</h3>
-                        <p>${message}</p>
-                    </div>
-                `;
-                feather.replace();
+        async function loadClientes() {
+            try {
+                const response = await fetch('/api/clientes');
+                if (!response.ok) throw new Error('Erro ao carregar clientes');
+                
+                const data = await response.json();
+                allClientes = data.clientes || [];
+                filteredClientes = [...allClientes];
+                
+                renderClientes();
+                updateTotalCount();
+                
+                // Show content
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('clients-content').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Erro ao carregar clientes:', error);
+                showError('Erro ao carregar lista de clientes');
             }
         }
 
-        // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new ClientesManager();
-        });
+        function filterClientes() {
+            const nomeFilter = document.getElementById('search-nome').value.toLowerCase();
+            const cpfFilter = document.getElementById('search-cpf').value.toLowerCase();
+            const fonteFilter = document.getElementById('filter-fonte').value;
+
+            filteredClientes = allClientes.filter(cliente => {
+                const nomeMatch = !nomeFilter || (cliente.nome && cliente.nome.toLowerCase().includes(nomeFilter));
+                const cpfMatch = !cpfFilter || (cliente.cpf && cliente.cpf.includes(cpfFilter));
+                const fonteMatch = !fonteFilter || cliente.fonte === fonteFilter;
+
+                return nomeMatch && cpfMatch && fonteMatch;
+            });
+
+            renderClientes();
+            updateTotalCount();
+        }
+
+        function renderClientes() {
+            const tbody = document.getElementById('clients-table-body');
+            tbody.innerHTML = '';
+
+            if (filteredClientes.length === 0) {
+                document.getElementById('clients-content').classList.add('hidden');
+                document.getElementById('no-results').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('clients-content').classList.remove('hidden');
+            document.getElementById('no-results').classList.add('hidden');
+
+            filteredClientes.forEach(cliente => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                const beneficio = cliente.beneficio || {};
+                const fonte = cliente.fonte || 'N/A';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i data-feather="user" class="w-5 h-5 text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">${cliente.nome || 'N/A'}</div>
+                                <div class="text-sm text-gray-500">ID: ${cliente.id}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${cliente.cpf || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${cliente.telefone || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${beneficio.nomeBeneficio || 'N/A'}</div>
+                        <div class="text-sm text-gray-500">NB: ${beneficio.numero || beneficio.nb || 'N/A'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            ${fonte.replace('_', ' ')}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(cliente.createdAt)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <a href="/cliente/${cliente.id}" class="text-blue-600 hover:text-blue-900">Ver detalhes</a>
+                            ${cliente.propostas && cliente.propostas.length > 0 ? 
+                                `<a href="/propostas?cliente=${cliente.id}" class="text-green-600 hover:text-green-900">Propostas (${cliente.propostas.length})</a>` : 
+                                ''
+                            }
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            feather.replace();
+        }
+
+        function updateTotalCount() {
+            document.getElementById('total-clientes').textContent = filteredClientes.length;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            } catch {
+                return dateString;
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-feather="alert-triangle" class="w-8 h-8 text-red-600"></i>
+                    </div>
+                    <p class="text-red-600 font-medium">${message}</p>
+                    <button onclick="loadClientes()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Tentar novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
     </script>
 </body>
 </html>
+

@@ -20,17 +20,17 @@ class KentroIntegration {
         try {
             console.log(`🔍 [KENTRO] Buscando cliente por email (mainmail): ${email}`);
             
+            const formData = new URLSearchParams();
+            formData.append('queueId', this.defaultQueue);
+            formData.append('apiKey', this.apiKey);
+            formData.append('pipelineId', this.defaultPipeline);
+
             const response = await fetch(`${this.baseUrl}/getPipeOpportunities`, {
                 method: 'POST',
                 headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: JSON.stringify({
-                    queueId: this.defaultQueue,
-                    apiKey: this.apiKey,
-                    pipelineId: this.defaultPipeline
-                })
+                body: formData
             });
 
             if (!response.ok) {
@@ -73,17 +73,17 @@ class KentroIntegration {
             // Limpar CPF
             const cpfLimpo = cpf.replace(/\D/g, '');
             
+            const formData = new URLSearchParams();
+            formData.append('queueId', this.defaultQueue);
+            formData.append('apiKey', this.apiKey);
+            formData.append('pipelineId', this.defaultPipeline);
+
             const response = await fetch(`${this.baseUrl}/getPipeOpportunities`, {
                 method: 'POST',
                 headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: JSON.stringify({
-                    queueId: this.defaultQueue,
-                    apiKey: this.apiKey,
-                    pipelineId: this.defaultPipeline
-                })
+                body: formData
             });
 
             if (!response.ok) {
@@ -115,36 +115,32 @@ class KentroIntegration {
     }
 
     /**
-     * Buscar dados completos por ID
+     * Buscar dados completos por ID usando endpoint específico
      */
     async buscarOportunidadePorId(kentroId) {
         try {
             console.log(`🔍 [KENTRO] Buscando oportunidade por ID: ${kentroId}`);
             
-            const response = await fetch(`${this.baseUrl}/getPipeOpportunities`, {
+            const formData = new URLSearchParams();
+            formData.append('queueId', this.defaultQueue);
+            formData.append('apiKey', this.apiKey);
+            formData.append('id', kentroId);
+
+            const response = await fetch(`${this.baseUrl}/getOpportunity`, {
                 method: 'POST',
                 headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: JSON.stringify({
-                    queueId: this.defaultQueue,
-                    apiKey: this.apiKey,
-                    pipelineId: this.defaultPipeline
-                })
+                body: formData
             });
 
             if (!response.ok) {
                 throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
             }
 
-            const oportunidades = await response.json();
-            console.log(`📊 [KENTRO] ${oportunidades.length} oportunidades encontradas na fila`);
+            const oportunidade = await response.json();
             
-            // Procurar por ID
-            const oportunidade = oportunidades.find(op => op.id == kentroId);
-            
-            if (oportunidade) {
+            if (oportunidade && oportunidade.id) {
                 console.log(`✅ [KENTRO] Oportunidade encontrada: ${oportunidade.title || 'Nome não disponível'}`);
                 return oportunidade; // Retornar dados brutos
             }
@@ -424,17 +420,17 @@ class KentroIntegration {
         try {
             console.log('🧪 [KENTRO] Testando conexão com API Kentro...');
             
+            const formData = new URLSearchParams();
+            formData.append('queueId', this.defaultQueue);
+            formData.append('apiKey', this.apiKey);
+            formData.append('pipelineId', this.defaultPipeline);
+
             const response = await fetch(`${this.baseUrl}/getPipeOpportunities`, {
                 method: 'POST',
                 headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: JSON.stringify({
-                    queueId: this.defaultQueue,
-                    apiKey: this.apiKey,
-                    pipelineId: this.defaultPipeline
-                })
+                body: formData
             });
 
             if (!response.ok) {
@@ -454,8 +450,10 @@ class KentroIntegration {
     }
 }
 
-// Instância global para uso no sistema operacional
-window.kentroIntegration = new KentroIntegration();
+// Instância global para uso no sistema operacional (apenas no navegador)
+// if (typeof window !== 'undefined') {
+//     window.kentroIntegration = new KentroIntegration();
+// }
 
 // Exportar para uso em outros módulos
 if (typeof module !== 'undefined' && module.exports) {

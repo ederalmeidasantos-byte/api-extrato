@@ -22,7 +22,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci --production
+RUN npm install --omit=dev
 
 # Copiar código fonte
 COPY . .

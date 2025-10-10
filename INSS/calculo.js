@@ -407,6 +407,37 @@ function simularContrato(contrato, especie, diaAverbacao = "15", extrapolada = f
 }
 
 // ===================== Endpoint (baseado no calculoreserva.js) =====================
+// Função para buscar propostaId relacionado ao fileId
+function buscarPropostaId(fileId) {
+  try {
+    const propostasDir = path.join(__dirname, '..', 'var', 'data', 'propostas');
+    if (!fs.existsSync(propostasDir)) return null;
+    
+    const propostas = fs.readdirSync(propostasDir).filter(f => f.endsWith('.json'));
+    
+    for (const propostaFile of propostas) {
+      const propostaPath = path.join(propostasDir, propostaFile);
+      const proposta = JSON.parse(fs.readFileSync(propostaPath, 'utf-8'));
+      
+      // Verificar se tem extratoId diretamente no objeto
+      if (proposta.extratoId === fileId) {
+        return proposta.id;
+      }
+      
+      // Verificar se tem dados como string JSON
+      if (proposta.dados) {
+        const dadosProposta = JSON.parse(proposta.dados);
+        if (dadosProposta.extratoId === fileId || dadosProposta.idoportunidade) {
+          return proposta.id;
+        }
+      }
+    }
+  } catch (error) {
+    console.log(`⚠️ [CALCULO] Erro ao buscar propostaId: ${error.message}`);
+  }
+  return null;
+}
+
 function calcularTrocoEndpoint(JSON_DIR) {
   return (_req, res) => {
     try {
@@ -477,14 +508,19 @@ function calcularTrocoEndpoint(JSON_DIR) {
 
       // Adicionar links seguindo o padrão do simulador
       const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://lunasdigital.com.br' 
+        ? 'https://inss.lunasdigital.com.br' 
         : `http://localhost:${process.env.PORT || 3000}`;
+      
+      // Buscar propostaId relacionado ao fileId
+      const propostaId = buscarPropostaId(fileId);
       
       // Link para o simulador geral (inss/simulador.html)
       const simulador_link = `${baseUrl}/inss/simulador.html`;
       
-      // Link para detalhes da proposta específica (simulador/:id)
-      const proposta_resumo_link = `${baseUrl}/simulador/${fileId}`;
+      // Link para detalhes da proposta específica
+      const proposta_resumo_link = propostaId 
+        ? `${baseUrl}/detalhesdaproposta/${propostaId}`
+        : null;
 
       // Determinar status da simulação
       const status = ordenados.length > 0 ? "aprovado" : "não aprovado";

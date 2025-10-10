@@ -1,0 +1,110 @@
+name: 💾 Backup Automático FGTS
+
+on:
+  schedule:
+    # Executa todos os dias às 2:00 AM UTC (23:00 BRT)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 72.60.159.149 >> ~/.ssh/known_hosts
+        
+    - name: 📊 Informações do backup
+      run: |
+        echo "💾 BACKUP AUTOMÁTICO INICIADO"
+        echo "📅 Data: $(date)"
+        echo "🌿 Branch: ${{ github.ref_name }}"
+        echo "👤 Executado por: ${{ github.actor }}"
+        
+    - name: 📁 Criar backup dos dados
+      run: |
+        echo "📁 Criando backup dos dados do sistema..."
+        
+        # Criar diretório de backup com timestamp
+        BACKUP_DIR="/var/data/backups/backup-$(date +%Y%m%d-%H%M%S)"
+        ssh root@72.60.159.149 "mkdir -p $BACKUP_DIR"
+        
+        # Backup dos arquivos de cache
+        ssh root@72.60.159.149 "
+          cp -r /var/data/cache $BACKUP_DIR/ 2>/dev/null || echo 'Cache não encontrado'
+          cp -r /var/data/uploads $BACKUP_DIR/ 2>/dev/null || echo 'Uploads não encontrado'
+          cp -r /var/data/logs $BACKUP_DIR/ 2>/dev/null || echo 'Logs não encontrado'
+        "
+        
+        echo "✅ Backup dos dados criado em: $BACKUP_DIR"
+        
+    - name: 📋 Backup da configuração
+      run: |
+        echo "📋 Fazendo backup da configuração..."
+        
+        # Backup dos arquivos de configuração
+        ssh root@72.60.159.149 "
+          BACKUP_DIR=\"/var/data/backups/backup-$(date +%Y%m%d-%H%M%S)\"
+          mkdir -p \$BACKUP_DIR/config
+          cp /root/fgts/*.js \$BACKUP_DIR/config/ 2>/dev/null || echo 'Arquivos JS não encontrados'
+          cp /root/fgts/*.json \$BACKUP_DIR/config/ 2>/dev/null || echo 'Arquivos JSON não encontrados'
+          cp /root/fgts/*.html \$BACKUP_DIR/config/ 2>/dev/null || echo 'Arquivos HTML não encontrados'
+        "
+        
+        echo "✅ Backup da configuração concluído"
+        
+    - name: 🗜️ Compactar backup
+      run: |
+        echo "🗜️ Compactando backup..."
+        
+        ssh root@72.60.159.149 "
+          BACKUP_DIR=\"/var/data/backups/backup-$(date +%Y%m%d-%H%M%S)\"
+          cd /var/data/backups
+          tar -czf \$(basename \$BACKUP_DIR).tar.gz \$(basename \$BACKUP_DIR)
+          rm -rf \$BACKUP_DIR
+          echo \"✅ Backup compactado: \$(basename \$BACKUP_DIR).tar.gz\"
+        "
+        
+    - name: 🧹 Limpeza de backups antigos
+      run: |
+        echo "🧹 Limpando backups antigos (mantendo últimos 7 dias)..."
+        
+        ssh root@72.60.159.149 "
+          cd /var/data/backups
+          find . -name 'backup-*.tar.gz' -mtime +7 -delete
+          echo \"✅ Limpeza concluída\"
+        "
+        
+    - name: 📊 Relatório de backup
+      run: |
+        echo "📊 RELATÓRIO DE BACKUP"
+        echo "====================="
+        
+        # Listar backups disponíveis
+        BACKUPS=$(ssh root@72.60.159.149 "ls -la /var/data/backups/ | grep backup- | wc -l")
+        echo "📁 Total de backups: $BACKUPS"
+        
+        # Tamanho do último backup
+        LATEST_BACKUP=$(ssh root@72.60.159.149 "ls -t /var/data/backups/backup-*.tar.gz | head -1")
+        if [ -n "$LATEST_BACKUP" ]; then
+          BACKUP_SIZE=$(ssh root@72.60.159.149 "du -h $LATEST_BACKUP | cut -f1")
+          echo "📦 Tamanho do último backup: $BACKUP_SIZE"
+        fi
+        
+        echo "✅ Backup concluído com sucesso!"
+        echo "📅 Data: $(date)"
+        echo "🌐 Sistema: http://72.60.159.149:3005"
+        
+    - name: 🚨 Notificação (opcional)
+      if: failure()
+      run: |
+        echo "🚨 BACKUP FALHOU!"
+        echo "❌ Verifique os logs acima para mais detalhes"
+        echo "📅 Data da falha: $(date)"

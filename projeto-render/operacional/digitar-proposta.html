@@ -805,10 +805,6 @@
                             <i data-feather="arrow-left"></i>
                             Voltar à Fila
                         </button>
-                        <button class="btn btn-warning" onclick="prepararWhatsApp()">
-                            <i data-feather="message-circle"></i>
-                            Preparar WhatsApp
-                        </button>
                         <button class="btn btn-success" onclick="salvarAlteracoes()">
                             <i data-feather="save"></i>
                             Salvar Alterações
@@ -924,14 +920,22 @@
                 }
                 
                 const clientData = await response.json();
-                currentClient = clientData.dadosCliente || clientData;
+                currentClient = clientData.cliente || clientData;
                 
                 if (!currentClient) {
                     throw new Error('Cliente não encontrado');
                 }
                 
-                // Carregar todas as propostas do cliente
-                allProposals = currentClient.propostas || [];
+                // Carregar propostas do servidor
+                const propostasResponse = await fetch('/api/propostas');
+                if (!propostasResponse.ok) {
+                    throw new Error('Erro ao carregar propostas');
+                }
+                
+                const propostasData = await propostasResponse.json();
+                allProposals = propostasData.propostas.filter(p => p.clientId === currentClientId);
+                
+                console.log(`📊 Encontradas ${allProposals.length} propostas para o cliente ${currentClientId}`);
                 
                 if (allProposals.length === 0) {
                     throw new Error('Nenhuma proposta encontrada para este cliente');
@@ -1198,6 +1202,7 @@
             if (!proposta) return;
             
             proposta.status = novoStatus;
+            proposta.modificado = true; // Marcar como modificado
             console.log(`✅ Status da proposta ${propostaId} atualizado para: ${novoStatus}`);
             
             // Atualizar visualmente o badge e select
@@ -1209,19 +1214,58 @@
                 statusBadge.style.backgroundColor = obterCorStatus(novoStatus);
                 statusBadge.textContent = obterTextoStatus(novoStatus);
             }
+            
+            // Mostrar indicador de modificação
+            mostrarToast('Status alterado. Lembre-se de salvar as alterações!', 'info');
         }
 
         // Excluir proposta
-        function excluirProposta(propostaId) {
+        async function excluirProposta(propostaId) {
             if (!confirm(`Tem certeza que deseja excluir a proposta ${propostaId}?`)) {
                 return;
             }
             
-            const index = allProposals.findIndex(p => p.id === propostaId);
-            if (index !== -1) {
-                allProposals.splice(index, 1);
-                preencherTodasPropostas(); // Recarregar a lista
-                console.log(`✅ Proposta ${propostaId} excluída com sucesso`);
+            try {
+                console.log(`🗑️ Excluindo proposta ${propostaId}...`);
+                
+                // Excluir do servidor
+                const response = await fetch(`/api/propostas/${propostaId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao excluir proposta no servidor');
+                }
+                
+                // Remover da lista local
+                const index = allProposals.findIndex(p => p.id === propostaId);
+                if (index !== -1) {
+                    allProposals.splice(index, 1);
+                    
+                    // Se era a proposta atual, selecionar outra
+                    if (currentProposal && currentProposal.id === propostaId) {
+                        if (allProposals.length > 0) {
+                            currentProposal = allProposals[0];
+                        } else {
+                            currentProposal = null;
+                        }
+                    }
+                    
+                    // Recarregar a interface
+                    preencherTodasPropostas();
+                    if (currentProposal) {
+                        preencherHeaderProposta();
+                        preencherContratos();
+                        preencherTimeline();
+                    }
+                    
+                    console.log(`✅ Proposta ${propostaId} excluída com sucesso`);
+                    mostrarToast('Proposta excluída com sucesso!', 'success');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao excluir proposta:', error);
+                mostrarToast('Erro ao excluir proposta: ' + error.message, 'error');
             }
         }
 
@@ -1509,9 +1553,68 @@
         }
 
         // Salvar alterações
-        function salvarAlteracoes() {
-            console.log('💾 Salvando todas as alterações...');
-            alert('Alterações salvas com sucesso!');
+        async function salvarAlteracoes() {
+            try {
+                console.log('💾 Salvando todas as alterações...');
+                
+                // Salvar cada proposta modificada
+                for (const proposta of allProposals) {
+                    if (proposta.modificado) {
+                        console.log(`💾 Salvando proposta ${proposta.id}...`);
+                        
+                        // Alterar status para SALVA
+                        proposta.status = 'SALVA';
+                        proposta.modificado = false;
+                        
+                        // Atualizar no servidor
+                        const response = await fetch(`/api/propostas/${proposta.id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(proposta)
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Erro ao salvar proposta ${proposta.id}`);
+                        }
+                        
+                        console.log(`✅ Proposta ${proposta.id} salva com sucesso`);
+                    }
+                }
+                
+                // Atualizar cliente se necessário
+                if (currentClient.modificado) {
+                    console.log('💾 Salvando dados do cliente...');
+                    
+                    const response = await fetch(`/api/cliente/${currentClientId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(currentClient)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Erro ao salvar dados do cliente');
+                    }
+                    
+                    currentClient.modificado = false;
+                    console.log('✅ Cliente salvo com sucesso');
+                }
+                
+                // Mostrar feedback de sucesso
+                mostrarToast('Alterações salvas com sucesso! Redirecionando...', 'success');
+                
+                // Redirecionar para buscar propostas após 2 segundos
+                setTimeout(() => {
+                    window.location.href = '/operacional/buscar-propostas.html';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ Erro ao salvar alterações:', error);
+                mostrarToast('Erro ao salvar alterações: ' + error.message, 'error');
+            }
         }
 
         // Voltar à fila
@@ -1571,6 +1674,90 @@
                 </div>
             `;
             feather.replace();
+        }
+
+        // Função para mostrar toast
+        function mostrarToast(mensagem, tipo = 'info') {
+            // Criar elemento toast
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${tipo}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <i data-feather="${tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'alert-circle' : 'info'}"></i>
+                    <span>${mensagem}</span>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i data-feather="x"></i>
+                </button>
+            `;
+            
+            // Adicionar estilos se não existirem
+            if (!document.getElementById('toast-styles')) {
+                const styles = document.createElement('style');
+                styles.id = 'toast-styles';
+                styles.textContent = `
+                    .toast {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: white;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        padding: 1rem;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        z-index: 1000;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                        min-width: 300px;
+                        animation: slideIn 0.3s ease;
+                    }
+                    .toast-success {
+                        border-left: 4px solid #10b981;
+                    }
+                    .toast-error {
+                        border-left: 4px solid #ef4444;
+                    }
+                    .toast-info {
+                        border-left: 4px solid #3b82f6;
+                    }
+                    .toast-content {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        flex: 1;
+                    }
+                    .toast-close {
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                        padding: 0.25rem;
+                        border-radius: 4px;
+                        color: #64748b;
+                    }
+                    .toast-close:hover {
+                        background: #f1f5f9;
+                    }
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(styles);
+            }
+            
+            // Adicionar ao DOM
+            document.body.appendChild(toast);
+            
+            // Inicializar ícones
+            feather.replace();
+            
+            // Remover automaticamente após 5 segundos
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
         }
 
         // Configurar botão mobile

@@ -4,9 +4,16 @@
 
 Sistema automatizado para processamento de extratos FGTS com integração completa ao CRM Lunas Digital.
 
-### 🚀 Versão Atual: v3.2 (01/10/2025)
+### 🚀 Versão Atual: v3.3 (08/10/2025)
 
-**Principais Melhorias v3.2:**
+**Principais Melhorias v3.3:**
+- ✅ **API Kentro corrigida** - Formato form-data implementado
+- ✅ **Fallback robusto** - Sistema continua funcionando mesmo com API indisponível
+- ✅ **Documentação atualizada** - Guias completos para troubleshooting
+- ✅ **Timeout configurável** - 10 segundos para evitar travamentos
+- ✅ **Logs melhorados** - Debug detalhado para APIs
+
+**Melhorias v3.2:**
 - ✅ **Corrigida duplicação de contadores** - Valores não "pulam" mais
 - ✅ **Sistema de pesquisa** - Busca por CPF ou ID em tempo real
 - ✅ **Performance otimizada** - 67% menos emissões Socket.IO
@@ -170,6 +177,35 @@ git push origin master
 
 ## 🔍 Troubleshooting
 
+## 📚 Documentação Completa
+
+### 📖 Guias Disponíveis
+- **[INSS/README-INSS.md](INSS/README-INSS.md)** - Documentação completa do Simulador INSS
+- **[@KENTRO API/README-KENTRO.md](@KENTRO%20API/README-KENTRO.md)** - Guia da API Kentro (AtenderBem)
+- **[docs/TROUBLESHOOTING-APIS.md](docs/TROUBLESHOOTING-APIS.md)** - Guia de troubleshooting para APIs
+
+### 🚀 Configuração de Portas
+- **[MAPEAMENTO-PORTAS.md](MAPEAMENTO-PORTAS.md)** - Mapeamento completo de todas as portas
+- **[INSS/PORTAS-SISTEMA.md](INSS/PORTAS-SISTEMA.md)** - Porta 3002 (Simulador INSS)
+- **[operacional/PORTAS-SISTEMA.md](operacional/PORTAS-SISTEMA.md)** - Porta 3001 (CRM Operacional)
+
+### 🔧 Problemas Resolvidos v3.3
+
+### API Kentro - "Bad Request"
+- ✅ **Resolvido v3.3**: Implementado formato form-data correto
+- ✅ **Resolvido v3.3**: Headers adequados para API Kentro
+- ✅ **Resolvido v3.3**: Fallback robusto implementado
+
+### Timeout em APIs
+- ✅ **Resolvido v3.3**: Timeout de 10 segundos configurado
+- ✅ **Resolvido v3.3**: Tratamento de erro aprimorado
+- ✅ **Resolvido v3.3**: Logs informativos para debug
+
+### Documentação Desatualizada
+- ✅ **Resolvido v3.3**: Guias completos criados
+- ✅ **Resolvido v3.3**: Exemplos práticos incluídos
+- ✅ **Resolvido v3.3**: Troubleshooting detalhado
+
 ### Contadores Duplicados
 - ✅ **Resolvido v3.2**: Removida duplicação de listeners
 - ✅ **Resolvido v3.2**: Centralizada atualização de contadores
@@ -209,8 +245,8 @@ Para dúvidas ou problemas:
 ---
 
 **Desenvolvido por**: Lunas Digital  
-**Versão**: v3.2  
-**Data**: 01/10/2025  
+**Versão**: v3.3  
+**Data**: 08/10/2025  
 **Status**: ✅ Estável e Otimizado
 
 
@@ -233,8 +269,8 @@ Para dúvidas ou problemas:
 ---
 
 **Desenvolvido por**: Lunas Digital  
-**Versão**: v3.2  
-**Data**: 01/10/2025  
+**Versão**: v3.3  
+**Data**: 08/10/2025  
 **Status**: ✅ Estável e Otimizado
 
 

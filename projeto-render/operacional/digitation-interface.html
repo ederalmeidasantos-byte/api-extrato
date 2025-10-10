@@ -549,11 +549,13 @@
                 try {
                     const response = await fetch('/api/propostas');
                     if (response.ok) {
-                        propostasServidor = await response.json();
+                        const data = await response.json();
+                        propostasServidor = data.propostas || [];
                         console.log(`📊 Carregadas ${propostasServidor.length} propostas do servidor`);
+                        console.log('📋 Primeiras propostas:', propostasServidor.slice(0, 3));
                     }
                 } catch (error) {
-                    console.warn('⚠️ Não foi possível carregar propostas do servidor');
+                    console.warn('⚠️ Não foi possível carregar propostas do servidor:', error);
                 }
                 
                 // Agrupar propostas por cliente
@@ -585,6 +587,12 @@
                 propostasServidor.forEach(proposta => {
                     const clientId = proposta.clientId;
                     
+                    // Verificar se a proposta está na fila (status NA_FILA)
+                    if (proposta.status !== 'NA_FILA') {
+                        console.log(`⏭️ Proposta ${proposta.id} não está na fila (status: ${proposta.status})`);
+                        return;
+                    }
+                    
                     if (!clientesComPropostas.has(clientId)) {
                         // Criar cliente baseado nos dados da proposta
                         const cliente = {
@@ -598,8 +606,8 @@
                         clientesComPropostas.set(clientId, {
                             cliente,
                             propostas: [],
-                            statusFormulario: '1',
-                            dataAtualizacao: proposta.dataCriacao || proposta.createdAt || new Date().toISOString(),
+                            statusFormulario: proposta.statusFormulario || '1',
+                            dataAtualizacao: proposta.timestamp || proposta.createdAt || new Date().toISOString(),
                             statusConfig
                         });
                     }
@@ -608,7 +616,7 @@
                     const clienteData = clientesComPropostas.get(clientId);
                     clienteData.propostas.push({
                         id: proposta.proposalId || proposta.id,
-                        statusFormulario: '1',
+                        statusFormulario: proposta.statusFormulario || '1',
                         statusProdutos: proposta.statusProdutos || '1',
                         bancoAtual: proposta.bancoAtual || proposta.contratos?.[0]?.banco || 'N/A',
                         bancoNovo: proposta.bancoNovo || proposta.contratos?.[0]?.simulacao?.banco || 'N/A',
@@ -619,9 +627,11 @@
                         trocoTotal: proposta.trocoTotal || proposta.contratos?.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0) || 0,
                         saldoDevedor: proposta.saldoDevedor || proposta.contratos?.reduce((sum, c) => sum + (c.saldo_devedor || 0), 0) || 0,
                         numeroContrato: proposta.numeroContrato || proposta.contratos?.[0]?.contrato || 'N/A',
-                        dataCriacao: proposta.dataCriacao || proposta.createdAt || new Date().toISOString(),
-                        dataAtualizacao: proposta.dataAtualizacao || proposta.updatedAt || new Date().toISOString()
+                        dataCriacao: proposta.timestamp || proposta.createdAt || new Date().toISOString(),
+                        dataAtualizacao: proposta.timestamp || proposta.updatedAt || new Date().toISOString()
                     });
+                    
+                    console.log(`✅ Adicionada proposta ${proposta.id} para cliente ${clienteData.cliente.nome}`);
                 });
                 
                 // Converter para array e ordenar por data
@@ -634,6 +644,12 @@
                 filaPropostas.sort((a, b) => new Date(a.dataAtualizacao) - new Date(b.dataAtualizacao));
                 
                 console.log(`📊 ${filaPropostas.length} clientes com propostas na fila`);
+                console.log('👥 Clientes na fila:', filaPropostas.map(c => ({ 
+                    nome: c.cliente.nome, 
+                    clientId: c.clientId, 
+                    propostas: c.propostas.length,
+                    status: c.statusFormulario 
+                })));
                 
                 // Aplicar filtros
                 filtrarFila();

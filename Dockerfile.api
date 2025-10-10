@@ -1,0 +1,23 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar package.json e instalar dependências
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copiar código da API e simulador
+COPY server.js ./
+COPY INSS/ ./INSS/
+COPY assets/ ./assets/
+
+# Criar diretórios necessários
+RUN mkdir -p var/data/{clientes,propostas,extratos,uploads,tenants}
+RUN mkdir -p logs
+
+# Expor porta
+EXPOSE 3002
+
+# Comando para iniciar a API
+CMD ["node", "server.js"]
+

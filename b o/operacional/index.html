@@ -382,18 +382,29 @@
                 }
                 
                 // Calcular estatísticas
-                const stats = calcularEstatisticas();
+                const stats = await calcularEstatisticas();
                 
                 // Atualizar interface
-                document.getElementById('total-clients').textContent = stats.totalClients;
-                document.getElementById('total-proposals').textContent = stats.totalProposals;
-                document.getElementById('pending-digitation').textContent = stats.pendingDigitation;
-                document.getElementById('completed-today').textContent = stats.completedToday;
+                console.log('Atualizando interface com:', stats);
+                const totalClientsEl = document.getElementById('total-clients');
+                const totalProposalsEl = document.getElementById('total-proposals');
+                const pendingDigitationEl = document.getElementById('pending-digitation');
+                const completedTodayEl = document.getElementById('completed-today');
                 
-                // Atualizar badge da fila
-                if (window.crmLayout) {
-                    window.crmLayout.updateBadge('digitation', stats.pendingDigitation);
-                }
+                console.log('Elementos encontrados:', {
+                    totalClientsEl,
+                    totalProposalsEl,
+                    pendingDigitationEl,
+                    completedTodayEl
+                });
+                
+                if (totalClientsEl) totalClientsEl.textContent = stats.totalClients;
+                if (totalProposalsEl) totalProposalsEl.textContent = stats.totalProposals;
+                if (pendingDigitationEl) pendingDigitationEl.textContent = stats.pendingDigitation;
+                if (completedTodayEl) completedTodayEl.textContent = stats.completedToday;
+                
+                // Atualizar contador da fila no menu
+                atualizarContadorFila(stats.pendingDigitation);
                 
                 // Carregar atividade recente
                 carregarAtividadeRecente();
@@ -403,34 +414,44 @@
             }
         });
         
-        function calcularEstatisticas() {
+        async function calcularEstatisticas() {
             try {
-                let totalClients = 0;
-                let totalProposals = 0;
-                let pendingDigitation = 0;
-                let completedToday = 0;
+                // Buscar dados reais da API
+                const [clientesResponse, propostasResponse] = await Promise.all([
+                    fetch('/api/clientes'),
+                    fetch('/api/propostas')
+                ]);
                 
+                const clientesData = await clientesResponse.json();
+                const propostasData = await propostasResponse.json();
+                
+                const clientes = clientesData.clientes || [];
+                const propostas = propostasData.propostas || [];
+                
+                // Calcular estatísticas
+                const totalClients = clientes.length;
+                const totalProposals = propostas.length;
+                
+                // Contar propostas na fila de digitação
+                const pendingDigitation = propostas.filter(p => 
+                    p.status === 'Na fila' || 
+                    p.status === 'CLIENTE_ACEITOU' || 
+                    p.status === 'PREENCHENDO_DADOS'
+                ).length;
+                
+                // Contar propostas finalizadas hoje
                 const hoje = new Date().toISOString().split('T')[0];
+                const completedToday = propostas.filter(p => 
+                    p.status === 'FINALIZADA' && 
+                    p.dataFinalizacao?.startsWith(hoje)
+                ).length;
                 
-                if (window.clientManager && window.clientManager.clients) {
-                    totalClients = window.clientManager.clients.size;
-                    
-                    window.clientManager.clients.forEach(client => {
-                        if (client.propostas) {
-                            totalProposals += client.propostas.length;
-                            
-                            client.propostas.forEach(proposal => {
-                                if (proposal.status === 'CLIENTE_ACEITOU' || proposal.status === 'PREENCHENDO_DADOS') {
-                                    pendingDigitation++;
-                                }
-                                
-                                if (proposal.status === 'FINALIZADA' && proposal.dataFinalizacao?.startsWith(hoje)) {
-                                    completedToday++;
-                                }
-                            });
-                        }
-                    });
-                }
+                console.log('📊 Estatísticas carregadas:', {
+                    clientes: totalClients,
+                    propostas: totalProposals,
+                    naFila: pendingDigitation,
+                    finalizadasHoje: completedToday
+                });
                 
                 return {
                     totalClients,
@@ -447,6 +468,28 @@
                     pendingDigitation: '?',
                     completedToday: '?'
                 };
+            }
+        }
+        
+        function atualizarContadorFila(count) {
+            // Atualizar contador da fila no menu
+            const filaLink = document.querySelector('a[href="/operacional/digitation-interface.html"]');
+            if (filaLink) {
+                filaLink.innerHTML = `
+                    <i data-feather="edit-3"></i>
+                    <span>Fila de Digitação ${count}</span>
+                `;
+                feather.replace();
+            }
+            
+            // Atualizar também no menu principal se existir
+            const filaMainLink = document.querySelector('a[href="/operacional/digitation-interface.html"]');
+            if (filaMainLink && filaMainLink !== filaLink) {
+                filaMainLink.innerHTML = `
+                    <i data-feather="edit-3"></i>
+                    <span>Fila de Digitação ${count}</span>
+                `;
+                feather.replace();
             }
         }
         

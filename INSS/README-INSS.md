@@ -1,143 +1,222 @@
-# Sistema INSS - Simulador e APIs
+# 📋 Documentação do Simulador INSS
 
-Sistema independente para processamento de extratos INSS, simulação de contratos e geração de propostas.
+## 🎯 Visão Geral
+O Simulador INSS é um sistema completo para simulação de empréstimos consignados, integrado com a API Kentro para busca automática de dados de clientes.
 
-## 🚀 Início Rápido
+## 🔧 Configuração e Instalação
 
-### 1. Instalar dependências
+### Pré-requisitos
+- Node.js 18+
+- NPM ou Yarn
+- Acesso à API Kentro (AtenderBem)
+
+### Instalação
 ```bash
 cd INSS
 npm install
 ```
 
-### 2. Configurar variáveis de ambiente
-Criar arquivo `.env` na raiz do projeto:
-```env
-OPENAI_API_KEY=sua_chave_aqui
-INSS_PORT=3003
-```
-
-### 3. Iniciar o servidor
+### Configuração
 ```bash
-# Desenvolvimento
-npm run dev
+# Copiar arquivo de exemplo
+cp env-example.txt .env
 
-# Produção com PM2
-npm run pm2
-
-# Ou usar o script de deploy
-./deploy-inss.sh
+# Editar configurações
+nano .env
 ```
 
-## 📁 Estrutura do Sistema
+## 🔌 Integração com API Kentro
+
+### ⚠️ IMPORTANTE: Formato de Dados
+A API Kentro **NÃO aceita JSON**. Use sempre **form-data**:
+
+```javascript
+// ✅ CORRETO - Form-data
+const formData = new URLSearchParams();
+formData.append('queueId', 25);
+formData.append('apiKey', 'sua-api-key');
+formData.append('pipelineId', 2);
+
+const response = await fetch('https://lunasdigital.atenderbem.com/int/getPipeOpportunities', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData
+});
+
+// ❌ INCORRETO - JSON
+const response = await fetch('https://lunasdigital.atenderbem.com/int/getPipeOpportunities', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        queueId: 25,
+        apiKey: 'sua-api-key',
+        pipelineId: 2
+    })
+});
+```
+
+### Endpoints da API Kentro
+
+#### 1. Buscar Todas as Oportunidades
+```bash
+POST /int/getPipeOpportunities
+Content-Type: application/x-www-form-urlencoded
+
+queueId=25&apiKey=sua-api-key&pipelineId=2
+```
+
+#### 2. Buscar Oportunidade por ID
+```bash
+POST /int/getOpportunity
+Content-Type: application/x-www-form-urlencoded
+
+queueId=25&apiKey=sua-api-key&id=OPORTUNIDADE_ID
+```
+
+## 🛡️ Fallback Robusto
+
+O simulador implementa um sistema de fallback robusto para garantir funcionamento mesmo quando a API Kentro falha:
+
+### Características do Fallback
+- ✅ **Timeout de 10 segundos** para evitar travamentos
+- ✅ **Tratamento de diferentes tipos de erro** (timeout, conexão, etc.)
+- ✅ **Logs informativos** para debug
+- ✅ **Continuação normal** mesmo sem dados da Kentro
+- ✅ **Cache local** para melhor performance
+
+### Implementação
+```javascript
+async function sincronizarComKentro(kentroId) {
+    try {
+        // Buscar dados da Kentro com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(`/api/kentro/oportunidade/${kentroId}`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        // Processar dados...
+        
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn('⏰ Timeout na sincronização com Kentro (10s)');
+        } else if (error.message.includes('Failed to fetch')) {
+            console.warn('🌐 Erro de conexão com Kentro - API pode estar indisponível');
+        } else {
+            console.error('❌ Erro ao sincronizar com Kentro:', error.message);
+        }
+        
+        // Re-throw para captura pela função chamadora
+        throw error;
+    }
+}
+```
+
+## 🚀 Execução
+
+### Desenvolvimento
+```bash
+npm run dev
+```
+
+### Produção
+```bash
+npm start
+```
+
+### Com PM2
+```bash
+pm2 start ecosystem-inss.config.cjs
+```
+
+## 📊 Monitoramento
+
+### Logs
+```bash
+# Ver logs em tempo real
+pm2 logs simulador-inss
+
+# Ver logs específicos
+tail -f logs/simulador.log
+```
+
+### Health Check
+```bash
+curl http://localhost:3002/health
+```
+
+## 🔍 Troubleshooting
+
+### Problemas Comuns
+
+#### 1. API Kentro retorna "Bad Request"
+**Causa:** Uso de JSON em vez de form-data
+**Solução:** Usar `URLSearchParams` e `application/x-www-form-urlencoded`
+
+#### 2. Timeout na API Kentro
+**Causa:** API lenta ou indisponível
+**Solução:** Fallback automático implementado
+
+#### 3. Erro de sintaxe no simulador
+**Causa:** Blocos try/catch mal formados
+**Solução:** Verificar fechamento adequado dos blocos
+
+### Debug
+```javascript
+// Ativar logs detalhados
+console.log('🔍 Debug - Kentro ID:', kentroId);
+console.log('📊 Dados da Kentro:', kentroData);
+```
+
+## 📁 Estrutura de Arquivos
 
 ```
 INSS/
-├── server-inss.js          # Servidor principal
-├── package.json            # Dependências
+├── simulador-logic.js      # Lógica principal do simulador
+├── simulador.html          # Interface do usuário
+├── calculo.js              # Cálculos de empréstimo
+├── extrair_pdf.js          # Extração de dados de PDF
+├── server-inss.js          # Servidor Node.js
 ├── ecosystem-inss.config.cjs # Configuração PM2
 ├── nginx-inss.conf         # Configuração Nginx
-├── simulador.html          # Interface do simulador
-├── simulador-logic.js      # Lógica JavaScript
-├── detalhesdaproposta.html # Página de detalhes
-├── digitar-proposta.html   # Formulário de digitação
-├── extrair_pdf.js          # Extração de PDFs
-├── calculo.js              # Cálculos de simulação
-├── bancos.js               # Dados dos bancos
-├── beneficios.js           # Dados dos benefícios
-└── uploads/                # PDFs temporários
+└── README-INSS.md          # Esta documentação
 ```
 
-## 🌐 URLs Disponíveis
+## 🔄 Atualizações
 
-### Interface
-- **Simulador**: `/inss/simulador.html`
-- **Detalhes da Proposta**: `/inss/detalhesdaproposta.html`
-- **Formulário**: `/inss/digitar-proposta.html`
+### Versão Atual: 2.1.0
+- ✅ API Kentro corrigida (form-data)
+- ✅ Fallback robusto implementado
+- ✅ Timeout de 10 segundos
+- ✅ Logs melhorados
+- ✅ Tratamento de erro aprimorado
 
-### APIs
-- **POST** `/api/processar-extrato` - Upload e processamento de PDF
-- **GET** `/api/calcular/:fileId` - Calcular simulação
-- **GET** `/extrato/:fileId/raw` - Obter extrato processado
-- **POST** `/extrair` - Extrair dados (compatibilidade)
-
-## 🔧 Configuração
-
-### Porta
-O sistema INSS roda na porta **3003** por padrão.
-
-### Nginx
-Incluir o arquivo `nginx-inss.conf` na configuração principal do Nginx.
-
-### PM2
-```bash
-pm2 start ecosystem-inss.config.cjs
-pm2 status inss-sistema
-pm2 logs inss-sistema
-```
-
-## 🧪 Testes
-
-### Teste Local
-```bash
-node teste-inss-local.js
-```
-
-### Teste Manual
-1. Acesse `http://localhost:3003/inss/simulador.html`
-2. Faça upload de um PDF de extrato
-3. Verifique se a simulação é calculada corretamente
-
-## 📋 Funcionalidades
-
-### ✅ Simulador
-- Upload de extratos PDF
-- Extração automática de dados
-- Cálculo de simulações
-- Interface responsiva
-- Suporte a contingência
-
-### ✅ APIs
-- Processamento de PDFs
-- Cálculos de margem
-- Simulação de contratos
-- Geração de propostas
-
-### ✅ Compatibilidade
-- Sistema independente
-- Não interfere com outros sistemas
-- Configuração isolada
-
-## 🚨 Troubleshooting
-
-### Servidor não inicia
-```bash
-# Verificar se a porta está livre
-netstat -tulpn | grep 3003
-
-# Verificar logs
-pm2 logs inss-sistema
-```
-
-### APIs não respondem
-```bash
-# Verificar se o Nginx está configurado
-nginx -t
-
-# Reiniciar Nginx
-systemctl restart nginx
-```
-
-### Simulador não carrega
-- Verificar se o arquivo `simulador-logic.js` está acessível
-- Verificar console do navegador para erros
-- Verificar se a porta 3003 está aberta
+### Próximas Versões
+- 🔄 Cache local para ViaCEP
+- 🔄 Retry com backoff exponencial
+- 🔄 Monitoramento de saúde da API
+- 🔄 Alertas automáticos
 
 ## 📞 Suporte
 
-Para problemas específicos do sistema INSS, verificar:
-1. Logs do PM2: `pm2 logs inss-sistema`
-2. Logs do Nginx: `/var/log/nginx/error.log`
-3. Console do navegador para erros JavaScript
+Para problemas ou dúvidas:
+1. Verificar logs do sistema
+2. Testar conectividade com APIs
+3. Verificar configurações de ambiente
+4. Consultar esta documentação
 
+---
 
+**Última atualização:** 08/10/2025
+**Versão:** 2.1.0

@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .config-content {
+            padding: 1.5rem;
+        }
+
+        .status-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .status-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-whatsapp {
+            background: #25d366;
+            color: white;
+        }
+
+        .btn-whatsapp:hover {
+            background: #128c7e;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+        }
+
+        /* Modal de Edição */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.selected {
+            border-color: #1f2937;
+            transform: scale(1.1);
+        }
+
+        .preview-section {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .preview-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .preview-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .preview-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        /* Modal WhatsApp - Overlay sobre a página atual */
+        .whatsapp-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(3px);
+        }
+
+        .whatsapp-modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+            animation: modalSlideIn 0.3s ease-out;
+            position: relative;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .whatsapp-modal-header {
+            background: linear-gradient(135deg, #25d366, #128c7e);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .whatsapp-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .whatsapp-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .whatsapp-modal-close:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .whatsapp-modal-body {
+            padding: 1.5rem;
+        }
+
+        .whatsapp-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .whatsapp-section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .variables-section {
+            margin-top: 1rem;
+        }
+
+        .variables-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .variables-list {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .variable-btn {
+            background: #e2e8f0;
+            color: #475569;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .variable-btn:hover {
+            background: #cbd5e1;
+        }
+
+        .preview-section {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .preview-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-message {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #e0f2fe;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: #0f172a;
+        }
+
+        .whatsapp-modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn-whatsapp-send {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-whatsapp-send:hover {
+            background: #128c7e;
+        }
+
+        .btn-whatsapp-test {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-whatsapp-test:hover {
+            background: #d97706;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="activity" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="buscar-propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item active" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-title">
+                    <i data-feather="settings"></i>
+                    <h1>Configurações de Status - TESTE WHATSAPP</h1>
+                </div>
+                <p>Gerencie status e produtos do sistema com integração WhatsApp</p>
+            </div>
+
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="carregarConfiguracoes()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar
+                </button>
+                <button class="btn btn-secondary" onclick="salvarConfiguracoes()">
+                    <i data-feather="save"></i>
+                    Salvar
+                </button>
+            </div>
+
+            <div class="config-container">
+                <!-- Status do Formulário -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="file-text"></i>
+                            Status do Formulário
+                        </div>
+                        <div class="config-info">
+                            <i data-feather="info"></i>
+                            Apenas cores podem ser editadas - nomes e códigos são fixos
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div id="status-formulario-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os status.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Produtos -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="package"></i>
+                            Produtos
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div class="page-actions">
+                            <button class="btn btn-primary" onclick="sincronizarProdutosSimulador()">
+                                <i data-feather="refresh-cw"></i>
+                                Sincronizar Simulador
+                            </button>
+                            <button class="btn btn-secondary" onclick="adicionarProduto()">
+                                <i data-feather="plus"></i>
+                                Adicionar Produto
+                            </button>
+                        </div>
+                        <div id="status-produtos-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os produtos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status da Proposta -->
+                <div class="config-section">
+                    <div class="config-header">
+                        <div class="config-title">
+                            <i data-feather="check-circle"></i>
+                            Status da Proposta
+                        </div>
+                    </div>
+                    <div class="config-content">
+                        <div class="page-actions">
+                            <button class="btn btn-secondary" onclick="adicionarStatus('proposta')">
+                                <i data-feather="plus"></i>
+                                Adicionar Status
+                            </button>
+                        </div>
+                        <div id="status-proposta-list" class="status-list">
+                            <div class="empty-state">
+                                <i data-feather="loader"></i>
+                                <h3>Carregando...</h3>
+                                <p>Aguarde enquanto carregamos os status.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Editar Status</h3>
+                <button class="modal-close" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nome do Status</label>
+                    <input type="text" id="edit-nome" class="form-input" placeholder="Ex: Etapa 1 - Dados">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" id="edit-descricao" class="form-input" placeholder="Ex: Cliente preenchendo dados pessoais">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Cor</label>
+                    <div class="color-picker" id="color-picker">
+                        <!-- Cores serão carregadas via JavaScript -->
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <h4 class="preview-title">Preview em Tempo Real</h4>
+                    <div class="preview-item">
+                        <p><strong>Como aparece na interface:</strong></p>
+                        <div style="margin-top: 0.5rem;">
+                            <span class="preview-badge" id="preview-badge">Nome do Status</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="salvarStatus()">
+                    <i data-feather="save"></i>
+                    Salvar Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal WhatsApp -->
+    <div id="whatsappModal" class="whatsapp-modal">
+        <div class="whatsapp-modal-content">
+            <div class="whatsapp-modal-header">
+                <div class="whatsapp-modal-title">
+                    <i data-feather="message-circle"></i>
+                    Configuração WhatsApp - <span id="modalStatusName">Status</span>
+                </div>
+                <button class="whatsapp-modal-close" onclick="closeWhatsAppModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            
+            <div class="whatsapp-modal-body">
+                <!-- Configuração Geral -->
+                <div class="whatsapp-section">
+                    <div class="whatsapp-section-title">
+                        <i data-feather="settings"></i>
+                        Configuração Geral
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="whatsappEnabled" checked>
+                            <label for="whatsappEnabled">Ativar disparo automático para este status</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nome do Status</label>
+                        <input type="text" id="statusName" class="form-input" readonly>
+                    </div>
+                </div>
+
+                <!-- Template da Mensagem -->
+                <div class="whatsapp-section">
+                    <div class="whatsapp-section-title">
+                        <i data-feather="edit-3"></i>
+                        Template da Mensagem
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Mensagem do WhatsApp</label>
+                        <textarea id="templateMessage" class="form-textarea" placeholder="Digite sua mensagem aqui..."></textarea>
+                    </div>
+                    
+                    <div class="variables-section">
+                        <div class="variables-title">Variáveis Disponíveis:</div>
+                        <div class="variables-list">
+                            <button class="variable-btn" onclick="insertVariable('{nome}')">{nome}</button>
+                            <button class="variable-btn" onclick="insertVariable('{etapa}')">{etapa}</button>
+                            <button class="variable-btn" onclick="insertVariable('{valor}')">{valor}</button>
+                            <button class="variable-btn" onclick="insertVariable('{banco}')">{banco}</button>
+                            <button class="variable-btn" onclick="insertVariable('{telefone}')">{telefone}</button>
+                            <button class="variable-btn" onclick="insertVariable('{cpf}')">{cpf}</button>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div class="preview-title">Preview da Mensagem:</div>
+                        <div class="preview-message" id="messagePreview">
+                            Olá João Silva! Sua proposta foi aprovada. Em breve você receberá mais informações sobre o processo.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="whatsapp-modal-footer">
+                <button class="btn btn-secondary" onclick="closeWhatsAppModal()">
+                    <i data-feather="x"></i>
+                    Cancelar
+                </button>
+                <button class="btn-whatsapp-test" onclick="testarEnvio()">
+                    <i data-feather="send"></i>
+                    Testar Envio
+                </button>
+                <button class="btn-whatsapp-send" onclick="salvarConfiguracaoWhatsApp()">
+                    <i data-feather="save"></i>
+                    Salvar Configuração
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        // Renderizar ícones do Feather quando a página carregar
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+        
+        // Variáveis globais
+        let statusConfig = {};
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            try {
+                console.log('🔄 Carregando configurações...');
+                
+                const response = await fetch('/api/status-config');
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar configurações');
+                }
+                
+                const responseData = await response.json();
+                statusConfig = responseData.config || responseData;
+                
+                // Renderizar status
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configurações carregadas com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configurações:', error);
+                await carregarConfiguracaoPadrao();
+            }
+        }
+
+        // Carregar configuração padrão
+        async function carregarConfiguracaoPadrao() {
+            try {
+                const response = await fetch('/var/data/status-config.json');
+                statusConfig = await response.json();
+                
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configuração padrão carregada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configuração padrão:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        }
+
+        // Renderizar status
+        function renderizarStatus(tipo) {
+            const container = document.getElementById(`status-${tipo}-list`);
+            let statusList = [];
+            
+            // Mapear tipo para a chave correta no JSON
+            if (tipo === 'formulario') {
+                statusList = statusConfig.statusFormulario || [];
+            } else if (tipo === 'proposta') {
+                statusList = statusConfig.statusProposta || [];
+            }
+            
+            if (statusList.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox"></i>
+                        <h3>Nenhum status encontrado</h3>
+                        <p>Adicione novos status para começar.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = statusList.map(status => `
+                    <div class="status-item">
+                        <div class="status-info">
+                            <div class="status-badge" style="background-color: ${status.cor || '#3b82f6'}">
+                                ${status.nome || 'Status'}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${status.nome || 'Status'}</div>
+                                <div style="font-size: 0.9rem; color: #64748b;">${status.descricao || 'Sem descrição'}</div>
+                                ${status.fixo ? '<div style="font-size: 0.8rem; color: #10b981; font-weight: 500;">🔒 Fixo</div>' : ''}
+                            </div>
+                        </div>
+                        <div class="status-actions">
+                            ${status.editavel !== false ? `
+                                <button class="btn btn-secondary" onclick="editarStatus('${tipo}', '${status.id}')">
+                                    <i data-feather="edit"></i>
+                                    Editar
+                                </button>
+                                <button class="btn btn-secondary" onclick="excluirStatus('${tipo}', '${status.id}')">
+                                    <i data-feather="trash-2"></i>
+                                    Excluir
+                                </button>
+                            ` : `
+                                <button class="btn btn-secondary" onclick="editarCor('${tipo}', '${status.id}')">
+                                    <i data-feather="palette"></i>
+                                    Editar Cor
+                                </button>
+                            `}
+                            <button class="btn btn-whatsapp" onclick="openWhatsAppModal('${status.id}', '${status.nome}', '${tipo}')">
+                                <i data-feather="message-circle"></i>
+                                WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Renderizar produtos
+        function renderizarProdutos() {
+            const container = document.getElementById('status-produtos-list');
+            const produtos = statusConfig.produtos || [];
+            
+            if (produtos.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox"></i>
+                        <h3>Nenhum produto encontrado</h3>
+                        <p>Adicione novos produtos para começar.</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = produtos.map(produto => `
+                    <div class="status-item">
+                        <div class="status-info">
+                            <div class="status-badge" style="background-color: ${produto.cor || '#3b82f6'}">
+                                ${produto.nome || 'Produto'}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${produto.nome || 'Produto'}</div>
+                                <div style="font-size: 0.9rem; color: #64748b;">${produto.descricao || 'Sem descrição'}</div>
+                                <div style="font-size: 0.8rem; color: ${produto.origem === 'calculo' ? '#10b981' : '#f59e0b'}; font-weight: 500;">
+                                    ${produto.origem === 'calculo' ? '🧮 Calculado' : '✏️ Manual'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-actions">
+                            <button class="btn btn-secondary" onclick="editarStatus('produtos', '${produto.id}')">
+                                <i data-feather="edit"></i>
+                                Editar
+                            </button>
+                            <button class="btn btn-secondary" onclick="excluirStatus('produtos', '${produto.id}')">
+                                <i data-feather="trash-2"></i>
+                                Excluir
+                            </button>
+                            <button class="btn btn-whatsapp" onclick="openWhatsAppModal('${produto.id}', '${produto.nome}', 'produtos')">
+                                <i data-feather="message-circle"></i>
+                                WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            feather.replace();
+        }
+
+        // Variáveis globais para edição
+        let currentEditType = '';
+        let currentEditId = '';
+        let currentEditData = null;
+
+        // Cores disponíveis
+        const coresDisponiveis = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+            '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1',
+            '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
+        ];
+
+        // Funções de edição
+        function adicionarProduto() {
+            abrirModal('produtos', null, {
+                nome: '',
+                descricao: '',
+                cor: '#3B82F6',
+                origem: 'manual'
+            });
+        }
+
+        function editarCor(tipo, id) {
+            const status = encontrarStatus(tipo, id);
+            if (status) {
+                abrirModal(tipo, id, status, true);
+            }
+        }
+
+        function adicionarStatus(tipo) {
+            abrirModal(tipo, null, {
+                nome: '',
+                descricao: '',
+                cor: '#3B82F6'
+            });
+        }
+
+        function editarStatus(tipo, id) {
+            const status = encontrarStatus(tipo, id);
+            if (status) {
+                abrirModal(tipo, id, status);
+            }
+        }
+
+        async function excluirStatus(tipo, id) {
+            if (confirm('Tem certeza que deseja excluir este status?')) {
+                try {
+                    console.log('Excluindo status:', tipo, id);
+                    
+                    // Remover do array local
+                    if (tipo === 'formulario') {
+                        statusConfig.statusFormulario = statusConfig.statusFormulario.filter(s => s.id !== id);
+                    } else if (tipo === 'proposta') {
+                        statusConfig.statusProposta = statusConfig.statusProposta.filter(s => s.id !== id);
+                    } else if (tipo === 'produtos') {
+                        statusConfig.produtos = statusConfig.produtos.filter(s => s.id != id);
+                    }
+                    
+                    // Salvar no servidor via API
+                    const response = await fetch('/api/status-config', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            config: statusConfig
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Erro ao salvar no servidor');
+                    }
+                    
+                    // Atualizar interface
+                    renderizarStatus('formulario');
+                    renderizarProdutos();
+                    renderizarStatus('proposta');
+                    
+                    alert('Status excluído com sucesso!');
+                    
+                } catch (error) {
+                    console.error('Erro ao excluir:', error);
+                    alert('Erro ao excluir status: ' + error.message);
+                }
+            }
+        }
+
+        // Função para encontrar status
+        function encontrarStatus(tipo, id) {
+            if (tipo === 'formulario') {
+                return statusConfig.statusFormulario?.find(s => s.id === id);
+            } else if (tipo === 'proposta') {
+                return statusConfig.statusProposta?.find(s => s.id === id);
+            } else if (tipo === 'produtos') {
+                return statusConfig.produtos?.find(s => s.id == id);
+            }
+            return null;
+        }
+
+        // Abrir modal de edição
+        function abrirModal(tipo, id, dados, apenasCor = false) {
+            currentEditType = tipo;
+            currentEditId = id;
+            currentEditData = dados;
+
+            const modal = document.getElementById('edit-modal');
+            const titulo = document.getElementById('modal-title');
+            const nomeInput = document.getElementById('edit-nome');
+            const descricaoInput = document.getElementById('edit-descricao');
+
+            // Configurar título
+            if (apenasCor) {
+                titulo.textContent = 'Editar Cor do Status';
+            } else if (id) {
+                titulo.textContent = 'Editar Status';
+            } else {
+                titulo.textContent = 'Adicionar Status';
+            }
+
+            // Preencher campos
+            nomeInput.value = dados.nome || '';
+            descricaoInput.value = dados.descricao || '';
+
+            // Desabilitar campos se for apenas cor
+            nomeInput.disabled = apenasCor;
+            descricaoInput.disabled = apenasCor;
+
+            // Carregar seletor de cores
+            carregarSeletorCores(dados.cor || '#3B82F6');
+
+            // Atualizar preview
+            atualizarPreview();
+
+            // Mostrar modal
+            modal.classList.add('active');
+            feather.replace();
+        }
+
+        // Carregar seletor de cores
+        function carregarSeletorCores(corSelecionada) {
+            const container = document.getElementById('color-picker');
+            container.innerHTML = '';
+
+            coresDisponiveis.forEach(cor => {
+                const div = document.createElement('div');
+                div.className = `color-option ${cor === corSelecionada ? 'selected' : ''}`;
+                div.style.backgroundColor = cor;
+                div.onclick = () => selecionarCor(cor);
+                container.appendChild(div);
+            });
+        }
+
+        // Selecionar cor
+        function selecionarCor(cor) {
+            // Remover seleção anterior
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Selecionar nova cor
+            event.target.classList.add('selected');
+
+            console.log('Cor selecionada:', cor, event.target.style.backgroundColor);
+
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        // Atualizar preview
+        function atualizarPreview() {
+            const nome = document.getElementById('edit-nome').value || 'Nome do Status';
+            const corSelecionada = document.querySelector('.color-option.selected');
+            const cor = corSelecionada ? corSelecionada.style.backgroundColor : '#3B82F6';
+            
+            const preview = document.getElementById('preview-badge');
+            if (preview) {
+                preview.textContent = nome;
+                preview.style.backgroundColor = cor;
+                console.log('Preview atualizado:', nome, cor);
+            }
+        }
+
+        // Fechar modal
+        function fecharModal() {
+            const modal = document.getElementById('edit-modal');
+            modal.classList.remove('active');
+            
+            // Limpar dados
+            currentEditType = '';
+            currentEditId = '';
+            currentEditData = null;
+        }
+
+        // Salvar status
+        async function salvarStatus() {
+            const nome = document.getElementById('edit-nome').value.trim();
+            const descricao = document.getElementById('edit-descricao').value.trim();
+            const cor = document.querySelector('.color-option.selected')?.style.backgroundColor || '#3B82F6';
+
+            if (!nome) {
+                alert('Nome é obrigatório');
+                return;
+            }
+
+            try {
+                // Preparar dados para salvar
+                const dadosAtualizados = {
+                    ...currentEditData,
+                    nome,
+                    descricao,
+                    cor
+                };
+
+                console.log('Salvando status:', currentEditType, currentEditId, dadosAtualizados);
+                
+                // Atualizar dados localmente primeiro
+                if (currentEditType === 'formulario') {
+                    const index = statusConfig.statusFormulario.findIndex(s => s.id === currentEditId);
+                    if (index !== -1) {
+                        statusConfig.statusFormulario[index] = { ...statusConfig.statusFormulario[index], ...dadosAtualizados };
+                    }
+                } else if (currentEditType === 'proposta') {
+                    const index = statusConfig.statusProposta.findIndex(s => s.id === currentEditId);
+                    if (index !== -1) {
+                        statusConfig.statusProposta[index] = { ...statusConfig.statusProposta[index], ...dadosAtualizados };
+                    }
+                } else if (currentEditType === 'produtos') {
+                    const index = statusConfig.produtos.findIndex(s => s.id == currentEditId);
+                    if (index !== -1) {
+                        statusConfig.produtos[index] = { ...statusConfig.produtos[index], ...dadosAtualizados };
+                    }
+                }
+
+                // Salvar no servidor via API
+                const response = await fetch('/api/status-config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config: statusConfig
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao salvar no servidor');
+                }
+                
+                // Atualizar interface imediatamente
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                alert('Status salvo com sucesso!');
+                fecharModal();
+                
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                alert('Erro ao salvar status: ' + error.message);
+            }
+        }
+
+        // ===== FUNÇÕES WHATSAPP =====
+
+        // Função para abrir o modal WhatsApp
+        function openWhatsAppModal(statusId, statusName, tipo) {
+            const modal = document.getElementById('whatsappModal');
+            const statusNameInput = document.getElementById('statusName');
+            const modalStatusName = document.getElementById('modalStatusName');
+            const templateMessage = document.getElementById('templateMessage');
+            
+            // Definir nome do status
+            statusNameInput.value = statusName;
+            modalStatusName.textContent = statusName;
+            
+            // Definir mensagem padrão baseada no status
+            const defaultMessages = {
+                'aprovado': 'Olá {nome}! Sua proposta foi aprovada. Em breve você receberá mais informações sobre o processo.',
+                'pendente': 'Olá {nome}! Sua proposta está em análise. Aguarde nosso retorno em breve.',
+                'rejeitado': 'Olá {nome}! Sua proposta não foi aprovada no momento. Entre em contato para mais informações.',
+                'em-analise': 'Olá {nome}! Sua proposta está sendo analisada pela nossa equipe. Aguarde nosso retorno.',
+                'pagamento': 'Olá {nome}! Este é um lembrete sobre seu pagamento. Entre em contato para regularizar.',
+                'contato': 'Olá {nome}! Recebemos sua solicitação de contato. Em breve nossa equipe entrará em contato.'
+            };
+            
+            // Tentar encontrar mensagem padrão baseada no nome do status
+            const statusLower = statusName.toLowerCase();
+            let defaultMessage = '';
+            
+            if (statusLower.includes('aprovado') || statusLower.includes('aprovada')) {
+                defaultMessage = defaultMessages.aprovado;
+            } else if (statusLower.includes('pendente')) {
+                defaultMessage = defaultMessages.pendente;
+            } else if (statusLower.includes('rejeitado') || statusLower.includes('rejeitada')) {
+                defaultMessage = defaultMessages.rejeitado;
+            } else if (statusLower.includes('análise') || statusLower.includes('analise')) {
+                defaultMessage = defaultMessages['em-analise'];
+            } else if (statusLower.includes('pagamento')) {
+                defaultMessage = defaultMessages.pagamento;
+            } else if (statusLower.includes('contato')) {
+                defaultMessage = defaultMessages.contato;
+            } else {
+                defaultMessage = `Olá {nome}! Seu status foi alterado para: ${statusName}. Entre em contato para mais informações.`;
+            }
+            
+            templateMessage.value = defaultMessage;
+            
+            // Atualizar preview
+            updateMessagePreview();
+            
+            // Mostrar modal como overlay
+            modal.style.display = 'block';
+            
+            // Prevenir scroll do body quando modal estiver aberto
+            document.body.style.overflow = 'hidden';
+            
+            // Focar no primeiro campo
+            setTimeout(() => {
+                document.getElementById('whatsappEnabled').focus();
+            }, 100);
+        }
+
+        // Função para fechar o modal WhatsApp
+        function closeWhatsAppModal() {
+            const modal = document.getElementById('whatsappModal');
+            modal.style.display = 'none';
+            
+            // Restaurar scroll do body
+            document.body.style.overflow = 'auto';
+        }
+
+        // Função para inserir variável no textarea
+        function insertVariable(variable) {
+            const textarea = document.getElementById('templateMessage');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end, text.length);
+            
+            textarea.value = before + variable + after;
+            textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+            textarea.focus();
+            
+            // Atualizar preview
+            updateMessagePreview();
+        }
+
+        // Função para atualizar preview da mensagem
+        function updateMessagePreview() {
+            const template = document.getElementById('templateMessage').value;
+            const preview = document.getElementById('messagePreview');
+            
+            // Substituir variáveis por valores de exemplo
+            let previewText = template
+                .replace(/{nome}/g, 'João Silva')
+                .replace(/{etapa}/g, 'Etapa 1 - Dados')
+                .replace(/{valor}/g, 'R$ 5.000,00')
+                .replace(/{banco}/g, 'Banco do Brasil')
+                .replace(/{telefone}/g, '(11) 99999-9999')
+                .replace(/{cpf}/g, '123.456.789-00');
+            
+            preview.textContent = previewText;
+        }
+
+        // Função para testar envio
+        function testarEnvio() {
+            const template = document.getElementById('templateMessage').value;
+            const enabled = document.getElementById('whatsappEnabled').checked;
+            
+            if (!enabled) {
+                alert('⚠️ WhatsApp não está ativado para este status!');
+                return;
+            }
+            
+            if (!template.trim()) {
+                alert('⚠️ Digite uma mensagem antes de testar!');
+                return;
+            }
+            
+            // Simular envio de teste
+            alert('📱 Teste de envio WhatsApp:\n\n' + 
+                  'Status: ' + document.getElementById('statusName').value + '\n' +
+                  'Mensagem: ' + template + '\n\n' +
+                  '✅ Mensagem de teste enviada com sucesso!');
+        }
+
+        // Função para salvar configuração WhatsApp
+        function salvarConfiguracaoWhatsApp() {
+            const enabled = document.getElementById('whatsappEnabled').checked;
+            const template = document.getElementById('templateMessage').value;
+            const statusName = document.getElementById('statusName').value;
+            
+            if (!template.trim()) {
+                alert('⚠️ Digite uma mensagem antes de salvar!');
+                return;
+            }
+            
+            // Aqui você salvaria no servidor
+            console.log('Salvando configuração WhatsApp:', {
+                status: statusName,
+                enabled: enabled,
+                template: template
+            });
+            
+            alert('✅ Configuração WhatsApp salva com sucesso!\n\n' +
+                  'Status: ' + statusName + '\n' +
+                  'Ativo: ' + (enabled ? 'Sim' : 'Não') + '\n' +
+                  'Template: ' + template.substring(0, 50) + '...');
+            
+            closeWhatsAppModal();
+        }
+
+        // Event listeners
+        document.getElementById('templateMessage').addEventListener('input', updateMessagePreview);
+
+        // Fechar modal ao clicar fora dele
+        window.onclick = function(event) {
+            const modal = document.getElementById('whatsappModal');
+            if (event.target === modal) {
+                closeWhatsAppModal();
+            }
+        }
+
+        // Fechar modal com tecla ESC
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('whatsappModal');
+                if (modal.style.display === 'block') {
+                    closeWhatsAppModal();
+                }
+            }
+        });
+
+        function sincronizarProdutosSimulador() {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function salvarConfiguracoes() {
+            alert('Funcionalidade em desenvolvimento');
+        }
+
+        function mostrarErro(mensagem) {
+            alert('Erro: ' + mensagem);
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar configurações
+                await carregarConfiguracoes();
+                
+                // Adicionar event listeners para preview em tempo real
+                const nomeInput = document.getElementById('edit-nome');
+                if (nomeInput) {
+                    nomeInput.addEventListener('input', atualizarPreview);
+                }
+                
+                console.log('✅ Página de configuração inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+name: 🚀 Deploy Automático FGTS
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'fgts/**'
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 72.60.159.149 >> ~/.ssh/known_hosts
+        
+    - name: 📤 Deploy dos arquivos
+      run: |
+        echo "🚀 Iniciando deploy automático..."
+        
+        # Arquivos para deploy
+        FILES=(
+          "fgts/server.js"
+          "fgts/fgts_csv.js"
+          "fgts/index.html"
+          "fgts/package.json"
+          "fgts/error-logger.js"
+          "fgts/config-manager.js"
+          "fgts/cache-persistente.js"
+          "fgts/proxy-config.js"
+        )
+        
+        # Deploy de cada arquivo
+        for file in "${FILES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "📄 Deploy: $file"
+            scp "$file" root@72.60.159.149:/root/fgts/
+          else
+            echo "⚠️ Arquivo não encontrado: $file"
+          fi
+        done
+        
+    - name: 🐳 Reiniciar container
+      run: |
+        echo "🔄 Reiniciando container FGTS..."
+        ssh root@72.60.159.149 "docker restart fgts-lunasdigital"
+        
+        echo "⏳ Aguardando container inicializar..."
+        sleep 15
+        
+    - name: 🧪 Testar API
+      run: |
+        echo "🔍 Verificando status do container..."
+        ssh root@72.60.159.149 "docker ps | grep fgts"
+        
+        echo "🧪 Testando API..."
+        API_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3005/fgts/contadores-tempo-real")
+        echo "📊 Resposta da API: $API_RESPONSE"
+        
+        # Verificar se API está respondendo
+        if [[ $API_RESPONSE == *"sucessos"* ]]; then
+          echo "✅ API funcionando corretamente!"
+        else
+          echo "❌ API não está respondendo corretamente"
+          exit 1
+        fi
+        
+    - name: 📋 Verificação final
+      run: |
+        echo "🔍 Verificando logs do container..."
+        ssh root@72.60.159.149 "docker logs fgts-lunasdigital --tail 10"
+        
+        echo "🌐 Testando endpoints principais..."
+        
+        # Testar endpoint de status
+        STATUS_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3005/fgts/estado")
+        echo "📊 Status: $STATUS_RESPONSE"
+        
+        # Testar endpoint de pendentes
+        PENDENTES_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3005/fgts/verificar-pendentes")
+        echo "📋 Pendentes: $PENDENTES_RESPONSE"
+        
+    - name: ✅ Deploy concluído
+      run: |
+        echo "🎉 DEPLOY AUTOMÁTICO CONCLUÍDO!"
+        echo "📅 $(date)"
+        echo "🌐 Sistema disponível em: http://72.60.159.149:3005"
+        echo "📝 Commit: ${{ github.event.head_commit.message }}"
+        echo "👤 Autor: ${{ github.event.head_commit.author.name }}"

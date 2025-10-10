@@ -221,6 +221,7 @@ O sistema corrigirá automaticamente se necessário.
 ⚠️ INSTRUÇÕES CRÍTICAS:
 
 Responda EXCLUSIVAMENTE em formato JSON válido, sem texto adicional
+EXTRAIA o CPF do cliente do extrato (formato: 11 dígitos sem pontos ou traços)
 Inclua TODOS os contratos com situacao "ATIVO"
 SEMPRE inclua as seções "contratos_rmc" e "contratos_rcc" (mesmo que vazias [])
 Se houver contratos RMC ou RCC no extrato, coloque-os nas seções apropriadas
@@ -267,6 +268,7 @@ PRIMEIRO DESCONTO (DD/MM/YYYY) → salvar em \`primeiro_desconto\`.
 
 {
 "origem": "INSS",
+"cpf": "12345678901",
 "cliente": "LIGIA CONCEICAO DOS SANTOS",
 "beneficio": {
 "nb": "7090809227",

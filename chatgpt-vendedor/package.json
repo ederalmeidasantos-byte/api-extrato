@@ -1,0 +1,41 @@
+{
+  "name": "chatgpt-vendedor-lunas",
+  "version": "1.0.0",
+  "description": "Sistema inteligente de atendimento via WhatsApp integrado ao CRM Lunas Digital",
+  "main": "server-final-funcional.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server-final-funcional.js",
+    "dev": "nodemon server-final-funcional.js",
+    "test": "node teste-integracao.js",
+    "setup-agent": "node setup-agent-builder.js setup",
+    "test-agent": "node teste-agent-builder.js all",
+    "test-performance": "node teste-agent-builder.js performance",
+    "test-scenarios": "node teste-agent-builder.js scenarios",
+    "cleanup-agent": "node setup-agent-builder.js cleanup"
+  },
+  "keywords": [
+    "chatgpt",
+    "whatsapp",
+    "vendedor",
+    "lunas",
+    "openai",
+    "agent-builder"
+  ],
+  "author": "Lunas Digital",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2",
+    "fs-extra": "^11.1.1",
+    "moment": "^2.29.4",
+    "node-fetch": "^2.6.7",
+    "openai": "^4.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

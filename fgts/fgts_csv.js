@@ -4,7 +4,8 @@ import { parse } from "csv-parse/sync";
 import qs from "qs";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { PROXY_URL } from "./proxy-config.js";
-import { logApiError, logAuthError, logCacheError, logCrmError, logSystemError } from "../error-logger.js";
+import PQueue from "p-queue";
+import { logApiError, logAuthError, logCacheError, logCrmError, logSystemError } from "./error-logger.js";
 import { 
   salvarPendentes, 
   carregarPendentes, 
@@ -34,6 +35,10 @@ let delayAtual = 1000; // Delay fixo em 1 segundo // Delay atual (pode variar)
 let taxaErro429 = 0; // Taxa de erro 429 (0-1)
 let contador429 = 0; // Contador de erros 429
 let contadorTotal = 0; // Contador total de consultas
+
+// 🔹 Controle de Concorrência
+let concurrenciaAtual = 5; // Padrão: 5 CPFs simultâneos
+let filaProcessamento = new PQueue({ concurrency: concurrenciaAtual });
 
 // 🔹 Cache de consultas para evitar duplicatas
 const cacheConsultas = new Map();
@@ -92,6 +97,74 @@ console.log('📂 Carregando cache persistente...');
 tentativasCPF = carregarTentativasCache();
 const pendentesCarregados = carregarPendentes();
 const estadoCarregado = carregarEstadoProcessamento();
+
+// 🔹 Sistema de Continuação Automática
+async function verificarEContinuarProcessamento() {
+  try {
+    // Verificar se há processamento pendente
+    const pendentes = carregarPendentes();
+    const listas = carregarListas();
+    
+    // Verificar se há arquivo CSV pendente
+    const uploadsDir = '/app/fgts/uploads';
+    const fs = await import('fs');
+    const files = fs.readdirSync(uploadsDir);
+    const csvFile = files.find(f => f.length > 10); // Arquivo CSV temporário
+    
+    console.log(`${LOG_PREFIX()} 🔄 Verificando continuação automática...`);
+    console.log(`${LOG_PREFIX()} 📊 Estado: ${pendentes.length} pendentes, ${listas.sucessos.length} sucessos`);
+    console.log(`${LOG_PREFIX()} 📁 Arquivo CSV pendente: ${csvFile ? 'Sim' : 'Não'}`);
+    
+    // Se há pendentes, continuar processamento
+    if (pendentes.length > 0) {
+      console.log(`${LOG_PREFIX()} ⚡ Continuando processamento automaticamente...`);
+      await processarReprocessamentoRapido();
+    }
+    
+    // Se há arquivo CSV pendente e poucos sucessos, pode ter sido interrompido
+    if (csvFile && listas.sucessos.length < 100) {
+      console.log(`${LOG_PREFIX()} 📋 Detectado processamento interrompido. Arquivo: ${csvFile}`);
+      console.log(`${LOG_PREFIX()} 💡 Para continuar, faça upload do arquivo novamente ou use reprocessamento rápido`);
+      
+      // Habilitar botão de processamento automaticamente
+      if (ioInstance) {
+        ioInstance.emit('habilitarProcessamento', { 
+          motivo: 'processamento_interrompido',
+          arquivo: csvFile,
+          sucessos: listas.sucessos.length,
+          pendentes: pendentes.length
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao verificar continuação automática:`, error);
+  }
+}
+
+// Executar verificação após 30 segundos (tempo para carregar tudo)
+setTimeout(verificarEContinuarProcessamento, 30000);
+
+// 🔹 Função para habilitar processamento quando há pendentes
+function verificarEHabilitarProcessamento() {
+  try {
+    const pendentes = carregarPendentes();
+    const listas = carregarListas();
+    
+    if (pendentes.length > 0) {
+      console.log(`${LOG_PREFIX()} 🔄 Habilitando processamento - ${pendentes.length} pendentes encontrados`);
+      
+      if (ioInstance) {
+        ioInstance.emit('habilitarProcessamento', { 
+          motivo: 'pendentes_encontrados',
+          pendentes: pendentes.length,
+          sucessos: listas.sucessos.length
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`${LOG_PREFIX()} ❌ Erro ao verificar pendentes:`, error);
+  }
+}
 
 // Carregar listas do cache
 carregarListasDoCache();
@@ -459,6 +532,24 @@ function setDelay(ms) {
     console.log(`${LOG_PREFIX()} ⚡ Delay manual configurado para ${delayMs}ms - Ajuste dinâmico desabilitado`);
   }
 }
+
+function setConcurrency(value) {
+  const newConcurrency = Math.max(1, Math.min(20, parseInt(value)));
+  concurrenciaAtual = newConcurrency;
+  
+  // Recriar fila com nova concorrência
+  filaProcessamento = new PQueue({ concurrency: newConcurrency });
+  
+  console.log(`${LOG_PREFIX()} ⚙️ Concorrência alterada para: ${newConcurrency} CPFs simultâneos`);
+  
+  if (ioInstance) {
+    ioInstance.emit("log", { 
+      type: "info", 
+      message: `⚙️ Concorrência alterada para ${newConcurrency} CPFs simultâneos` 
+    });
+  }
+}
+
 
 function setPause(value) {
   paused = !!value;
@@ -1055,7 +1146,21 @@ async function autenticarIndividual(force = false) {
     if (tempoRestante > 0) {
       const minutosRestantes = Math.ceil(tempoRestante / (60 * 1000));
       console.log(`${LOG_PREFIX()} ⏰ Usuário bloqueado (429) - Aguardando ${minutosRestantes} minutos...`);
-      throw new Error(`Usuário bloqueado por limite de requisições. Aguarde ${minutosRestantes} minutos.`);
+      
+      // ⏰ AGUARDAR SILENCIOSAMENTE (em vez de crashar)
+      console.log(`${LOG_PREFIX()} ⏰ Aguardando ${minutosRestantes} minutos silenciosamente...`);
+      
+      // Aguardar o tempo restante
+      await new Promise(resolve => setTimeout(resolve, tempoRestante));
+      
+      console.log(`${LOG_PREFIX()} 🔄 Tempo de bloqueio expirado, continuando...`);
+      
+      // Limpar flag e continuar
+      tentativasCPF.delete('ultimo_erro_429');
+      salvarTentativasCache(tentativasCPF);
+      
+      // Tentar novamente após a pausa
+      return await autenticarIndividual(force);
     } else {
       // Tempo de bloqueio expirou, limpar flag
       tentativasCPF.delete('ultimo_erro_429');
@@ -1071,7 +1176,16 @@ async function autenticarIndividual(force = false) {
     tentativasContingencia: CREDENTIALS.length
   });
   
-  throw new Error("Todas as credenciais falharam na autenticação direta e na contingência");
+  // ⏰ PAUSA DE 5 MINUTOS E TENTAR NOVAMENTE (em vez de crashar)
+  console.log(`${LOG_PREFIX()} ⏰ Todas as credenciais falharam - Aguardando 5 minutos silenciosamente...`);
+  
+  // Aguardar 5 minutos silenciosamente
+  await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
+  
+  console.log(`${LOG_PREFIX()} 🔄 Reiniciando tentativas após pausa de 5 minutos...`);
+  
+  // Tentar novamente após a pausa
+  return await autenticarIndividual(force);
 }
 
 // 🔹 Autenticar (com fila única REESCRITA)
@@ -1159,6 +1273,8 @@ async function consultarResultado(cpf, linha) {
   // 1ª tentativa: Limpar cache antes da consulta
   if (tentativas === 0) {
     console.log(`${LOG_PREFIX()} 🧹 1ª tentativa - Limpando cache para CPF: ${cpf}`);
+    // AUTENTICAR ANTES de limpar cache
+    await authenticate(true);
     await limparCacheV8(cpf);
     tentativasCPF.set(cpf, 1);
     salvarTentativasCache(tentativasCPF); // Salvar no cache persistente
@@ -1391,13 +1507,24 @@ async function enviarParaFila(cpf, provider) {
 
 // 🔹 Simular saldo
 async function simularSaldo(cpf, balanceId, parcelas, provider) {
-  if (!parcelas || parcelas.length === 0) return null;
+  console.log(`${LOG_PREFIX()} 🎯 INICIANDO SIMULAÇÃO DAS TABELAS para CPF ${cpf}`);
+  console.log(`${LOG_PREFIX()} 📊 Dados da simulação:`, { balanceId, parcelas: parcelas?.length, provider });
+  
+  if (!parcelas || parcelas.length === 0) {
+    console.log(`${LOG_PREFIX()} ❌ Sem parcelas para simular`);
+    return null;
+  }
 
   const desiredInstallments = parcelas
     .filter((p) => p.amount > 0 && p.dueDate)
     .map((p) => ({ totalAmount: p.amount, dueDate: p.dueDate }));
 
-  if (!desiredInstallments.length) return null;
+  if (!desiredInstallments.length) {
+    console.log(`${LOG_PREFIX()} ❌ Sem parcelas válidas para simular`);
+    return null;
+  }
+
+  console.log(`${LOG_PREFIX()} 📋 Parcelas válidas encontradas:`, desiredInstallments.length);
 
   // 🔑 USAR APENAS srcor1@hotmail.com PARA SIMULAÇÃO
   const simIndex = CREDENTIALS.findIndex(cred => cred.username === 'srcor1@hotmail.com');
@@ -1406,23 +1533,46 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
     return null;
   }
 
+  console.log(`${LOG_PREFIX()} 🔑 Usando credencial srcor1@hotmail.com (índice ${simIndex})`);
+
   const tabelas = ["cb563029-ba93-4b53-8d53-4ac145087212", "f6d779ed-52bf-42f2-9dbc-3125fe6491ba"];
+  console.log(`${LOG_PREFIX()} 📊 Simulando ${tabelas.length} tabelas: NORMAL e ACELERA`);
+  
   for (const simId of tabelas) {
+    const tabelaNome = simId === tabelas[0] ? "NORMAL" : "ACELERA";
+    console.log(`${LOG_PREFIX()} 🔄 Simulando tabela ${tabelaNome} (${simId})`);
+    
     switchCredential(simIndex);
     await authenticate(true);
 
     const payload = { simulationFeesId: simId, balanceId, targetAmount: 0, documentNumber: cpf, desiredInstallments, provider };
+    console.log(`${LOG_PREFIX()} 📤 Enviando simulação para tabela ${tabelaNome}:`, { simulationFeesId: simId, balanceId, targetAmount: 0, documentNumber: cpf, provider });
+    
     try {
       const res = await axios.post("https://bff.v8sistema.com/fgts/simulations", payload, {
         headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
         ...(proxyAgent && { agent: proxyAgent }) // Usar proxy se disponível
       });
+      
       const available = parseFloat(res.data.availableBalance || 0);
-      if (available > 0) return { ...res.data, tabelaSimulada: simId === tabelas[0] ? "NORMAL" : "ACELERA" };
+      console.log(`${LOG_PREFIX()} ✅ Simulação ${tabelaNome} concluída:`, { availableBalance: available, status: res.status });
+      
+      if (available > 0) {
+        console.log(`${LOG_PREFIX()} 🎯 TABELA ${tabelaNome} RETORNOU VALOR VÁLIDO: R$ ${available}`);
+        return { ...res.data, tabelaSimulada: tabelaNome };
+      } else {
+        console.log(`${LOG_PREFIX()} ⚠️ Tabela ${tabelaNome} retornou valor zero`);
+      }
     } catch (err) {
-      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${simId}:`, { message: err.message, status: err.response?.status, data: err.response?.data });
+      console.error(`${LOG_PREFIX()} ❌ Erro na simulação com tabela ${tabelaNome} (${simId}):`, { 
+        message: err.message, 
+        status: err.response?.status, 
+        data: err.response?.data 
+      });
     }
   }
+  
+  console.log(`${LOG_PREFIX()} ❌ NENHUMA TABELA RETORNOU VALOR VÁLIDO`);
   return null;
 }
 
@@ -1430,7 +1580,7 @@ async function simularSaldo(cpf, balanceId, parcelas, provider) {
 function consultarPlanilha(cpf, telefone) {
   const cpfNorm = normalizeCPF(cpf);
   const phoneNorm = normalizePhone(telefone);
-  const csvContent = fs.readFileSync("../LISTA-FGTS.csv", "utf-8");
+  const csvContent = fs.readFileSync("./LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: true, delimiter: ";" });
 
   const encontrado = registros.find(r =>
@@ -1521,20 +1671,25 @@ async function criarOportunidade(cpf, telefone, valorLiberado, provider = "carto
 
 // 🔹 Atualizar CSV com ID
 function atualizarCSVcomID(cpf, telefone, novoID) {
-  const csvContent = fs.readFileSync("../LISTA-FGTS.csv", "utf-8");
+  const csvContent = fs.readFileSync("./LISTA-FGTS.csv", "utf-8");
   const registros = parse(csvContent, { columns: true, skip_empty_lines: false, delimiter: ";" });
   const linha = registros.find(r => normalizeCPF(r['E-mail [#mail]']) === normalizeCPF(cpf) || normalizePhone(r['Telefone [#phone]']) === normalizePhone(telefone));
   if (linha) {
     linha['ID [#id]'] = novoID;
     const headers = Object.keys(registros[0]).join(";");
     const body = registros.map(r => Object.values(r).join(";")).join("\n");
-    fs.writeFileSync("../LISTA-FGTS.csv", headers + "\n" + body, "utf-8");
+    fs.writeFileSync("./LISTA-FGTS.csv", headers + "\n" + body, "utf-8");
   }
 }
 
 // 🔹 Disparar fluxo
 async function disparaFluxo(opportunityId) {
-  if (!opportunityId) return false;
+  console.log(`${LOG_PREFIX()} 🚀 INICIANDO DISPARO pela Kentro - ID: ${opportunityId}`);
+  
+  if (!opportunityId) {
+    console.log(`${LOG_PREFIX()} ❌ ID da oportunidade não fornecido`);
+    return false;
+  }
   
   // Verificar se já foi disparado recentemente (evitar erro 400)
   const chaveDisparo = `disparo_${opportunityId}`;
@@ -1545,7 +1700,13 @@ async function disparaFluxo(opportunityId) {
   
   try {
     const payload = { queueId: QUEUE_ID, apiKey: API_CRM_KEY, id: opportunityId, destStageId: DEST_STAGE_ID };
-    await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { headers: { "Content-Type": "application/json" } });
+    console.log(`${LOG_PREFIX()} 📤 Enviando disparo para Kentro:`, payload);
+    
+    const response = await axios.post("https://lunasdigital.atenderbem.com/int/changeOpportunityStage", payload, { 
+      headers: { "Content-Type": "application/json" } 
+    });
+    
+    console.log(`${LOG_PREFIX()} ✅ Disparo pela Kentro realizado com sucesso:`, response.status);
     
     // Marcar como disparado para evitar reprocessamento
     tentativasCPF.set(chaveDisparo, Date.now());
@@ -1553,6 +1714,8 @@ async function disparaFluxo(opportunityId) {
     
     return true;
   } catch (error) {
+    console.log(`${LOG_PREFIX()} ❌ Erro ao disparar pela Kentro:`, error.response?.status, error.response?.data);
+    
     // Se for erro 400, marcar como já disparado para evitar tentativas futuras
     if (error.response && error.response.status === 400) {
       console.log(`${LOG_PREFIX()} ⚠️ Oportunidade ${opportunityId} já foi processada anteriormente (erro 400), marcando como já disparada`);
@@ -1681,7 +1844,9 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     // Verificar cache primeiro
     const cached = verificarCache(cpf);
     if (cached) {
-      return cached;
+      console.log(`${LOG_PREFIX()} 💾 Cache hit para CPF ${cpf} - MAS FORÇANDO SIMULAÇÃO DAS TABELAS`);
+      // Retornar cache mas marcar para simulação forçada
+      return { ...cached, forceSimulation: true };
     }
 
     let tentativa = 0;
@@ -1730,8 +1895,172 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     return resultado;
   }
 
-  // --- Loop principal ---
-  for (let [index, registro] of registros.entries()) {
+  // Função para processar um CPF individual (dentro do escopo de processarCPFs)
+  async function processarCPFIndividual(registro, index, total, pendentesParaReprocessar, callback) {
+    while (paused) await delay(500);
+
+    // Ajustar delay dinamicamente a cada 20 CPFs (menos frequente)
+    if ((index + 1) % 20 === 0) {
+      ajustarDelayDinamico();
+    }
+
+    const linha = index + 2;
+    const cpf = normalizeCPF(registro.CPF);
+    let idOriginal = (registro.ID || "").trim();
+    const telefone = normalizePhone(registro.TELEFONE);
+    
+    // Log detalhado do CPF sendo processado
+    const timestamp = new Date().toLocaleTimeString('pt-BR');
+    console.log(`[${timestamp}] 📋 PROCESSANDO CPF ${index + 1}/${total}: ${cpf} | Linha: ${linha} | ID: ${idOriginal}`);
+    
+    // Emitir log para o frontend
+    if (ioInstance) {
+      ioInstance.emit('logFila', { 
+        type: 'info', 
+        message: `[${timestamp}] 📋 PROCESSANDO CPF ${index + 1}/${total}: ${cpf} | Linha: ${linha} | ID: ${idOriginal}` 
+      });
+    }
+
+    if (!cpf) {
+      console.log(`${LOG_PREFIX()} ⚠️ CPF inválido na linha ${linha}: ${registro.CPF} - pulando`);
+      console.log(`[${timestamp}] ❌ CPF INVÁLIDO: ${registro.CPF} | Linha: ${linha}`);
+      emitirResultado({ cpf: registro.CPF || "INVÁLIDO", id: idOriginal, status: "descartado", provider: "N/A", valorLiberado: 0, linha }, callback);
+      return { status: 'descartado' };
+    }
+
+    // 🔹 Verificar se CPF já foi processado (continuar de onde parou)
+    const listas = carregarListas();
+    const jaProcessado = listas.sucessos.find(s => s.cpf === cpf) || 
+                        listas.naoAutorizados.find(s => s.cpf === cpf) || 
+                        listas.descartados.find(s => s.cpf === cpf) ||
+                        listas.agendados.find(s => s.cpf === cpf);
+    
+    if (jaProcessado) {
+      console.log(`[${timestamp}] ⏭️ CPF JÁ PROCESSADO: ${cpf} | Linha: ${linha} | Status: ${jaProcessado.status} - PULANDO`);
+      
+      // Emitir log para o frontend
+      if (ioInstance) {
+        ioInstance.emit('logFila', { 
+          type: 'info', 
+          message: `[${timestamp}] ⏭️ CPF JÁ PROCESSADO: ${cpf} | Linha: ${linha} | Status: ${jaProcessado.status} - PULANDO` 
+        });
+      }
+      
+      // Emitir resultado para manter contadores atualizados
+      emitirResultado({ 
+        cpf, 
+        id: idOriginal, 
+        status: jaProcessado.status, 
+        provider: jaProcessado.provider || "cache", 
+        valorLiberado: parseFloat(jaProcessado.valor || 0), 
+        linha,
+        jaProcessado: true 
+      }, callback);
+      
+      return { status: jaProcessado.status, jaProcessado: true };
+    }
+
+    const planilha = consultarPlanilha(cpf, telefone);
+    if (planilha) idOriginal = planilha.id;
+
+    // --- Consulta na fila primeiro ---
+    let resultadoFila = await tentarConsultaComRetry(cpf, linha);
+    if (!resultadoFila || !resultadoFila.data || resultadoFila.data.length === 0) {
+      // Tentar enviar para fila com diferentes providers (incluindo QI)
+      const filaProviders = ["bms", "cartos", "qi"];
+      for (const provider of filaProviders) {
+        const enviado = await enviarParaFila(cpf, provider);
+        if (enviado === "reprocessar") {
+          // CPF válido mas sem saldo - marcar para reprocessamento
+          registrarPendencia(cpf, idOriginal, "Sem saldo", linha);
+          pendentesParaReprocessar.push({ cpf, id: idOriginal, linha });
+          emitirResultado({ cpf, id: idOriginal, status: "reprocessar", provider: "sistema", valorLiberado: 0, linha }, callback);
+          return { status: 'pending' };
+        } else if (enviado === "descartar") {
+          // CPF inválido - descartar permanentemente
+          console.log(`${LOG_PREFIX()} ❌ CPF ${cpf} descartado permanentemente`);
+          console.log(`[${timestamp}] ❌ CPF DESCARTA: ${cpf} | Linha: ${linha}`);
+          
+          emitirResultado({ cpf, id: idOriginal, status: "descartado", provider: "sistema", valorLiberado: 0, linha }, callback);
+          return { status: 'descartado' };
+        }
+      }
+    }
+
+    // --- Consulta de saldo ---
+    const resultado = await tentarConsultaComRetry(cpf, linha);
+    if (!resultado || !resultado.data || resultado.data.length === 0) {
+      registrarPendencia(cpf, idOriginal, "Sem dados", linha);
+      emitirResultado({ cpf, id: idOriginal, status: "pending", valorLiberado: 0, provider: "bms_cartos", linha, resultadoCompleto: resultado }, callback);
+      return { status: 'pending' };
+    }
+
+    const todosStatus = resultado.data;
+    
+    // Success → saldo > 0
+    const registrosValidos = todosStatus.filter(r => r.amount > 0);
+    if (registrosValidos.length > 0) {
+      const r = registrosValidos[0];
+      console.log(`${LOG_PREFIX()} 🔄 FORÇANDO SIMULAÇÃO DAS TABELAS para CPF ${cpf} - Saldo: R$ ${r.amount}`);
+      const simulacao = await simularSaldo(cpf, r.id, r.periods, r.provider);
+
+      if (simulacao) {
+        let statusDetalhado = 'criado';
+        
+        if (!idOriginal) {
+          const resultadoCriacao = await criarOportunidade(cpf, telefone, simulacao.availableBalance);
+          if (resultadoCriacao?.id) {
+            idOriginal = resultadoCriacao.id;
+            statusDetalhado = resultadoCriacao.statusDetalhado;
+            atualizarCSVcomID(cpf, telefone, idOriginal);
+          }
+        } else {
+          const resultadoAtualizacao = await atualizarOportunidadeComTabela(idOriginal, simulacao.tabelaSimulada, r.provider);
+          statusDetalhado = resultadoAtualizacao.statusDetalhado;
+        }
+
+        emitirResultado({ cpf, id: idOriginal, status: "success", valorLiberado: simulacao.availableBalance, provider: r.provider, linha, resultadoCompleto: r, statusDetalhado }, callback);
+        return { status: 'success' };
+      }
+    }
+
+    // No Auth → todos não autorizados
+    const todosNaoAut = todosStatus.every(d => d.status === "error" && d.statusInfo?.includes("não possui autorização"));
+    if (todosNaoAut) {
+      registrarPendencia(cpf, idOriginal, "Não autorizado", linha);
+      emitirResultado({ cpf, id: idOriginal, status: "no_auth", valorLiberado: 0, provider: "bms_cartos", linha, resultadoCompleto: todosStatus }, callback);
+      return { status: 'no_auth' };
+    }
+
+    // Descartados → não entrou em nenhuma lista
+    emitirResultado({ cpf, id: idOriginal, status: "descartado", valorLiberado: 0, provider: "bms_cartos", linha, resultadoCompleto: todosStatus }, callback);
+    return { status: 'descartado' };
+  }
+
+  // --- Processamento com fila de concorrência ---
+  for (let i = 0; i < registros.length; i++) {
+    const registro = registros[i];
+    
+    // Adicionar à fila de processamento
+    filaProcessamento.add(async () => {
+      const resultado = await processarCPFIndividual(registro, i, registros.length, pendentesParaReprocessar, callback);
+      
+      // Atualizar contadores
+      if (resultado.status === 'success') contadorSucesso++;
+      else if (resultado.status === 'pending') contadorPending++;
+      else if (resultado.status === 'no_auth') contadorSemAutorizacao++;
+      else if (resultado.status === 'descartado') contadorDescartados++;
+      
+      processed++;
+      atualizarProgresso();
+    });
+  }
+
+  // Aguardar todas as tarefas da fila terminarem
+  await filaProcessamento.onIdle();
+
+  // --- Loop de reprocessamento de pendentes (mantido sequencial) ---
+  for (const pend of [...pendentesParaReprocessar]) {
     while (paused) await delay(500);
 
     // Ajustar delay dinamicamente a cada 20 CPFs (menos frequente)
@@ -1876,6 +2205,7 @@ async function processarCPFs(csvPath = null, cpfsReprocess = null, callback = nu
     const registrosValidos = todosStatus.filter(r => r.amount > 0);
     if (registrosValidos.length > 0) {
       const r = registrosValidos[0];
+      console.log(`${LOG_PREFIX()} 🔄 FORÇANDO SIMULAÇÃO DAS TABELAS para CPF ${cpf} - Saldo: R$ ${r.amount}`);
       const simulacao = await simularSaldo(cpf, r.id, r.periods, r.provider);
 
         if (simulacao) {
@@ -2027,6 +2357,33 @@ async function processarCPF(cpf, linha) {
     console.log(`[${timestamp}] 🚀 INICIANDO PROCESSAMENTO: CPF ${cpf} | Linha ${linha}`);
     console.log(`${LOG_PREFIX()} 📊 Estado atual: ${pendentes.length} pendentes, ${tentativasCPF.size} tentativas de cache`);
     
+    // 🔹 Verificar se CPF já foi processado (continuar de onde parou)
+    const listas = carregarListas();
+    const jaProcessado = listas.sucessos.find(s => s.cpf === cpf) || 
+                        listas.naoAutorizados.find(s => s.cpf === cpf) || 
+                        listas.descartados.find(s => s.cpf === cpf) ||
+                        listas.agendados.find(s => s.cpf === cpf);
+    
+    if (jaProcessado) {
+      console.log(`[${timestamp}] ⏭️ CPF JÁ PROCESSADO: ${cpf} | Linha: ${linha} | Status: ${jaProcessado.status} - PULANDO`);
+      
+      // Emitir log para o frontend
+      if (ioInstance) {
+        ioInstance.emit('logFila', { 
+          type: 'info', 
+          message: `[${timestamp}] ⏭️ CPF JÁ PROCESSADO: ${cpf} | Linha: ${linha} | Status: ${jaProcessado.status} - PULANDO` 
+        });
+      }
+      
+      return { 
+        status: jaProcessado.status, 
+        valorLiberado: parseFloat(jaProcessado.valor || 0), 
+        provider: jaProcessado.provider || "cache",
+        id: jaProcessado.id,
+        jaProcessado: true 
+      };
+    }
+    
     // Emitir log para o frontend
     if (ioInstance) {
       ioInstance.emit('logFila', { 
@@ -2092,7 +2449,8 @@ async function processarCPF(cpf, linha) {
 
 // 🔹 Processar CPFs de reprocessamento rápido (prioridade alta)
 async function processarReprocessamentoRapido() {
-  const rapidos = pendentes.filter(p => p.status === 'reprocessar_rapido');
+  // Processar todos os pendentes (não apenas os de reprocessamento rápido)
+  const rapidos = pendentes.filter(p => p.motivo === 'Não autorizado' || p.status === 'reprocessar_rapido');
   if (rapidos.length === 0) return;
   
   console.log(`${LOG_PREFIX()} ⚡ Processando ${rapidos.length} CPFs de reprocessamento rápido...`);
@@ -2228,6 +2586,7 @@ export {
   atualizarOportunidadeComTabela,
   criarOportunidade,
   setDelay,
+  setConcurrency,
   setPause,
   attachIO,
   isHorarioComercial,
@@ -2239,6 +2598,7 @@ export {
   registrarAtualizadorEstado,
   registrarAtualizadorContadores,
   obterAgendamentos,
+  verificarEHabilitarProcessamento,
   // Sistema de Contingência
   getContingencyStatus,
   resetContingencySystem,

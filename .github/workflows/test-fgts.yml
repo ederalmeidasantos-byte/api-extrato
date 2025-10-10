@@ -1,0 +1,133 @@
+name: 🧪 Testes Automatizados FGTS
+
+on:
+  push:
+    branches: [ master, main, develop ]
+    paths:
+      - 'fgts/**'
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - 'fgts/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'fgts/package.json'
+        
+    - name: 📦 Instalar dependências
+      run: |
+        cd fgts
+        npm install
+        
+    - name: 🔍 Verificar sintaxe dos arquivos
+      run: |
+        echo "🔍 Verificando sintaxe dos arquivos JavaScript..."
+        
+        # Verificar sintaxe do server.js
+        node -c fgts/server.js && echo "✅ server.js - OK"
+        
+        # Verificar sintaxe do fgts_csv.js
+        node -c fgts/fgts_csv.js && echo "✅ fgts_csv.js - OK"
+        
+        # Verificar sintaxe dos outros arquivos JS
+        for file in fgts/*.js; do
+          if [ -f "$file" ]; then
+            node -c "$file" && echo "✅ $(basename $file) - OK"
+          fi
+        done
+        
+    - name: 📋 Verificar estrutura dos arquivos
+      run: |
+        echo "📋 Verificando estrutura dos arquivos..."
+        
+        # Arquivos obrigatórios
+        REQUIRED_FILES=(
+          "fgts/server.js"
+          "fgts/fgts_csv.js"
+          "fgts/index.html"
+          "fgts/package.json"
+        )
+        
+        for file in "${REQUIRED_FILES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file - Existe"
+          else
+            echo "❌ $file - Não encontrado"
+            exit 1
+          fi
+        done
+        
+    - name: 🔍 Verificar imports e exports
+      run: |
+        echo "🔍 Verificando imports e exports..."
+        
+        # Verificar se server.js importa os módulos necessários
+        if grep -q "import.*express" fgts/server.js; then
+          echo "✅ Express importado"
+        else
+          echo "❌ Express não importado"
+          exit 1
+        fi
+        
+        if grep -q "import.*socket.io" fgts/server.js; then
+          echo "✅ Socket.IO importado"
+        else
+          echo "❌ Socket.IO não importado"
+          exit 1
+        fi
+        
+        # Verificar se fgts_csv.js tem as funções principais
+        if grep -q "function.*processarCPFs" fgts/fgts_csv.js; then
+          echo "✅ Função processarCPFs encontrada"
+        else
+          echo "❌ Função processarCPFs não encontrada"
+          exit 1
+        fi
+        
+    - name: 🌐 Testar HTML
+      run: |
+        echo "🌐 Verificando HTML..."
+        
+        # Verificar se index.html tem elementos essenciais
+        if grep -q "socket.io" fgts/index.html; then
+          echo "✅ Socket.IO incluído no HTML"
+        else
+          echo "❌ Socket.IO não incluído no HTML"
+          exit 1
+        fi
+        
+        if grep -q "btnProcessar" fgts/index.html; then
+          echo "✅ Botão de processar encontrado"
+        else
+          echo "❌ Botão de processar não encontrado"
+          exit 1
+        fi
+        
+    - name: 📊 Relatório de testes
+      run: |
+        echo "📊 RELATÓRIO DE TESTES"
+        echo "======================"
+        echo "✅ Sintaxe JavaScript: OK"
+        echo "✅ Estrutura de arquivos: OK"
+        echo "✅ Imports e exports: OK"
+        echo "✅ HTML: OK"
+        echo "📅 Testado em: $(date)"
+        echo "🌿 Branch: ${{ github.ref_name }}"
+        echo "👤 Autor: ${{ github.actor }}"
+        
+    - name: 🚀 Deploy se testes passaram
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      run: |
+        echo "🚀 Testes aprovados! Pronto para deploy automático."
+        echo "💡 Para fazer deploy, use o workflow 'Deploy Automático FGTS'"

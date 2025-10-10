@@ -593,16 +593,42 @@
                 
                 allClients = [];
                 
-                // Converter Map para Array
-                clientManager.clients.forEach((cliente, clientId) => {
-                    allClients.push({
-                        id: clientId,
-                        ...cliente,
-                        propostas: cliente.propostas || []
+                // Carregar clientes da API
+                try {
+                    const response = await fetch('/api/clientes');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const clientesAPI = data.clientes || [];
+                        
+                        // Converter dados da API para formato esperado
+                        allClients = clientesAPI.map(cliente => ({
+                            id: cliente.id,
+                            nome: cliente.nome || 'Cliente não informado',
+                            cpf: cliente.cpf || 'CPF não informado',
+                            telefone: cliente.telefone || '',
+                            email: cliente.email || '',
+                            nb: cliente.nb || 'NB não informado',
+                            propostas: cliente.propostas || []
+                        }));
+                        
+                        console.log(`📊 ${allClients.length} clientes carregados da API`);
+                    } else {
+                        throw new Error('Erro ao carregar clientes da API');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao carregar da API, usando dados locais:', error);
+                    
+                    // Fallback para dados locais
+                    clientManager.clients.forEach((cliente, clientId) => {
+                        allClients.push({
+                            id: clientId,
+                            ...cliente,
+                            propostas: cliente.propostas || []
+                        });
                     });
-                });
-                
-                console.log(`📊 ${allClients.length} clientes carregados`);
+                    
+                    console.log(`📊 ${allClients.length} clientes carregados do localStorage`);
+                }
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar clientes:', error);
@@ -884,86 +910,96 @@
         function excluirCliente(clientId, nomeCliente) {
             // Confirmar exclusão
             const confirmar = confirm(
-                `⚠️ ATENÇÃO! Esta ação irá excluir permanentemente:\n\n` +
-                `• Cliente: ${nomeCliente}\n` +
-                `• Todas as propostas do cliente\n` +
-                `• Todos os contratos ativos\n` +
-                `• Histórico completo\n\n` +
-                `Esta ação NÃO pode ser desfeita!\n\n` +
-                `Tem certeza que deseja continuar?`
+                `Deseja excluir o cliente "${nomeCliente}" do banco de dados?\n\n` +
+                `Esta ação não pode ser desfeita.`
             );
             
             if (!confirmar) {
                 return;
             }
             
-            // Segunda confirmação para segurança
-            const confirmarFinal = confirm(
-                `🚨 CONFIRMAÇÃO FINAL 🚨\n\n` +
-                `Digite "EXCLUIR" (sem aspas) na próxima caixa para confirmar a exclusão do cliente ${nomeCliente}.`
-            );
-            
-            if (!confirmarFinal) {
-                return;
-            }
-            
-            // Solicitar digitação de "EXCLUIR"
-            const confirmacao = prompt(
-                `Para excluir permanentemente o cliente ${nomeCliente}, digite "EXCLUIR" (maiúsculo):`
-            );
-            
-            if (confirmacao !== "EXCLUIR") {
-                alert('❌ Exclusão cancelada. Texto de confirmação incorreto.');
-                return;
-            }
-            
             try {
-                // Buscar dados do cliente
-                const cliente = clientManager.getClientById(clientId);
+                // Buscar cliente na lista atual (da API ou local)
+                const cliente = allClients.find(c => c.id === clientId);
                 
                 if (!cliente) {
                     alert('❌ Cliente não encontrado.');
                     return;
                 }
                 
-                // Contar itens para feedback
-                const propostas = cliente.propostas ? cliente.propostas.length : 0;
-                let totalContratos = 0;
-                
-                if (cliente.propostas) {
-                    cliente.propostas.forEach(proposta => {
-                        const contratos = proposta.contratos || [];
-                        totalContratos += contratos.length;
+                // Tentar excluir do banco de dados via API
+                try {
+                    // Primeiro, tentar excluir via API (se existir endpoint DELETE)
+                    const deleteResponse = await fetch(`/api/clientes/${clientId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     });
+                    
+                    if (deleteResponse.ok) {
+                        alert(`✅ Cliente "${nomeCliente}" excluído do banco de dados!`);
+                        
+                        // Recarregar busca
+                        carregarClientes().then(() => {
+                            buscarClientes();
+                            atualizarEstatisticas();
+                        });
+                        
+                        console.log(`✅ Cliente ${clientId} excluído via API:`, cliente);
+                        return;
+                    }
+                } catch (apiError) {
+                    console.warn('⚠️ Endpoint DELETE não disponível, tentando exclusão local:', apiError);
                 }
                 
-                // Excluir cliente do sistema
-                const sucesso = clientManager.deleteClient(clientId);
-                
-                if (sucesso) {
-                    // Feedback visual
-                    alert(
-                        `✅ Cliente excluído com sucesso!\n\n` +
-                        `📊 Itens removidos:\n` +
-                        `• Cliente: ${nomeCliente}\n` +
-                        `• Propostas: ${propostas}\n` +
-                        `• Contratos: ${totalContratos}`
-                    );
+                // Fallback: tentar excluir do ClientManager local
+                try {
+                    const sucesso = clientManager.deleteClient(clientId);
                     
-                    // Recarregar busca
-                    buscarClientes();
+                    if (sucesso) {
+                        alert(`✅ Cliente "${nomeCliente}" excluído do localStorage!`);
+                        
+                        // Recarregar busca
+                        carregarClientes().then(() => {
+                            buscarClientes();
+                            atualizarEstatisticas();
+                        });
+                        
+                        console.log(`✅ Cliente ${clientId} excluído do localStorage:`, cliente);
+                    } else {
+                        // Se não conseguiu excluir do localStorage, remover da lista atual
+                        const index = allClients.findIndex(c => c.id === clientId);
+                        if (index !== -1) {
+                            allClients.splice(index, 1);
+                            alert(`✅ Cliente "${nomeCliente}" removido da lista atual!`);
+                            
+                            // Recarregar busca
+                            buscarClientes();
+                            atualizarEstatisticas();
+                            
+                            console.log(`✅ Cliente ${clientId} removido da lista:`, cliente);
+                        } else {
+                            alert('❌ Erro ao excluir cliente. Tente novamente.');
+                        }
+                    }
+                } catch (localError) {
+                    console.error('❌ Erro ao excluir do localStorage:', localError);
                     
-                    // Atualizar estatísticas
-                    atualizarEstatisticas();
-                    
-                    console.log(`✅ Cliente ${clientId} excluído:`, {
-                        nome: nomeCliente,
-                        propostas: propostas,
-                        contratos: totalContratos
-                    });
-                    
-                } else {
-                    alert('❌ Erro ao excluir cliente. Tente novamente.');
+                    // Fallback: remover da lista atual
+                    const index = allClients.findIndex(c => c.id === clientId);
+                    if (index !== -1) {
+                        allClients.splice(index, 1);
+                        alert(`✅ Cliente "${nomeCliente}" removido da lista atual!`);
+                        
+                        // Recarregar busca
+                        buscarClientes();
+                        atualizarEstatisticas();
+                        
+                        console.log(`✅ Cliente ${clientId} removido da lista:`, cliente);
+                    } else {
+                        alert('❌ Erro ao excluir cliente: ' + localError.message);
+                    }
                 }
                 
             } catch (error) {

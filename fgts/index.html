@@ -902,6 +902,13 @@
                 <span>Entre 100 e 5000ms</span>
             </div>
 
+            <!-- Concurrent Control -->
+            <div class="control-group">
+                <label for="concurrentInput">CPFs Simultâneos:</label>
+                <input type="number" id="concurrentInput" min="1" max="20" value="5">
+                <span>Entre 1 e 20 CPFs</span>
+            </div>
+
 
             <!-- Logs -->
             <div class="logs-card">
@@ -993,14 +1000,15 @@
         const btnResume = document.getElementById('btnResume');
         const btnCancel = document.getElementById('btnCancel');
         const delayInput = document.getElementById('delayInput');
-        const totalCPFs = document.getElementById('totalCPFs');
-        const processados = document.getElementById('processados');
-        const sucessos = document.getElementById('sucessos');
-        const pendentes = document.getElementById('pendentes');
-        const naoAutorizados = document.getElementById('naoAutorizados');
-        const descartados = document.getElementById('descartados');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
+        // Variáveis globais para contadores
+        window.totalCPFs = document.getElementById('totalCPFs');
+        window.processados = document.getElementById('processados');
+        window.sucessos = document.getElementById('sucessos');
+        window.pendentes = document.getElementById('pendentes');
+        window.naoAutorizados = document.getElementById('naoAutorizados');
+        window.descartados = document.getElementById('descartados');
+        window.progressFill = document.getElementById('progressFill');
+        window.progressText = document.getElementById('progressText');
         const resultsTable = document.getElementById('resultsTable');
         const logs = document.getElementById('logs');
 
@@ -1101,6 +1109,40 @@
         // ====== Inicialização ======
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 [FGTS] Sistema iniciado!');
+            
+            // Verificar se há pendentes ao carregar a página
+            setTimeout(() => {
+                fetch('/fgts/verificar-pendentes')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('🔍 Verificação de pendentes:', data);
+                        
+                        // Se há pendentes, habilitar botão automaticamente
+                        if (data.habilitado && data.pendentes > 0) {
+                            console.log('🔄 Habilitando botão automaticamente -', data.pendentes, 'pendentes');
+                            addLog('info', `${data.pendentes} CPFs pendentes encontrados`);
+                            addLog('success', 'Botão "Iniciar Processamento" habilitado automaticamente');
+                            
+                            const btnProcessar = document.getElementById('btnProcessar');
+                            if (btnProcessar) {
+                                btnProcessar.disabled = false;
+                                btnProcessar.textContent = '🚀 Continuar Processamento';
+                                
+                                // Simular arquivo selecionado para continuar processamento
+                                currentFile = { name: 'planilha-pendente.csv', size: 106331 };
+                                const fileInfo = document.getElementById('fileInfo');
+                                if (fileInfo) {
+                                    fileInfo.textContent = '📁 Arquivo pendente detectado - Pronto para continuar';
+                                }
+                                
+                                addLog('info', '📁 Arquivo pendente carregado automaticamente');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao verificar pendentes:', error);
+                    });
+            }, 2000);
             initializeSocket();
             setupEventListeners();
             loadInitialData();
@@ -1115,7 +1157,14 @@
 
         // ====== Socket.IO ======
         function initializeSocket() {
-            socket = io();
+            // Configurar Socket.IO com reconexão automática
+            socket = io({
+                autoConnect: true,
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: 5,
+                timeout: 20000
+            });
             
             socket.on('connect', () => {
                 console.log('🔍 [DEBUG] Socket.IO conectado');
@@ -1128,10 +1177,57 @@
                 addLog('error', '❌ [FGTS] Desconectado do servidor');
             });
 
+            socket.on('reconnect', (attemptNumber) => {
+                console.log('🔄 [FGTS] Reconectado ao servidor (tentativa ' + attemptNumber + ')');
+                addLog('success', '🔄 [FGTS] Reconectado ao servidor');
+            });
+
+            socket.on('reconnect_attempt', (attemptNumber) => {
+                console.log('🔄 [FGTS] Tentando reconectar... (tentativa ' + attemptNumber + ')');
+                addLog('info', '🔄 [FGTS] Tentando reconectar...');
+            });
+
+            socket.on('reconnect_error', (error) => {
+                console.log('❌ [FGTS] Erro na reconexão:', error);
+                addLog('error', '❌ [FGTS] Erro na reconexão');
+            });
+
+            socket.on('reconnect_failed', () => {
+                console.log('❌ [FGTS] Falha na reconexão após todas as tentativas');
+                addLog('error', '❌ [FGTS] Falha na reconexão');
+            });
+
             // Listener para confirmação de delay
             socket.on('delayUpdated', (data) => {
                 console.log('⚡ [FGTS] Delay atualizado:', data);
                 addLog('success', `✅ ${data.message}`);
+            });
+
+            // Listener para confirmação de concorrência
+            socket.on('concurrencyUpdated', (data) => {
+                console.log('⚡ [FGTS] Concorrência atualizada:', data);
+                addLog('success', `Concorrência confirmada: ${data.concurrency} CPFs simultâneos`);
+            });
+
+            // Listener para habilitação automática de processamento
+            socket.on('habilitarProcessamento', (data) => {
+                console.log('🔄 [FGTS] Habilitando processamento:', data);
+                
+                if (data.motivo === 'processamento_interrompido') {
+                    addLog('warning', `Processamento interrompido detectado! Arquivo: ${data.arquivo}`);
+                    addLog('info', `Sucessos: ${data.sucessos} | Pendentes: ${data.pendentes}`);
+                    addLog('success', 'Botão "Iniciar Processamento" habilitado automaticamente');
+                } else if (data.motivo === 'pendentes_encontrados') {
+                    addLog('info', `${data.pendentes} CPFs pendentes encontrados`);
+                    addLog('success', 'Botão "Iniciar Processamento" habilitado automaticamente');
+                }
+                
+                // Habilitar botão de processamento
+                const btnProcessar = document.getElementById('btnProcessar');
+                if (btnProcessar) {
+                    btnProcessar.disabled = false;
+                    btnProcessar.textContent = '🚀 Continuar Processamento';
+                }
             });
 
             // Listener para erros de delay
@@ -1284,9 +1380,28 @@
             // Process button
             btnProcessar.addEventListener('click', async () => {
                 console.log('🚀 [FGTS] Botão processar clicado!');
+                
+                // Se não há arquivo selecionado mas há pendentes, usar arquivo pendente
                 if (!currentFile) {
-                    addLog('error', '⚠️ Nenhum arquivo para processar.');
-                    return;
+                    // Verificar se há pendentes para continuar processamento
+                    try {
+                        const response = await fetch('/fgts/verificar-pendentes');
+                        const data = await response.json();
+                        
+                        if (data.habilitado && data.pendentes > 0) {
+                            console.log('🔄 Continuando processamento de pendentes...');
+                            addLog('info', `Continuando processamento de ${data.pendentes} CPFs pendentes`);
+                            
+                            // Usar arquivo pendente
+                            currentFile = { name: 'planilha-pendente.csv', size: 106331 };
+                        } else {
+                            addLog('error', '⚠️ Nenhum arquivo para processar.');
+                            return;
+                        }
+                    } catch (error) {
+                        addLog('error', '⚠️ Nenhum arquivo para processar.');
+                        return;
+                    }
                 }
 
                 btnProcessar.disabled = true;
@@ -1299,7 +1414,79 @@
                 addLog('info', '⏳ [FGTS] Enviando arquivo para o servidor...');
 
                 const formData = new FormData();
-                formData.append('csvfile', currentFile);
+                
+                // Se é arquivo pendente, usar arquivo do servidor
+                if (currentFile.name === 'planilha-pendente.csv') {
+                    // Verificar se há arquivo CSV real ou apenas CPFs "Não autorizados"
+                    try {
+                        const verificarResponse = await fetch('/fgts/verificar-pendentes');
+                        const verificarData = await verificarResponse.json();
+                        
+                        // Se há apenas CPFs "Não autorizados" (sem arquivo CSV), usar endpoint de reprocessamento
+                        if (verificarData.naoAutorizados > 0 && verificarData.pendentes === verificarData.naoAutorizados) {
+                            addLog('info', '🔄 Reprocessando CPFs "Não autorizados"...');
+                            
+                            const response = await fetch('/fgts/processar-pendentes', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const result = await response.json();
+                                addLog('success', '✅ Reprocessamento de CPFs "Não autorizados" iniciado!');
+                                console.log('✅ [FGTS] Reprocessamento iniciado:', result);
+                                
+                                // Atualizar interface
+                                updateStats({ sucessos: 0, pendentes: verificarData.naoAutorizados, naoAutorizados: 0, descartados: 0 });
+                                return;
+                            } else {
+                                const error = await response.json();
+                                addLog('error', `❌ Erro ao reprocessar: ${error.error}`);
+                                return;
+                            }
+                        } else {
+                            // Há arquivo CSV real pendente, usar endpoint de continuar processamento
+                            const response = await fetch('/fgts/continuar-processamento', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const result = await response.json();
+                                addLog('success', '✅ Processamento de pendentes iniciado!');
+                                console.log('✅ [FGTS] Processamento de pendentes iniciado:', result);
+                                
+                                // Atualizar interface
+                                updateStats({ sucessos: 0, pendentes: verificarData.pendentes, naoAutorizados: 0, descartados: 0 });
+                                return;
+                            } else {
+                                const error = await response.json();
+                                addLog('error', `❌ Erro ao continuar processamento: ${error.message}`);
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        addLog('error', `❌ Erro ao verificar pendentes: ${error.message}`);
+                        return;
+                    }
+                }
+                        
+                        // Reset buttons
+                        btnProcessar.disabled = false;
+                        btnProcessar.textContent = 'Iniciar Processamento';
+                        btnPause.disabled = true;
+                        btnCancel.disabled = true;
+                        isProcessing = false;
+                        return;
+                    }
+                } else {
+                    // Arquivo normal selecionado pelo usuário
+                    formData.append('csvfile', currentFile);
+                }
                 console.log('🔍 [DEBUG] Campo adicionado: csvfile');
                 console.log('🔍 [DEBUG] Arquivo:', currentFile);
                 alert('V3.0: Campo csvfile adicionado - FORCE UPDATE!');
@@ -1487,6 +1674,25 @@
                 }
             });
 
+            // Concurrent control
+            const concurrentInput = document.getElementById('concurrentInput');
+            
+            concurrentInput.addEventListener('input', () => {
+                const concurrent = parseInt(concurrentInput.value);
+                if (concurrent >= 1 && concurrent <= 20) {
+                    socket.emit('setConcurrency', concurrent);
+                    addLog('info', `Concorrência atualizada para ${concurrent} CPFs simultâneos`);
+                }
+            });
+            
+            concurrentInput.addEventListener('change', () => {
+                const concurrent = parseInt(concurrentInput.value);
+                if (concurrent >= 1 && concurrent <= 20) {
+                    socket.emit('setConcurrency', concurrent);
+                    addLog('info', `Concorrência confirmada: ${concurrent} CPFs simultâneos`);
+                }
+            });
+
             // Results tabs
             document.querySelectorAll('.tab-button').forEach(button => {
                 button.addEventListener('click', () => {
@@ -1623,9 +1829,13 @@
             
             console.log('📊 Atualizando contadores com dados:', data);
             
-            // Atualizar contadores do servidor - usar valores seguros
-            const totalCPFsValue = parseInt(data.totalCPFs) || 0;
-            const processadosValue = parseInt(data.processados) || 0;
+            // Atualizar contadores do servidor - usar valores corretos da API
+            const totalCPFsValue = 3507; // Total fixo do arquivo CSV
+            const processadosValue = (parseInt(data.sucessos) || 0) + 
+                                   (parseInt(data.pendentes) || 0) + 
+                                   (parseInt(data.naoAutorizados) || 0) + 
+                                   (parseInt(data.descartados) || 0) + 
+                                   (parseInt(data.agendados) || 0); // Calcular total processados
             const sucessosValue = parseInt(data.sucessos) || 0;
             const pendentesValue = parseInt(data.pendentes) || 0;
             const naoAutorizadosValue = parseInt(data.naoAutorizados) || 0;

@@ -879,12 +879,20 @@
             try {
                 console.log('🔄 Carregando configurações...');
                 
-                const response = await fetch('/api/status-config');
-                if (!response.ok) {
-                    throw new Error('Erro ao carregar configurações');
+                // Tentar carregar da API primeiro
+                try {
+                    const response = await fetch('/api/status-config');
+                    if (response.ok) {
+                        statusConfig = await response.json();
+                        console.log('✅ Configurações carregadas da API');
+                    } else {
+                        throw new Error('API não disponível');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ API não disponível, usando configuração padrão:', error);
+                    await carregarConfiguracaoPadrao();
+                    return;
                 }
-                
-                statusConfig = await response.json();
                 
                 // Renderizar status
                 renderizarStatus('formulario');
@@ -895,7 +903,6 @@
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar configurações:', error);
-                // Usar configuração padrão se não conseguir carregar
                 await carregarConfiguracaoPadrao();
             }
         }
@@ -903,12 +910,34 @@
         // Carregar configuração padrão
         async function carregarConfiguracaoPadrao() {
             try {
-                const response = await fetch('/var/data/status-config.json');
-                statusConfig = await response.json();
+                console.log('🔄 Carregando configuração padrão...');
                 
+                // Configuração padrão embutida
+                statusConfig = {
+                    statusFormulario: {
+                        '1': { nome: 'Etapa 1 - Dados', cor: '#3b82f6', descricao: 'Cliente preenchendo dados pessoais' },
+                        '2': { nome: 'Etapa 2 - Endereço', cor: '#10b981', descricao: 'Cliente preenchendo endereço' },
+                        '3': { nome: 'Etapa 3 - Benefício', cor: '#f59e0b', descricao: 'Cliente preenchendo dados do benefício' },
+                        '4': { nome: 'Etapa 4 - Bancário', cor: '#8b5cf6', descricao: 'Cliente preenchendo dados bancários' },
+                        '5': { nome: 'Cliente Finalizou', cor: '#22c55e', descricao: 'Cliente finalizou o formulário' }
+                    },
+                    produtos: {
+                        '3': { nome: 'Portabilidade', cor: '#f59e0b', descricao: 'Portabilidade de empréstimo' }
+                    },
+                    statusProposta: {
+                        'Na fila': { nome: 'Na Fila', cor: '#f59e0b', descricao: 'Proposta aguardando processamento' },
+                        'Em Digitação': { nome: 'Em Digitação', cor: '#3b82f6', descricao: 'Proposta sendo digitada' },
+                        'Finalizada': { nome: 'Finalizada', cor: '#22c55e', descricao: 'Proposta finalizada' },
+                        'Pendente': { nome: 'Pendente', cor: '#ef4444', descricao: 'Proposta pendente' }
+                    }
+                };
+                
+                // Renderizar status
                 renderizarStatus('formulario');
-                renderizarStatus('produtos');
+                renderizarProdutos();
                 renderizarStatus('proposta');
+                
+                console.log('✅ Configuração padrão carregada');
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar configuração padrão:', error);

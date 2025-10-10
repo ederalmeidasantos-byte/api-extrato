@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - CRM LUNAS</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CRM Layout CSS -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .page-content {
+            padding: 2rem;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .filter-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .clients-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .client-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .client-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+        }
+        
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .client-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+        
+        .client-cpf {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .client-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .client-status.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        
+        .client-status.inactive {
+            background: rgba(107, 114, 128, 0.1);
+            color: #6b7280;
+        }
+        
+        .client-info {
+            margin-bottom: 1rem;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .info-label {
+            color: #6b7280;
+        }
+        
+        .info-value {
+            color: #111827;
+            font-weight: 500;
+        }
+        
+        .client-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <img src="/operacional/assets/logo-lunas.png" alt="CRM LUNAS" />
+                    <span>CRM LUNAS</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i data-feather="menu"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h4>Principal</h4>
+                    <ul>
+                        <li>
+                            <a href="/" class="nav-link">
+                                <i data-feather="home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/clientes" class="nav-link active">
+                                <i data-feather="users"></i>
+                                <span>Clientes</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/propostas" class="nav-link">
+                                <i data-feather="file-text"></i>
+                                <span>Propostas</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h4>Operacional</h4>
+                    <ul>
+                        <li>
+                            <a href="/configuracoes" class="nav-link">
+                                <i data-feather="settings"></i>
+                                <span>Configurações</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/relatorios" class="nav-link">
+                                <i data-feather="bar-chart-2"></i>
+                                <span>Relatórios</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-content">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <h1 class="page-title">Clientes</h1>
+                    <button class="btn btn-primary" onclick="window.location.href='/cliente/novo'">
+                        <i data-feather="plus"></i>
+                        Novo Cliente
+                    </button>
+                </div>
+
+                <!-- Search and Filters -->
+                <div class="search-container">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nome, CPF ou telefone...">
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">Todos os status</option>
+                        <option value="active">Ativo</option>
+                        <option value="inactive">Inativo</option>
+                    </select>
+                </div>
+
+                <!-- Clients Grid -->
+                <div id="clientsContainer">
+                    <div class="loading">
+                        <i data-feather="loader"></i>
+                        <p>Carregando clientes...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script>
+        class ClientesManager {
+            constructor() {
+                this.clientes = [];
+                this.filteredClientes = [];
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadClientes();
+                    this.setupEventListeners();
+                    this.renderClientes();
+                } catch (error) {
+                    console.error('Erro ao inicializar clientes:', error);
+                    this.showError('Erro ao carregar clientes');
+                }
+            }
+
+            async loadClientes() {
+                try {
+                    const response = await fetch('/api/clientes');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.clientes = data.clientes || [];
+                        this.filteredClientes = [...this.clientes];
+                    } else {
+                        throw new Error(data.message || 'Erro ao carregar clientes');
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar clientes:', error);
+                    throw error;
+                }
+            }
+
+            setupEventListeners() {
+                const searchInput = document.getElementById('searchInput');
+                const statusFilter = document.getElementById('statusFilter');
+
+                searchInput.addEventListener('input', () => {
+                    this.filterClientes();
+                });
+
+                statusFilter.addEventListener('change', () => {
+                    this.filterClientes();
+                });
+            }
+
+            filterClientes() {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const statusFilter = document.getElementById('statusFilter').value;
+
+                this.filteredClientes = this.clientes.filter(cliente => {
+                    const matchesSearch = !searchTerm || 
+                        cliente.nome?.toLowerCase().includes(searchTerm) ||
+                        cliente.cpf?.includes(searchTerm) ||
+                        cliente.telefone?.includes(searchTerm);
+
+                    const matchesStatus = !statusFilter || 
+                        (statusFilter === 'active' && cliente.status === 'active') ||
+                        (statusFilter === 'inactive' && cliente.status === 'inactive');
+
+                    return matchesSearch && matchesStatus;
+                });
+
+                this.renderClientes();
+            }
+
+            renderClientes() {
+                const container = document.getElementById('clientsContainer');
+
+                if (this.filteredClientes.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i data-feather="users"></i>
+                            <h3>Nenhum cliente encontrado</h3>
+                            <p>Tente ajustar os filtros de busca</p>
+                        </div>
+                    `;
+                    feather.replace();
+                    return;
+                }
+
+                const clientsHTML = this.filteredClientes.map(cliente => `
+                    <div class="client-card" onclick="window.location.href='/cliente/${cliente.id}'">
+                        <div class="client-header">
+                            <div>
+                                <div class="client-name">${cliente.nome || 'Nome não informado'}</div>
+                                <div class="client-cpf">CPF: ${this.formatCPF(cliente.cpf || '')}</div>
+                            </div>
+                            <div class="client-status ${cliente.status || 'inactive'}">
+                                ${cliente.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </div>
+                        </div>
+                        
+                        <div class="client-info">
+                            <div class="info-item">
+                                <span class="info-label">Telefone:</span>
+                                <span class="info-value">${this.formatPhone(cliente.telefone || '')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">${cliente.email || 'Não informado'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Propostas:</span>
+                                <span class="info-value">${cliente.propostas || 0}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="client-actions">
+                            <button class="btn btn-primary" onclick="event.stopPropagation(); window.location.href='/cliente/${cliente.id}'">
+                                <i data-feather="eye"></i>
+                                Ver Detalhes
+                            </button>
+                            <button class="btn btn-secondary" onclick="event.stopPropagation(); this.editCliente(${cliente.id})">
+                                <i data-feather="edit"></i>
+                                Editar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = clientsHTML;
+                feather.replace();
+            }
+
+            formatCPF(cpf) {
+                if (!cpf) return 'Não informado';
+                return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            }
+
+            formatPhone(phone) {
+                if (!phone) return 'Não informado';
+                return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            }
+
+            editCliente(id) {
+                window.location.href = `/cliente/${id}/editar`;
+            }
+
+            showError(message) {
+                const container = document.getElementById('clientsContainer');
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="alert-circle"></i>
+                        <h3>Erro</h3>
+                        <p>${message}</p>
+                    </div>
+                `;
+                feather.replace();
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new ClientesManager();
+        });
+    </script>
+</body>
+</html>

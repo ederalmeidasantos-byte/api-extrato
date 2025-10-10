@@ -38,7 +38,6 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/operacional', express.static(path.join(__dirname, 'operacional')));
 app.use('/fgts', express.static(path.join(__dirname, 'fgts')));
-app.use('/inss', express.static(path.join(__dirname, 'INSS')));
 
 // ================== MULTI-TENANT HELPERS & AUTH ==================
 
@@ -216,7 +215,7 @@ app.post('/api/t/:companyId/propostas', (req, res) => {
     }
     fs.writeFileSync(path.join(dir, `${proposta.id}.json`), JSON.stringify(proposta, null, 2));
     res.json({ success: true, proposta });
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -314,20 +313,6 @@ app.delete('/api/t/:companyId/status-config', (req, res) => {
   }
 });
 
-// Simulador por empresa: injeta COMPANY_ID no HTML
-app.get('/c/:companyId/simulador', (req, res) => {
-  try {
-    const simuladorPath = path.join(__dirname, 'INSS', 'simulador.html');
-    if (!fs.existsSync(simuladorPath)) return res.status(404).send('Simulador não encontrado');
-    const { companyId } = req.params;
-    let html = fs.readFileSync(simuladorPath, 'utf-8');
-    const inject = `\n<script>window.COMPANY_ID = ${JSON.stringify(companyId)};</script>\n`;
-    html = html.replace('</head>', `${inject}</head>`);
-    res.send(html);
-  } catch (error) {
-    res.status(500).send('Erro ao carregar simulador');
-  }
-});
 
 // Configuração do Multer para uploads
 const storage = multer.diskStorage({
@@ -371,168 +356,6 @@ app.post("/teste", (req, res) => {
   res.json({ received: req.body });
 });
 
-// API para extração via ID da Lunas (POST)
-app.post("/extrair", async (req, res) => {
-  try {
-    console.log("📄 [EXTRAIR] Recebida requisição:", req.body);
-    console.log("📄 [EXTRAIR] Headers:", req.headers);
-    console.log("📄 [EXTRAIR] Content-Type:", req.get('Content-Type'));
-    
-    const fileId = req.body.fileId || req.query.fileId;
-    if (!fileId) {
-      console.log("❌ [EXTRAIR] fileId não fornecido");
-      return res.status(400).json({ error: "fileId é obrigatório" });
-    }
-    console.log("📄 [EXTRAIR] Processando fileId:", fileId);
-
-    const jsonPath = path.join(__dirname, 'var/data/extratos', `extrato_${fileId}.json`);
-    if (fs.existsSync(jsonPath)) {
-      console.log("♻️ Usando cache válido:", jsonPath);
-      return res.json(JSON.parse(await fsp.readFile(jsonPath, "utf-8")));
-    }
-
-    console.log("🚀 Baixando PDF da Lunas:", fileId);
-    const body = {
-      queueId: Number(process.env.LUNAS_QUEUE_ID),
-      apiKey: process.env.LUNAS_API_KEY,
-      fileId: Number(fileId),
-      download: true
-    };
-
-    const resp = await fetch(process.env.LUNAS_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-
-    if (!resp.ok) {
-      const t = await resp.text();
-      throw new Error(`Falha ao baixar da Lunas: ${resp.status} ${t}`);
-    }
-
-    const pdfPath = path.join(__dirname, 'var/data/extratos', `extrato_${fileId}.pdf`);
-    await fsp.mkdir(path.dirname(pdfPath), { recursive: true });
-    const buf = Buffer.from(await resp.arrayBuffer());
-    await fsp.writeFile(pdfPath, buf);
-    console.log("✅ PDF salvo em", pdfPath);
-
-    // processa com fila
-    const { extrairDeUpload } = await import('./INSS/extrair_pdf.js');
-    const resultado = await extrairDeUpload({
-      fileId,
-      pdfPath,
-      jsonDir: path.join(__dirname, 'var/data/extratos'),
-      ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 dias
-      idoportunidade: req.body.idoportunidade
-    });
-
-    console.log("✅ Extração concluída");
-    
-    // Adicionar link do simulador
-    resultado.simulador_link = `https://lunasdigital.com.br/simulador/${fileId}`;
-    
-    res.json(resultado);
-
-  } catch (error) {
-    console.error("❌ [API] Erro em /extrair:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Rota para simulador com injeção de dados
-app.get("/simulador", async (req, res) => {
-  const simuladorPath = path.join(__dirname, "INSS", "simulador.html");
-  if (!fs.existsSync(simuladorPath)) {
-    return res.status(404).json({ error: "Simulador não encontrado" });
-  }
-  
-  // Verificar se há ID na URL
-  const extratoId = req.query.id;
-  
-  if (extratoId) {
-    try {
-      // Carregar dados do extrato
-      const jsonPath = path.join(__dirname, 'var/data/extratos', `extrato_${extratoId}.json`);
-      
-      if (fs.existsSync(jsonPath)) {
-        console.log(`📋 Carregando dados para simulador ID: ${extratoId}`);
-        const dados = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-        
-        // Ler o HTML
-        let html = fs.readFileSync(simuladorPath, 'utf-8');
-        
-        // Injetar dados no HTML
-        const dadosScript = `
-          <script>
-            // Dados pré-carregados do servidor
-            window.DADOS_PRE_CARREGADOS = ${JSON.stringify(dados)};
-            window.EXTRATO_ID = '${extratoId}';
-            console.log('📋 Dados pré-carregados:', window.DADOS_PRE_CARREGADOS);
-          </script>
-        `;
-        
-        // Inserir script antes do fechamento do head
-        html = html.replace('</head>', `${dadosScript}</head>`);
-        
-        res.send(html);
-        return;
-    } else {
-        console.log(`⚠️ Arquivo não encontrado: ${jsonPath}`);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados para simulador:', error);
-    }
-  }
-  
-  // Servir HTML normal se não há ID ou erro
-  res.sendFile(simuladorPath);
-});
-
-// Rota para simulador com ID específico (ex: /simulador/7537)
-app.get("/simulador/:id", async (req, res) => {
-  const simuladorPath = path.join(__dirname, "INSS", "simulador.html");
-  if (!fs.existsSync(simuladorPath)) {
-    return res.status(404).json({ error: "Simulador não encontrado" });
-  }
-  
-  const extratoId = req.params.id;
-  
-  try {
-    // Carregar dados do extrato
-    const jsonPath = path.join(__dirname, 'var/data/extratos', `extrato_${extratoId}.json`);
-    
-    if (fs.existsSync(jsonPath)) {
-      console.log(`📋 Carregando dados para simulador ID: ${extratoId}`);
-      const dados = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-      
-      // Ler o HTML
-      let html = fs.readFileSync(simuladorPath, 'utf-8');
-      
-      // Injetar dados no HTML
-      const dadosScript = `
-        <script>
-          // Dados pré-carregados do servidor
-          window.DADOS_PRE_CARREGADOS = ${JSON.stringify(dados)};
-          window.EXTRATO_ID = '${extratoId}';
-          console.log('📋 Dados pré-carregados:', window.DADOS_PRE_CARREGADOS);
-        </script>
-      `;
-      
-      // Inserir script antes do fechamento do head
-      html = html.replace('</head>', `${dadosScript}</head>`);
-      
-      res.send(html);
-      return;
-    } else {
-      console.log(`⚠️ Arquivo não encontrado: ${jsonPath}`);
-    }
-  } catch (error) {
-    console.error('❌ Erro ao carregar dados para simulador:', error);
-  }
-  
-  // Servir HTML normal se não há ID ou erro
-  res.sendFile(simuladorPath);
-});
 
 // ================== SISTEMA OPERACIONAL ==================
 
@@ -1066,25 +889,6 @@ app.get('/api/propostas', (req, res) => {
   }
 });
 
-// Rota para servir a página de detalhes da proposta
-app.get('/detalhesdaproposta/:id', (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log(`📄 [DETALHES] Acessando proposta: ${id}`);
-    
-    // Servir o arquivo HTML de detalhes da proposta
-    const htmlPath = path.join(__dirname, 'INSS', 'detalhesdaproposta.html');
-    
-    if (!fs.existsSync(htmlPath)) {
-      return res.status(404).send('Página não encontrada');
-    }
-    
-    res.sendFile(htmlPath);
-  } catch (error) {
-    console.error('❌ Erro ao servir detalhes da proposta:', error);
-    res.status(500).send('Erro ao carregar página');
-  }
-});
 
 // API para buscar dados de uma proposta específica
 app.get('/api/proposta/:id', (req, res) => {
@@ -1167,12 +971,6 @@ app.post('/api/fgts/upload', upload.single('extrato'), (req, res) => {
   }
 });
 
-// ================== SISTEMA INSS ==================
-
-// Servir página do INSS
-app.get('/inss', (req, res) => {
-  res.sendFile(path.join(__dirname, 'inss', 'index.html'));
-});
 
 // Servir página do Git History
 app.get('/git-history', (req, res) => {
@@ -1182,104 +980,6 @@ app.get('/git-history', (req, res) => {
 // Servir página de Deploys (similar ao Render)
 app.get('/deploys', (req, res) => {
   res.sendFile(path.join(__dirname, 'deploys', 'index.html'));
-});
-
-// Upload de extrato INSS
-app.post('/api/processar-extrato', upload.single('extrato'), async (req, res) => {
-  try {
-    console.log('📄 [INSS] Upload de extrato recebido');
-    
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'Nenhum arquivo enviado'
-      });
-    }
-
-    const { cpf } = req.body;
-    console.log(`📄 [INSS] Processando extrato para CPF: ${cpf}`);
-    console.log(`📄 [INSS] Arquivo: ${req.file.filename}`);
-
-    // Integrar com o sistema real de extração de PDF
-    try {
-      const { extrairDeUpload } = await import('./INSS/extrair_pdf.js');
-      
-      const pdfPath = req.file.path;
-      const jsonDir = path.join(__dirname, 'var/data/extratos');
-      // Extrair apenas o ID real do nome do arquivo (ex: extrato-1759846385646-637216853.pdf -> 1759846385646-637216853)
-      const fileId = req.file.filename.replace('extrato-', '').replace('.pdf', '');
-      
-      console.log(`📄 [INSS] Iniciando extração real do PDF...`);
-      console.log(`📄 [INSS] PDF Path: ${pdfPath}`);
-      console.log(`📄 [INSS] JSON Dir: ${jsonDir}`);
-      console.log(`📄 [INSS] File ID: ${fileId}`);
-      
-      const resultado = await extrairDeUpload({
-        fileId: fileId,
-        pdfPath: pdfPath,
-        jsonDir: jsonDir,
-        ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 dias
-        idoportunidade: null
-      });
-      
-      console.log(`✅ [INSS] Extração concluída com sucesso`);
-      console.log(`📊 [INSS] Cliente: ${resultado.cliente}`);
-      console.log(`📊 [INSS] Contratos encontrados: ${resultado.contratos?.length || 0}`);
-    
-    res.json({ 
-      success: true, 
-        message: 'Extrato processado com sucesso',
-        fileId: fileId,
-        cpf: cpf,
-        dados: resultado,
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (extracaoError) {
-      console.error('❌ [INSS] Erro na extração:', extracaoError);
-      
-      // Fallback: retornar sucesso mesmo com erro de extração
-    res.json({ 
-      success: true, 
-        message: 'Extrato recebido (extração em desenvolvimento)',
-        fileId: req.file.filename,
-        cpf: cpf,
-        warning: 'Extração de dados em desenvolvimento',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ [INSS] Erro no processamento:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-});
-
-// Sincronizar dados do cliente
-app.post('/api/sincronizar-dados-cliente', (req, res) => {
-  try {
-    const { cpf, dados } = req.body;
-    
-    console.log(`👤 [INSS] Sincronizando dados para CPF: ${cpf}`);
-    
-    // Aqui você pode salvar os dados do cliente
-      res.json({ 
-        success: true, 
-      message: 'Dados sincronizados com sucesso',
-      cpf: cpf,
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ [INSS] Erro na sincronização:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
 });
 
 // Endpoints Kentro (integração real)
@@ -1294,7 +994,7 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
     
     if (!identificador) {
       return res.json({ 
-        success: false, 
+        success: false,
         error: 'CPF ou email é obrigatório'
       });
     }
@@ -1327,15 +1027,15 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
       });
     } else {
       console.log(`⚠️ [KENTRO] Cliente não encontrado: ${identificador}`);
-      res.json({ 
-        success: true, 
-        cliente: {
-          cpf: cpf,
+        res.json({ 
+          success: true, 
+      cliente: {
+        cpf: cpf,
           email: email,
           nome: 'Cliente não encontrado',
-          encontrado: false
-        }
-      });
+        encontrado: false
+      }
+    });
     }
   } catch (error) {
     console.error('❌ [KENTRO] Erro ao buscar cliente:', error);
@@ -1381,8 +1081,8 @@ app.get('/api/kentro/oportunidade/:id', async (req, res) => {
     const oportunidade = await kentro.buscarOportunidadePorId(id);
     
     if (oportunidade) {
-      res.json({ 
-        success: true, 
+    res.json({ 
+      success: true, 
         oportunidade: oportunidade
       });
     } else {
@@ -1442,73 +1142,6 @@ app.post('/api/remover-clientes', (req, res) => {
     
   } catch (error) {
     console.error('❌ [CLIENTE] Erro ao remover clientes:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Endpoint para carregar dados do extrato processado
-app.get('/extrato/:fileId/raw', (req, res) => {
-  try {
-    const { fileId } = req.params;
-    console.log(`📄 [INSS] Carregando extrato: ${fileId}`);
-    
-    // Tentar carregar dados reais do JSON
-    // O fileId já vem sem o prefixo "extrato-", então usamos diretamente
-    const jsonPath = path.join(__dirname, 'var/data/extratos', `extrato_${fileId}.json`);
-    console.log(`📄 [INSS] Tentando carregar JSON: ${jsonPath}`);
-    
-    if (fs.existsSync(jsonPath)) {
-      console.log(`✅ [INSS] JSON encontrado, carregando dados reais...`);
-      const dadosReais = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-      
-      res.json({
-        success: true,
-        extrato: dadosReais
-      });
-    } else {
-      console.log(`⚠️ [INSS] JSON não encontrado, retornando dados mock...`);
-      
-      // Fallback: dados mock
-      const mockData = {
-        success: true,
-        extrato: {
-          id: fileId,
-          cpf: '46104631649',
-          cliente: 'João Silva Santos',
-          beneficio: {
-            nb: '1234567890',
-            especie: 'Aposentadoria por Idade',
-            origem: 'INSS'
-          },
-          margens: {
-            disponivel: 500.00,
-            extrapolada: 76.20,
-            rmc: 0.00,
-            rcc: 0.00
-          },
-          contratos: [
-            {
-              contrato: '123456789',
-              banco: '237',
-              situacao: 'ATIVO',
-              valor_parcela: 150.00,
-              valor_liberado: 5000.00,
-              qtde_parcelas: 60,
-              taxa_juros_mensal: 1.45
-            }
-          ],
-          data_extrato: '07/10/2025'
-        }
-      };
-      
-      res.json(mockData);
-    }
-    
-  } catch (error) {
-    console.error('❌ [INSS] Erro ao carregar extrato:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -2115,7 +1748,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📱 Acesse: http://localhost:${PORT}`);
   console.log(`🏢 Operacional: http://localhost:${PORT}/operacional`);
   console.log(`🏦 FGTS: http://localhost:${PORT}/fgts`);
-  console.log(`📋 INSS: http://localhost:${PORT}/inss`);
   console.log(`🤖 ChatGPT: http://localhost:${PORT}/api/chatgpt-kentro`);
 });
 

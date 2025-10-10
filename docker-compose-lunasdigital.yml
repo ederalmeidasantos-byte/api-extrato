@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # Nginx - Proxy Reverso (Porta 80/443)
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-lunasdigital
+    ports:
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - servidor-principal
+      - crm
+      - api-simulador
+      - base-dados
+    restart: unless-stopped
+    networks:
+      - lunas-network
+
+  # Servidor Principal (Porta 3000)
+  servidor-principal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: servidor-principal
+    ports:
+      - "3000:3000"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=servidor-principal
+    depends_on:
+      - base-dados
+    restart: unless-stopped
+    networks:
+      - lunas-network
+    volumes:
+      - ./var/data:/app/var/data
+
+  # CRM (Porta 3001)
+  crm:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    container_name: crm-lunasdigital
+    ports:
+      - "3001:3001"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=crm
+    depends_on:
+      - base-dados
+    restart: unless-stopped
+    networks:
+      - lunas-network
+    volumes:
+      - ./var/data:/app/var/data
+
+  # API + Simulador INSS (Porta 3002)
+  api-simulador:
+    build:
+      context: .
+      dockerfile: Dockerfile.inss
+    container_name: api-simulador-lunasdigital
+    ports:
+      - "3002:3002"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=api-simulador
+    depends_on:
+      - base-dados
+    restart: unless-stopped
+    networks:
+      - lunas-network
+    volumes:
+      - ./INSS:/app/INSS
+      - ./var/data:/app/var/data
+
+  # Base de Dados (Porta 3003)
+  base-dados:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+    container_name: base-dados-lunasdigital
+    ports:
+      - "3003:3003"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - CONTAINER_NAME=base-dados
+    restart: unless-stopped
+    networks:
+      - lunas-network
+    volumes:
+      - ./var/data:/app/var/data
+
+  # Portainer - Interface de Gerenciamento Docker
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer-lunasdigital
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    environment:
+      - PORTAINER_WEBHOOKS_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - lunas-network
+
+networks:
+  lunas-network:
+    driver: bridge
+
+volumes:
+  portainer_data:

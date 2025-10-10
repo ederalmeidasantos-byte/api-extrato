@@ -1083,10 +1083,11 @@
                     .then(result => {
                         console.log('✅ Dados recebidos:', result);
                         console.log('🔍 Result.success:', result.success);
-                        console.log('🔍 Result.dados:', result.dados);
+                        console.log('🔍 Result.proposta:', result.proposta);
+                        console.log('🔍 Result.proposta.dados:', result.proposta?.dados);
                         
-                        if (result.success && (result.dados || result.proposta)) {
-                            propostaData = result.dados || result.proposta;
+                        if (result.success && result.proposta) {
+                            propostaData = result.proposta;
                             console.log('✅ Proposta carregada:', propostaId);
 
                             // Renderizar interface de forma assíncrona
@@ -1138,7 +1139,7 @@
             }
             
             const container = document.getElementById('clienteInfo');
-            const cliente = propostaData.cliente;
+            const cliente = propostaData.dados?.cliente;
             
             console.log('🔍 Container encontrado:', container);
             console.log('🔍 Dados do cliente:', cliente);
@@ -1175,12 +1176,19 @@
             }
             
             const container = document.getElementById('contratosList');
-            const contratos = propostaData.contratos;
+            const contratos = propostaData.dados?.contratos;
             
             console.log('🔍 Container encontrado:', container);
             console.log('🔍 Dados dos contratos:', contratos);
 
             if (container && contratos) {
+                // Atualizar contador
+                const contadorElement = document.getElementById('contadorContratos');
+                if (contadorElement) {
+                    contadorElement.textContent = contratos.length;
+                    console.log('🔢 Contador atualizado para:', contratos.length);
+                }
+                
                 if (!contratos || contratos.length === 0) {
                     container.innerHTML = `
                         <div class="no-data">
@@ -1416,8 +1424,8 @@
 
         function atualizarResumo() {
             console.log('🎨 Atualizando resumo...');
-            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
-            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            const contratosSelecionados = propostaData.dados?.contratos?.filter(c => c.selecionado) || [];
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0);
             
             console.log('🔍 Contratos selecionados:', contratosSelecionados.length);
             console.log('🔍 Total troco:', totalTroco);
@@ -1427,14 +1435,14 @@
         }
 
         function contratar() {
-            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
+            const contratosSelecionados = propostaData.dados?.contratos?.filter(c => c.selecionado) || [];
             
             if (contratosSelecionados.length === 0) {
                 alert('Selecione pelo menos um contrato para contratar!');
                 return;
             }
 
-            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0);
             
             // Atualizar texto do modal
             document.getElementById('modalText').innerHTML = 
@@ -1604,8 +1612,8 @@
         }
         
         function confirmarContratacao() {
-            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
-            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            const contratosSelecionados = propostaData.dados?.contratos?.filter(c => c.selecionado) || [];
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0);
             
             // Fechar modal
             fecharModal();
@@ -1620,22 +1628,58 @@
             console.log('📊 Contratos selecionados:', contratosSelecionados.length);
             console.log('💰 Total troco:', totalTroco);
             
-            // Criar dados do cliente
+            // Criar dados do cliente com TODOS os dados do extrato
             const clienteData = {
-                nome: propostaData.cliente.nome || '',
-                cpf: propostaData.cliente.cpf || '',
-                nascimento: propostaData.cliente.nascimento || '',
-                telefone: propostaData.cliente.telefone || '',
-                email: propostaData.cliente.email || '',
-                nb: propostaData.cliente.nb || '',
+                // Dados pessoais básicos
+                nome: propostaData.dados?.cliente?.nome || '',
+                cpf: propostaData.dados?.cliente?.cpf || '',
+                nascimento: propostaData.dados?.cliente?.nascimento || '',
+                telefone: propostaData.dados?.cliente?.telefone || '',
+                email: propostaData.dados?.cliente?.email || '',
+                nb: propostaData.dados?.cliente?.nb || '',
+                
+                // Endereço
                 endereco: {
-                    cep: propostaData.cliente.cep || '',
-                    logradouro: propostaData.cliente.logradouro || '',
-                    numero: propostaData.cliente.numero || '',
-                    complemento: propostaData.cliente.complemento || '',
-                    bairro: propostaData.cliente.bairro || '',
-                    cidade: propostaData.cliente.cidade || '',
-                    uf: propostaData.cliente.uf || ''
+                    cep: propostaData.dados?.cliente?.cep || '',
+                    logradouro: propostaData.dados?.cliente?.logradouro || '',
+                    numero: propostaData.dados?.cliente?.numero || '',
+                    complemento: propostaData.dados?.cliente?.complemento || '',
+                    bairro: propostaData.dados?.cliente?.bairro || '',
+                    cidade: propostaData.dados?.cliente?.cidade || '',
+                    uf: propostaData.dados?.cliente?.uf || ''
+                },
+                
+                // Dados do benefício do extrato
+                beneficio: {
+                    nb: propostaData.dados?.cliente?.nb || '',
+                    nomeBeneficio: propostaData.dados?.cliente?.nomeBeneficio || 'BENEFICIO DE PRESTACAO CONTINUADA A PESSOA IDOSA',
+                    codigoBeneficio: propostaData.dados?.cliente?.codigoBeneficio || '88',
+                    especie: propostaData.dados?.cliente?.especie || '88 - BENEFICIO DE PRESTACAO CONTINUADA A PESSOA IDOSA',
+                    origem: propostaData.dados?.cliente?.origem || 'INSS',
+                    dataExtrato: propostaData.dados?.cliente?.dataExtrato || '',
+                    meio_pagamento: propostaData.dados?.cliente?.meio_pagamento || 'Conta Corrente',
+                    banco_pagamento: propostaData.dados?.cliente?.banco_pagamento || '',
+                    agencia: propostaData.dados?.cliente?.agencia || '',
+                    conta: propostaData.dados?.cliente?.conta || ''
+                },
+                
+                // Dados das margens do extrato
+                margens: {
+                    margem_disponivel_empretimo: propostaData.dados?.margens?.margem_disponivel_empretimo || '0,00',
+                    margem_extrapolada: propostaData.dados?.margens?.margem_extrapolada || '0,00',
+                    margem_disponivel_rmc: propostaData.dados?.margens?.margem_disponivel_rmc || '0,00',
+                    margem_disponivel_rcc: propostaData.dados?.margens?.margem_disponivel_rcc || '0,00'
+                },
+                
+                // Dados dos contratos existentes do extrato
+                contratosExistentes: propostaData.dados?.contratos || [],
+                
+                // Dados bancários do benefício
+                dadosBancarios: {
+                    banco_pagamento: propostaData.dados?.cliente?.banco_pagamento || '',
+                    agencia: propostaData.dados?.cliente?.agencia || '',
+                    conta: propostaData.dados?.cliente?.conta || '',
+                    meio_pagamento: propostaData.dados?.cliente?.meio_pagamento || 'Conta Corrente'
                 }
             };
             

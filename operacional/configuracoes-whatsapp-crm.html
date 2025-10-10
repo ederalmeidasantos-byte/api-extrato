@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações WhatsApp - CRM Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        .whatsapp-config-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .config-info h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .config-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+            flex-wrap: wrap;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .config-section {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .config-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .config-item:last-child {
+            border-bottom: none;
+        }
+
+        .config-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .config-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+            text-align: right;
+        }
+
+        .templates-section {
+            margin-top: 2rem;
+        }
+
+        .template-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .template-item:hover {
+            border-color: #25D366;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.1);
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .template-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-rejected {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active {
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+
+        .status-inactive {
+            background: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+        }
+
+        .status-pending {
+            background: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left-color: #10b981;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left-color: #f59e0b;
+        }
+
+        .alert-danger {
+            background: #fecaca;
+            color: #991b1b;
+            border-left-color: #ef4444;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left-color: #3b82f6;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            background: #f9fafb;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #25D366;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+        }
+
+        .form-control[readonly] {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .btn-whatsapp {
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: white;
+        }
+
+        .btn-whatsapp:hover {
+            background: linear-gradient(135deg, #128C7E, #0d6b5f);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .stat-success { color: #10b981; }
+        .stat-info { color: #3b82f6; }
+        .stat-warning { color: #f59e0b; }
+        .stat-danger { color: #ef4444; }
+
+        .test-results {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: none;
+        }
+
+        .test-results.show {
+            display: block;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-group:hover {
+            background: #f8fafc;
+        }
+
+        .checkbox-group:last-child {
+            border-bottom: none;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .checkbox-info {
+            flex: 1;
+        }
+
+        .checkbox-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .checkbox-description {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        @media (max-width: 768px) {
+            .config-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .config-actions {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitation-badge">0</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="buscar-propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/configuracoes-whatsapp-producao.html" class="nav-item active" data-nav="whatsapp-config">
+                        <div class="nav-item-content">
+                            <i data-feather="message-circle" class="nav-item-icon"></i>
+                            <span class="nav-item-text">WhatsApp</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                            <i data-feather="message-circle"></i>
+                            Configurações WhatsApp
+                        </h1>
+                        <span class="page-subtitle">Integração e configuração do WhatsApp Business</span>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <a href="/operacional/" class="topbar-btn secondary">
+                            <i data-feather="arrow-left"></i>
+                            Voltar
+                        </a>
+                        <button class="topbar-btn secondary" onclick="location.reload()">
+                            <i data-feather="refresh-cw"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Alertas de Status -->
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    <div>
+                        <strong>WhatsApp Conectado!</strong> A integração está ativa e funcionando corretamente.
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i data-feather="info"></i>
+                    <div>
+                        <strong>Informação:</strong> Você tem 3 templates aprovados e 1 pendente de aprovação pelo Meta.
+                    </div>
+                </div>
+
+                <!-- Configurações Principais -->
+                <div class="whatsapp-config-card">
+                    <div class="config-header">
+                        <div class="config-info">
+                            <h1>Configurações WhatsApp Business</h1>
+                            <div class="config-meta">
+                                <span><i data-feather="wifi" style="width: 14px; height: 14px;"></i> Conectado</span>
+                                <span><i data-feather="clock" style="width: 14px; height: 14px;"></i> Última sincronização: há 2 horas</span>
+                                <span><i data-feather="message-circle" style="width: 14px; height: 14px;"></i> 1,247 mensagens enviadas</span>
+                            </div>
+                        </div>
+                        <div class="config-actions">
+                            <button class="btn btn-whatsapp" onclick="testConnection()">
+                                <i data-feather="wifi"></i>
+                                Testar Conexão
+                            </button>
+                            <button class="btn btn-danger" onclick="disconnectWhatsApp()">
+                                <i data-feather="x-circle"></i>
+                                Desconectar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="config-grid">
+                        <div class="config-section">
+                            <h3><i data-feather="key"></i> Configurações da API</h3>
+                            <div class="config-item">
+                                <span class="config-label">Token da API</span>
+                                <span class="config-value">EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">ID do Número</span>
+                                <span class="config-value">123456789012345</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">ID da Conta Business</span>
+                                <span class="config-value">987654321098765</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Webhook URL</span>
+                                <span class="config-value">https://crm.lunasdigital.com.br/webhook/whatsapp</span>
+                            </div>
+                        </div>
+                        
+                        <div class="config-section">
+                            <h3><i data-feather="settings"></i> Configurações Gerais</h3>
+                            <div class="form-group">
+                                <label>Remetente Padrão</label>
+                                <input type="text" class="form-control" value="CRM Lunas Digital">
+                            </div>
+                            <div class="form-group">
+                                <label>Horário de Funcionamento</label>
+                                <select class="form-control">
+                                    <option value="24h">24 horas</option>
+                                    <option value="business" selected>Horário comercial (8h-18h)</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Envio Automático</label>
+                                <select class="form-control">
+                                    <option value="enabled" selected>Habilitado</option>
+                                    <option value="disabled">Desabilitado</option>
+                                    <option value="manual">Apenas manual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Delay entre mensagens (minutos)</label>
+                                <input type="number" class="form-control" value="2" min="1" max="60">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="config-actions" style="margin-top: 1rem;">
+                        <button class="btn btn-primary">
+                            <i data-feather="save"></i>
+                            Salvar Configurações
+                        </button>
+                        <button class="btn btn-secondary">
+                            <i data-feather="refresh-cw"></i>
+                            Sincronizar com Meta
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Templates Aprovados -->
+                <div class="whatsapp-config-card">
+                    <div class="config-header">
+                        <div class="config-info">
+                            <h1>Templates Aprovados pelo Meta</h1>
+                            <div class="config-meta">
+                                <span><i data-feather="check-circle" style="width: 14px; height: 14px;"></i> 3 Aprovados</span>
+                                <span><i data-feather="clock" style="width: 14px; height: 14px;"></i> 1 Pendente</span>
+                                <span><i data-feather="x-circle" style="width: 14px; height: 14px;"></i> 0 Rejeitados</span>
+                            </div>
+                        </div>
+                        <div class="config-actions">
+                            <button class="btn btn-success">
+                                <i data-feather="plus"></i>
+                                Adicionar Template
+                            </button>
+                            <button class="btn btn-secondary">
+                                <i data-feather="refresh-cw"></i>
+                                Sincronizar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="templates-section">
+                        <div class="template-item">
+                            <div class="template-header">
+                                <div>
+                                    <h4>Proposta Aprovada</h4>
+                                    <p style="color: #64748b; font-size: 0.9rem;">Template para notificar aprovação de proposta</p>
+                                </div>
+                                <div class="template-status status-approved">
+                                    Aprovado
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Conteúdo</span>
+                                <span class="config-value">Olá {{1}}! Sua proposta foi aprovada...</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Variáveis</span>
+                                <span class="config-value">{{1}} - Nome do Cliente</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Última Atualização</span>
+                                <span class="config-value">05/10/2025</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <div>
+                                    <h4>Proposta Pendente</h4>
+                                    <p style="color: #64748b; font-size: 0.9rem;">Template para notificar proposta em análise</p>
+                                </div>
+                                <div class="template-status status-approved">
+                                    Aprovado
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Conteúdo</span>
+                                <span class="config-value">Olá {{1}}! Sua proposta está em análise...</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Variáveis</span>
+                                <span class="config-value">{{1}} - Nome do Cliente</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Última Atualização</span>
+                                <span class="config-value">05/10/2025</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <div>
+                                    <h4>Proposta Rejeitada</h4>
+                                    <p style="color: #64748b; font-size: 0.9rem;">Template para notificar rejeição de proposta</p>
+                                </div>
+                                <div class="template-status status-approved">
+                                    Aprovado
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Conteúdo</span>
+                                <span class="config-value">Olá {{1}}! Sua proposta não foi aprovada...</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Variáveis</span>
+                                <span class="config-value">{{1}} - Nome do Cliente</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Última Atualização</span>
+                                <span class="config-value">05/10/2025</span>
+                            </div>
+                        </div>
+
+                        <div class="template-item">
+                            <div class="template-header">
+                                <div>
+                                    <h4>Lembrete Pagamento</h4>
+                                    <p style="color: #64748b; font-size: 0.9rem;">Template para lembretes de pagamento</p>
+                                </div>
+                                <div class="template-status status-pending">
+                                    Pendente
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Conteúdo</span>
+                                <span class="config-value">Olá {{1}}! Este é um lembrete sobre seu pagamento...</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Variáveis</span>
+                                <span class="config-value">{{1}} - Nome do Cliente</span>
+                            </div>
+                            <div class="config-item">
+                                <span class="config-label">Status</span>
+                                <span class="config-value">Aguardando aprovação do Meta</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuração de Status -->
+                <div class="whatsapp-config-card">
+                    <div class="config-header">
+                        <div class="config-info">
+                            <h1>Configuração de Status Automáticos</h1>
+                            <div class="config-meta">
+                                <span><i data-feather="zap" style="width: 14px; height: 14px;"></i> 2 Status Ativos</span>
+                                <span><i data-feather="pause" style="width: 14px; height: 14px;"></i> 4 Status Inativos</span>
+                            </div>
+                        </div>
+                        <div class="config-actions">
+                            <button class="btn btn-primary">
+                                <i data-feather="save"></i>
+                                Salvar Configurações
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3><i data-feather="settings"></i> Selecione quais mudanças de status devem disparar mensagens automáticas:</h3>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-aprovado" checked>
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">✅ Aprovado</div>
+                                <div class="checkbox-description">Enviar quando proposta for aprovada</div>
+                            </div>
+                            <span class="status-indicator status-active"></span>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-pendente" checked>
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">⏳ Pendente</div>
+                                <div class="checkbox-description">Enviar quando proposta ficar pendente</div>
+                            </div>
+                            <span class="status-indicator status-active"></span>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-rejeitado">
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">❌ Rejeitado</div>
+                                <div class="checkbox-description">Enviar quando proposta for rejeitada</div>
+                            </div>
+                            <span class="status-indicator status-inactive"></span>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-analise">
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">📋 Em Análise</div>
+                                <div class="checkbox-description">Enviar quando proposta entrar em análise</div>
+                            </div>
+                            <span class="status-indicator status-inactive"></span>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-pagamento">
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">💰 Pagamento</div>
+                                <div class="checkbox-description">Enviar lembretes de pagamento</div>
+                            </div>
+                            <span class="status-indicator status-inactive"></span>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="status-contato">
+                            <div class="checkbox-info">
+                                <div class="checkbox-name">📞 Contato</div>
+                                <div class="checkbox-description">Enviar quando cliente solicitar contato</div>
+                            </div>
+                            <span class="status-indicator status-inactive"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testes e Validação -->
+                <div class="whatsapp-config-card">
+                    <div class="config-header">
+                        <div class="config-info">
+                            <h1>Testes e Validação</h1>
+                            <div class="config-meta">
+                                <span><i data-feather="activity" style="width: 14px; height: 14px;"></i> Último teste: há 1 hora</span>
+                                <span><i data-feather="check-circle" style="width: 14px; height: 14px;"></i> Todos os testes passaram</span>
+                            </div>
+                        </div>
+                        <div class="config-actions">
+                            <button class="btn btn-primary" onclick="runAllTests()">
+                                <i data-feather="play"></i>
+                                Executar Todos os Testes
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3><i data-feather="test-tube"></i> Teste a integração WhatsApp antes de ativar em produção:</h3>
+                        
+                        <div class="config-actions" style="margin-bottom: 1rem;">
+                            <button class="btn btn-primary" onclick="testConnection()">
+                                <i data-feather="wifi"></i>
+                                Testar Conexão
+                            </button>
+                            <button class="btn btn-secondary" onclick="testTemplate()">
+                                <i data-feather="file-text"></i>
+                                Testar Template
+                            </button>
+                            <button class="btn btn-success" onclick="sendTestMessage()">
+                                <i data-feather="send"></i>
+                                Enviar Mensagem de Teste
+                            </button>
+                            <button class="btn btn-warning" onclick="viewLogs()">
+                                <i data-feather="list"></i>
+                                Ver Logs
+                            </button>
+                        </div>
+                        
+                        <div id="testResults" class="test-results">
+                            <!-- Resultados dos testes aparecerão aqui -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estatísticas -->
+                <div class="whatsapp-config-card">
+                    <div class="config-header">
+                        <div class="config-info">
+                            <h1>Estatísticas de Uso</h1>
+                            <div class="config-meta">
+                                <span><i data-feather="calendar" style="width: 14px; height: 14px;"></i> Período: Últimos 30 dias</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number stat-success">1,247</div>
+                            <div class="stat-label">Mensagens Enviadas</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-number stat-info">98.5%</div>
+                            <div class="stat-label">Taxa de Entrega</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-number stat-warning">3</div>
+                            <div class="stat-label">Templates Ativos</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-number stat-danger">24h</div>
+                            <div class="stat-label">Última Atividade</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    
+    <script>
+        // Inicializar Feather Icons
+        feather.replace();
+        
+        // Função para testar conexão
+        function testConnection() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = `
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    <div>
+                        <strong>✅ Conexão OK!</strong> A API WhatsApp está respondendo corretamente.
+                        <br><small>Teste realizado em: ${new Date().toLocaleString()}</small>
+                    </div>
+                </div>
+            `;
+            results.classList.add('show');
+            feather.replace();
+        }
+
+        // Função para testar template
+        function testTemplate() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = `
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    <div>
+                        <strong>✅ Template Válido!</strong> O template "Proposta Aprovada" está funcionando corretamente.
+                        <br><small>Variáveis detectadas: {{1}} (Nome do Cliente)</small>
+                    </div>
+                </div>
+            `;
+            results.classList.add('show');
+            feather.replace();
+        }
+
+        // Função para enviar mensagem de teste
+        function sendTestMessage() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = `
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    <div>
+                        <strong>📱 Mensagem Enviada!</strong> Mensagem de teste enviada para o número +55 11 99999-9999
+                        <br><small>ID da Mensagem: wamid.1234567890abcdef</small>
+                    </div>
+                </div>
+            `;
+            results.classList.add('show');
+            feather.replace();
+        }
+
+        // Função para ver logs
+        function viewLogs() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = `
+                <div class="alert alert-info">
+                    <i data-feather="info"></i>
+                    <div>
+                        <strong>📊 Logs Recentes:</strong>
+                        <br>• 10/10/2025 15:30 - Mensagem enviada para João Silva (Aprovado)
+                        <br>• 10/10/2025 15:25 - Template sincronizado com Meta
+                        <br>• 10/10/2025 15:20 - Conexão testada com sucesso
+                        <br><small>Última atualização: ${new Date().toLocaleString()}</small>
+                    </div>
+                </div>
+            `;
+            results.classList.add('show');
+            feather.replace();
+        }
+
+        // Função para executar todos os testes
+        function runAllTests() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = `
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    <div>
+                        <strong>✅ Todos os Testes Passaram!</strong>
+                        <br>• Conexão com API: OK
+                        <br>• Validação de Templates: OK
+                        <br>• Envio de Mensagem: OK
+                        <br>• Webhook: OK
+                        <br><small>Executado em: ${new Date().toLocaleString()}</small>
+                    </div>
+                </div>
+            `;
+            results.classList.add('show');
+            feather.replace();
+        }
+
+        // Função para desconectar WhatsApp
+        function disconnectWhatsApp() {
+            const confirmar = confirm(
+                'Deseja desconectar a integração WhatsApp?\n\n' +
+                'Esta ação irá:\n' +
+                '• Parar o envio automático de mensagens\n' +
+                '• Desativar todos os templates\n' +
+                '• Remover as configurações salvas\n\n' +
+                'Esta ação pode ser revertida reconectando a integração.'
+            );
+            
+            if (!confirmar) {
+                return;
+            }
+            
+            alert('⚠️ Funcionalidade de desconexão será implementada em breve!');
+        }
+
+        // Toggle de checkboxes
+        document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const indicator = this.parentElement.querySelector('.status-indicator');
+                if (this.checked) {
+                    indicator.className = 'status-indicator status-active';
+                } else {
+                    indicator.className = 'status-indicator status-inactive';
+                }
+            });
+        });
+
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+        
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>

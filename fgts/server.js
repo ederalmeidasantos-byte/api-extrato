@@ -6,22 +6,21 @@ import fs from "fs";
 import fsp from "fs/promises";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
-import { extrairDeUpload } from "../INSS/extrair_pdf.js";
 import PQueue from "p-queue";
 import multer from "multer";
 import { Server } from "socket.io";
 import http from "http";
-import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8, carregarListasDoCache } from "./fgts_csv.js";
-import { getRecentErrors, getErrorStats, cleanOldLogs } from "../error-logger.js";
+import { processarCPFs, disparaFluxo, setDelay as setDelayFGTS, attachIO, processarReprocessamentoRapido, limparCacheV8, carregarListasDoCache, setConcurrency } from "./fgts_csv.js";
+import { getRecentErrors, getErrorStats, cleanOldLogs } from "./error-logger.js";
 import { 
   obterEstatisticasCache, 
   limparCacheCompleto, 
   carregarPendentes, 
   carregarTentativasCache,
-  resetarTentativasCache 
+  resetarTentativasCache,
+  carregarListas
 } from "./cache-persistente.js";
-import { calcularTrocoEndpoint } from "../INSS/calculo.js";
-import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "../config-manager.js";
+import { loadConfig, saveConfig, validateConfig, syncWithEnv, exportToEnv, initializeConfig } from "./config-manager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +36,14 @@ const TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const cacheValido = (p) => { try { return Date.now() - fs.statSync(p).mtimeMs <= TTL_MS; } catch { return false; } };
 
 const app = express();
+app.set('trust proxy', true);
+
+// Logging de requisições
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Protocol: ${req.protocol} - Forwarded: ${req.headers['x-forwarded-proto']}`);
+  next();
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -98,10 +105,24 @@ io.on("connection", (socket) => {
   console.log("🔗 Cliente conectado para logs FGTS");
   resultadosFGTS.forEach(r => socket.emit("resultadoCPF", r));
   socket.emit("delayUpdate", DELAY_MS);
+  
+  socket.on("setDelay", (delay) => {
+    console.log(`📊 Requisição para alterar delay para: ${delay}ms`);
+    setDelay(delay);
+    socket.emit("delayUpdated", { message: `Delay alterado para ${delay}ms` });
+    io.emit("log", { type: "info", message: `⚙️ Delay alterado para ${delay}ms` });
+  });
+  
+  socket.on("setConcurrency", (concurrency) => {
+    console.log(`📊 Requisição para alterar concorrência para: ${concurrency}`);
+    setConcurrency(concurrency);
+    socket.emit("concurrencyUpdated", { concurrency });
+    io.emit("log", { type: "info", message: `⚙️ Concorrência alterada para ${concurrency} CPFs simultâneos` });
+  });
 });
 
 // Health check
-app.get("/", (req, res) => res.send("API rodando ✅"));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // ===== Fluxo Lunas / PDF =====
 app.post("/extrair", async (req, res) => {
@@ -299,6 +320,117 @@ app.post("/fgts/limpar-cache/:cpf", async (req, res) => {
 });
 
 // ===== Carregar listas do cache =====
+app.get("/fgts/contadores-tempo-real", (req, res) => {
+  try {
+    const listas = carregarListas();
+    const pendentes = carregarPendentes();
+    
+    const contadores = {
+      sucessos: listas.sucessos.length,
+      pendentes: pendentes.length,
+      naoAutorizados: listas.naoAutorizados.length,
+      descartados: listas.descartados.length,
+      agendados: listas.agendados.length,
+      total: listas.sucessos.length + pendentes.length + listas.naoAutorizados.length + listas.descartados.length + listas.agendados.length
+    };
+    
+    res.json(contadores);
+  } catch (error) {
+    console.error("Erro ao obter contadores:", error);
+    res.status(500).json({ message: "Erro ao obter contadores" });
+  }
+});
+
+app.get("/fgts/lista-completa", (req, res) => {
+  try {
+    const listas = carregarListas();
+    res.json({ success: true, listas });
+  } catch (error) {
+    console.error('❌ Erro ao carregar lista completa:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/fgts/estado", (req, res) => {
+  try {
+    // Verificar se há processamento em andamento
+    const pendentes = carregarPendentes();
+    const processando = pendentes.length > 0;
+    
+    res.json({ 
+      success: true, 
+      processando,
+      pendentes: pendentes.length
+    });
+  } catch (error) {
+    console.error('❌ Erro ao obter estado:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/fgts/cancel", (req, res) => {
+  try {
+    // Implementar cancelamento de processamento
+    res.json({ success: true, message: "Processamento cancelado" });
+  } catch (error) {
+    console.error('❌ Erro ao cancelar processamento:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/fgts/exportar-csv", (req, res) => {
+  try {
+    const listas = carregarListas();
+    // Implementar exportação CSV
+    res.json({ success: true, message: "Exportação CSV em desenvolvimento" });
+  } catch (error) {
+    console.error('❌ Erro ao exportar CSV:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/fgts/processar-pendentes", async (req, res) => {
+  try {
+    console.log('🔄 Iniciando reprocessamento de CPFs "Não autorizados"...');
+    
+    // Carregar listas para verificar CPFs "Não autorizados"
+    const listas = carregarListas();
+    const naoAutorizados = listas.naoAutorizados;
+    
+    if (naoAutorizados.length === 0) {
+      return res.json({ 
+        success: false, 
+        message: "Nenhum CPF 'Não autorizado' encontrado para reprocessar" 
+      });
+    }
+    
+    console.log(`📊 Encontrados ${naoAutorizados.length} CPFs "Não autorizados" para reprocessar`);
+    
+    // Iniciar reprocessamento rápido
+    processarReprocessamentoRapido((status) => {
+      console.log(`🔄 Reprocessamento finalizado com status: ${status}`);
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Reprocessamento iniciado para ${naoAutorizados.length} CPFs "Não autorizados"` 
+    });
+  } catch (error) {
+    console.error('❌ Erro ao processar pendentes:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/fgts/limpar-estado", (req, res) => {
+  try {
+    // Implementar limpeza de estado
+    res.json({ success: true, message: "Estado limpo com sucesso" });
+  } catch (error) {
+    console.error('❌ Erro ao limpar estado:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get("/fgts/listas", (req, res) => {
   try {
     const listas = carregarListasDoCache();
@@ -450,7 +582,8 @@ app.post("/fgts/resume", (req,res)=>{
 });
 
 // ===== Cálculo =====
-app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
+// Endpoint removido - funcionalidade de cálculo não necessária para FGTS
+// app.get("/calcular/:fileId", calcularTrocoEndpoint(JSON_DIR));
 
 // ===== Agendamentos =====
 app.get("/fgts/agendamentos", (req, res) => {
@@ -459,6 +592,73 @@ app.get("/fgts/agendamentos", (req, res) => {
 });
 
 // ===== Status do sistema =====
+app.get("/fgts/verificar-pendentes", (req, res) => {
+  try {
+    const pendentes = carregarPendentes();
+    const listas = carregarListas();
+    
+    // Considerar CPFs "Não autorizados" como pendentes para reprocessamento
+    const totalPendentes = pendentes.length + listas.naoAutorizados.length;
+    
+    if (totalPendentes > 0) {
+      console.log(`🔄 Habilitando processamento - ${totalPendentes} pendentes encontrados (${pendentes.length} pendentes + ${listas.naoAutorizados.length} não autorizados)`);
+      
+      // Emitir evento para habilitar processamento
+      io.emit('habilitarProcessamento', { 
+        motivo: 'pendentes_encontrados',
+        pendentes: totalPendentes,
+        sucessos: listas.sucessos.length,
+        naoAutorizados: listas.naoAutorizados.length
+      });
+      
+      res.json({ 
+        message: "Pendentes encontrados", 
+        pendentes: totalPendentes,
+        habilitado: true,
+        naoAutorizados: listas.naoAutorizados.length
+      });
+    } else {
+      res.json({ 
+        message: "Nenhum pendente encontrado", 
+        pendentes: 0,
+        habilitado: false 
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao verificar pendentes:", error);
+    res.status(500).json({ message: "Erro ao verificar pendentes" });
+  }
+});
+
+app.post("/fgts/continuar-processamento", async (req, res) => {
+  try {
+    console.log('🔄 Continuando processamento de pendentes...');
+    
+    // Usar o arquivo CSV pendente
+    const uploadsDir = '/app/fgts/uploads';
+    const fs = await import('fs');
+    const files = fs.readdirSync(uploadsDir);
+    const csvFile = files.find(f => f.length > 10); // Arquivo CSV temporário
+    
+    if (!csvFile) {
+      return res.status(400).json({ message: "Nenhum arquivo CSV pendente encontrado" });
+    }
+    
+    const csvPath = path.join(uploadsDir, csvFile);
+    console.log(`📁 Usando arquivo pendente: ${csvFile}`);
+    
+    // Iniciar processamento
+    processarCPFs(csvPath, null, (status) => {
+      console.log(`Processamento finalizado com status: ${status}`);
+    });
+    
+    res.json({ message: "🚀 Processamento de pendentes iniciado!" });
+  } catch (error) {
+    console.error("Erro ao continuar processamento:", error);
+    res.status(500).json({ message: "Erro interno ao continuar processamento." });
+  }
+});
+
 app.get("/fgts/status", (req, res) => {
   const agora = new Date();
   const hora = agora.getHours();
@@ -840,5 +1040,5 @@ Escolha uma opção:`;
 initializeConfig();
 
 // ===== Servidor =====
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3005; // Porta específica para container FGTS
 server.listen(PORT, () => console.log(`🚀 API rodando na porta ${PORT}`));

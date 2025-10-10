@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  fgts-lunasdigital:
+    build: .
+    container_name: fgts-lunasdigital
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./:/app/fgts
+      - /var/data:/var/data
+    environment:
+      - PORT=3005
+    working_dir: /app/fgts

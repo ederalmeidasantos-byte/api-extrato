@@ -549,40 +549,31 @@
                 try {
                     const response = await fetch('/api/propostas');
                     if (response.ok) {
-                        propostasServidor = await response.json();
+                        const data = await response.json();
+                        propostasServidor = data.propostas || [];
                         console.log(`📊 Carregadas ${propostasServidor.length} propostas do servidor`);
                     }
                 } catch (error) {
-                    console.warn('⚠️ Não foi possível carregar propostas do servidor');
+                    console.error('❌ Erro ao carregar propostas do servidor:', error);
+                    mostrarErro('Erro ao carregar propostas do servidor');
+                    return;
                 }
+                
+                // Filtrar propostas que estão na fila de digitação
+                const propostasFila = propostasServidor.filter(proposta => {
+                    const status = proposta.status || '';
+                    return status === 'Na fila' || 
+                           status === 'CLIENTE_ACEITOU' || 
+                           status === 'PREENCHENDO_DADOS' ||
+                           status === 'Em Digitação';
+                });
+                
+                console.log(`📋 ${propostasFila.length} propostas na fila de digitação`);
                 
                 // Agrupar propostas por cliente
                 const clientesComPropostas = new Map();
                 
-                // Primeiro, processar propostas do localStorage
-                clientManager.clients.forEach((cliente, clientId) => {
-                    if (cliente.propostas) {
-                        // Filtrar propostas que estão na fila (status de formulário)
-                        const propostasFila = cliente.propostas.filter(proposta => {
-                            // Verificar se o status da proposta está na fila
-                            const statusFormulario = proposta.statusFormulario || '1';
-                            return statusFormulario !== '5'; // Não incluir "Cliente Finalizou"
-                        });
-                        
-                        if (propostasFila.length > 0) {
-                            clientesComPropostas.set(clientId, {
-                                cliente,
-                                propostas: propostasFila,
-                                statusFormulario: propostasFila[0].statusFormulario || '1',
-                                dataAtualizacao: propostasFila[0].dataAtualizacao || propostasFila[0].dataCriacao || new Date().toISOString(),
-                                statusConfig
-                            });
-                        }
-                    }
-                });
-                
-                // Depois, processar propostas do servidor
-                propostasServidor.forEach(proposta => {
+                propostasFila.forEach(proposta => {
                     const clientId = proposta.clientId;
                     
                     if (!clientesComPropostas.has(clientId)) {
@@ -592,55 +583,51 @@
                             nome: proposta.cliente?.nome || 'Cliente não informado',
                             cpf: proposta.cliente?.cpf || 'CPF não informado',
                             nb: proposta.cliente?.nb || 'NB não informado',
+                            telefone: proposta.cliente?.telefone || '',
+                            email: proposta.cliente?.email || '',
                             propostas: []
                         };
                         
                         clientesComPropostas.set(clientId, {
                             cliente,
                             propostas: [],
-                            statusFormulario: '1',
-                            dataAtualizacao: proposta.dataCriacao || proposta.createdAt || new Date().toISOString(),
-                            statusConfig
+                            statusFormulario: '1', // Etapa 1 - Dados
+                            dataAtualizacao: proposta.createdAt || new Date().toISOString()
                         });
                     }
                     
                     // Adicionar proposta ao cliente
                     const clienteData = clientesComPropostas.get(clientId);
-                    clienteData.propostas.push({
-                        id: proposta.proposalId || proposta.id,
-                        statusFormulario: '1',
-                        statusProdutos: proposta.statusProdutos || '1',
-                        bancoAtual: proposta.bancoAtual || proposta.contratos?.[0]?.banco || 'N/A',
-                        bancoNovo: proposta.bancoNovo || proposta.contratos?.[0]?.simulacao?.banco || 'N/A',
-                        parcelaAtual: proposta.parcelaAtual || proposta.contratos?.[0]?.valor_parcela || 0,
-                        parcelaNova: proposta.parcelaNova || proposta.contratos?.[0]?.simulacao?.parcela || 0,
-                        prazoAtual: proposta.prazoAtual || proposta.contratos?.[0]?.parcelas_pagas || 0,
-                        prazoNovo: proposta.prazoNovo || proposta.contratos?.[0]?.prazo_total || 0,
-                        trocoTotal: proposta.trocoTotal || proposta.contratos?.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0) || 0,
-                        saldoDevedor: proposta.saldoDevedor || proposta.contratos?.reduce((sum, c) => sum + (c.saldo_devedor || 0), 0) || 0,
-                        numeroContrato: proposta.numeroContrato || proposta.contratos?.[0]?.contrato || 'N/A',
-                        dataCriacao: proposta.dataCriacao || proposta.createdAt || new Date().toISOString(),
-                        dataAtualizacao: proposta.dataAtualizacao || proposta.updatedAt || new Date().toISOString()
-                    });
+                    clienteData.propostas.push(proposta);
                 });
                 
                 // Converter para array e ordenar por data
-                filaPropostas = Array.from(clientesComPropostas.entries()).map(([clientId, data]) => ({
-                    clientId,
-                    ...data
-                }));
+                filaPropostas = Array.from(clientesComPropostas.values())
+                    .sort((a, b) => new Date(b.dataAtualizacao) - new Date(a.dataAtualizacao));
                 
-                // Ordenar por data (mais antigos primeiro)
-                filaPropostas.sort((a, b) => new Date(a.dataAtualizacao) - new Date(b.dataAtualizacao));
+                console.log(`✅ ${filaPropostas.length} clientes na fila de digitação`);
                 
-                console.log(`📊 ${filaPropostas.length} clientes com propostas na fila`);
-                
-                // Aplicar filtros
+                // Aplicar filtros atuais
                 filtrarFila();
+                
+                // Atualizar contador no menu
+                atualizarContadorFila(filaPropostas.length);
                 
             } catch (error) {
                 console.error('❌ Erro ao carregar fila:', error);
                 mostrarErro('Erro ao carregar fila');
+            }
+        }
+        
+        function atualizarContadorFila(count) {
+            // Atualizar contador da fila no menu
+            const filaLink = document.querySelector('a[href="/operacional/digitation-interface.html"]');
+            if (filaLink) {
+                filaLink.innerHTML = `
+                    <i data-feather="edit-3"></i>
+                    <span>Fila de Digitação ${count}</span>
+                `;
+                feather.replace();
             }
         }
         
@@ -669,8 +656,10 @@
                 }
                 
                 // Filtro por status do formulário
-                if (statusFilter) {
-                    if (item.statusFormulario !== statusFilter) {
+                if (statusFilter && statusFilter !== 'Todos os Status') {
+                    // Para dados da API, usar status padrão '1' (Etapa 1 - Dados)
+                    const itemStatus = item.statusFormulario || '1';
+                    if (itemStatus !== statusFilter) {
                         return false;
                     }
                 }
@@ -714,7 +703,8 @@
         
         // Criar HTML do card do cliente
         function criarCardCliente(item) {
-            const { clientId, cliente, propostas, statusFormulario, statusConfig } = item;
+            const { clientId, cliente, propostas, statusConfig } = item;
+            const statusFormulario = item.statusFormulario || '1'; // Padrão para dados da API
             const dataFormatada = formatarData(item.dataAtualizacao);
             
             // Obter informações do status do formulário
@@ -875,6 +865,17 @@
 
         // Obter informações do status
         function obterStatusInfo(statusId, statusConfig, tipo) {
+            // Se statusConfig não estiver disponível, usar valores padrão
+            if (!statusConfig) {
+                return {
+                    id: statusId,
+                    nome: 'Etapa 1 - Dados',
+                    descricao: 'Cliente preenchendo dados pessoais',
+                    cor: '#3b82f6',
+                    corNome: 'Azul'
+                };
+            }
+            
             // Mapear tipo para a chave correta no status-config.json
             let tipoKey;
             if (tipo === 'produtos') {

@@ -1,0 +1,27 @@
+# Configurações do Sistema FGTS
+# Copie este arquivo para .env e configure suas credenciais
+
+# Credenciais FGTS (obrigatório)
+FGTS_USER_1=seu_usuario_fgts
+FGTS_PASS_1=sua_senha_fgts
+FGTS_USER_2=usuario_backup
+FGTS_PASS_2=senha_backup
+
+# API V8 (opcional)
+V8_CLIENT_ID=seu_client_id
+V8_USERNAME=seu_username
+
+# API Lunas (opcional)
+LUNAS_API_KEY=sua_api_key
+LUNAS_API_URL=https://sua-api.com
+LUNAS_QUEUE_ID=25
+
+# OpenAI (opcional - para extração de PDF)
+OPENAI_API_KEY=sua_openai_key
+
+# Configurações do sistema
+PORT=3004
+DEST_STAGE_ID=4
+
+
+

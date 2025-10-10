@@ -541,24 +541,61 @@
 
         // Inicializar Feather Icons
         feather.replace();
+        
+        // Carregar dados quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPropostas();
+        });
 
         // Carregar propostas do sistema de clientes
-        function carregarPropostas() {
-            const stats = clientManager.getStats();
-            propostas = clientManager.getProposalsByStatus('pending');
-            propostasFiltradas = [...propostas];
+        async function carregarPropostas() {
+            try {
+                // Carregar propostas da API
+                const response = await fetch('/api/propostas');
+                const data = await response.json();
+                
+                if (data.success) {
+                    propostas = data.propostas.map(proposta => ({
+                        ...proposta,
+                        status: proposta.status || 'pending',
+                        createdAt: proposta.timestamp || new Date().toISOString()
+                    }));
+                    propostasFiltradas = [...propostas];
+                    
+                    // Atualizar estatísticas
+                    atualizarEstatisticas();
+                    renderizarPropostas();
+                } else {
+                    console.error('Erro ao carregar propostas:', data.error);
+                    propostas = [];
+                    propostasFiltradas = [];
+                }
+            } catch (error) {
+                console.error('Erro ao carregar propostas:', error);
+                propostas = [];
+                propostasFiltradas = [];
+            }
             atualizarEstatisticas();
             renderizarPropostas();
         }
 
         // Atualizar estatísticas
         function atualizarEstatisticas() {
-            const stats = clientManager.getStats();
+            const stats = {
+                pending: propostas.filter(p => p.status === 'pending' || p.status === 'CLIENTE_ACEITOU').length,
+                processing: propostas.filter(p => p.status === 'processing' || p.status === 'EM_DIGITACAO').length,
+                completed: propostas.filter(p => p.status === 'completed' || p.status === 'FINALIZADO').length,
+                today: propostas.filter(p => {
+                    const hoje = new Date();
+                    const dataProposta = new Date(p.createdAt);
+                    return dataProposta.toDateString() === hoje.toDateString();
+                }).length
+            };
             
-            document.getElementById('totalPendentes').textContent = stats.propostasPendentes;
-            document.getElementById('totalProcessando').textContent = stats.propostasProcessando;
-            document.getElementById('totalConcluidos').textContent = stats.propostasConcluidas;
-            document.getElementById('totalHoje').textContent = stats.totalPropostas;
+            document.getElementById('totalPendentes').textContent = stats.pending;
+            document.getElementById('totalProcessando').textContent = stats.processing;
+            document.getElementById('totalConcluidos').textContent = stats.completed;
+            document.getElementById('totalHoje').textContent = stats.today;
         }
 
         // Aplicar filtros
@@ -612,20 +649,25 @@
                             <div class="proposal-info">
                                 <div class="proposal-name">${proposta.cliente.nome}</div>
                                 <div class="proposal-details">
-                                    <span><strong>CPF:</strong> ${proposta.cliente.cpf}</span>
-                                    <span><strong>Contratos:</strong> ${proposta.contratos.length}</span>
+                                    <span><strong>CPF:</strong> ${proposta.cliente.cpf || 'N/A'}</span>
+                                    <span><strong>Contratos:</strong> ${proposta.contratos ? proposta.contratos.length : 0}</span>
                                     <span><strong>NB:</strong> ${proposta.cliente.nb || 'N/A'}</span>
                                     <span><strong>Cliente ID:</strong> ${proposta.clientId}</span>
                                 </div>
                             </div>
-                            <div class="proposal-status status-${proposta.status}">
-                                ${proposta.status === 'pending' ? 'Pendente' : 
+                            <div class="proposal-status status-${proposta.status === 'CLIENTE_ACEITOU' ? 'pending' : 
+                                 proposta.status === 'EM_DIGITACAO' ? 'processing' : 
+                                 proposta.status === 'FINALIZADO' ? 'completed' : proposta.status}">
+                                ${proposta.status === 'CLIENTE_ACEITOU' ? 'Pendente' : 
+                                  proposta.status === 'EM_DIGITACAO' ? 'Processando' : 
+                                  proposta.status === 'FINALIZADO' ? 'Concluído' : 
+                                  proposta.status === 'pending' ? 'Pendente' : 
                                   proposta.status === 'processing' ? 'Processando' : 
                                   proposta.status === 'completed' ? 'Concluído' : 'Cancelado'}
                             </div>
                         </div>
                         <div class="proposal-actions" onclick="event.stopPropagation()">
-                            ${proposta.status === 'pending' ? `
+                            ${(proposta.status === 'pending' || proposta.status === 'CLIENTE_ACEITOU') ? `
                                 <button class="btn-action btn-digitate" onclick="iniciarDigitation('${proposta.clientId}', '${proposta.id}')">
                                     <i data-feather="edit" class="feather-icon"></i>
                                     Digitar
@@ -634,7 +676,7 @@
                                     <i data-feather="x" class="feather-icon"></i>
                                     Cancelar
                                 </button>
-                            ` : proposta.status === 'processing' ? `
+                            ` : (proposta.status === 'processing' || proposta.status === 'EM_DIGITACAO') ? `
                                 <button class="btn-action btn-digitate" onclick="continuarDigitation('${proposta.clientId}', '${proposta.id}')">
                                     <i data-feather="edit" class="feather-icon"></i>
                                     Continuar

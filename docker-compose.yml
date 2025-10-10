@@ -1,39 +1,112 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  api:
-    build: .
-    container_name: api-lunas
-    restart: unless-stopped
+  # Porta 3000 - Servidor Principal (API + Simulador)
+  servidor-principal:
+    build: 
+      context: .
+      dockerfile: Dockerfile.servidor
+    ports:
+      - "3000:3000"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=servidor-principal
+    depends_on:
+      - base-dados
+    networks:
+      - lunas-network
+    volumes:
+      - ./INSS:/app/INSS
+      - ./logs:/app/logs
+
+  # Porta 3001 - CRM (Operacional)
+  crm:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    ports:
+      - "3001:3001"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=crm
+    depends_on:
+      - base-dados
+    networks:
+      - lunas-network
+    volumes:
+      - ./operacional:/app/operacional
+
+  # Porta 3002 - API + Simulador HTML (INSS)
+  api-simulador:
+    build:
+      context: .
+      dockerfile: Dockerfile.inss
+    ports:
+      - "3002:3002"
+    env_file:
+      - config-vps-restructured.env
     environment:
       - NODE_ENV=production
       - PORT=3002
-    volumes:
-      - ./var/data:/usr/src/app/var/data
-      - ./logs:/usr/src/app/logs
+      - DB_SERVICE_URL=http://base-dados:3003
+      - CONTAINER_NAME=api-simulador
+    depends_on:
+      - base-dados
     networks:
-      - web
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - lunas-network
+    volumes:
+      - ./INSS:/app/INSS
+      - ./var/data:/app/var/data
 
+  # Porta 3003 - Base de Dados (Clientes + Propostas)
+  base-dados:
+    build:
+      context: .
+      dockerfile: Dockerfile.database
+    ports:
+      - "3003:3003"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - CONTAINER_NAME=base-dados
+    networks:
+      - lunas-network
+    volumes:
+      - ./var/data:/app/var/data
+      - ./backup-data:/app/backup-data
+
+  # Nginx - Load Balancer e Proxy
   nginx:
-    image: nginx:1.25-alpine
-    container_name: lunas-nginx
-    restart: unless-stopped
+    image: nginx:alpine
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx-lunasdigital-fixed.conf:/etc/nginx/conf.d/default.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
     depends_on:
-      - api
+      - servidor-principal
+      - crm
+      - api-simulador
+      - base-dados
     networks:
-      - web
+      - lunas-network
 
 networks:
-  web:
+  lunas-network:
     driver: bridge
+
+volumes:
+  lunas-data:
+    driver: local
