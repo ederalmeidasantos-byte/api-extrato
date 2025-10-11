@@ -102,13 +102,30 @@ Os scripts mostram logs detalhados:
 - ❌ **Vermelho:** Erros
 - 📊 **Branco:** Dados e respostas
 
+## 📁 **IMPORTANTE: Estrutura de Arquivos**
+
+### **Lista Detalhada de Monitoramento**
+- **URL**: `http://72.60.159.149:3005/fgts/lista-detalhada.html`
+- **Propósito**: Monitoramento em tempo real de todos os CPFs processados
+- **Funcionalidades**: Filtros, busca, paginação, tempo real
+
+### **Arquivos de CPFs para Processar**
+- **Localização**: `/var/lib/docker/volumes/fgts_fgts-data/_data/uploads/`
+- **Formato**: `CPF;TELEFONE;ID`
+- **Total**: 3507 CPFs por arquivo
+- **⚠️ NÃO CONFUNDIR**: Com `LISTA-FGTS.csv` (que é para buscar IDs da KENTRO)
+
+### **Documentação Completa**
+- **README Estrutura**: `README-ESTRUTURA-ARQUIVOS.md` - Documentação completa sobre listas e arquivos
+
 ## 🎯 Próximos Passos
 
 Após o deploy:
 1. Acesse: http://72.60.159.149:3005
-2. Verifique os contadores
-3. Teste o botão "Iniciar Processamento"
-4. Monitore os logs em tempo real
+2. **Lista Detalhada**: http://72.60.159.149:3005/fgts/lista-detalhada.html
+3. Verifique os contadores
+4. Teste o botão "Iniciar Processamento"
+5. Monitore os logs em tempo real
 
 ## 🔄 Workflow Recomendado
 
