@@ -2630,7 +2630,7 @@ function abrirDigitarManual() {
     const propostaId = `proposta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Salvar dados da proposta no localStorage (modo antigo)
-    const dadosProposta = {
+    const dadosPropostaAntigo = {
         id: propostaId,
         cliente: {
             ...cliente,
@@ -2644,7 +2644,7 @@ function abrirDigitarManual() {
     
     // Salvar proposta no servidor
     console.log('💾 Salvando proposta:', propostaId);
-    console.log('📋 Dados da proposta:', dadosProposta);
+    console.log('📋 Dados da proposta:', dadosPropostaAntigo);
     
     fetch('/api/salvar-proposta', {
         method: 'POST',
@@ -2653,7 +2653,7 @@ function abrirDigitarManual() {
         },
         body: JSON.stringify({
             propostaId: propostaId,
-            dados: dadosProposta
+            dados: dadosPropostaAntigo
         })
     })
     .then(response => {
