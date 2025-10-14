@@ -91,7 +91,6 @@ export const RoteiroBancosSimulador = {
     ],
     naoPorta: [
       { codigo: "012", nome: "INBURSA" },
-      { codigo: "121", nome: "AGIBANK" },
       { codigo: "925", nome: "BRB" }
     ],
     idade: "21 a 73 anos",
