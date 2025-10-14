@@ -25,6 +25,13 @@
 - **Processar CPFs**: http://72.60.159.149/api/processar-cpfs
 - **Status Processamento**: http://72.60.159.149/api/status-processamento
 
+### **📱 WhatsApp Dispatcher:**
+- **Interface**: http://72.60.159.149/whatsapp/
+- **API Status**: http://72.60.159.149/whatsapp/api/status
+- **API Disparar**: http://72.60.159.149/whatsapp/api/disparar
+- **API Histórico**: http://72.60.159.149/whatsapp/api/historico
+- **Logs SSE**: http://72.60.159.149/whatsapp/api/logs
+
 ---
 
 ## 📊 **ENDPOINTS DETALHADOS**

@@ -24,6 +24,9 @@
 │  🗄️ base-dados-lunasdigital (Porta 3003)                      │
 │     └── API de dados (clientes/propostas)                      │
 ├─────────────────────────────────────────────────────────────────┤
+│  📱 whatsapp-dispatcher (Porta 3004) - NOVO                   │
+│     └── Sistema de disparo WhatsApp via API Kentro            │
+├─────────────────────────────────────────────────────────────────┤
 │  🐳 portainer-lunasdigital (Porta 9000)                        │
 │     └── Interface de gerenciamento Docker                     │
 └─────────────────────────────────────────────────────────────────┘
@@ -50,6 +53,11 @@
 - **URL**: `http://72.60.159.149:3003`
 - **Container**: `base-dados-lunasdigital:3003`
 - **Função**: API de persistência de dados
+
+### **Disparador WhatsApp**
+- **URL**: `http://72.60.159.149/whatsapp/`
+- **Container**: `whatsapp-dispatcher:3004`
+- **Função**: Sistema de disparo em massa WhatsApp via API Kentro
 
 ### **Portainer**
 - **URL**: `http://72.60.159.149:9000`
