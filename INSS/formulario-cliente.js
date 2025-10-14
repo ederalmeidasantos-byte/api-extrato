@@ -1228,31 +1228,41 @@ class FormularioCliente {
      * Finalizar formulário
      */
     async submitForm() {
+        console.log('🚀 Iniciando finalização do formulário...');
+        
         if (!this.validateCurrentStep()) {
+            console.log('❌ Validação da etapa atual falhou');
             return;
         }
         
         try {
+            console.log('⏳ Mostrando loading...');
             this.showLoading('Finalizando cadastro...');
             
+            console.log('💾 Salvando dados da última etapa...');
             // Salvar dados da última etapa
             this.saveCurrentStepData();
             
+            console.log('🔍 Validando dados completos...');
             // Validar dados completos
             if (!this.validateCompleteForm()) {
+                console.log('❌ Validação completa falhou');
                 this.hideLoading();
                 return;
             }
             
+            console.log('✅ Validação completa passou, salvando no sistema operacional...');
             // Salvar no sistema operacional
             await this.saveToOperationalSystem();
             
+            console.log('📊 Atualizando status para formulário completo...');
             // Atualizar status para formulário completo
             this.updateStatus('FORMULARIO_COMPLETO', {
                 formCompleted: true,
                 finalFormData: this.formData
             });
             
+            console.log('🎉 Redirecionando para página de sucesso...');
             // Redirecionar para sucesso
             this.showSuccessPage();
             
@@ -1260,6 +1270,7 @@ class FormularioCliente {
             console.error('❌ Erro ao finalizar formulário:', error);
             this.showError(`Erro ao finalizar: ${error.message}`);
         } finally {
+            console.log('🏁 Finalizando processo...');
             this.hideLoading();
         }
     }
@@ -1392,43 +1403,80 @@ class FormularioCliente {
      * Exibir página de sucesso
      */
     showSuccessPage() {
-        // Gerar IDs únicos para cliente e proposta
-        const clientId = `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const proposalId = `proposta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('🎉 Exibindo página de sucesso...');
         
-        document.body.innerHTML = `
-            <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <div style="background: white; border-radius: 16px; padding: 3rem; text-align: center; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
-                    <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; color: white; font-size: 2rem;">
-                        ✓
-                    </div>
-                    <h1 style="color: #1e293b; margin-bottom: 1rem;">🎉 Cadastro Concluído!</h1>
-                    <p style="color: #64748b; margin-bottom: 2rem; line-height: 1.6;">
-                        Seus dados foram salvos com sucesso! Nossa equipe irá analisar sua proposta e entrar em contato em breve.
-                    </p>
-                    
-                    <!-- Informações do Cliente -->
-                    <div style="background: #f8fafc; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; text-align: left;">
-                        <h3 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.1rem;">📋 Dados Salvos:</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.9rem;">
-                            <div><strong>Nome:</strong> ${this.formData.nome || 'N/A'}</div>
-                            <div><strong>CPF:</strong> ${this.formData.cpf || 'N/A'}</div>
-                            <div><strong>Telefone:</strong> ${this.formData.telefone || 'N/A'}</div>
-                            <div><strong>ID Cliente:</strong> ${clientId}</div>
+        try {
+            // Gerar IDs únicos para cliente e proposta
+            const clientId = this.realClientId || `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const proposalId = this.realProposalId || `proposta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            console.log('🆔 IDs gerados:', { clientId, proposalId });
+            
+            // Criar HTML da página de sucesso
+            const successHTML = `
+                <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    <div style="background: white; border-radius: 16px; padding: 3rem; text-align: center; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; color: white; font-size: 2rem;">
+                            ✓
+                        </div>
+                        <h1 style="color: #1e293b; margin-bottom: 1rem;">🎉 Cadastro Concluído!</h1>
+                        <p style="color: #64748b; margin-bottom: 2rem; line-height: 1.6;">
+                            Seus dados foram salvos com sucesso! Nossa equipe irá analisar sua proposta e entrar em contato em breve.
+                        </p>
+                        
+                        <!-- Informações do Cliente -->
+                        <div style="background: #f8fafc; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; text-align: left;">
+                            <h3 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.1rem;">📋 Dados Salvos:</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.9rem;">
+                                <div><strong>Nome:</strong> ${this.formData.nome || 'N/A'}</div>
+                                <div><strong>CPF:</strong> ${this.formData.cpf || 'N/A'}</div>
+                                <div><strong>Telefone:</strong> ${this.formData.telefone || 'N/A'}</div>
+                                <div><strong>ID Cliente:</strong> ${clientId}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            <a href="/detalhesdaproposta/${proposalId}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                                📋 Ver Detalhes da Proposta
+                            </a>
+                            <a href="/operacional/digitation-interface.html?clientId=${clientId}&propostaId=${proposalId}" style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                                💬 Preparar WhatsApp
+                            </a>
+                        </div>
+                        
+                        <!-- Botão WhatsApp Direto -->
+                        <div style="margin-top: 2rem;">
+                            <a href="https://wa.me/+551151965926?text=Finalizei%20a%20proposta%20${clientId}%2C%20aguardo%20o%20link." 
+                               style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 1.1rem; display: inline-block; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);"
+                               target="_blank">
+                                📱 Falar no WhatsApp
+                            </a>
                         </div>
                     </div>
-                    
-                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                        <a href="/detalhesdaproposta/${this.realProposalId || proposalId}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                            📋 Ver Detalhes da Proposta
-                        </a>
-                        <a href="/operacional/digitation-interface.html?clientId=${this.realClientId || clientId}&propostaId=${this.realProposalId || proposalId}" style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                            💬 Preparar WhatsApp
-                        </a>
-                    </div>
                 </div>
-            </div>
-        `;
+            `;
+            
+            // Substituir conteúdo da página
+            document.body.innerHTML = successHTML;
+            
+            console.log('✅ Página de sucesso exibida com sucesso!');
+            
+        } catch (error) {
+            console.error('❌ Erro ao exibir página de sucesso:', error);
+            
+            // Fallback simples
+            document.body.innerHTML = `
+                <div style="padding: 2rem; text-align: center; font-family: Arial, sans-serif;">
+                    <h1 style="color: #10b981;">✅ Formulário Enviado!</h1>
+                    <p>Seus dados foram salvos com sucesso.</p>
+                    <a href="https://wa.me/+551151965926?text=Finalizei%20a%20proposta" 
+                       style="background: #25d366; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 1rem; display: inline-block;"
+                       target="_blank">
+                        📱 Falar no WhatsApp
+                    </a>
+                </div>
+            `;
+        }
     }
 
     /**
