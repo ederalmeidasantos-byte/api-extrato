@@ -1382,10 +1382,13 @@
             });
 
             // Adicionar listener para o label (correção do upload)
-            document.querySelector('label[for="csvFile"]').addEventListener('click', (e) => {
-                console.log('🔍 [FGTS] Label clicado!');
-                csvFile.click();
-            });
+            const fileLabel = document.querySelector('label[for="csvFile"]');
+            if (fileLabel) {
+                fileLabel.addEventListener('click', (e) => {
+                    console.log('🔍 [FGTS] Label clicado!');
+                    csvFile.click();
+                });
+            }
 
             // Process button
             btnProcessar.addEventListener('click', async () => {
