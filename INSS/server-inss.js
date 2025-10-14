@@ -82,6 +82,9 @@ app.use('/inss', express.static(path.join(__dirname)));
 // Servir arquivos estáticos na raiz também (para compatibilidade)
 app.use('/', express.static(path.join(__dirname)));
 
+// Servir arquivos estáticos da pasta var/data
+app.use('/inss', express.static(path.join(__dirname, '..', 'var', 'data')));
+
 // Rota principal do simulador
 app.get('/inss/simulador.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'simulador.html'));
@@ -89,7 +92,7 @@ app.get('/inss/simulador.html', (req, res) => {
 
 // Rota para detalhes da proposta (com ID)
 app.get('/detalhesdaproposta/:id', (req, res) => {
-  res.sendFile(path.join(__dirname, 'detalhes-proposta-padronizado.html'));
+  res.sendFile(path.join(__dirname, 'detalhesdaproposta.html'));
 });
 
 // Rota para detalhes da proposta (sem ID - compatibilidade)
@@ -524,6 +527,8 @@ app.get('/api/calcular/:fileId', async (req, res) => {
       return res.status(404).json({ error: 'Extrato não encontrado' });
     }
 
+    // Importar dinamicamente para garantir que a função esteja disponível
+    const { calcularTrocoEndpoint } = await import('./calculo.js');
     const calcularTroco = calcularTrocoEndpoint(
       path.join(__dirname, '..', 'var', 'data', 'extratos')
     );
