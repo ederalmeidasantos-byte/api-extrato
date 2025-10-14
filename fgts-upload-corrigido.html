@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FGTS - Teste Upload Corrigido</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .upload-section {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .upload-section.dragover {
+            border-color: #27ae60;
+            background-color: #d5f4e6;
+        }
+        .upload-section.file-selected {
+            border-color: #27ae60;
+            background-color: #d5f4e6;
+            border-style: solid;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 400px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d5f4e6;
+            color: #27ae60;
+            border: 1px solid #27ae60;
+        }
+        .status.error {
+            background-color: #fadbd8;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+        .status.info {
+            background-color: #d6eaf8;
+            color: #2980b9;
+            border: 1px solid #2980b9;
+        }
+        .counters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .counter {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .counter h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .counter .number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .results-table th,
+        .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .results-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .logs {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .file-info {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 FGTS - Teste Upload Corrigido</h1>
+        
+        <div class="upload-section" id="uploadArea">
+            <h3>📁 Arraste seu arquivo CSV aqui ou clique para selecionar</h3>
+            <input type="file" id="csvFile" accept=".csv" />
+            <div id="fileInfo" class="file-info" style="display: none;"></div>
+            <br>
+            <button onclick="uploadFile()" id="uploadBtn">📤 Enviar Arquivo</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div class="counters" id="counters">
+            <div class="counter">
+                <h3>✅ Sucessos</h3>
+                <div class="number" id="sucessos">0</div>
+            </div>
+            <div class="counter">
+                <h3>⏳ Pendentes</h3>
+                <div class="number" id="pendentes">0</div>
+            </div>
+            <div class="counter">
+                <h3>❌ Não Autorizados</h3>
+                <div class="number" id="naoAutorizados">0</div>
+            </div>
+            <div class="counter">
+                <h3>🗑️ Descartados</h3>
+                <div class="number" id="descartados">0</div>
+            </div>
+            <div class="counter">
+                <h3>📅 Agendados</h3>
+                <div class="number" id="agendados">0</div>
+            </div>
+            <div class="counter">
+                <h3>📊 Total</h3>
+                <div class="number" id="total">0</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button onclick="checkStatus()">🔄 Atualizar Status</button>
+            <button onclick="startMonitoring()" id="monitorBtn">👁️ Monitorar</button>
+            <button onclick="stopMonitoring()" id="stopBtn" disabled>⏹️ Parar Monitoramento</button>
+            <button onclick="showResults()" id="resultsBtn">📋 Ver Resultados</button>
+        </div>
+        
+        <div id="resultsSection" style="display: none;">
+            <h3>📊 Resultados Detalhados</h3>
+            <table class="results-table" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>CPF</th>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Valor</th>
+                        <th>Provider</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="logs" id="logs">
+            <div>📝 Logs do sistema aparecerão aqui...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://72.60.159.149:5000';
+        let monitoringInterval = null;
+        let allResults = [];
+        
+        // Drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('csvFile');
+        const fileInfo = document.getElementById('fileInfo');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        });
+        
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            console.log('Arquivo selecionado:', e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+                showFileInfo(e.target.files[0]);
+                log(`📁 Arquivo selecionado: ${e.target.files[0].name}`);
+            } else {
+                uploadArea.classList.remove('file-selected');
+                fileInfo.style.display = 'none';
+                log('❌ Nenhum arquivo selecionado');
+            }
+        });
+        
+        function showFileInfo(file) {
+            uploadArea.classList.add('file-selected');
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `
+                <strong>📄 Arquivo selecionado:</strong> ${file.name}<br>
+                <strong>📏 Tamanho:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                <strong>📅 Última modificação:</strong> ${new Date(file.lastModified).toLocaleString()}
+            `;
+        }
+        
+        function log(message) {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logsDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        async function uploadFile() {
+            const fileInput = document.getElementById('csvFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            console.log('Tentando fazer upload...');
+            console.log('Arquivos disponíveis:', fileInput.files);
+            console.log('Número de arquivos:', fileInput.files.length);
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('❌ Por favor, selecione um arquivo CSV', 'error');
+                log('❌ Nenhum arquivo selecionado para upload');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            console.log('Arquivo selecionado:', file);
+            
+            if (!file) {
+                showStatus('❌ Arquivo não encontrado', 'error');
+                log('❌ Arquivo não encontrado');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('csvfile', file);
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Enviando...';
+            
+            try {
+                log('🚀 Iniciando upload do arquivo...');
+                log(`📄 Arquivo: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+                
+                const response = await fetch(`${API_BASE}/fgts/run`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('✅ Upload realizado com sucesso! Processamento iniciado...', 'success');
+                    log(`✅ Resposta: ${result.message}`);
+                    
+                    // Aguardar um pouco e verificar processamento
+                    setTimeout(() => {
+                        checkStatus();
+                        log('🔄 Verificando processamento...');
+                    }, 3000);
+                    
+                } else {
+                    showStatus(`❌ Erro no upload: ${result.message || 'Erro desconhecido'}`, 'error');
+                    log(`❌ Erro: ${JSON.stringify(result)}`);
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Erro de conexão: ${error.message}`, 'error');
+                log(`❌ Erro de conexão: ${error.message}`);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '📤 Enviar Arquivo';
+            }
+        }
+        
+        async function checkStatus() {
+            try {
+                log('📊 Verificando contadores...');
+                
+                const response = await fetch(`${API_BASE}/fgts/contadores-tempo-real`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.estatisticas;
+                    
+                    document.getElementById('sucessos').textContent = stats.sucessos || 0;
+                    document.getElementById('pendentes').textContent = stats.pendentes || 0;
+                    document.getElementById('naoAutorizados').textContent = stats.naoAutorizados || 0;
+                    document.getElementById('descartados').textContent = stats.descartados || 0;
+                    document.getElementById('agendados').textContent = stats.agendados || 0;
+                    document.getElementById('total').textContent = stats.total || 0;
+                    
+                    log(`📈 Contadores atualizados: ${stats.total} total`);
+                    
+                    if (stats.total > 0) {
+                        showStatus(`📊 Processamento em andamento: ${stats.total} registros`, 'info');
+                    }
+                } else {
+                    log('❌ Erro ao obter contadores');
+                }
+                
+                // Buscar resultados detalhados
+                const listaResponse = await fetch(`${API_BASE}/fgts/lista-completa`);
+                const listaData = await listaResponse.json();
+                
+                if (listaData.success) {
+                    allResults = [];
+                    Object.keys(listaData.listas).forEach(key => {
+                        if (Array.isArray(listaData.listas[key])) {
+                            listaData.listas[key].forEach(item => {
+                                allResults.push({
+                                    ...item,
+                                    categoria: key
+                                });
+                            });
+                        }
+                    });
+                    log(`📋 ${allResults.length} resultados carregados`);
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao verificar status: ${error.message}`);
+            }
+        }
+        
+        function showResults() {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsBody = document.getElementById('resultsBody');
+            
+            if (allResults.length === 0) {
+                showStatus('❌ Nenhum resultado encontrado', 'error');
+                return;
+            }
+            
+            resultsBody.innerHTML = '';
+            allResults.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${result.cpf}</td>
+                    <td>${result.id}</td>
+                    <td>${getStatusIcon(result.status)} ${result.status}</td>
+                    <td>R$ ${result.valor}</td>
+                    <td>${result.provider}</td>
+                    <td>${new Date(result.timestamp).toLocaleString()}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+            
+            resultsSection.style.display = 'block';
+            showStatus(`📊 ${allResults.length} resultados exibidos`, 'success');
+        }
+        
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'success': return '✅';
+                case 'no_auth': return '❌';
+                case 'descartado': return '🗑️';
+                case 'agendado': return '📅';
+                default: return '❓';
+            }
+        }
+        
+        function startMonitoring() {
+            const monitorBtn = document.getElementById('monitorBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            monitorBtn.disabled = true;
+            stopBtn.disabled = false;
+            
+            log('👁️ Iniciando monitoramento automático...');
+            
+            monitoringInterval = setInterval(() => {
+                checkStatus();
+            }, 5000);
+        }
+        
+        function stopMonitoring() {
+            const monitorBtn = document.getElementById('monitorBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            monitorBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+                log('⏹️ Monitoramento parado');
+            }
+        }
+        
+        // Verificar status inicial
+        window.onload = function() {
+            log('🌐 Página carregada, verificando status inicial...');
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

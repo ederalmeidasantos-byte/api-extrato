@@ -1,0 +1,30 @@
+{
+  "name": "fgts-service-lunas-digital",
+  "version": "1.0.0",
+  "description": "Servidor FGTS integrado ao sistema Lunas Digital",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node --max-old-space-size=1024 --expose-gc server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "axios": "^1.12.2",
+    "csv-parse": "^6.1.0",
+    "qs": "^6.14.0",
+    "https-proxy-agent": "^7.0.6",
+    "dotenv": "^16.6.1",
+    "node-fetch": "^3.3.2",
+    "form-data": "^4.0.4",
+    "p-queue": "^7.4.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["fgts", "cpf", "api", "docker", "lunas-digital"],
+  "author": "Lunas Digital",
+  "license": "ISC"
+}
