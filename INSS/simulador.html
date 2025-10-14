@@ -1795,9 +1795,9 @@
             
             // Aguardar um pouco para garantir que o simulador-logic.js foi carregado
             setTimeout(function() {
-                // Verificar se há parâmetro extratoId na URL
+                // Verificar se há parâmetro extrato na URL
                 const urlParams = new URLSearchParams(window.location.search);
-                const extratoId = urlParams.get('extratoId');
+                const extratoId = urlParams.get('extrato') || urlParams.get('extratoId');
                 
                 if (extratoId) {
                     console.log(`📋 Carregando simulação específica para ID: ${extratoId}`);
