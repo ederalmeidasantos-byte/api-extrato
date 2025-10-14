@@ -79,7 +79,11 @@
         }
 
         .file-input {
-            display: none;
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
         }
 
         .file-label {
@@ -1375,6 +1379,12 @@
                     fileInfo.textContent = 'Nenhum arquivo selecionado';
                     btnProcessar.disabled = true;
                 }
+            });
+
+            // Adicionar listener para o label (correção do upload)
+            document.querySelector('label[for="csvFile"]').addEventListener('click', (e) => {
+                console.log('🔍 [FGTS] Label clicado!');
+                csvFile.click();
             });
 
             // Process button
