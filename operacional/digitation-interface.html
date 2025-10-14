@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fila de Digitação - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Estilos específicos da fila de digitação */
+        .queue-filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .client-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .client-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .client-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .client-info {
+            flex: 1;
+        }
+
+        .client-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .client-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .client-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-cliente-aceitou {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-preenchendo-dados {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .client-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 1.2rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .client-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        .proposals-container {
+            display: none;
+            background: white;
+        }
+
+        .proposals-container.expanded {
+            display: block;
+        }
+
+        .proposal-item {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+        }
+
+        .proposal-item:hover {
+            background: #f8fafc;
+        }
+
+        .proposal-item:last-child {
+            border-bottom: none;
+        }
+
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .proposal-id-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .ade-number {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 0.95rem;
+        }
+
+        .banco-info {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .produto-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: white;
+        }
+
+        .proposal-id {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .proposal-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .proposal-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .empty-queue {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-queue i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .queue-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .queue-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .queue-actions {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+        }
+
+        /* Modal de Visualização */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .modal-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .modal-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .modal-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .modal-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item active" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                            <span class="nav-badge" id="digitation-badge">0</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/buscar-propostas.html" class="nav-item" data-nav="buscar-propostas">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Propostas</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Configurações -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Configurações</h4>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Status & Produtos</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                            <i data-feather="edit-3"></i>
+                            Fila de Digitação
+                        </h1>
+                        <span class="page-subtitle">Gerencie propostas aguardando digitação</span>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <button class="topbar-btn secondary" onclick="carregarFila()">
+                            <i data-feather="refresh-cw"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Filtros -->
+                <div class="queue-filters">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="search-client">Buscar Cliente</label>
+                            <input type="text" id="search-client" placeholder="Nome ou CPF do cliente..." onkeyup="filtrarFila()">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="date-filter">Data</label>
+                            <input type="date" id="date-filter" onchange="filtrarFila()">
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-secondary" onclick="limparFiltros()">
+                                <i data-feather="x"></i>
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista da Fila -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i data-feather="clock"></i>
+                            Clientes na Fila (<span id="queue-count">0</span> propostas)
+                        </h2>
+                    </div>
+                    <div class="card-content">
+                        <div id="queue-list">
+                            <!-- Carregando... -->
+                            <div class="empty-queue">
+                                <i data-feather="clock"></i>
+                                <h3>Carregando fila...</h3>
+                                <p>Aguarde enquanto carregamos as propostas.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+    <script src="/operacional/client-manager.js"></script>
+    
+    <script>
+        let clientManager;
+        let filaPropostas = [];
+        let filaFiltrada = [];
+        
+        // Inicializar Feather Icons
+        feather.replace();
+        
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Carregar ClientManager
+                if (typeof window.clientManager === 'undefined') {
+                    window.clientManager = new ClientManager();
+                }
+                clientManager = window.clientManager;
+                
+                // Carregar fila
+                await carregarFila();
+                
+                console.log('✅ Fila de digitação inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar fila:', error);
+                mostrarErro('Erro ao carregar fila de digitação');
+            }
+        });
+        
+        // Carregar propostas da fila agrupadas por cliente
+        async function carregarFila() {
+            try {
+                console.log('🔄 Carregando fila de digitação...');
+                
+                filaPropostas = [];
+                
+                // Carregar configurações de status
+                let statusConfig = {};
+                try {
+                    const response = await fetch('/api/status-config');
+                    if (response.ok) {
+                        statusConfig = await response.json();
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível carregar configurações de status');
+                }
+                
+                // Carregar propostas do servidor
+                let propostasServidor = [];
+                try {
+                    const response = await fetch('/api/propostas');
+                    if (response.ok) {
+                        const data = await response.json();
+                        propostasServidor = data.propostas || [];
+                        console.log(`📊 Carregadas ${propostasServidor.length} propostas do servidor`);
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao carregar propostas do servidor:', error);
+                    mostrarErro('Erro ao carregar propostas do servidor');
+                    return;
+                }
+                
+                // Filtrar propostas que estão na fila de digitação
+                const propostasFila = propostasServidor.filter(proposta => {
+                    const status = proposta.status || '';
+                    return status === 'Na fila' || 
+                           status === 'CLIENTE_ACEITOU' || 
+                           status === 'PREENCHENDO_DADOS' ||
+                           status === 'Em Digitação';
+                });
+                
+                console.log(`📋 ${propostasFila.length} propostas na fila de digitação`);
+                
+                // Agrupar propostas por cliente
+                const clientesComPropostas = new Map();
+                
+                propostasFila.forEach(proposta => {
+                    const clientId = proposta.clientId;
+                    
+                    if (!clientesComPropostas.has(clientId)) {
+                        // Criar cliente baseado nos dados da proposta
+                        const cliente = {
+                            id: clientId,
+                            nome: proposta.cliente?.nome || 'Cliente não informado',
+                            cpf: proposta.cliente?.cpf || 'CPF não informado',
+                            nb: proposta.cliente?.nb || 'NB não informado',
+                            telefone: proposta.cliente?.telefone || '',
+                            email: proposta.cliente?.email || '',
+                            propostas: []
+                        };
+                        
+                        clientesComPropostas.set(clientId, {
+                            cliente,
+                            propostas: [],
+                            statusFormulario: '1', // Etapa 1 - Dados
+                            dataAtualizacao: proposta.createdAt || new Date().toISOString()
+                        });
+                    }
+                    
+                    // Adicionar proposta ao cliente
+                    const clienteData = clientesComPropostas.get(clientId);
+                    clienteData.propostas.push(proposta);
+                });
+                
+                // Converter para array e ordenar por data
+                filaPropostas = Array.from(clientesComPropostas.values())
+                    .sort((a, b) => new Date(b.dataAtualizacao) - new Date(a.dataAtualizacao));
+                
+                console.log(`✅ ${filaPropostas.length} clientes na fila de digitação`);
+                
+                // Aplicar filtros atuais
+                filtrarFila();
+                
+                // Atualizar contador no menu
+                atualizarContadorFila(filaPropostas.length);
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar fila:', error);
+                mostrarErro('Erro ao carregar fila');
+            }
+        }
+        
+        function atualizarContadorFila(count) {
+            // Atualizar contador da fila no menu
+            const filaLink = document.querySelector('a[href="/operacional/digitation-interface.html"]');
+            if (filaLink) {
+                filaLink.innerHTML = `
+                    <i data-feather="edit-3"></i>
+                    <span>Fila de Digitação ${count}</span>
+                `;
+                feather.replace();
+            }
+        }
+        
+        // Filtrar fila
+        function filtrarFila() {
+            const searchFilter = document.getElementById('search-client').value.toLowerCase();
+            const dateFilter = document.getElementById('date-filter').value;
+            
+            filaFiltrada = filaPropostas.filter(item => {
+                // Filtro por busca (nome ou CPF)
+                if (searchFilter) {
+                    const nome = item.cliente.nome?.toLowerCase() || '';
+                    const cpf = item.cliente.cpf?.replace(/\D/g, '') || '';
+                    if (!nome.includes(searchFilter) && !cpf.includes(searchFilter.replace(/\D/g, ''))) {
+                        return false;
+                    }
+                }
+                
+                // Filtro por data
+                if (dateFilter) {
+                    const itemDate = item.dataAtualizacao.split('T')[0];
+                    if (itemDate !== dateFilter) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+            
+            renderizarFila();
+        }
+        
+        // Renderizar fila
+        function renderizarFila() {
+            const container = document.getElementById('queue-list');
+            const counter = document.getElementById('queue-count');
+            
+            // Contar total de propostas
+            const totalPropostas = filaFiltrada.reduce((total, item) => total + item.propostas.length, 0);
+            counter.textContent = totalPropostas;
+            
+            if (filaFiltrada.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-queue">
+                        <i data-feather="inbox"></i>
+                        <h3>Fila vazia</h3>
+                        <p>Não há propostas aguardando digitação no momento.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+            
+            const html = filaFiltrada.map(item => criarCardCliente(item)).join('');
+            container.innerHTML = html;
+            feather.replace();
+            
+            // Atualizar badge na sidebar
+            if (window.crmLayout) {
+                window.crmLayout.updateBadge('digitation', totalPropostas);
+            }
+        }
+        
+        // Criar HTML do card do cliente
+        function criarCardCliente(item) {
+            const { clientId, cliente, propostas, statusConfig } = item;
+            const dataFormatada = formatarData(item.dataAtualizacao);
+            
+            // Definir todas as propostas como "Na Fila"
+            const statusInfo = { nome: 'Na Fila', cor: '#10b981' };
+            const statusClass = 'status-na-fila';
+            const statusText = statusInfo.nome;
+            const statusCor = statusInfo.cor;
+            
+            // Criar HTML das propostas
+            const propostasHTML = propostas.map(proposta => {
+                const contratos = proposta.contratos?.length || 0;
+                const trocoTotal = proposta.contratos?.reduce((sum, c) => sum + (c.simulacao?.troco || 0), 0) || 0;
+                
+                // Obter status da proposta
+                const propostaStatus = proposta.statusProposta || '1';
+                const propostaStatusInfo = obterStatusInfo(propostaStatus, statusConfig, 'proposta');
+                const propostaStatusClass = `status-${propostaStatus}`;
+                const propostaStatusText = propostaStatusInfo.nome;
+                const propostaStatusCor = propostaStatusInfo.cor;
+                
+                // Obter produto da proposta
+                const produtoId = proposta.statusProdutos || proposta.produto || '1';
+                const produtoInfo = obterStatusInfo(produtoId, statusConfig, 'produtos');
+                const produtoText = produtoInfo.nome;
+                
+                return `
+                    <div class="proposal-item">
+                        <div class="proposal-header">
+                            <div class="proposal-id-info">
+                                <span class="ade-number">ADE: ${proposta.id}</span>
+                                <span class="banco-info">BANCO: ${proposta.bancoNovo || 'N/A'}</span>
+                                <span class="produto-badge" style="background-color: ${produtoInfo.cor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; font-size: 0.85rem;">
+                                    ${produtoText.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="proposal-status" style="background-color: ${propostaStatusCor}">
+                                ${propostaStatusText}
+                            </div>
+                        </div>
+                        
+                        <div class="proposal-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Banco Atual</span>
+                                <span class="detail-value">${proposta.bancoAtual || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Parcela</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.parcelaAtual || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} → R$ ${parseFloat(proposta.parcelaNova || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Prazo</span>
+                                <span class="detail-value">${proposta.prazoAtual || 0}x → ${proposta.prazoNovo || 0}x</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Troco</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.trocoTotal || trocoTotal || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Saldo Devedor</span>
+                                <span class="detail-value">R$ ${parseFloat(proposta.saldoDevedor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Contrato</span>
+                                <span class="detail-value">${proposta.numeroContrato || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Data</span>
+                                <span class="detail-value">${formatarData(proposta.dataAtualizacao || proposta.dataCriacao)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="proposal-actions">
+                            <button class="btn btn-secondary" onclick="visualizarProposta('${clientId}', '${proposta.id}')">
+                                <i data-feather="eye"></i>
+                                Visualizar
+                            </button>
+                            
+                            <button class="btn btn-danger" onclick="excluirProposta('${clientId}', '${proposta.id}')">
+                                <i data-feather="trash-2"></i>
+                                Excluir
+                            </button>
+                            
+                            <button class="btn btn-primary" onclick="abrirTelaDigitação('${clientId}', '${proposta.id}')">
+                                <i data-feather="edit-3"></i>
+                                Digitar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="client-card">
+                    <div class="client-header" onclick="toggleClientProposals('${clientId}')">
+                        <div class="client-info">
+                            <div class="client-name">${cliente.nome || 'Nome não informado'}</div>
+                            <div class="client-meta">
+                                <span><i data-feather="user" style="width: 14px; height: 14px;"></i> ${cliente.cpf || 'CPF não informado'}</span>
+                                <span><i data-feather="calendar" style="width: 14px; height: 14px;"></i> ${dataFormatada}</span>
+                                <span><i data-feather="hash" style="width: 14px; height: 14px;"></i> ${propostas.length} proposta(s)</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div class="client-status" style="background-color: ${statusCor}">
+                                ${statusText}
+                            </div>
+                            <button class="client-toggle" id="toggle-${clientId}" onclick="event.stopPropagation(); toggleClientProposals('${clientId}')">
+                                <i data-feather="chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="proposals-container" id="proposals-${clientId}">
+                        ${propostasHTML}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Visualizar proposta em modal
+        async function visualizarProposta(clientId, propostaId) {
+            try {
+                // Buscar dados do cliente
+                const response = await fetch(`/api/clientes/${clientId}`);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar dados do cliente');
+                }
+                
+                const clientData = await response.json();
+                const cliente = clientData.cliente || clientData;
+                const proposta = cliente.propostas?.find(p => p.id === propostaId);
+                
+                if (!proposta) {
+                    alert('Proposta não encontrada');
+                    return;
+                }
+                
+                // Preencher dados do cliente
+                document.getElementById('modalClienteData').innerHTML = `
+                    <div class="modal-item">
+                        <span class="modal-label">Nome</span>
+                        <span class="modal-value">${cliente.nome || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">CPF</span>
+                        <span class="modal-value">${cliente.cpf || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Telefone</span>
+                        <span class="modal-value">${cliente.telefone || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Email</span>
+                        <span class="modal-value">${cliente.email || 'Não informado'}</span>
+                    </div>
+                `;
+                
+                // Preencher dados da proposta
+                document.getElementById('modalPropostaData').innerHTML = `
+                    <div class="modal-item">
+                        <span class="modal-label">Valor</span>
+                        <span class="modal-value">R$ ${proposta.valor || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Banco</span>
+                        <span class="modal-value">${proposta.banco || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Prazo</span>
+                        <span class="modal-value">${proposta.prazo || 'Não informado'} parcelas</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Status</span>
+                        <span class="modal-value">${proposta.status || 'Na Fila'}</span>
+                    </div>
+                `;
+                
+                // Preencher dados do benefício
+                const beneficio = cliente.beneficio || {};
+                document.getElementById('modalBeneficioData').innerHTML = `
+                    <div class="modal-item">
+                        <span class="modal-label">NB</span>
+                        <span class="modal-value">${beneficio.nb || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Espécie</span>
+                        <span class="modal-value">${beneficio.especie || 'Não informado'}</span>
+                    </div>
+                    <div class="modal-item">
+                        <span class="modal-label">Margem Disponível</span>
+                        <span class="modal-value">R$ ${cliente.margens?.margem_disponivel_empretimo || '0,00'}</span>
+                    </div>
+                `;
+                
+                // Mostrar modal
+                document.getElementById('proposalModal').style.display = 'flex';
+                feather.replace();
+                
+            } catch (error) {
+                console.error('Erro ao visualizar proposta:', error);
+                alert('Erro ao carregar dados da proposta');
+            }
+        }
+        
+        // Excluir proposta
+        async function excluirProposta(clientId, propostaId) {
+            if (!confirm('Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/clientes/${clientId}/propostas/${propostaId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao excluir proposta');
+                }
+                
+                // Recarregar fila
+                await carregarFila();
+                alert('Proposta excluída com sucesso!');
+                
+            } catch (error) {
+                console.error('Erro ao excluir proposta:', error);
+                alert('Erro ao excluir proposta. Tente novamente.');
+            }
+        }
+        
+        // Abrir tela de digitação
+        function abrirTelaDigitação(clientId, propostaId) {
+            window.location.href = `/operacional/digitar-proposta.html?clientId=${clientId}&proposalId=${propostaId}`;
+        }
+
+        // Toggle propostas do cliente
+        function toggleClientProposals(clientId) {
+            const container = document.getElementById(`proposals-${clientId}`);
+            const toggle = document.getElementById(`toggle-${clientId}`);
+            
+            container.classList.toggle('expanded');
+            
+            const icon = toggle.querySelector('i');
+            if (container.classList.contains('expanded')) {
+                icon.setAttribute('data-feather', 'chevron-up');
+            } else {
+                icon.setAttribute('data-feather', 'chevron-down');
+            }
+            
+            feather.replace();
+        }
+
+        // Obter informações do status
+        function obterStatusInfo(statusId, statusConfig, tipo) {
+            // Se statusConfig não estiver disponível, usar valores padrão
+            if (!statusConfig) {
+                return {
+                    id: statusId,
+                    nome: 'Etapa 1 - Dados',
+                    descricao: 'Cliente preenchendo dados pessoais',
+                    cor: '#3b82f6',
+                    corNome: 'Azul'
+                };
+            }
+            
+            // Mapear tipo para a chave correta no status-config.json
+            let tipoKey;
+            if (tipo === 'produtos') {
+                tipoKey = 'produtos'; // produtos usa a chave "produtos" direto
+            } else {
+                tipoKey = `status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
+            }
+            
+            const statusList = statusConfig[tipoKey] || {};
+            const status = statusList[statusId] || statusList['1'] || {};
+            
+            return {
+                id: status.id || statusId,
+                nome: status.nome || 'Status Desconhecido',
+                descricao: status.descricao || '',
+                cor: status.cor || '#6b7280',
+                corNome: status.corNome || 'Cinza',
+                ativo: status.ativo !== false
+            };
+        }
+        
+        // Limpar filtros
+        function limparFiltros() {
+            document.getElementById('status-filter').value = '';
+            document.getElementById('search-client').value = '';
+            document.getElementById('date-filter').value = '';
+            filtrarFila();
+        }
+        
+        // Formatar data
+        function formatarData(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            const container = document.getElementById('queue-list');
+            container.innerHTML = `
+                <div class="empty-queue">
+                    <i data-feather="alert-circle" style="color: #ef4444;"></i>
+                    <h3>Erro</h3>
+                    <p>${mensagem}</p>
+                    <button class="btn btn-primary" onclick="carregarFila()" style="margin-top: 1rem;">
+                        <i data-feather="refresh-cw"></i>
+                        Tentar Novamente
+                    </button>
+                </div>
+            `;
+            feather.replace();
+        }
+        
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+        
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+
+    <!-- Modal de Visualização de Proposta -->
+    <div class="modal-overlay" id="proposalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Detalhes da Proposta</h2>
+                <button class="modal-close" onclick="fecharModalProposta()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            
+            <div class="modal-section">
+                <h3><i data-feather="user"></i> Dados do Cliente</h3>
+                <div class="modal-grid" id="modalClienteData">
+                    <!-- Dados do cliente serão preenchidos aqui -->
+                </div>
+            </div>
+            
+            <div class="modal-section">
+                <h3><i data-feather="file-text"></i> Dados da Proposta</h3>
+                <div class="modal-grid" id="modalPropostaData">
+                    <!-- Dados da proposta serão preenchidos aqui -->
+                </div>
+            </div>
+            
+            <div class="modal-section">
+                <h3><i data-feather="credit-card"></i> Dados do Benefício</h3>
+                <div class="modal-grid" id="modalBeneficioData">
+                    <!-- Dados do benefício serão preenchidos aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
