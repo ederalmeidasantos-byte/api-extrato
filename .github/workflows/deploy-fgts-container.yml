@@ -1,0 +1,214 @@
+name: 🚀 Deploy Container FGTS - Porta 5000
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'fgts/**'
+      - 'cpfs.csv'
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  deploy-fgts-container:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 72.60.159.149 >> ~/.ssh/known_hosts
+        
+    - name: 📤 Deploy dos arquivos FGTS
+      run: |
+        echo "🚀 Iniciando deploy do container FGTS..."
+        
+        # Criar diretório no VPS
+        ssh root@72.60.159.149 "mkdir -p /opt/lunas-digital/fgts-service"
+        
+        # Arquivos para deploy
+        FILES=(
+          "fgts/server.js"
+          "fgts/fgts_csv.js"
+          "fgts/index.html"
+          "fgts/error-logger.js"
+          "fgts/cache-persistente.js"
+          "fgts/proxy-config.js"
+          "cpfs.csv"
+        )
+        
+        # Deploy de cada arquivo
+        for file in "${FILES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "📄 Deploy: $file"
+            scp "$file" root@72.60.159.149:/opt/lunas-digital/fgts-service/
+          else
+            echo "⚠️ Arquivo não encontrado: $file"
+          fi
+        done
+        
+    - name: 📦 Criar package.json
+      run: |
+        echo "📦 Criando package.json..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/fgts-service/package.json << 'EOF'
+{
+  \"name\": \"fgts-service-lunas-digital\",
+  \"version\": \"1.0.0\",
+  \"description\": \"Servidor FGTS integrado ao sistema Lunas Digital\",
+  \"main\": \"server.js\",
+  \"type\": \"module\",
+  \"scripts\": {
+    \"start\": \"node --max-old-space-size=1024 --expose-gc server.js\"
+  },
+  \"dependencies\": {
+    \"express\": \"^4.21.2\",
+    \"socket.io\": \"^4.8.1\",
+    \"multer\": \"^1.4.5-lts.1\",
+    \"cors\": \"^2.8.5\",
+    \"axios\": \"^1.12.2\",
+    \"csv-parse\": \"^6.1.0\",
+    \"qs\": \"^6.14.0\",
+    \"https-proxy-agent\": \"^7.0.6\",
+    \"dotenv\": \"^16.6.1\",
+    \"node-fetch\": \"^3.3.2\",
+    \"form-data\": \"^4.0.4\"
+  },
+  \"engines\": {
+    \"node\": \">=18.0.0\"
+  },
+  \"keywords\": [\"fgts\", \"cpf\", \"api\", \"docker\", \"lunas-digital\"],
+  \"author\": \"Lunas Digital\",
+  \"license\": \"ISC\"
+}
+EOF"
+        
+    - name: ⚙️ Criar arquivo .env
+      run: |
+        echo "⚙️ Criando arquivo .env..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/fgts-service/.env << 'EOF'
+NODE_ENV=production
+PORT=5000
+
+# Integração Lunas Digital
+LUNAS_DIGITAL_SYSTEM=true
+CONTAINER_NAME=fgts-service-lunas-digital
+
+# API Kentro
+LUNAS_API_KEY=cd4d0509169d4e2ea9177ac66c1c9376
+LUNAS_API_URL=https://lunasdigital.atenderbem.com/int/downloadFile
+LUNAS_QUEUE_ID=25
+QUEUE_ID=25
+
+# Credenciais FGTS (4 usuários)
+FGTS_USER_1=crislunasdigital@gmail.com
+FGTS_PASS_1=7.O?v>coI>5E
+FGTS_USER_2=leemarsiglia@gmail.com
+FGTS_PASS_2=H^UnXygvOv)6
+FGTS_USER_3=srcor1@hotmail.com
+FGTS_PASS_3=\"ty#lN6z1\"
+FGTS_USER_4=crislunasdigital@gmail.com
+FGTS_PASS_4=7.O?v>coI>5E
+
+# Configurações FGTS
+PROVIDER=cartos
+DEST_STAGE_ID=4
+CSV_FILE=cpfs.csv
+EOF"
+        
+    - name: 🐳 Criar Dockerfile
+      run: |
+        echo "🐳 Criando Dockerfile..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/fgts-service/Dockerfile << 'EOF'
+FROM node:18-alpine
+
+RUN apk add --no-cache curl bash
+
+RUN addgroup -g 1001 -S nodejs && \\
+    adduser -S fgts -u 1001
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --only=production && npm cache clean --force
+
+COPY . ./
+
+RUN mkdir -p /var/data/cache && \\
+    mkdir -p uploads && \\
+    chown -R fgts:nodejs /app && \\
+    chown -R fgts:nodejs /var/data
+
+USER fgts
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
+    CMD curl -f http://localhost:5000/health || exit 1
+
+CMD [\"node\", \"--max-old-space-size=1024\", \"--expose-gc\", \"server.js\"]
+EOF"
+        
+    - name: 🏗️ Build da imagem Docker
+      run: |
+        echo "🏗️ Fazendo build da imagem Docker..."
+        ssh root@72.60.159.149 "cd /opt/lunas-digital/fgts-service && docker build -t fgts-service-lunas-digital ."
+        
+    - name: 🛑 Parar container existente
+      run: |
+        echo "🛑 Parando container existente..."
+        ssh root@72.60.159.149 "docker stop fgts-service-lunas-digital 2>/dev/null || true"
+        ssh root@72.60.159.149 "docker rm fgts-service-lunas-digital 2>/dev/null || true"
+        
+    - name: 🚀 Executar container
+      run: |
+        echo "🚀 Executando container FGTS..."
+        ssh root@72.60.159.149 "docker run -d --name fgts-service-lunas-digital --restart unless-stopped -p 5000:5000 --env-file /opt/lunas-digital/fgts-service/.env -v /var/data/lunas-digital/fgts/cache:/var/data/cache -v /var/data/lunas-digital/fgts/uploads:/app/uploads -v /var/logs/lunas-digital/fgts:/app/logs --network lunas-network fgts-service-lunas-digital"
+        
+        echo "⏳ Aguardando container inicializar..."
+        sleep 15
+        
+    - name: 🧪 Testar API
+      run: |
+        echo "🔍 Verificando status do container..."
+        ssh root@72.60.159.149 "docker ps | grep fgts-service-lunas-digital"
+        
+        echo "🧪 Testando API..."
+        API_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:5000/fgts/status")
+        echo "📊 Resposta da API: $API_RESPONSE"
+        
+        # Verificar se API está respondendo
+        if [[ $API_RESPONSE == *"online"* ]]; then
+          echo "✅ API funcionando corretamente!"
+        else
+          echo "❌ API não está respondendo corretamente"
+          echo "📋 Verificando logs..."
+          ssh root@72.60.159.149 "docker logs fgts-service-lunas-digital --tail 20"
+          exit 1
+        fi
+        
+    - name: 📋 Verificação final
+      run: |
+        echo "🔍 Verificando logs do container..."
+        ssh root@72.60.159.149 "docker logs fgts-service-lunas-digital --tail 10"
+        
+        echo "🌐 Testando endpoints principais..."
+        
+        # Testar endpoint de health
+        HEALTH_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:5000/health")
+        echo "❤️ Health: $HEALTH_RESPONSE"
+        
+        # Testar endpoint de contadores
+        COUNTERS_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:5000/fgts/contadores-tempo-real")
+        echo "📊 Contadores: $COUNTERS_RESPONSE"
+        
+    - name: ✅ Deploy concluído
+      run: |
+        echo "🎉 DEPLOY CONTAINER FGTS CONCLUÍDO!"
+        echo "📅 $(date)"
+        echo "🌐 Sistema disponível em: http://72.60.159.149:5000"
+        echo "📝 Commit: ${{ github.event.head_commit.message }}"
+        echo "👤 Autor: ${{ github.event.head_commit.author.name }}"

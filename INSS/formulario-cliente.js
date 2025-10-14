@@ -1316,6 +1316,87 @@ class FormularioCliente {
     }
 
     /**
+     * Exibir página de sucesso inline
+     */
+    showSuccessPageInline() {
+        console.log('🎉 Exibindo página de sucesso inline...');
+        
+        try {
+            // Gerar IDs únicos para cliente e proposta
+            const clientId = this.realClientId || `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const proposalId = this.realProposalId || `proposta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            console.log('🆔 IDs gerados:', { clientId, proposalId });
+            
+            // Substituir conteúdo da página com página de sucesso
+            document.body.innerHTML = `
+                <div style="padding: 2rem; text-align: center; font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; border-radius: 20px; padding: 40px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); max-width: 500px; width: 100%;">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #4CAF50, #45a049); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; animation: pulse 2s infinite;">
+                            <span style="color: white; font-size: 40px; font-weight: bold;">✓</span>
+                        </div>
+                        
+                        <h1 style="color: #2c3e50; font-size: 28px; font-weight: 700; margin-bottom: 20px;">Formulário Preenchido com Sucesso!</h1>
+                        
+                        <p style="color: #7f8c8d; font-size: 18px; line-height: 1.6; margin-bottom: 30px;">
+                            Parabéns! Seus dados foram enviados com sucesso. 
+                            Nossa equipe analisará sua proposta e retornará em breve.
+                        </p>
+
+                        <div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin: 30px 0; border-radius: 8px; text-align: left;">
+                            <h3 style="color: #007bff; margin-bottom: 10px; font-size: 16px;">📋 Próximos Passos:</h3>
+                            <p style="color: #6c757d; font-size: 14px; line-height: 1.5;">
+                                • Nossa equipe analisará sua proposta<br>
+                                • Você receberá um link de acompanhamento<br>
+                                • O processo será finalizado em até 24h
+                            </p>
+                        </div>
+
+                        <a href="https://wa.me/+551151965926?text=Finalizei%20a%20proposta%2C%20aguardo%20o%20link." 
+                           style="background: linear-gradient(135deg, #25D366, #128C7E); color: white; border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);"
+                           target="_blank">
+                            <div style="width: 24px; height: 24px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">📱</div>
+                            Falar no WhatsApp
+                        </a>
+
+                        <br>
+                        
+                        <button onclick="window.close()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 25px; font-size: 16px; cursor: pointer; margin-top: 20px; transition: all 0.3s ease;">
+                            Fechar Página
+                        </button>
+                    </div>
+                </div>
+                
+                <style>
+                    @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                        100% { transform: scale(1); }
+                    }
+                </style>
+            `;
+            
+            console.log('✅ Página de sucesso inline exibida com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao exibir página de sucesso inline:', error);
+            
+            // Fallback ainda mais simples
+            document.body.innerHTML = `
+                <div style="padding: 2rem; text-align: center; font-family: Arial, sans-serif;">
+                    <h1 style="color: #10b981;">✅ Formulário Enviado!</h1>
+                    <p>Seus dados foram salvos com sucesso.</p>
+                    <a href="https://wa.me/+551151965926?text=Finalizei%20a%20proposta" 
+                       style="background: #25d366; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 1rem; display: inline-block;"
+                       target="_blank">
+                        📱 Falar no WhatsApp
+                    </a>
+                </div>
+            `;
+        }
+    }
+
+    /**
      * Exibir página de sucesso
      */
     showSuccessPage() {
@@ -1333,8 +1414,9 @@ class FormularioCliente {
             
             console.log('🔗 Redirecionando para:', successUrl);
             
-            // Redirecionar para página de sucesso
-            window.location.href = successUrl;
+            // Usar fallback inline sempre (problema com redirecionamento)
+            console.log('🚀 Usando fallback inline...');
+            this.showSuccessPageInline();
             
         } catch (error) {
             console.error('❌ Erro ao redirecionar para página de sucesso:', error);

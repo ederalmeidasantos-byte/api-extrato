@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - CRM Lunas Digital</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
@@ -34,32 +35,80 @@
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Header -->
-    <header class="gradient-bg text-white shadow-lg">
-        <div class="container mx-auto px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                        <i data-feather="hexagon" class="w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold">CRM Lunas Digital</h1>
-                        <p class="text-blue-100">Sistema de Gestão de Clientes e Propostas</p>
+    <!-- Sidebar -->
+    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out" id="sidebar">
+        <div class="flex items-center justify-center h-16 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <i data-feather="hexagon" class="w-5 h-5 text-white"></i>
+                </div>
+                <h1 class="text-xl font-bold text-white">CRM Lunas</h1>
+            </div>
+        </div>
+        
+        <nav class="mt-8">
+            <div class="px-4 space-y-2">
+                <a href="/operacional/index.html" class="flex items-center px-4 py-2 text-gray-700 bg-blue-50 border-r-4 border-blue-500 rounded-r-lg">
+                    <i data-feather="home" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/operacional/buscar-cliente.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="search" class="w-5 h-5 mr-3"></i>
+                    <span>Buscar Cliente</span>
+                </a>
+                <a href="/operacional/clientes.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="users" class="w-5 h-5 mr-3"></i>
+                    <span>Clientes</span>
+                </a>
+                <a href="/operacional/propostas.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="file-text" class="w-5 h-5 mr-3"></i>
+                    <span>Propostas</span>
+                </a>
+                <a href="/operacional/digitation-interface.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="edit-3" class="w-5 h-5 mr-3"></i>
+                    <span>Fila de Digitação</span>
+                </a>
+                <a href="/operacional/configuracoes-status.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="settings" class="w-5 h-5 mr-3"></i>
+                    <span>Configurações</span>
+                </a>
+                <a href="/INSS/simulador.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg">
+                    <i data-feather="calculator" class="w-5 h-5 mr-3"></i>
+                    <span>Simulador INSS</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Mobile menu button -->
+    <button class="fixed top-4 left-4 z-50 lg:hidden bg-white p-2 rounded-lg shadow-lg" onclick="toggleSidebar()">
+        <i data-feather="menu" class="w-6 h-6"></i>
+    </button>
+
+    <!-- Main content -->
+    <div class="lg:ml-64">
+        <!-- Header -->
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                            <i data-feather="hexagon" class="w-6 h-6"></i>
                         </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <a href="/INSS/simulador.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-colors">
-                        <i data-feather="calculator" class="w-4 h-4 inline mr-2"></i>
-                        Simulador
-                    </a>
-                    <div class="text-right">
-                        <div class="text-sm text-blue-100">Última atualização</div>
-                        <div id="last-update" class="text-sm font-medium">--:--</div>
+                        <div>
+                            <h1 class="text-2xl font-bold">CRM Lunas Digital</h1>
+                            <p class="text-blue-100">Sistema de Gestão de Clientes e Propostas</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-sm text-blue-100">Última atualização</div>
+                            <div id="last-update" class="text-sm font-medium">--:--</div>
+                        </div>
                     </div>
                 </div>
-                    </div>
-                </div>
-            </header>
+            </div>
+        </header>
 
     <!-- Main Content -->
     <main class="container mx-auto px-6 py-8">
@@ -136,7 +185,7 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">Propostas Recentes</h3>
-                        <a href="/propostas" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver todas</a>
+                        <a href="/operacional/propostas.html" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver todas</a>
                                 </div>
                     <div id="recent-proposals" class="space-y-3">
                         <!-- Recent proposals will be rendered here -->
@@ -149,7 +198,7 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-900">Clientes Recentes</h3>
-                        <a href="/clientes" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver todos</a>
+                        <a href="/operacional/clientes.html" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Ver todos</a>
                     </div>
                     <div id="recent-clients" class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
@@ -171,6 +220,7 @@
                 </div>
             </div>
         </main>
+    </div> <!-- Fechar div lg:ml-64 -->
     
     <script>
         let dashboardData = null;
@@ -303,7 +353,7 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${cliente.telefone || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(cliente.createdAt)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <a href="/cliente/${cliente.id}" class="text-blue-600 hover:text-blue-900">Ver detalhes</a>
+                        <a href="/operacional/buscar-cliente.html?cpf=${cliente.cpf}" class="text-blue-600 hover:text-blue-900">Ver detalhes</a>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -369,6 +419,24 @@
             `;
             feather.replace();
         }
+    </script>
+
+    <script>
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const menuButton = event.target.closest('button[onclick="toggleSidebar()"]');
+            
+            if (window.innerWidth < 1024 && !sidebar.contains(event.target) && !menuButton) {
+                sidebar.classList.add('-translate-x-full');
+            }
+        });
     </script>
 </body>
 </html>

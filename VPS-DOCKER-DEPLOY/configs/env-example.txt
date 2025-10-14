@@ -1,0 +1,130 @@
+# Variáveis de Ambiente - Sistema Lunas Digital
+# Versão: 1.0.0
+# Copie este arquivo para .env e configure as variáveis
+
+# ===== CONFIGURAÇÕES GERAIS =====
+NODE_ENV=production
+TZ=America/Sao_Paulo
+
+# ===== CONFIGURAÇÕES DO BANCO DE DADOS =====
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASS=sua_senha_segura_aqui
+
+# ===== CONFIGURAÇÕES DO CRM =====
+CRM_PORT=3001
+CRM_DB_NAME=crm_db
+CRM_DB_USER=postgres
+CRM_DB_PASS=sua_senha_segura_aqui
+
+# ===== CONFIGURAÇÕES DO INSS =====
+INSS_PORT=3002
+INSS_DB_NAME=inss_db
+INSS_DB_USER=postgres
+INSS_DB_PASS=sua_senha_segura_aqui
+
+# ===== CONFIGURAÇÕES DO REDIS =====
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASS=
+
+# ===== CONFIGURAÇÕES DO NGINX =====
+NGINX_PORT_HTTP=80
+NGINX_PORT_HTTPS=443
+
+# ===== CONFIGURAÇÕES SSL =====
+SSL_EMAIL=admin@lunasdigital.com.br
+SSL_DOMAINS=crm.lunasdigital.com.br,inss.lunasdigital.com.br,api.lunasdigital.com.br,portainer.lunasdigital.com.br
+
+# ===== CONFIGURAÇÕES DE EMAIL =====
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu_email@gmail.com
+SMTP_PASS=sua_senha_app
+SMTP_FROM=noreply@lunasdigital.com.br
+
+# ===== CONFIGURAÇÕES DO WHATSAPP (KENTRO) =====
+KENTRO_API_URL=https://api.kentro.com.br/int
+KENTRO_API_KEY=sua_api_key_kentro
+KENTRO_WEBHOOK_URL=https://api.lunasdigital.com.br/webhook/kentro
+
+# ===== CONFIGURAÇÕES DE BACKUP =====
+BACKUP_RETENTION_DAYS=30
+BACKUP_SCHEDULE=0 2 * * *
+BACKUP_EMAIL=admin@lunasdigital.com.br
+
+# ===== CONFIGURAÇÕES DE MONITORAMENTO =====
+MONITOR_EMAIL=admin@lunasdigital.com.br
+MONITOR_PHONE=+5511999999999
+MONITOR_WEBHOOK=https://hooks.slack.com/services/SEU/WEBHOOK/SLACK
+
+# ===== CONFIGURAÇÕES DE LOG =====
+LOG_LEVEL=info
+LOG_MAX_SIZE=10m
+LOG_MAX_FILES=3
+LOG_DIR=/opt/lunasdigital/logs
+
+# ===== CONFIGURAÇÕES DE SEGURANÇA =====
+JWT_SECRET=sua_chave_secreta_jwt_muito_segura
+SESSION_SECRET=sua_chave_secreta_sessao_muito_segura
+ENCRYPTION_KEY=sua_chave_criptografia_muito_segura
+
+# ===== CONFIGURAÇÕES DE UPLOAD =====
+UPLOAD_MAX_SIZE=100MB
+UPLOAD_ALLOWED_TYPES=pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx
+UPLOAD_DIR=/opt/lunasdigital/uploads
+
+# ===== CONFIGURAÇÕES DE CACHE =====
+CACHE_TTL=3600
+CACHE_MAX_SIZE=100MB
+
+# ===== CONFIGURAÇÕES DE RATE LIMITING =====
+RATE_LIMIT_WINDOW=900000
+RATE_LIMIT_MAX=100
+RATE_LIMIT_SKIP_SUCCESS_REQUESTS=true
+
+# ===== CONFIGURAÇÕES DE DOMÍNIOS =====
+DOMAIN_CRM=crm.lunasdigital.com.br
+DOMAIN_INSS=inss.lunasdigital.com.br
+DOMAIN_API=api.lunasdigital.com.br
+DOMAIN_PORTAINER=portainer.lunasdigital.com.br
+
+# ===== CONFIGURAÇÕES DE PORTAS =====
+PORT_CRM=3001
+PORT_INSS=3002
+PORT_API=3001
+PORT_PORTAINER=9000
+PORT_POSTGRES=5432
+PORT_REDIS=6379
+
+# ===== CONFIGURAÇÕES DE DOCKER =====
+DOCKER_NETWORK=lunasdigital-network
+DOCKER_SUBNET=172.20.0.0/16
+
+# ===== CONFIGURAÇÕES DE FIREWALL =====
+FIREWALL_ALLOW_PORTS=22,80,443,3001,3002,5432,6379,9000
+
+# ===== CONFIGURAÇÕES DE BACKUP =====
+BACKUP_DIR=/opt/lunasdigital/backups
+BACKUP_COMPRESS=true
+BACKUP_ENCRYPT=false
+
+# ===== CONFIGURAÇÕES DE ALERTAS =====
+ALERT_CPU_THRESHOLD=80
+ALERT_MEMORY_THRESHOLD=80
+ALERT_DISK_THRESHOLD=80
+ALERT_EMAIL_ENABLED=true
+ALERT_SMS_ENABLED=false
+
+# ===== CONFIGURAÇÕES DE DESENVOLVIMENTO =====
+DEBUG=false
+VERBOSE_LOGGING=false
+HOT_RELOAD=false
+
+# ===== CONFIGURAÇÕES DE PRODUÇÃO =====
+PRODUCTION_MODE=true
+ENABLE_ANALYTICS=true
+ENABLE_ERROR_REPORTING=true
+ENABLE_PERFORMANCE_MONITORING=true

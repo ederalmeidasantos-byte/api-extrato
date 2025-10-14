@@ -13,10 +13,13 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Servir arquivos estáticos do diretório operacional
+app.use('/operacional', express.static(path.join(__dirname)));
 app.use(express.static(path.join(__dirname, '..')));
 
 // URL da base de dados
-const DB_URL = process.env.DB_SERVICE_URL || 'http://localhost:3003';
+const DB_URL = process.env.DB_SERVICE_URL || 'http://72.60.159.149:3003';
 
 // Health check
 app.get('/health', (req, res) => {
@@ -235,6 +238,11 @@ app.get('/cliente/:id', (req, res) => {
 // Página de detalhes da proposta
 app.get('/proposta/:id', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'operacional', 'proposta-detalhes.html'));
+});
+
+// Página de fila de digitação
+app.get('/operacional/digitation-interface.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'digitation-interface.html'));
 });
 
 // ===== INTEGRAÇÃO COM SIMULADOR INSS =====

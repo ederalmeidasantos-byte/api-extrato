@@ -594,6 +594,12 @@
         let filaPropostas = [];
         let filaFiltrada = [];
         
+        // Normalizar CPF removendo caracteres especiais
+        function normalizarCPF(cpf) {
+            if (!cpf) return '';
+            return cpf.replace(/\D/g, ''); // Remove tudo que não é dígito
+        }
+        
         // Inicializar Feather Icons
         feather.replace();
         
@@ -661,42 +667,99 @@
                 
                 console.log(`📋 ${propostasFila.length} propostas na fila de digitação`);
                 
-                // Agrupar propostas por cliente
-                const clientesComPropostas = new Map();
+                // Agrupar propostas por CPF (não por clientId)
+                const clientesPorCPF = new Map();
                 
                 propostasFila.forEach(proposta => {
-                    const clientId = proposta.clientId;
+                    const cpf = normalizarCPF(proposta.cliente?.cpf || '');
                     
-                    if (!clientesComPropostas.has(clientId)) {
-                        // Criar cliente baseado nos dados da proposta
+                    // Debug: verificar clientId da proposta
+                    console.log(`🔍 Proposta ${proposta.id}: clientId=${proposta.clientId} (tipo: ${typeof proposta.clientId})`);
+                    
+                    if (!cpf) {
+                        console.warn('⚠️ Proposta sem CPF:', proposta.id);
+                        return; // Pular propostas sem CPF
+                    }
+                    
+                    // Corrigir clientId se for numérico (propostas antigas)
+                    if (typeof proposta.clientId === 'number' || (typeof proposta.clientId === 'string' && /^\d+$/.test(proposta.clientId))) {
+                        console.log(`⚠️ Proposta ${proposta.id} tem clientId numérico: ${proposta.clientId}, gerando novo ID`);
+                        proposta.clientId = `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        console.log(`✅ Novo clientId gerado: ${proposta.clientId}`);
+                    }
+                    
+                    if (!clientesPorCPF.has(cpf)) {
+                        // Criar novo agrupamento para este CPF
                         const cliente = {
-                            id: clientId,
+                            id: proposta.clientId, // Usar o primeiro clientId encontrado
+                            clientIds: [proposta.clientId], // Lista de todos os IDs
                             nome: proposta.cliente?.nome || 'Cliente não informado',
-                            cpf: proposta.cliente?.cpf || 'CPF não informado',
+                            cpf: proposta.cliente?.cpf || cpf,
                             nb: proposta.cliente?.nb || 'NB não informado',
                             telefone: proposta.cliente?.telefone || '',
                             email: proposta.cliente?.email || '',
                             propostas: []
                         };
                         
-                        clientesComPropostas.set(clientId, {
+                        clientesPorCPF.set(cpf, {
                             cliente,
                             propostas: [],
-                            statusFormulario: '1', // Etapa 1 - Dados
+                            statusFormulario: '1',
                             dataAtualizacao: proposta.createdAt || new Date().toISOString()
                         });
                     }
                     
                     // Adicionar proposta ao cliente
-                    const clienteData = clientesComPropostas.get(clientId);
+                    const clienteData = clientesPorCPF.get(cpf);
+                    
+                    // Registrar clientId se for diferente
+                    if (!clienteData.cliente.clientIds.includes(proposta.clientId)) {
+                        clienteData.cliente.clientIds.push(proposta.clientId);
+                        console.log(`📝 CPF ${cpf} possui múltiplos IDs:`, clienteData.cliente.clientIds);
+                    }
+                    
+                    // Consolidar dados do cliente (usar o mais completo)
+                    if (proposta.cliente?.nome && proposta.cliente.nome !== 'Cliente não informado') {
+                        clienteData.cliente.nome = proposta.cliente.nome;
+                    }
+                    if (proposta.cliente?.telefone && !clienteData.cliente.telefone) {
+                        clienteData.cliente.telefone = proposta.cliente.telefone;
+                    }
+                    if (proposta.cliente?.email && !clienteData.cliente.email) {
+                        clienteData.cliente.email = proposta.cliente.email;
+                    }
+                    if (proposta.cliente?.nb && proposta.cliente.nb !== 'NB não informado') {
+                        clienteData.cliente.nb = proposta.cliente.nb;
+                    }
+                    
+                    // Atualizar data se esta proposta for mais recente
+                    const propostaDate = new Date(proposta.createdAt || proposta.dataCriacao || 0);
+                    const currentDate = new Date(clienteData.dataAtualizacao);
+                    if (propostaDate > currentDate) {
+                        clienteData.dataAtualizacao = proposta.createdAt || proposta.dataCriacao;
+                    }
+                    
                     clienteData.propostas.push(proposta);
                 });
                 
                 // Converter para array e ordenar por data
-                filaPropostas = Array.from(clientesComPropostas.values())
+                filaPropostas = Array.from(clientesPorCPF.values())
                     .sort((a, b) => new Date(b.dataAtualizacao) - new Date(a.dataAtualizacao));
                 
                 console.log(`✅ ${filaPropostas.length} clientes na fila de digitação`);
+                
+                // Log de diagnóstico - mostrar consolidações
+                const clientesConsolidados = filaPropostas.filter(item => 
+                    item.cliente.clientIds && item.cliente.clientIds.length > 1
+                );
+                
+                if (clientesConsolidados.length > 0) {
+                    console.log(`🔄 ${clientesConsolidados.length} clientes foram consolidados:`);
+                    clientesConsolidados.forEach(item => {
+                        console.log(`   - ${item.cliente.nome} (CPF: ${item.cliente.cpf}):`, 
+                            `${item.cliente.clientIds.length} IDs, ${item.propostas.length} propostas`);
+                    });
+                }
                 
                 // Aplicar filtros atuais
                 filtrarFila();
@@ -787,6 +850,9 @@
             const { clientId, cliente, propostas, statusConfig } = item;
             const dataFormatada = formatarData(item.dataAtualizacao);
             
+            // Usar CPF como identificador único para evitar conflitos
+            const clienteIdUnico = normalizarCPF(cliente.cpf);
+            
             // Definir todas as propostas como "Na Fila"
             const statusInfo = { nome: 'Na Fila', cor: '#10b981' };
             const statusClass = 'status-na-fila';
@@ -863,17 +929,17 @@
                         </div>
                         
                         <div class="proposal-actions">
-                            <button class="btn btn-secondary" onclick="visualizarProposta('${clientId}', '${proposta.id}')">
+                            <button class="btn btn-secondary" onclick="visualizarProposta('${proposta.clientId}', '${proposta.id}')">
                                 <i data-feather="eye"></i>
                                 Visualizar
                             </button>
                             
-                            <button class="btn btn-danger" onclick="excluirProposta('${clientId}', '${proposta.id}')">
+                            <button class="btn btn-danger" onclick="excluirProposta('${proposta.clientId}', '${proposta.id}')">
                                 <i data-feather="trash-2"></i>
                                 Excluir
                             </button>
                             
-                            <button class="btn btn-primary" onclick="abrirTelaDigitação('${clientId}', '${proposta.id}')">
+                            <button class="btn btn-primary" onclick="abrirTelaDigitação('${proposta.clientId}', '${proposta.id}')">
                                 <i data-feather="edit-3"></i>
                                 Digitar
                             </button>
@@ -884,26 +950,30 @@
             
             return `
                 <div class="client-card">
-                    <div class="client-header" onclick="toggleClientProposals('${clientId}')">
+                    <div class="client-header" onclick="toggleClientProposals('${clienteIdUnico}')">
                         <div class="client-info">
                             <div class="client-name">${cliente.nome || 'Nome não informado'}</div>
                             <div class="client-meta">
                                 <span><i data-feather="user" style="width: 14px; height: 14px;"></i> ${cliente.cpf || 'CPF não informado'}</span>
                                 <span><i data-feather="calendar" style="width: 14px; height: 14px;"></i> ${dataFormatada}</span>
                                 <span><i data-feather="hash" style="width: 14px; height: 14px;"></i> ${propostas.length} proposta(s)</span>
+                                ${cliente.clientIds && cliente.clientIds.length > 1 ? 
+                                    `<span style="background: #fbbf24; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                                        ${cliente.clientIds.length} IDs consolidados
+                                    </span>` : ''}
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 1rem;">
                             <div class="client-status" style="background-color: ${statusCor}">
                                 ${statusText}
                             </div>
-                            <button class="client-toggle" id="toggle-${clientId}" onclick="event.stopPropagation(); toggleClientProposals('${clientId}')">
+                            <button class="client-toggle" id="toggle-${clienteIdUnico}" onclick="event.stopPropagation(); toggleClientProposals('${clienteIdUnico}')">
                                 <i data-feather="chevron-down"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div class="proposals-container" id="proposals-${clientId}">
+                    <div class="proposals-container" id="proposals-${clienteIdUnico}">
                         ${propostasHTML}
                     </div>
                 </div>
