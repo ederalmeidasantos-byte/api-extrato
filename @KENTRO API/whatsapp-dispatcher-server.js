@@ -19,7 +19,12 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname)));
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname), {
+  index: ['whatsapp-dispatcher.html', 'index.html'],
+  extensions: ['html', 'htm']
+}));
 
 // Configurações
 const CONFIG = {
@@ -305,6 +310,34 @@ async function addToHistory(item, result) {
  */
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'whatsapp-dispatcher.html'));
+});
+
+/**
+ * GET /whatsapp-dispatcher.html - Interface web direta
+ */
+app.get('/whatsapp-dispatcher.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'whatsapp-dispatcher.html'));
+});
+
+/**
+ * GET /index.html - Interface web alternativa
+ */
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+/**
+ * GET /whatsapp/ - Rota para acesso via Nginx
+ */
+app.get('/whatsapp/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'whatsapp-dispatcher.html'));
+});
+
+/**
+ * GET /whatsapp - Redirecionamento sem barra
+ */
+app.get('/whatsapp', (req, res) => {
+  res.redirect('/whatsapp/');
 });
 
 /**

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disparador WhatsApp - Sistema Kentro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .status {
+            background: #d5f4e6;
+            border: 1px solid #27ae60;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #155724;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+        
+        .info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .info h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .info ul {
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Disparador WhatsApp</h1>
+            <p>Sistema de disparo em massa via API Kentro</p>
+        </div>
+        
+        <div class="status">
+            ✅ <strong>Sistema Online</strong><br>
+            Servidor rodando na porta 3004
+        </div>
+        
+        <div class="info">
+            <h3>🚀 Acesso Rápido</h3>
+            <ul>
+                <li><strong>Interface Principal:</strong> <a href="/whatsapp-dispatcher.html">whatsapp-dispatcher.html</a></li>
+                <li><strong>API Status:</strong> <a href="/api/status">/api/status</a></li>
+                <li><strong>API Histórico:</strong> <a href="/api/historico">/api/historico</a></li>
+                <li><strong>Logs SSE:</strong> <a href="/api/logs">/api/logs</a></li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <h3>📋 Funcionalidades</h3>
+            <ul>
+                <li>Disparo em massa de mensagens WhatsApp</li>
+                <li>Interface web responsiva com dashboard em tempo real</li>
+                <li>Sistema de fila sequencial com retry automático</li>
+                <li>Normalização automática de números brasileiros</li>
+                <li>Logs detalhados com filtros e atualização via SSE</li>
+                <li>Controles de pausar/retomar/limpar fila</li>
+            </ul>
+        </div>
+        
+        <a href="/whatsapp-dispatcher.html" class="btn btn-success">
+            🚀 Acessar Interface Principal
+        </a>
+        
+        <a href="/api/status" class="btn btn-info">
+            📊 Ver Status da API
+        </a>
+        
+        <div class="footer">
+            <p>Sistema integrado à arquitetura Lunas Digital</p>
+            <p>Container: whatsapp-dispatcher:3004</p>
+        </div>
+    </div>
+</body>
+</html>
