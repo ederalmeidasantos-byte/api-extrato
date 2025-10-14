@@ -1229,6 +1229,7 @@ class FormularioCliente {
      */
     async submitForm() {
         console.log('🚀 Iniciando finalização do formulário...');
+        console.log('📋 Dados atuais do formulário:', this.formData);
         
         if (!this.validateCurrentStep()) {
             console.log('❌ Validação da etapa atual falhou');
@@ -1242,10 +1243,14 @@ class FormularioCliente {
             console.log('💾 Salvando dados da última etapa...');
             // Salvar dados da última etapa
             this.saveCurrentStepData();
+            console.log('💾 Dados salvos:', this.formData);
             
             console.log('🔍 Validando dados completos...');
             // Validar dados completos
-            if (!this.validateCompleteForm()) {
+            const validacaoCompleta = this.validateCompleteForm();
+            console.log('🔍 Resultado da validação completa:', validacaoCompleta);
+            
+            if (!validacaoCompleta) {
                 console.log('❌ Validação completa falhou');
                 this.hideLoading();
                 return;
@@ -1254,6 +1259,7 @@ class FormularioCliente {
             console.log('✅ Validação completa passou, salvando no sistema operacional...');
             // Salvar no sistema operacional
             await this.saveToOperationalSystem();
+            console.log('✅ Dados salvos no sistema operacional com sucesso');
             
             console.log('📊 Atualizando status para formulário completo...');
             // Atualizar status para formulário completo
@@ -1261,13 +1267,16 @@ class FormularioCliente {
                 formCompleted: true,
                 finalFormData: this.formData
             });
+            console.log('📊 Status atualizado com sucesso');
             
-            console.log('🎉 Redirecionando para página de sucesso...');
+            console.log('🎉 Chamando showSuccessPage...');
             // Redirecionar para sucesso
             this.showSuccessPage();
+            console.log('🎉 showSuccessPage chamada');
             
         } catch (error) {
             console.error('❌ Erro ao finalizar formulário:', error);
+            console.error('❌ Stack trace:', error.stack);
             this.showError(`Erro ao finalizar: ${error.message}`);
         } finally {
             console.log('🏁 Finalizando processo...');
@@ -1412,59 +1421,18 @@ class FormularioCliente {
             
             console.log('🆔 IDs gerados:', { clientId, proposalId });
             
-            // Criar HTML da página de sucesso
-            const successHTML = `
-                <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                    <div style="background: white; border-radius: 16px; padding: 3rem; text-align: center; max-width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
-                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem auto; color: white; font-size: 2rem;">
-                            ✓
-                        </div>
-                        <h1 style="color: #1e293b; margin-bottom: 1rem;">🎉 Cadastro Concluído!</h1>
-                        <p style="color: #64748b; margin-bottom: 2rem; line-height: 1.6;">
-                            Seus dados foram salvos com sucesso! Nossa equipe irá analisar sua proposta e entrar em contato em breve.
-                        </p>
-                        
-                        <!-- Informações do Cliente -->
-                        <div style="background: #f8fafc; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; text-align: left;">
-                            <h3 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.1rem;">📋 Dados Salvos:</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.9rem;">
-                                <div><strong>Nome:</strong> ${this.formData.nome || 'N/A'}</div>
-                                <div><strong>CPF:</strong> ${this.formData.cpf || 'N/A'}</div>
-                                <div><strong>Telefone:</strong> ${this.formData.telefone || 'N/A'}</div>
-                                <div><strong>ID Cliente:</strong> ${clientId}</div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                            <a href="/detalhesdaproposta/${proposalId}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                                📋 Ver Detalhes da Proposta
-                            </a>
-                            <a href="/operacional/digitation-interface.html?clientId=${clientId}&propostaId=${proposalId}" style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                                💬 Preparar WhatsApp
-                            </a>
-                        </div>
-                        
-                        <!-- Botão WhatsApp Direto -->
-                        <div style="margin-top: 2rem;">
-                            <a href="https://wa.me/+551151965926?text=Finalizei%20a%20proposta%20${clientId}%2C%20aguardo%20o%20link." 
-                               style="background: linear-gradient(135deg, #25d366, #128c7e); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 1.1rem; display: inline-block; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);"
-                               target="_blank">
-                                📱 Falar no WhatsApp
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Redirecionar para página de sucesso
+            const successUrl = `/operacional/formulario-sucesso.html?clientId=${clientId}&proposalId=${proposalId}&nome=${encodeURIComponent(this.formData.nome || '')}&cpf=${encodeURIComponent(this.formData.cpf || '')}`;
             
-            // Substituir conteúdo da página
-            document.body.innerHTML = successHTML;
+            console.log('🔗 Redirecionando para:', successUrl);
             
-            console.log('✅ Página de sucesso exibida com sucesso!');
+            // Redirecionar para página de sucesso
+            window.location.href = successUrl;
             
         } catch (error) {
-            console.error('❌ Erro ao exibir página de sucesso:', error);
+            console.error('❌ Erro ao redirecionar para página de sucesso:', error);
             
-            // Fallback simples
+            // Fallback: mostrar página de sucesso inline
             document.body.innerHTML = `
                 <div style="padding: 2rem; text-align: center; font-family: Arial, sans-serif;">
                     <h1 style="color: #10b981;">✅ Formulário Enviado!</h1>

@@ -110,6 +110,11 @@ app.get('/operacional/formulario-cliente.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'formulario-cliente.js'));
 });
 
+// Rota para página de sucesso do formulário
+app.get('/operacional/formulario-sucesso.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'formulario-sucesso.html'));
+});
+
 // Rota para formulário de digitação
 app.get('/inss/digitar-proposta.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'digitar-proposta.html'));
