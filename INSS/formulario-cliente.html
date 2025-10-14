@@ -85,57 +85,41 @@
             return resultados;
         }
         
-        // EXECUTAR PREENCHIMENTO IMEDIATAMENTE E REPETIDAMENTE
-        preencherFormularioAutomaticamente();
+        // EXECUTAR PREENCHIMENTO APENAS QUANDO NECESSÁRIO
+        let preenchimentoExecutado = false;
+        
+        function executarPreenchimento() {
+            if (preenchimentoExecutado) {
+                console.log('⚠️ Preenchimento já executado, ignorando...');
+                return;
+            }
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const temDados = urlParams.get('nome') || urlParams.get('cpf') || urlParams.get('telefone');
+            
+            if (temDados) {
+                console.log('🎯 Executando preenchimento automático...');
+                preencherFormularioAutomaticamente();
+                preenchimentoExecutado = true;
+                
+                // Se todos os campos foram preenchidos, avançar para última etapa
+                setTimeout(() => {
+                    if (window.formularioCliente && typeof window.formularioCliente.goToStep === 'function') {
+                        console.log('🚀 Avançando para etapa final...');
+                        window.formularioCliente.goToStep(4);
+                    }
+                }, 2000);
+            } else {
+                console.log('ℹ️ Nenhum dado na URL, formulário será preenchido manualmente');
+            }
+        }
         
         // Executar quando DOM estiver pronto
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', preencherFormularioAutomaticamente);
+            document.addEventListener('DOMContentLoaded', executarPreenchimento);
         } else {
-            preencherFormularioAutomaticamente();
+            setTimeout(executarPreenchimento, 100);
         }
-        
-        // Executar múltiplas vezes para garantir preenchimento
-        setTimeout(preencherFormularioAutomaticamente, 100);
-        setTimeout(preencherFormularioAutomaticamente, 500);
-        setTimeout(preencherFormularioAutomaticamente, 1000);
-        setTimeout(preencherFormularioAutomaticamente, 2000);
-        setTimeout(preencherFormularioAutomaticamente, 3000);
-        setTimeout(preencherFormularioAutomaticamente, 5000);
-        
-        // Executar quando a página carregar completamente
-        window.addEventListener('load', preencherFormularioAutomaticamente);
-        
-        // Executar quando a página for focada
-        window.addEventListener('focus', preencherFormularioAutomaticamente);
-        
-        // Executar quando a página for redimensionada
-        window.addEventListener('resize', preencherFormularioAutomaticamente);
-        
-        // Observer para detectar mudanças na interface (mudança de etapas)
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList' || mutation.type === 'attributes') {
-                    // Verificar se há mudanças nos campos visíveis
-                    setTimeout(preencherFormularioAutomaticamente, 100);
-                }
-            });
-        });
-        
-        // Observar mudanças no DOM
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-        
-        // Executar quando houver mudanças de foco nos campos
-        document.addEventListener('focusin', function(event) {
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') {
-                setTimeout(preencherFormularioAutomaticamente, 50);
-            }
-        });
     </script>
     
     <!-- Feather Icons -->
