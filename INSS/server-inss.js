@@ -490,7 +490,7 @@ app.post('/api/processar-extrato', upload.single('extrato'), async (req, res) =>
     console.log('📄 [INSS] ID Oportunidade:', idoportunidade);
 
     // Processar PDF
-    const jsonDir = path.join(__dirname, '..', 'var', 'data', 'extratos');
+    const jsonDir = path.join('/var', 'data', 'extratos');
     const result = await extrairDeUpload({
       fileId,
       pdfPath: req.file.path,
@@ -521,7 +521,7 @@ app.get('/api/calcular/:fileId', async (req, res) => {
     const { fileId } = req.params;
     console.log('🧮 [INSS] Calculando simulação para fileId:', fileId);
 
-    const jsonPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.json`);
+    const jsonPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.json`);
     
     if (!fs.existsSync(jsonPath)) {
       return res.status(404).json({ error: 'Extrato não encontrado' });
@@ -530,7 +530,7 @@ app.get('/api/calcular/:fileId', async (req, res) => {
     // Importar dinamicamente para garantir que a função esteja disponível
     const { calcularTrocoEndpoint } = await import('./calculo.js');
     const calcularTroco = calcularTrocoEndpoint(
-      path.join(__dirname, '..', 'var', 'data', 'extratos')
+      path.join('/var', 'data', 'extratos')
     );
     
     // Chamar a função diretamente
@@ -552,8 +552,8 @@ app.get('/extrato/:fileId', async (req, res) => {
     const idoportunidade = req.query.idoportunidade || null;
     console.log(`🔍 [INSS] Buscando extrato para fileId: ${fileId}, idoportunidade: ${idoportunidade}`);
 
-    const jsonPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.json`);
-    const pdfPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.pdf`);
+    const jsonPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.json`);
+    const pdfPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.pdf`);
 
     // Verificar cache válido
     const cacheValido = (p) => {
@@ -612,7 +612,7 @@ app.get('/extrato/:fileId', async (req, res) => {
     const resultado = await extrairDeUpload({
       fileId: fileId,
       pdfPath: pdfPath,
-      jsonDir: path.join(__dirname, '..', 'var', 'data', 'extratos'),
+      jsonDir: path.join('/var', 'data', 'extratos'),
       ttlMs: 14 * 24 * 60 * 60 * 1000, // 14 dias
       idoportunidade: idoportunidade
     });
@@ -642,7 +642,7 @@ app.get('/extrato/:fileId/raw', async (req, res) => {
     const { fileId } = req.params;
     console.log('📄 [INSS] Obtendo extrato raw para fileId:', fileId);
 
-    const jsonPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.json`);
+    const jsonPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.json`);
     
     if (!fs.existsSync(jsonPath)) {
       return res.status(404).json({ error: 'Extrato não encontrado' });
@@ -669,8 +669,8 @@ app.post('/extrair', async (req, res) => {
     console.log('📄 [INSS] Extraindo dados para fileId:', fileId);
     console.log('📄 [INSS] ID Oportunidade:', idoportunidade);
 
-    const pdfPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.pdf`);
-    const jsonPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.json`);
+    const pdfPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.pdf`);
+    const jsonPath = path.join('/var', 'data', 'extratos', `extrato_${fileId}.json`);
 
     // Verificar cache válido
     if (fs.existsSync(jsonPath)) {
@@ -736,7 +736,7 @@ app.post('/extrair', async (req, res) => {
     const resultado = await extrairDeUpload({
       fileId: fileId,
       pdfPath: pdfPath,
-      jsonDir: path.join(__dirname, '..', 'var', 'data', 'extratos'),
+      jsonDir: path.join('/var', 'data', 'extratos'),
       ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 dias
       idoportunidade: idoportunidade
     });
