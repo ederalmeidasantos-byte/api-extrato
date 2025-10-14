@@ -277,6 +277,60 @@ app.post('/webhook/simulador', async (req, res) => {
     }
 });
 
+// ===== PROXY PARA API KENTRO (EVITAR CORS) =====
+
+// Proxy para API Kentro
+app.post('/api/kentro-proxy', async (req, res) => {
+    try {
+        const { endpoint, data } = req.body;
+        
+        if (!endpoint || !data) {
+            return res.status(400).json({ 
+                error: 'Endpoint e dados são obrigatórios',
+                success: false 
+            });
+        }
+        
+        // URL base da API Kentro
+        const kentroBaseUrl = 'https://api.kentro.com.br/int';
+        const url = `${kentroBaseUrl}/${endpoint}`;
+        
+        console.log(`🔄 [PROXY] Fazendo requisição para: ${url}`);
+        console.log(`📤 [PROXY] Dados enviados:`, JSON.stringify(data, null, 2));
+        
+        // Fazer requisição para a API Kentro
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'LunasDigital-CRM/1.0'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            console.error(`❌ [PROXY] Erro na resposta da API Kentro: ${response.status} ${response.statusText}`);
+            return res.status(response.status).json({
+                error: `Erro na API Kentro: ${response.status} ${response.statusText}`,
+                success: false
+            });
+        }
+        
+        const responseData = await response.json();
+        console.log(`✅ [PROXY] Resposta recebida:`, JSON.stringify(responseData, null, 2));
+        
+        // Retornar a resposta da API Kentro
+        res.json(responseData);
+        
+    } catch (error) {
+        console.error('❌ [PROXY] Erro no proxy Kentro:', error);
+        res.status(500).json({ 
+            error: `Erro interno do proxy: ${error.message}`,
+            success: false 
+        });
+    }
+});
+
 // Inicializar servidor
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 CRM Service rodando na porta ${PORT}`);
