@@ -1139,12 +1139,31 @@ class FormularioCliente {
      * Salvar dados da etapa atual
      */
     saveCurrentStepData() {
+        console.log('💾 Salvando dados da etapa atual...');
+        
         // Salvar todos os campos visíveis do formulário
         const allFields = document.querySelectorAll('input, select');
         
         allFields.forEach(field => {
             if (field.name && field.value) {
                 this.formData[field.name] = field.value;
+                console.log(`💾 Campo ${field.name} salvo: ${field.value}`);
+            }
+        });
+        
+        // Também salvar campos por ID (fallback)
+        const camposPorId = [
+            'nome', 'cpf', 'dataNascimento', 'telefone', 'email',
+            'beneficioNome', 'beneficioNumero',
+            'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
+            'banco', 'agencia', 'conta', 'tipoConta'
+        ];
+        
+        camposPorId.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && field.value) {
+                this.formData[fieldId] = field.value;
+                console.log(`💾 Campo ${fieldId} salvo por ID: ${field.value}`);
             }
         });
         
@@ -1416,6 +1435,9 @@ class FormularioCliente {
      * Validar formulário completo
      */
     validateCompleteForm() {
+        console.log('🔍 Validando formulário completo...');
+        console.log('📋 Dados atuais do formulário:', this.formData);
+        
         const requiredFields = [
             'nome', 'cpf', 'dataNascimento', 'telefone',
             'beneficioNome', 'beneficioNumero',
@@ -1423,13 +1445,39 @@ class FormularioCliente {
             'banco', 'agencia', 'conta', 'tipoConta'
         ];
         
+        // Verificar campos diretamente do DOM também
+        const camposFaltantes = [];
+        
         for (const fieldName of requiredFields) {
-            if (!this.formData[fieldName] || !this.formData[fieldName].trim()) {
-                this.showError(`Campo obrigatório não preenchido: ${fieldName}`);
-                return false;
+            const fieldValue = this.formData[fieldName];
+            const fieldElement = document.getElementById(fieldName);
+            const fieldValueFromDOM = fieldElement ? fieldElement.value : null;
+            
+            console.log(`🔍 Campo ${fieldName}:`, {
+                formData: fieldValue,
+                domValue: fieldValueFromDOM,
+                isEmpty: !fieldValue || !fieldValue.trim()
+            });
+            
+            if (!fieldValue || !fieldValue.trim()) {
+                // Tentar usar valor do DOM se formData estiver vazio
+                if (fieldValueFromDOM && fieldValueFromDOM.trim()) {
+                    this.formData[fieldName] = fieldValueFromDOM;
+                    console.log(`✅ Campo ${fieldName} recuperado do DOM: ${fieldValueFromDOM}`);
+                } else {
+                    camposFaltantes.push(fieldName);
+                    console.log(`❌ Campo ${fieldName} está vazio`);
+                }
             }
         }
         
+        if (camposFaltantes.length > 0) {
+            console.log('❌ Campos faltantes:', camposFaltantes);
+            this.showError(`Campos obrigatórios não preenchidos: ${camposFaltantes.join(', ')}`);
+            return false;
+        }
+        
+        console.log('✅ Todos os campos obrigatórios estão preenchidos');
         return true;
     }
 
