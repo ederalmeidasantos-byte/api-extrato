@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações de Status - Sistema Operacional Lunas</title>
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- CRM Layout Styles -->
+    <link rel="stylesheet" href="/operacional/assets/crm-layout.css">
+    
+    <style>
+        /* Estilos específicos da configuração */
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .config-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #64748b;
+            font-size: 0.875rem;
+            background: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .status-origem {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .origem-calculo {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .origem-manual {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .form-input:disabled {
+            background-color: #f9fafb;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .add-button {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .add-button:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .status-list {
+            padding: 0;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+        }
+
+        .status-item:hover {
+            background: #f8fafc;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-id {
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            min-width: 2rem;
+            text-align: center;
+        }
+
+        .status-preview {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: white;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .status-description {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .action-btn {
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+        }
+
+        .edit-btn {
+            background: #dbeafe;
+            color: #3b82f6;
+        }
+
+        .edit-btn:hover {
+            background: #bfdbfe;
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
+        }
+
+        .whatsapp-btn {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .whatsapp-btn:hover {
+            background: #bbf7d0;
+        }
+
+        .whatsapp-btn.active {
+            background: #16a34a;
+            color: white;
+        }
+
+        /* Estilos para seleção de origem do produto */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+
+        .radio-option input[type="radio"] {
+            margin: 0;
+            margin-top: 0.25rem;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-label {
+            color: #1e293b;
+        }
+
+        .radio-option:has(input[type="radio"]:checked) {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .radio-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .radio-label strong {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .radio-label small {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .form-help {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        /* Modal de Edição */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.selected {
+            border-color: #1f2937;
+            transform: scale(1.1);
+        }
+
+        .preview-section {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .preview-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .preview-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .preview-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .whatsapp-config {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .whatsapp-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #d1d5db;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-switch.active {
+            background: #3b82f6;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .config-container {
+                padding: 1rem;
+            }
+
+            .status-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .status-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <a href="/operacional/" class="logo">
+                    <div class="logo-icon">
+                        <i data-feather="hexagon"></i>
+                    </div>
+                    <span class="logo-text">Lunas Digital</span>
+                </a>
+                <button class="sidebar-toggle">
+                    <i data-feather="chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Dashboard -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Principal</h4>
+                    <a href="/operacional/" class="nav-item" data-nav="dashboard">
+                        <div class="nav-item-content">
+                            <i data-feather="home" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Dashboard</span>
+                        </div>
+                    </a>
+                    <a href="/INSS/simulador.html" class="nav-item" data-nav="simulator">
+                        <div class="nav-item-content">
+                            <i data-feather="calculator" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Simulador</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Clientes -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Clientes</h4>
+                    <a href="/operacional/buscar-cliente.html" class="nav-item" data-nav="buscar-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="search" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Buscar Cliente</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/formulario-cliente.html" class="nav-item" data-nav="formulario-cliente">
+                        <div class="nav-item-content">
+                            <i data-feather="user-plus" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Novo Cliente</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Operacional -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Operacional</h4>
+                    <a href="/operacional/digitation-interface.html" class="nav-item" data-nav="digitation-interface">
+                        <div class="nav-item-content">
+                            <i data-feather="edit-3" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Fila de Digitação</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/digitar-proposta.html" class="nav-item" data-nav="digitar-proposta">
+                        <div class="nav-item-content">
+                            <i data-feather="file-text" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Digitar Proposta</span>
+                        </div>
+                    </a>
+                    <a href="/operacional/configuracoes-status.html" class="nav-item active" data-nav="configuracoes-status">
+                        <div class="nav-item-content">
+                            <i data-feather="settings" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Configurações Status</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Integração -->
+                <div class="nav-section">
+                    <h4 class="nav-section-title">Integração</h4>
+                    <a href="/operacional/kentro-test.html" class="nav-item" data-nav="kentro-test">
+                        <div class="nav-item-content">
+                            <i data-feather="link" class="nav-item-icon"></i>
+                            <span class="nav-item-text">Kentro API</span>
+                        </div>
+                    </a>
+                </div>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i data-feather="user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Operador</div>
+                        <div class="user-role">Sistema Lunas</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Overlay para mobile -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-content">
+                    <div>
+                        <h1 class="page-title">
+                    <i data-feather="settings"></i>
+                            Configurações de Status
+                        </h1>
+                        <span class="page-subtitle">Gerencie status e produtos do sistema</span>
+                </div>
+                    <div class="topbar-actions">
+                        <button class="mobile-menu-btn topbar-btn secondary" style="display: none;">
+                            <i data-feather="menu"></i>
+                        </button>
+                        <button class="topbar-btn secondary" onclick="carregarConfiguracoes()">
+                    <i data-feather="refresh-cw"></i>
+                    Atualizar
+                </button>
+                        <button class="topbar-btn primary" onclick="salvarConfiguracoes()">
+                    <i data-feather="save"></i>
+                    Salvar
+                </button>
+            </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+            <div class="config-container">
+                <!-- Status do Formulário -->
+                <div class="config-section">
+                    <div class="config-header">
+                            <h2 class="config-title">
+                                <i data-feather="user"></i>
+                            Status do Formulário
+                            </h2>
+                        <div class="config-info">
+                            <i data-feather="info"></i>
+                                <span>Apenas cores podem ser editadas - nomes e códigos são fixos</span>
+                        </div>
+                    </div>
+                        <div class="status-list" id="status-formulario-list">
+                            <!-- Status serão carregados via JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Produtos -->
+                <div class="config-section">
+                    <div class="config-header">
+                            <h2 class="config-title">
+                            <i data-feather="package"></i>
+                            Produtos
+                            </h2>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="add-button" onclick="sincronizarProdutosSimulador()" style="background: linear-gradient(135deg, #10b981, #059669);">
+                                <i data-feather="refresh-cw"></i>
+                                Sincronizar Simulador
+                            </button>
+                                <button class="add-button" onclick="adicionarStatus('produtos')">
+                                <i data-feather="plus"></i>
+                                Adicionar Produto
+                            </button>
+                        </div>
+                            </div>
+                        <div class="status-list" id="status-produtos-list">
+                            <!-- Produtos serão carregados via JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Status da Proposta -->
+                <div class="config-section">
+                    <div class="config-header">
+                            <h2 class="config-title">
+                                <i data-feather="file-text"></i>
+                            Status da Proposta
+                            </h2>
+                            <button class="add-button" onclick="adicionarStatus('proposta')">
+                                <i data-feather="plus"></i>
+                                Adicionar Status
+                            </button>
+                        </div>
+                        <div class="status-list" id="status-proposta-list">
+                            <!-- Status serão carregados via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Editar Status</h3>
+                <button class="modal-close" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nome do Status</label>
+                    <input type="text" id="edit-nome" class="form-input" placeholder="Ex: Etapa 1 - Dados">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" id="edit-descricao" class="form-input" placeholder="Ex: Cliente preenchendo dados pessoais">
+                </div>
+
+                <!-- Campo específico para produtos - Origem do Simulador -->
+                <div class="form-group" id="produto-origem-group" style="display: none;">
+                    <label class="form-label">Origem do Produto</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="produto-origem" value="manual" checked>
+                            <span class="radio-label">
+                                <strong>Manual</strong>
+                                <small>Produto criado manualmente</small>
+                            </span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="produto-origem" value="calculo">
+                            <span class="radio-label">
+                                <strong>Calculado pelo Simulador</strong>
+                                <small>Produto que vem do calculo.js</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Campo para selecionar produto do simulador -->
+                <div class="form-group" id="simulador-produto-group" style="display: none;">
+                    <label class="form-label">Produto do Simulador</label>
+                    <select id="simulador-produto-select" class="form-input">
+                        <option value="">Selecione um produto do simulador</option>
+                        <!-- Opções serão carregadas via JavaScript -->
+                    </select>
+                    <small class="form-help">Este produto será vinculado ao ID do simulador</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Cor</label>
+                    <div class="color-picker" id="color-picker">
+                        <!-- Cores serão carregadas via JavaScript -->
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <h4 class="preview-title">Preview em Tempo Real</h4>
+                    <div class="preview-item">
+                        <p><strong>Como aparece na fila de digitação:</strong></p>
+                        <div style="margin-top: 0.5rem;">
+                            <span class="preview-badge" id="preview-badge">Etapa 1 - Dados</span>
+                        </div>
+                    </div>
+                    <div class="preview-item">
+                        <p><strong>Como aparece no dropdown:</strong></p>
+                        <div style="margin-top: 0.5rem;">
+                            <select style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+                                <option id="preview-option">Etapa 1 - Dados</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="whatsapp-config">
+                    <h4 class="preview-title">Configuração WhatsApp</h4>
+                    <div class="whatsapp-toggle">
+                        <div class="toggle-switch" id="whatsapp-toggle" onclick="toggleWhatsApp()">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span>Ativar disparo automático</span>
+                    </div>
+                    <div id="whatsapp-settings" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Template da Mensagem</label>
+                            <textarea id="whatsapp-template" class="form-input" rows="4" placeholder="Olá {nome}, você está na {etapa}..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Variáveis Disponíveis</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{nome}</span>
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{etapa}</span>
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{valor}</span>
+                                <span style="background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">{banco}</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-success" onclick="testarWhatsApp()">
+                            <i data-feather="message-circle"></i>
+                            Testar Envio
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModal()">
+                    <i data-feather="x"></i>
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="salvarStatus()">
+                    <i data-feather="save"></i>
+                    Salvar Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/operacional/assets/crm-layout.js"></script>
+        
+    <script>
+        // Variáveis globais
+        let statusConfig = {};
+        let currentEditType = '';
+        let currentEditId = '';
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Inicializar Feather Icons
+                feather.replace();
+                
+                // Carregar configurações
+                await carregarConfiguracoes();
+                
+                console.log('✅ Página de configuração inicializada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar página:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        });
+
+        // Carregar configurações
+        async function carregarConfiguracoes() {
+            try {
+                console.log('🔄 Carregando configurações...');
+                
+                // Tentar carregar da API primeiro
+                try {
+                const response = await fetch('/api/status-config');
+                    if (response.ok) {
+                        statusConfig = await response.json();
+                        console.log('✅ Configurações carregadas da API');
+                    } else {
+                        throw new Error('API não disponível');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ API não disponível, usando configuração padrão:', error);
+                    await carregarConfiguracaoPadrao();
+                    return;
+                }
+                
+                // Renderizar status
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configurações carregadas');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configurações:', error);
+                await carregarConfiguracaoPadrao();
+            }
+        }
+
+        // Carregar configuração padrão
+        async function carregarConfiguracaoPadrao() {
+            try {
+                console.log('🔄 Carregando configuração padrão...');
+                
+                // Configuração padrão embutida
+                statusConfig = {
+                    statusFormulario: {
+                        '1': { nome: 'Etapa 1 - Dados', cor: '#3b82f6', descricao: 'Cliente preenchendo dados pessoais' },
+                        '2': { nome: 'Etapa 2 - Endereço', cor: '#10b981', descricao: 'Cliente preenchendo endereço' },
+                        '3': { nome: 'Etapa 3 - Benefício', cor: '#f59e0b', descricao: 'Cliente preenchendo dados do benefício' },
+                        '4': { nome: 'Etapa 4 - Bancário', cor: '#8b5cf6', descricao: 'Cliente preenchendo dados bancários' },
+                        '5': { nome: 'Cliente Finalizou', cor: '#22c55e', descricao: 'Cliente finalizou o formulário' }
+                    },
+                    produtos: {
+                        '3': { nome: 'Portabilidade', cor: '#f59e0b', descricao: 'Portabilidade de empréstimo' }
+                    },
+                    statusProposta: {
+                        'Na fila': { nome: 'Na Fila', cor: '#f59e0b', descricao: 'Proposta aguardando processamento' },
+                        'Em Digitação': { nome: 'Em Digitação', cor: '#3b82f6', descricao: 'Proposta sendo digitada' },
+                        'Finalizada': { nome: 'Finalizada', cor: '#22c55e', descricao: 'Proposta finalizada' },
+                        'Pendente': { nome: 'Pendente', cor: '#ef4444', descricao: 'Proposta pendente' }
+                    }
+                };
+                
+                // Renderizar status
+                renderizarStatus('formulario');
+                renderizarProdutos();
+                renderizarStatus('proposta');
+                
+                console.log('✅ Configuração padrão carregada');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar configuração padrão:', error);
+                mostrarErro('Erro ao carregar configurações');
+            }
+        }
+
+        // Renderizar status
+        function renderizarStatus(tipo) {
+            const container = document.getElementById(`status-${tipo}-list`);
+            const statusList = statusConfig[`status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`] || {};
+            
+            if (Object.keys(statusList).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="inbox"></i>
+                        <h3>Nenhum status encontrado</h3>
+                        <p>Adicione o primeiro status desta categoria.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            const html = Object.values(statusList)
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(status => criarItemStatus(status, tipo))
+                .join('');
+
+            container.innerHTML = html;
+            feather.replace();
+        }
+
+        // Função específica para renderizar produtos
+        function renderizarProdutos() {
+            const container = document.getElementById('status-produtos-list');
+            const produtos = statusConfig.produtos || {};
+            
+            if (Object.keys(produtos).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-feather="package"></i>
+                        <h3>Nenhum produto encontrado</h3>
+                        <p>Adicione o primeiro produto.</p>
+                    </div>
+                `;
+                feather.replace();
+                return;
+            }
+
+            const html = Object.values(produtos)
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(produto => criarItemProduto(produto))
+                .join('');
+
+            container.innerHTML = html;
+            feather.replace();
+        }
+
+        // Criar item de produto
+        function criarItemProduto(produto) {
+            const whatsappClass = produto.whatsapp?.ativo ? 'active' : '';
+            const origemClass = produto.origem === 'calculo' ? 'origem-calculo' : 'origem-manual';
+            const isCalculado = produto.origem === 'calculo';
+            
+            return `
+                    <div class="status-item">
+                        <div class="status-info">
+                        <div class="status-id">${produto.id}</div>
+                        <div class="status-preview">
+                            <div class="status-badge" style="background-color: ${produto.cor}">
+                                ${produto.nome}
+                            </div>
+                            <div class="status-origem ${origemClass}">
+                                <i data-feather="${produto.origem === 'calculo' ? 'calculator' : 'edit-3'}"></i>
+                                ${produto.origem === 'calculo' ? 'Calculado' : 'Manual'}
+                            </div>
+                            </div>
+                            <div>
+                            <div style="font-weight: 500; color: #1e293b;">${produto.nome}</div>
+                            <div class="status-description">${produto.descricao}</div>
+                            </div>
+                        </div>
+                        <div class="status-actions">
+                        <button class="action-btn whatsapp-btn ${whatsappClass}" onclick="configurarWhatsApp('produtos', '${produto.id}')" title="WhatsApp">
+                            <i data-feather="message-circle"></i>
+                            </button>
+                        ${isCalculado ? `
+                            <button class="action-btn edit-btn" onclick="editarCor('produtos', '${produto.id}')" title="Editar Cor">
+                                <i data-feather="palette"></i>
+                            </button>
+                        ` : `
+                            <button class="action-btn edit-btn" onclick="editarStatus('produtos', '${produto.id}')" title="Editar">
+                                <i data-feather="edit-2"></i>
+                            </button>
+                            <button class="action-btn delete-btn" onclick="excluirStatus('produtos', '${produto.id}')" title="Excluir">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        `}
+                        </div>
+                    </div>
+            `;
+        }
+
+        // Criar item de status
+        function criarItemStatus(status, tipo) {
+            const whatsappClass = status.whatsapp?.ativo ? 'active' : '';
+            const isEditavel = status.editavel !== false;
+            const isFixo = status.fixo === true;
+            
+            return `
+                <div class="status-item">
+                    <div class="status-info">
+                        <div class="status-id">${status.id}</div>
+                        <div class="status-preview">
+                            <div class="status-badge" style="background-color: ${status.cor}">
+                                ${status.nome}
+                            </div>
+                            <div>
+                                <div style="font-weight: 500; color: #1e293b;">${status.nome}</div>
+                                <div class="status-description">${status.descricao}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-actions">
+                        ${isEditavel ? `
+                            <button class="action-btn edit-btn" onclick="editarStatus('${tipo}', '${status.id}')" title="Editar">
+                                <i data-feather="edit-2"></i>
+                            </button>
+                        ` : `
+                            <button class="action-btn edit-btn" onclick="editarCor('${tipo}', '${status.id}')" title="Editar Cor">
+                                <i data-feather="palette"></i>
+                            </button>
+                        `}
+                        <button class="action-btn whatsapp-btn ${whatsappClass}" onclick="configurarWhatsApp('${tipo}', '${status.id}')" title="WhatsApp">
+                            <i data-feather="message-circle"></i>
+                        </button>
+                        ${!isFixo ? `
+                            <button class="action-btn delete-btn" onclick="excluirStatus('${tipo}', '${status.id}')" title="Excluir">
+                                <i data-feather="trash-2"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Adicionar status
+        function adicionarStatus(tipo) {
+            currentEditType = tipo;
+            currentEditId = '';
+            
+            // Limpar formulário
+            document.getElementById('edit-nome').value = '';
+            document.getElementById('edit-descricao').value = '';
+            document.getElementById('whatsapp-template').value = '';
+            
+            // Definir cor padrão
+            const cores = statusConfig.configuracoes?.coresDisponiveis || [];
+            if (cores.length > 0) {
+                selecionarCor(cores[0].codigo);
+            }
+            
+            // Atualizar título do modal
+            const tipoNome = {
+                'formulario': 'Status do Formulário',
+                'produtos': 'Produto',
+                'proposta': 'Status da Proposta'
+            };
+            
+            document.getElementById('modal-title').textContent = `Adicionar ${tipoNome[tipo]}`;
+            
+            // Mostrar/ocultar campos específicos para produtos
+            const produtoOrigemGroup = document.getElementById('produto-origem-group');
+            const simuladorProdutoGroup = document.getElementById('simulador-produto-group');
+            
+            if (tipo === 'produtos') {
+                produtoOrigemGroup.style.display = 'block';
+                simuladorProdutoGroup.style.display = 'none';
+                
+                // Resetar seleção de origem
+                document.querySelector('input[name="produto-origem"][value="manual"]').checked = true;
+                
+                // Carregar produtos do simulador
+                carregarProdutosSimulador();
+            } else {
+                produtoOrigemGroup.style.display = 'none';
+                simuladorProdutoGroup.style.display = 'none';
+            }
+            
+            // Carregar cores
+            carregarCores();
+            
+            // Mostrar modal
+            document.getElementById('edit-modal').classList.add('active');
+            
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        // Editar apenas cor (para status não editáveis)
+        function editarCor(tipo, id) {
+            const statusList = statusConfig[`status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`] || {};
+            const status = statusList[id];
+            
+            if (!status) return;
+            
+            currentEditType = tipo;
+            currentEditId = id;
+            
+            // Preencher formulário apenas com cor
+            document.getElementById('edit-nome').value = status.nome;
+            document.getElementById('edit-descricao').value = status.descricao;
+            document.getElementById('whatsapp-template').value = status.whatsapp?.template || '';
+            
+            // Desabilitar campos não editáveis
+            document.getElementById('edit-nome').disabled = true;
+            document.getElementById('edit-descricao').disabled = true;
+            
+            // Definir cor atual
+            selecionarCor(status.cor);
+            
+            // Atualizar título do modal
+            document.getElementById('modal-title').textContent = `Editar Cor - ${status.nome}`;
+            
+            // Carregar cores
+            carregarCores();
+            
+            // Mostrar modal
+            document.getElementById('edit-modal').classList.add('active');
+            
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        // Editar status
+        function editarStatus(tipo, id) {
+            currentEditType = tipo;
+            currentEditId = id;
+            
+            // Habilitar campos
+            document.getElementById('edit-nome').disabled = false;
+            document.getElementById('edit-descricao').disabled = false;
+            
+            const statusList = tipo === 'produtos' ? statusConfig.produtos : statusConfig[`status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`];
+            const status = statusList[id];
+            
+            // Preencher formulário
+            document.getElementById('edit-nome').value = status.nome;
+            document.getElementById('edit-descricao').value = status.descricao;
+            document.getElementById('whatsapp-template').value = status.whatsapp?.template || '';
+            
+            // Selecionar cor
+            selecionarCor(status.cor);
+            
+            // Configurar WhatsApp
+            const toggle = document.getElementById('whatsapp-toggle');
+            const settings = document.getElementById('whatsapp-settings');
+            
+            if (status.whatsapp?.ativo) {
+                toggle.classList.add('active');
+                settings.style.display = 'block';
+            } else {
+                toggle.classList.remove('active');
+                settings.style.display = 'none';
+            }
+            
+            // Atualizar título do modal
+            document.getElementById('modal-title').textContent = `Editar ${status.nome}`;
+            
+            // Carregar cores
+            carregarCores();
+            
+            // Mostrar modal
+            document.getElementById('edit-modal').classList.add('active');
+            
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        // Carregar cores
+        function carregarCores() {
+            const container = document.getElementById('color-picker');
+            const cores = statusConfig.configuracoes?.coresDisponiveis || [];
+            
+            container.innerHTML = cores.map(cor => `
+                <div class="color-option" 
+                     style="background-color: ${cor.codigo}" 
+                     onclick="selecionarCor('${cor.codigo}')"
+                     title="${cor.nome}">
+                </div>
+            `).join('');
+        }
+
+        // Selecionar cor
+        function selecionarCor(cor) {
+            // Remover seleção anterior
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Selecionar nova cor
+            const corElement = Array.from(document.querySelectorAll('.color-option'))
+                .find(el => el.style.backgroundColor === cor || el.style.backgroundColor === `rgb(${hexToRgb(cor).join(', ')})`);
+            
+            if (corElement) {
+                corElement.classList.add('selected');
+            }
+            
+            // Atualizar preview
+            atualizarPreview();
+        }
+
+        // Converter hex para RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : null;
+        }
+
+        // Atualizar preview
+        function atualizarPreview() {
+            const nome = document.getElementById('edit-nome').value || 'Nome do Status';
+            const cor = document.querySelector('.color-option.selected')?.style.backgroundColor || '#3b82f6';
+            
+            // Atualizar badge
+            const badge = document.getElementById('preview-badge');
+            badge.textContent = nome;
+            badge.style.backgroundColor = cor;
+            
+            // Atualizar option
+            const option = document.getElementById('preview-option');
+            option.textContent = nome;
+        }
+
+        // Toggle WhatsApp
+        function toggleWhatsApp() {
+            const toggle = document.getElementById('whatsapp-toggle');
+            const settings = document.getElementById('whatsapp-settings');
+            
+            toggle.classList.toggle('active');
+            settings.style.display = toggle.classList.contains('active') ? 'block' : 'none';
+        }
+
+        // Configurar WhatsApp
+        function configurarWhatsApp(tipo, id) {
+            editarStatus(tipo, id);
+            // Focar na seção WhatsApp
+            setTimeout(() => {
+                document.getElementById('whatsapp-toggle').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // Testar WhatsApp
+        function testarWhatsApp() {
+            const template = document.getElementById('whatsapp-template').value;
+            const nome = document.getElementById('edit-nome').value || 'Cliente';
+            
+            const mensagem = template
+                .replace('{nome}', nome)
+                .replace('{etapa}', document.getElementById('edit-nome').value || 'Status')
+                .replace('{valor}', 'R$ 10.000,00')
+                .replace('{banco}', 'Caixa Econômica');
+            
+            alert(`📱 MENSAGEM DE TESTE:\n\n${mensagem}\n\n(Envio real será implementado futuramente)`);
+        }
+
+        // Salvar status
+        function salvarStatus() {
+            const nome = document.getElementById('edit-nome').value.trim();
+            const descricao = document.getElementById('edit-descricao').value.trim();
+            const cor = document.querySelector('.color-option.selected')?.style.backgroundColor || '#3b82f6';
+            const whatsappAtivo = document.getElementById('whatsapp-toggle').classList.contains('active');
+            const whatsappTemplate = document.getElementById('whatsapp-template').value.trim();
+            
+            if (!nome) {
+                alert('Nome do status é obrigatório');
+                return;
+            }
+            
+            const tipoKey = currentEditType === 'produtos' ? 'produtos' : `status${currentEditType.charAt(0).toUpperCase() + currentEditType.slice(1)}`;
+            const statusList = statusConfig[tipoKey] || {};
+            
+            // Gerar novo ID se for novo
+            if (!currentEditId) {
+                const ids = Object.keys(statusList).map(Number);
+                currentEditId = (Math.max(...ids, 0) + 1).toString();
+            }
+            
+            // Criar/atualizar status
+            const statusData = {
+                id: currentEditId,
+                nome,
+                descricao,
+                cor,
+                corNome: obterNomeCor(cor),
+                ordem: parseInt(currentEditId),
+                ativo: true,
+                whatsapp: {
+                    ativo: whatsappAtivo,
+                    template: whatsappTemplate,
+                    variaveis: currentEditType === 'produtos' ? ['nome', 'produto', 'valor', 'banco'] : ['nome', 'etapa', 'valor', 'banco']
+                }
+            };
+            
+            // Adicionar campos específicos para produtos
+            if (currentEditType === 'produtos') {
+                // Obter origem selecionada
+                const origemSelecionada = document.querySelector('input[name="produto-origem"]:checked')?.value || 'manual';
+                statusData.origem = origemSelecionada;
+                
+                // Se for produto calculado, obter ID do simulador
+                if (origemSelecionada === 'calculo') {
+                    const simuladorProdutoId = document.getElementById('simulador-produto-select').value;
+                    if (simuladorProdutoId) {
+                        statusData.simuladorId = simuladorProdutoId;
+                        // Se for edição, manter editavel como false para produtos calculados
+                        if (produtoExistente?.origem === 'calculo') {
+                            statusData.editavel = false;
+                        }
+                    }
+                } else {
+                    // Produto manual é editável
+                    statusData.editavel = true;
+                }
+            }
+            
+            statusList[currentEditId] = statusData;
+            statusConfig[tipoKey] = statusList;
+            
+            // Fechar modal
+            fecharModal();
+            
+            // Atualizar lista
+            if (currentEditType === 'produtos') {
+                renderizarProdutos();
+            } else {
+                renderizarStatus(currentEditType);
+            }
+            
+            console.log('✅ Status salvo:', statusList[currentEditId]);
+        }
+
+        // Obter nome da cor
+        function obterNomeCor(cor) {
+            const cores = statusConfig.configuracoes?.coresDisponiveis || [];
+            const corEncontrada = cores.find(c => c.codigo === cor);
+            return corEncontrada?.nome || 'Personalizada';
+        }
+
+        // Excluir status
+        function excluirStatus(tipo, id) {
+            if (!confirm('Tem certeza que deseja excluir este status?')) {
+                return;
+            }
+            
+            const tipoKey = `status${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
+            delete statusConfig[tipoKey][id];
+            
+            // Atualizar lista
+            renderizarStatus(tipo);
+            
+            console.log('✅ Status excluído:', id);
+        }
+
+        // Fechar modal
+        function fecharModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+
+        // Salvar configurações
+        async function salvarConfiguracoes() {
+            try {
+                console.log('💾 Salvando configurações...');
+                
+                const response = await fetch('/api/status-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(statusConfig)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao salvar configurações');
+                }
+                
+                console.log('✅ Configurações salvas');
+                alert('Configurações salvas com sucesso!');
+                
+            } catch (error) {
+                console.error('❌ Erro ao salvar configurações:', error);
+                alert('Erro ao salvar configurações: ' + error.message);
+            }
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            alert('Erro: ' + mensagem);
+        }
+
+        // Adicionar event listeners para os radio buttons de origem do produto
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listener para mudança de origem do produto
+            document.addEventListener('change', function(e) {
+                if (e.target.name === 'produto-origem') {
+                    const simuladorProdutoGroup = document.getElementById('simulador-produto-group');
+                    
+                    if (e.target.value === 'calculo') {
+                        simuladorProdutoGroup.style.display = 'block';
+                        // Carregar produtos do simulador se ainda não carregados
+                        carregarProdutosSimulador();
+                    } else {
+                        simuladorProdutoGroup.style.display = 'none';
+                    }
+                }
+            });
+        });
+
+        // Carregar produtos do simulador para o select
+        async function carregarProdutosSimulador() {
+            try {
+                const response = await fetch('/api/simulador/produtos');
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar produtos do simulador');
+                }
+                
+                const produtosSimulador = await response.json();
+                const select = document.getElementById('simulador-produto-select');
+                
+                // Limpar opções existentes (exceto a primeira)
+                select.innerHTML = '<option value="">Selecione um produto do simulador</option>';
+                
+                // Adicionar produtos do simulador
+                produtosSimulador.forEach(produto => {
+                    const option = document.createElement('option');
+                    option.value = produto.id;
+                    option.textContent = `${produto.nome} (ID: ${produto.id})`;
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar produtos do simulador:', error);
+            }
+        }
+
+        // Sincronizar produtos do simulador
+        async function sincronizarProdutosSimulador() {
+            try {
+                console.log('🔄 Sincronizando produtos do simulador...');
+                
+                // Buscar produtos do simulador via API
+                const response = await fetch('/api/simulador/produtos');
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar produtos do simulador');
+                }
+                
+                const produtosSimulador = await response.json();
+                
+                // Atualizar produtos calculados
+                const produtos = statusConfig.produtos || {};
+                let produtosAtualizados = 0;
+                
+                produtosSimulador.forEach(produto => {
+                    if (produto.id && produto.nome) {
+                        const produtoExistente = produtos[produto.id];
+                        
+                        // Se não existe ou se é diferente, atualizar
+                        if (!produtoExistente || produtoExistente.origem !== 'calculo') {
+                            produtos[produto.id] = {
+                                id: produto.id,
+                                nome: produto.nome,
+                                descricao: produto.descricao || `Produto calculado pelo simulador`,
+                                cor: produtoExistente?.cor || '#3b82f6',
+                                corNome: produtoExistente?.corNome || 'Azul',
+                                ordem: parseInt(produto.id),
+                                ativo: true,
+                                origem: 'calculo',
+                                whatsapp: produtoExistente?.whatsapp || {
+                                    ativo: false,
+                                    template: '',
+                                    variaveis: ['nome', 'produto', 'valor', 'banco']
+                                }
+                            };
+                            produtosAtualizados++;
+                        }
+                    }
+                });
+                
+                statusConfig.produtos = produtos;
+                
+                // Renderizar produtos atualizados
+                renderizarProdutos();
+                
+                console.log(`✅ ${produtosAtualizados} produtos sincronizados do simulador`);
+                
+                if (produtosAtualizados > 0) {
+                    alert(`${produtosAtualizados} produtos foram sincronizados do simulador!`);
+                } else {
+                    alert('Nenhum produto novo encontrado no simulador.');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar produtos:', error);
+                alert('Erro ao sincronizar produtos: ' + error.message);
+            }
+        }
+
+        // Event listeners para preview em tempo real
+        document.getElementById('edit-nome').addEventListener('input', atualizarPreview);
+        document.getElementById('edit-descricao').addEventListener('input', atualizarPreview);
+
+        // Configurar botão mobile
+        const mobileBtn = document.querySelector('.mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            });
+            
+            // Mostrar botão em mobile
+            const showMobileButton = () => {
+                const isMobile = window.innerWidth <= 1024;
+                mobileBtn.style.display = isMobile ? 'flex' : 'none';
+            };
+            
+            window.addEventListener('resize', showMobileButton);
+            showMobileButton();
+        }
+
+        // Configurar overlay
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                const sidebar = document.querySelector('.sidebar');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+    </script>
+</body>
+</html>

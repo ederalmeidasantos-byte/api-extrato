@@ -439,7 +439,7 @@ function buscarPropostaId(fileId) {
 }
 
 function calcularTrocoEndpoint(JSON_DIR) {
-  return (_req, res) => {
+  return async (_req, res) => {
     try {
       const fileId = _req?.params?.fileId ?? "local";
       const jsonPath = path.join(JSON_DIR, `extrato_${fileId}.json`);
@@ -447,7 +447,7 @@ function calcularTrocoEndpoint(JSON_DIR) {
         return res.status(404).json({ error: "Extrato não encontrado (pode ter expirado)" });
       }
 
-      const extrato = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      const extrato = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
       let contratosAtivos = extrairEmprestimos(extrato);
       const diaAverbacao = diaFromExtrato(extrato);
 

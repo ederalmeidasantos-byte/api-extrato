@@ -524,29 +524,12 @@ app.get('/api/calcular/:fileId', async (req, res) => {
       return res.status(404).json({ error: 'Extrato não encontrado' });
     }
 
-    const extratoData = JSON.parse(await fsp.readFile(jsonPath, 'utf-8'));
-    const { calcularTrocoEndpoint } = await import('./calculo.js');
     const calcularTroco = calcularTrocoEndpoint(
       path.join(__dirname, '..', 'var', 'data', 'extratos')
     );
     
-    // Criar um mock de req e res para a função
-    const mockReq = { params: { fileId } };
-    const mockRes = {
-      json: (data) => {
-        console.log('✅ [INSS] Simulação calculada com sucesso');
-        return res.json({
-          success: true,
-          fileId,
-          ...data
-        });
-      },
-      status: (code) => ({
-        json: (data) => res.status(code).json(data)
-      })
-    };
-    
-    await calcularTroco(mockReq, mockRes);
+    // Chamar a função diretamente
+    await calcularTroco(req, res);
 
   } catch (error) {
     console.error('❌ [INSS] Erro ao calcular simulação:', error);
@@ -557,7 +540,98 @@ app.get('/api/calcular/:fileId', async (req, res) => {
   }
 });
 
-// API para obter extrato processado
+// API para obter extrato processado (com processamento automático)
+app.get('/extrato/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const idoportunidade = req.query.idoportunidade || null;
+    console.log(`🔍 [INSS] Buscando extrato para fileId: ${fileId}, idoportunidade: ${idoportunidade}`);
+
+    const jsonPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.json`);
+    const pdfPath = path.join(__dirname, '..', 'var', 'data', 'extratos', `extrato_${fileId}.pdf`);
+
+    // Verificar cache válido
+    const cacheValido = (p) => {
+      try {
+        const ttlMs = 14 * 24 * 60 * 60 * 1000; // 14 dias
+        return Date.now() - fs.statSync(p).mtimeMs <= ttlMs;
+      } catch {
+        return false;
+      }
+    };
+
+    if (fs.existsSync(jsonPath) && cacheValido(jsonPath)) {
+      console.log('♻️ [INSS] Usando cache válido para extrato:', jsonPath);
+      const cachedData = JSON.parse(await fsp.readFile(jsonPath, 'utf-8'));
+      return res.json(cachedData);
+    }
+
+    // Se não há PDF, baixar da API da Kentro
+    if (!fs.existsSync(pdfPath)) {
+      console.log('📥 [INSS] PDF não encontrado localmente, baixando da API da Kentro...');
+      try {
+        const kentroResponse = await fetch('https://lunasdigital.atenderbem.com/int/downloadFile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            queueId: 25,
+            apiKey: process.env.KENTRO_API_KEY || 'cd4d0509169d4e2ea9177ac66c1c9376',
+            fileId: parseInt(fileId),
+            download: true
+          }).toString()
+        });
+
+        if (!kentroResponse.ok) {
+          const errorText = await kentroResponse.text();
+          throw new Error(`Erro ao baixar PDF da Kentro: ${kentroResponse.status} ${kentroResponse.statusText} - ${errorText}`);
+        }
+
+        const pdfBuffer = Buffer.from(await kentroResponse.arrayBuffer());
+        await fsp.writeFile(pdfPath, pdfBuffer);
+        console.log('✅ [INSS] PDF baixado e salvo localmente:', pdfPath);
+
+      } catch (downloadError) {
+        console.error('❌ [INSS] Erro ao baixar PDF da Kentro:', downloadError);
+        return res.status(500).json({
+          error: 'Erro ao baixar PDF da Kentro',
+          details: downloadError.message,
+          fileId: fileId
+        });
+      }
+    }
+
+    console.log('🚀 [INSS] Cache não encontrado ou expirado, processando PDF com ChatGPT...');
+
+    const resultado = await extrairDeUpload({
+      fileId: fileId,
+      pdfPath: pdfPath,
+      jsonDir: path.join(__dirname, '..', 'var', 'data', 'extratos'),
+      ttlMs: 14 * 24 * 60 * 60 * 1000, // 14 dias
+      idoportunidade: idoportunidade
+    });
+
+    const simuladorLink = `https://inss.lunasdigital.com.br/inss/simulador.html?extrato=${fileId}`;
+    resultado.simuladorLink = simuladorLink;
+
+    console.log('✅ [INSS] Extração concluída com sucesso');
+    console.log('📊 [INSS] Cliente:', resultado.cliente);
+    console.log('📊 [INSS] Contratos encontrados:', resultado.contratos?.length || 0);
+
+    res.json(resultado);
+
+  } catch (error) {
+    console.error('❌ [INSS] Erro ao extrair dados:', error);
+    res.status(500).json({
+      error: 'Erro ao extrair dados',
+      details: error.message,
+      fileId: req.params.fileId
+    });
+  }
+});
+
+// API para obter extrato processado (somente leitura, sem processamento)
 app.get('/extrato/:fileId/raw', async (req, res) => {
   try {
     const { fileId } = req.params;
