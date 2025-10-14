@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Instalar dependências do sistema
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++
+
+# Copiar package.json e instalar dependências
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copiar código fonte
+COPY . .
+
+# Criar diretórios necessários
+RUN mkdir -p /app/data
+
+# Expor porta
+EXPOSE 3004
+
+# Comando para iniciar o serviço de disparo WhatsApp
+CMD ["node", "whatsapp-dispatcher-server.js"]

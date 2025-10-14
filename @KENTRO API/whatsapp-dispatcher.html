@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disparador WhatsApp - Sistema Kentro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        /* Formulário de Disparo */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        /* Dashboard de Status */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.total { border-left-color: #3498db; }
+        .stat-card.success { border-left-color: #27ae60; }
+        .stat-card.failed { border-left-color: #e74c3c; }
+        .stat-card.pending { border-left-color: #f39c12; }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            background: #ecf0f1;
+            border-radius: 10px;
+            height: 20px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .controls .btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        /* Logs */
+        .logs-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .log-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f2f6;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: background-color 0.2s;
+        }
+
+        .log-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .log-status.success { background: #27ae60; }
+        .log-status.failed { background: #e74c3c; }
+        .log-status.pending { background: #f39c12; }
+        .log-status.processing { background: #3498db; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .log-info {
+            flex: 1;
+        }
+
+        .log-number {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .log-time {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        .log-error {
+            font-size: 0.9rem;
+            color: #e74c3c;
+            margin-top: 2px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .filter-btn:hover {
+            border-color: #3498db;
+        }
+
+        /* Alertas */
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+
+        .alert.success {
+            background: #d5f4e6;
+            border-left-color: #27ae60;
+            color: #155724;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            border-left-color: #e74c3c;
+            color: #721c24;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            border-left-color: #f39c12;
+            color: #856404;
+        }
+
+        .alert.info {
+            background: #d1ecf1;
+            border-left-color: #3498db;
+            color: #0c5460;
+        }
+
+        /* Responsivo */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Disparador WhatsApp</h1>
+            <p>Sistema de disparo em massa via API Kentro</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Seção 1: Formulário de Disparo -->
+            <div class="section">
+                <h2>🚀 Configurar Disparo</h2>
+                
+                <div id="alert-container"></div>
+                
+                <form id="disparo-form">
+                    <div class="form-group">
+                        <label for="numbers">Números de Telefone:</label>
+                        <textarea 
+                            id="numbers" 
+                            placeholder="Cole os números aqui, um por linha ou separados por vírgula&#10;Exemplos:&#10;11959088554&#10;(11) 95908-8554&#10;+55 11 95908-8554&#10;5511959088554"
+                            required
+                        ></textarea>
+                        <small style="color: #7f8c8d; font-size: 0.8rem;">
+                            Aceita múltiplos formatos. Será normalizado automaticamente.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="templateId">Template ID:</label>
+                        <select id="templateId">
+                            <option value="99">Template 99 (Padrão)</option>
+                            <option value="100">Template 100</option>
+                            <option value="101">Template 101</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="queueId">Queue ID:</label>
+                        <select id="queueId">
+                            <option value="25">Queue 25 (Padrão)</option>
+                            <option value="26">Queue 26</option>
+                            <option value="27">Queue 27</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="templateData">Dados do Template (JSON):</label>
+                        <input 
+                            type="text" 
+                            id="templateData" 
+                            placeholder='["nome", "valor"]'
+                            value='["nome"]'
+                        >
+                        <small style="color: #7f8c8d; font-size: 0.8rem;">
+                            Array JSON com variáveis do template
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn" id="btn-disparar">
+                        <span id="btn-text">🚀 Iniciar Disparo</span>
+                        <span id="btn-loading" class="loading hidden"></span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Seção 2: Status em Tempo Real -->
+            <div class="section">
+                <h2>📊 Status do Disparo</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card total">
+                        <div class="stat-number" id="stat-total">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-number" id="stat-success">0</div>
+                        <div class="stat-label">Sucesso</div>
+                    </div>
+                    <div class="stat-card failed">
+                        <div class="stat-number" id="stat-failed">0</div>
+                        <div class="stat-label">Falha</div>
+                    </div>
+                    <div class="stat-card pending">
+                        <div class="stat-number" id="stat-pending">0</div>
+                        <div class="stat-label">Fila</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-success" id="btn-resume" disabled>
+                        ▶️ Retomar
+                    </button>
+                    <button class="btn btn-warning" id="btn-pause" disabled>
+                        ⏸️ Pausar
+                    </button>
+                    <button class="btn btn-danger" id="btn-clear" disabled>
+                        🗑️ Limpar Fila
+                    </button>
+                </div>
+            </div>
+
+            <!-- Seção 3: Logs Detalhados -->
+            <div class="section">
+                <h2>📋 Logs em Tempo Real</h2>
+                
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="all">Todos</button>
+                    <button class="filter-btn" data-filter="success">Sucesso</button>
+                    <button class="filter-btn" data-filter="failed">Falha</button>
+                    <button class="filter-btn" data-filter="pending">Fila</button>
+                </div>
+
+                <div class="logs-container" id="logs-container">
+                    <div class="log-item">
+                        <div class="log-info">
+                            <div style="text-align: center; color: #7f8c8d; padding: 20px;">
+                                Aguardando disparos...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WhatsAppDispatcher {
+            constructor() {
+                this.eventSource = null;
+                this.currentFilter = 'all';
+                this.logs = [];
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.loadStatus();
+                this.connectSSE();
+            }
+
+            bindEvents() {
+                // Formulário de disparo
+                document.getElementById('disparo-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.startDispatch();
+                });
+
+                // Controles
+                document.getElementById('btn-pause').addEventListener('click', () => {
+                    this.pauseDispatch();
+                });
+
+                document.getElementById('btn-resume').addEventListener('click', () => {
+                    this.resumeDispatch();
+                });
+
+                document.getElementById('btn-clear').addEventListener('click', () => {
+                    this.clearQueue();
+                });
+
+                // Filtros de logs
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.setFilter(e.target.dataset.filter);
+                    });
+                });
+            }
+
+            async startDispatch() {
+                const numbersText = document.getElementById('numbers').value.trim();
+                const templateId = parseInt(document.getElementById('templateId').value);
+                const queueId = parseInt(document.getElementById('queueId').value);
+                const templateDataText = document.getElementById('templateData').value.trim();
+
+                if (!numbersText) {
+                    this.showAlert('Por favor, insira pelo menos um número de telefone.', 'error');
+                    return;
+                }
+
+                // Parse template data
+                let templateData;
+                try {
+                    templateData = JSON.parse(templateDataText);
+                } catch (error) {
+                    this.showAlert('Dados do template devem ser um JSON válido.', 'error');
+                    return;
+                }
+
+                // Parse numbers
+                const numbers = numbersText
+                    .split(/[\n,;]/)
+                    .map(n => n.trim())
+                    .filter(n => n.length > 0);
+
+                if (numbers.length === 0) {
+                    this.showAlert('Nenhum número válido encontrado.', 'error');
+                    return;
+                }
+
+                this.setButtonLoading(true);
+
+                try {
+                    const response = await fetch('/api/disparar', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            numbers,
+                            templateId,
+                            queueId,
+                            data: templateData
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        this.showAlert(
+                            `${result.message}. ${result.errors ? `Avisos: ${result.errors.length} números inválidos.` : ''}`,
+                            'success'
+                        );
+                        this.loadStatus();
+                    } else {
+                        this.showAlert(result.error, 'error');
+                    }
+                } catch (error) {
+                    this.showAlert('Erro ao iniciar disparo: ' + error.message, 'error');
+                } finally {
+                    this.setButtonLoading(false);
+                }
+            }
+
+            async pauseDispatch() {
+                try {
+                    const response = await fetch('/api/pause', { method: 'POST' });
+                    const result = await response.json();
+                    this.showAlert(result.message, 'info');
+                    this.loadStatus();
+                } catch (error) {
+                    this.showAlert('Erro ao pausar: ' + error.message, 'error');
+                }
+            }
+
+            async resumeDispatch() {
+                try {
+                    const response = await fetch('/api/resume', { method: 'POST' });
+                    const result = await response.json();
+                    this.showAlert(result.message, 'info');
+                    this.loadStatus();
+                } catch (error) {
+                    this.showAlert('Erro ao retomar: ' + error.message, 'error');
+                }
+            }
+
+            async clearQueue() {
+                if (!confirm('Tem certeza que deseja limpar a fila? Esta ação não pode ser desfeita.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/queue', { method: 'DELETE' });
+                    const result = await response.json();
+                    this.showAlert(result.message, 'info');
+                    this.loadStatus();
+                    this.clearLogs();
+                } catch (error) {
+                    this.showAlert('Erro ao limpar fila: ' + error.message, 'error');
+                }
+            }
+
+            async loadStatus() {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+                    this.updateStatus(status);
+                } catch (error) {
+                    console.error('Erro ao carregar status:', error);
+                }
+            }
+
+            updateStatus(status) {
+                document.getElementById('stat-total').textContent = status.total;
+                document.getElementById('stat-success').textContent = status.success;
+                document.getElementById('stat-failed').textContent = status.failed;
+                document.getElementById('stat-pending').textContent = status.pending;
+
+                // Progress bar
+                const progress = status.total > 0 ? ((status.success + status.failed) / status.total) * 100 : 0;
+                document.getElementById('progress-fill').style.width = `${progress}%`;
+
+                // Controles
+                const hasItems = status.total > 0;
+                const isProcessing = status.isProcessing;
+
+                document.getElementById('btn-pause').disabled = !isProcessing;
+                document.getElementById('btn-resume').disabled = isProcessing || !hasItems;
+                document.getElementById('btn-clear').disabled = isProcessing || !hasItems;
+            }
+
+            connectSSE() {
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+
+                this.eventSource = new EventSource('/api/logs');
+
+                this.eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        this.handleSSEEvent(data);
+                    } catch (error) {
+                        console.error('Erro ao processar evento SSE:', error);
+                    }
+                };
+
+                this.eventSource.onerror = (error) => {
+                    console.error('Erro na conexão SSE:', error);
+                    // Reconectar após 5 segundos
+                    setTimeout(() => {
+                        this.connectSSE();
+                    }, 5000);
+                };
+            }
+
+            handleSSEEvent(data) {
+                switch (data.event) {
+                    case 'connected':
+                        console.log('Conectado ao stream de logs');
+                        break;
+
+                    case 'item_processing':
+                    case 'item_completed':
+                        this.addLog(data.data.item, data.data.result);
+                        this.loadStatus();
+                        break;
+
+                    case 'queue_started':
+                        this.showAlert(`Processamento iniciado: ${data.data.total} números`, 'info');
+                        break;
+
+                    case 'queue_completed':
+                        this.showAlert(`Processamento concluído: ${data.data.total} números`, 'success');
+                        break;
+
+                    case 'queue_error':
+                        this.showAlert(`Erro no processamento: ${data.data.error}`, 'error');
+                        break;
+                }
+            }
+
+            addLog(item, result) {
+                const log = {
+                    id: item.id,
+                    number: item.number,
+                    status: item.status,
+                    templateId: item.templateId,
+                    queueId: item.queueId,
+                    attempts: item.attempts,
+                    error: item.error,
+                    timestamp: new Date().toLocaleString('pt-BR')
+                };
+
+                // Adicionar no início da lista
+                this.logs.unshift(log);
+
+                // Manter apenas últimos 100 logs
+                if (this.logs.length > 100) {
+                    this.logs = this.logs.slice(0, 100);
+                }
+
+                this.renderLogs();
+            }
+
+            renderLogs() {
+                const container = document.getElementById('logs-container');
+                const filteredLogs = this.currentFilter === 'all' 
+                    ? this.logs 
+                    : this.logs.filter(log => log.status === this.currentFilter);
+
+                if (filteredLogs.length === 0) {
+                    container.innerHTML = `
+                        <div class="log-item">
+                            <div class="log-info">
+                                <div style="text-align: center; color: #7f8c8d; padding: 20px;">
+                                    Nenhum log encontrado para o filtro selecionado.
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filteredLogs.map(log => `
+                    <div class="log-item">
+                        <div class="log-status ${log.status}"></div>
+                        <div class="log-info">
+                            <div class="log-number">${log.number}</div>
+                            <div class="log-time">${log.timestamp} | Template ${log.templateId} | Queue ${log.queueId} | Tentativas: ${log.attempts}</div>
+                            ${log.error ? `<div class="log-error">${log.error}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            setFilter(filter) {
+                this.currentFilter = filter;
+                
+                // Atualizar botões de filtro
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+
+                this.renderLogs();
+            }
+
+            clearLogs() {
+                this.logs = [];
+                this.renderLogs();
+            }
+
+            setButtonLoading(loading) {
+                const btnText = document.getElementById('btn-text');
+                const btnLoading = document.getElementById('btn-loading');
+                const btn = document.getElementById('btn-disparar');
+
+                if (loading) {
+                    btnText.classList.add('hidden');
+                    btnLoading.classList.remove('hidden');
+                    btn.disabled = true;
+                } else {
+                    btnText.classList.remove('hidden');
+                    btnLoading.classList.add('hidden');
+                    btn.disabled = false;
+                }
+            }
+
+            showAlert(message, type = 'info') {
+                const container = document.getElementById('alert-container');
+                const alertClass = `alert ${type}`;
+                
+                container.innerHTML = `
+                    <div class="${alertClass}">
+                        ${message}
+                    </div>
+                `;
+
+                // Auto-remover após 5 segundos
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // Inicializar aplicação
+        document.addEventListener('DOMContentLoaded', () => {
+            new WhatsAppDispatcher();
+        });
+    </script>
+</body>
+</html>

@@ -85,6 +85,24 @@ services:
       - ./var/data:/app/var/data
       - ./backup-data:/app/backup-data
 
+  # Porta 3004 - Disparador WhatsApp (Sistema Kentro)
+  whatsapp-dispatcher:
+    build:
+      context: ./@KENTRO API
+      dockerfile: Dockerfile.whatsapp
+    ports:
+      - "3004:3004"
+    env_file:
+      - config-vps-restructured.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - CONTAINER_NAME=whatsapp-dispatcher
+    networks:
+      - lunas-network
+    volumes:
+      - ./@KENTRO API/data:/app/data
+
   # Nginx - Load Balancer e Proxy
   nginx:
     image: nginx:alpine
@@ -100,6 +118,7 @@ services:
       - crm
       - api-simulador
       - base-dados
+      - whatsapp-dispatcher
     networks:
       - lunas-network
 
