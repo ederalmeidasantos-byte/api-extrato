@@ -92,6 +92,21 @@ function logPainel(msg) {
   console.log(msg);
 }
 
+// ===== Função para parsear CSV =====
+function parseCsvContent(csvContent) {
+  const lines = csvContent.split('\n').filter(line => line.trim());
+  const cpfs = [];
+  
+  for (let i = 1; i < lines.length; i++) { // Pular cabeçalho
+    const parts = lines[i].split(';');
+    if (parts[0] && parts[0].trim()) {
+      cpfs.push(parts[0].trim());
+    }
+  }
+  
+  return cpfs;
+}
+
 // Função para emitir resultado de CPF no painel
 function emitirResultadoPainel(data) {
   const { linha, cpf, id, status, provider, valorLiberado, icone = '✅' } = data;
@@ -163,7 +178,7 @@ const upload = multer({ dest: UPLOADS_DIR });
 app.get("/fgts", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // Inicia processamento CSV
-app.post("/fgts/run", upload.single("csvfile"), async (req, res) => {
+app.post("/fgts/run", upload.single("csvFile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Arquivo CSV não enviado!" });
 
   logPainel(`📂 Planilha FGTS recebida: ${req.file.path}`);
@@ -589,6 +604,33 @@ app.post("/fgts/resume", (req,res)=>{
 app.get("/fgts/agendamentos", (req, res) => {
   // Esta função seria implementada para retornar agendamentos pendentes
   res.json({ message: "Endpoint de agendamentos - em desenvolvimento" });
+});
+
+// ===== Iniciar processamento do cache =====
+app.post("/fgts/iniciar-processamento-cache", async (req, res) => {
+  try {
+    console.log('🚀 Iniciando processamento do CSV em cache...');
+    
+    // Verificar se há arquivo CSV em cache
+    const csvPath = '/app/cpfs.csv';
+    if (!fs.existsSync(csvPath)) {
+      return res.status(404).json({ message: 'Arquivo CSV não encontrado em cache' });
+    }
+    
+    console.log(`📊 Arquivo CSV encontrado: ${csvPath}`);
+    
+    // Iniciar processamento passando o caminho do arquivo
+    await processarCPFs(csvPath);
+    
+    res.json({ 
+      success: true, 
+      message: `Processamento iniciado para arquivo CSV em cache`,
+      arquivo: csvPath
+    });
+  } catch (error) {
+    console.error('❌ Erro ao iniciar processamento do cache:', error);
+    res.status(500).json({ message: 'Erro ao iniciar processamento', error: error.message });
+  }
 });
 
 // ===== Status do sistema =====
