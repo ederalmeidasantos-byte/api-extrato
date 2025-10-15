@@ -1,0 +1,29 @@
+name: Deploy Nginx Configuration
+
+on:
+  push:
+    paths:
+      - 'nginx/**'
+      - 'deploy-nginx.sh'
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /var/www/lunasdigital/API\ Lunas
+          git pull origin master
+          chmod +x deploy-nginx.sh
+          ./deploy-nginx.sh
