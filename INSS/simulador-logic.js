@@ -29,7 +29,7 @@ const configSimulador = {
       
       // Subdomínio INSS
       if (hostname === 'inss.lunasdigital.com.br') {
-        return 'https://inss.lunasdigital.com.br';
+        return 'http://inss.lunasdigital.com.br';
       }
       
       // Subdomínio API
