@@ -780,4 +780,10 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 [INSS] Acesse: http://localhost:${PORT}/inss/simulador.html`);
 });
 
+// Iniciar servidor na porta 80 também
+app.listen(80, '0.0.0.0', () => {
+  console.log(`🚀 [INSS] Servidor HTTP rodando na porta 80`);
+  console.log(`🌐 [INSS] Acesse: http://inss.lunasdigital.com.br/inss/simulador.html`);
+});
+
 export default app;
