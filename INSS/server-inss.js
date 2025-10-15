@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import https from 'https';
 
 // Configurar __dirname para ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -772,8 +773,9 @@ app.get('/simulador/:id', (req, res) => {
 
 // ================== INICIALIZAÇÃO ==================
 
+// Iniciar servidor HTTP
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 [INSS] Servidor INSS rodando na porta ${PORT}`);
+  console.log(`🚀 [INSS] Servidor HTTP rodando na porta ${PORT}`);
   console.log(`📁 [INSS] Diretório: ${__dirname}`);
   console.log(`🌐 [INSS] Acesse: http://localhost:${PORT}/inss/simulador.html`);
 });
