@@ -1,0 +1,202 @@
+name: 🚀 Deploy Container INSS - Porta 3002
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'INSS/**'
+  workflow_dispatch: # Permite execução manual
+
+jobs:
+  deploy-inss-container:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Configurar SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 72.60.159.149 >> ~/.ssh/known_hosts
+        
+    - name: 📤 Deploy dos arquivos INSS
+      run: |
+        echo "🚀 Iniciando deploy do container INSS..."
+        
+        # Criar diretório no VPS
+        ssh root@72.60.159.149 "mkdir -p /opt/lunas-digital/inss-service"
+        
+        # Arquivos para deploy
+        FILES=(
+          "INSS/server-inss.js"
+          "INSS/extrair_pdf.js"
+          "INSS/beneficios.js"
+          "INSS/bancos.js"
+          "INSS/calculo.js"
+          "INSS/simulador.html"
+          "INSS/simulador-logic.js"
+        )
+        
+        # Deploy de cada arquivo
+        for file in "${FILES[@]}"; do
+          if [ -f "$file" ]; then
+            echo "📄 Deploy: $file"
+            scp "$file" root@72.60.159.149:/opt/lunas-digital/inss-service/
+          else
+            echo "⚠️ Arquivo não encontrado: $file"
+          fi
+        done
+        
+    - name: 📦 Criar package.json
+      run: |
+        echo "📦 Criando package.json..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/inss-service/package.json << 'EOF'
+{
+  \"name\": \"inss-service-lunas-digital\",
+  \"version\": \"1.0.0\",
+  \"description\": \"Servidor INSS integrado ao sistema Lunas Digital\",
+  \"main\": \"server-inss.js\",
+  \"type\": \"module\",
+  \"scripts\": {
+    \"start\": \"node server-inss.js\"
+  },
+  \"dependencies\": {
+    \"express\": \"^4.21.2\",
+    \"cors\": \"^2.8.5\",
+    \"multer\": \"^1.4.5-lts.1\",
+    \"openai\": \"^4.20.1\",
+    \"node-fetch\": \"^3.3.2\",
+    \"dotenv\": \"^16.6.1\"
+  },
+  \"engines\": {
+    \"node\": \">=18.0.0\"
+  },
+  \"keywords\": [\"inss\", \"simulador\", \"api\", \"docker\", \"lunas-digital\"],
+  \"author\": \"Lunas Digital\",
+  \"license\": \"ISC\"
+}
+EOF"
+        
+    - name: ⚙️ Criar arquivo .env
+      run: |
+        echo "⚙️ Criando arquivo .env..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/inss-service/.env << 'EOF'
+NODE_ENV=production
+PORT=3002
+HTTPS_PORT=443
+
+# Integração Lunas Digital
+LUNAS_DIGITAL_SYSTEM=true
+CONTAINER_NAME=api-lunas-api-simulador-1
+
+# API Kentro
+LUNAS_API_KEY=cd4d0509169d4e2ea9177ac66c1c9376
+LUNAS_API_URL=https://lunasdigital.atenderbem.com/int/downloadFile
+LUNAS_QUEUE_ID=25
+QUEUE_ID=25
+
+# OpenAI API
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+
+# SSL Certificates
+SSL_CERT_PATH=/etc/letsencrypt/live/inss.lunasdigital.com.br/fullchain.pem
+SSL_KEY_PATH=/etc/letsencrypt/live/inss.lunasdigital.com.br/privkey.pem
+EOF"
+        
+    - name: 🐳 Criar Dockerfile
+      run: |
+        echo "🐳 Criando Dockerfile..."
+        ssh root@72.60.159.149 "cat > /opt/lunas-digital/inss-service/Dockerfile << 'EOF'
+FROM node:18-alpine
+
+RUN apk add --no-cache curl bash
+
+RUN addgroup -g 1001 -S nodejs && \\
+    adduser -S inss -u 1001
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --only=production && npm cache clean --force
+
+COPY . ./
+
+RUN mkdir -p /app/var/data/extratos && \\
+    mkdir -p uploads && \\
+    chown -R inss:nodejs /app && \\
+    chown -R inss:nodejs /app/var
+
+USER inss
+
+EXPOSE 3002 443
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
+    CMD curl -f http://localhost:3002/health || exit 1
+
+CMD [\"node\", \"server-inss.js\"]
+EOF"
+        
+    - name: 🏗️ Build da imagem Docker
+      run: |
+        echo "🏗️ Fazendo build da imagem Docker..."
+        ssh root@72.60.159.149 "cd /opt/lunas-digital/inss-service && docker build -t api-lunas-api-simulador ."
+        
+    - name: 🛑 Parar container existente
+      run: |
+        echo "🛑 Parando container existente..."
+        ssh root@72.60.159.149 "docker stop api-lunas-api-simulador-1 2>/dev/null || true"
+        ssh root@72.60.159.149 "docker rm api-lunas-api-simulador-1 2>/dev/null || true"
+        
+    - name: 🚀 Executar container
+      run: |
+        echo "🚀 Executando container INSS..."
+        ssh root@72.60.159.149 "docker run -d --name api-lunas-api-simulador-1 --restart unless-stopped -p 3002:3002 -p 443:443 --env-file /opt/lunas-digital/inss-service/.env -v /var/data/lunas-digital/inss/extratos:/app/var/data/extratos -v /var/logs/lunas-digital/inss:/app/logs --network lunas-network api-lunas-api-simulador"
+        
+        echo "⏳ Aguardando container inicializar..."
+        sleep 15
+        
+    - name: 🧪 Testar API
+      run: |
+        echo "🔍 Verificando status do container..."
+        ssh root@72.60.159.149 "docker ps | grep api-lunas-api-simulador-1"
+        
+        echo "🧪 Testando API..."
+        API_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3002/health || echo 'API não respondeu'")
+        echo "📊 Resposta da API: $API_RESPONSE"
+        
+        # Verificar se API está respondendo
+        if [[ $API_RESPONSE == *"healthy"* ]] || [[ $API_RESPONSE == *"ok"* ]]; then
+          echo "✅ API funcionando corretamente!"
+        else
+          echo "❌ API não está respondendo corretamente"
+          echo "📋 Verificando logs..."
+          ssh root@72.60.159.149 "docker logs api-lunas-api-simulador-1 --tail 20"
+          exit 1
+        fi
+        
+    - name: 📋 Verificação final
+      run: |
+        echo "🔍 Verificando logs do container..."
+        ssh root@72.60.159.149 "docker logs api-lunas-api-simulador-1 --tail 10"
+        
+        echo "🌐 Testando endpoints principais..."
+        
+        # Testar endpoint de health
+        HEALTH_RESPONSE=$(ssh root@72.60.159.149 "curl -s http://localhost:3002/health")
+        echo "❤️ Health: $HEALTH_RESPONSE"
+        
+        # Testar endpoint de extração (com fileId de teste)
+        EXTRACTION_RESPONSE=$(ssh root@72.60.159.149 "curl -s -X POST 'http://localhost:3002/extrair' -H 'Content-Type: application/x-www-form-urlencoded' -d 'fileId=7708&idoportunidade=teste' | head -c 200")
+        echo "📊 Extração: $EXTRACTION_RESPONSE"
+        
+    - name: ✅ Deploy concluído
+      run: |
+        echo "🎉 DEPLOY CONTAINER INSS CONCLUÍDO!"
+        echo "📅 $(date)"
+        echo "🌐 Sistema disponível em: http://72.60.159.149:3002"
+        echo "🔒 HTTPS disponível em: https://inss.lunasdigital.com.br"
+        echo "📝 Commit: ${{ github.event.head_commit.message }}"
+        echo "👤 Autor: ${{ github.event.head_commit.author.name }}"

@@ -1,0 +1,21 @@
+services:
+  # Proxy isolado para API da Kentro
+  kentro-proxy:
+    image: node:20-alpine
+    container_name: kentro-proxy-lunasdigital
+    ports:
+      - "3004:3004"  # Porta isolada
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+    restart: unless-stopped
+    networks:
+      - api-lunas_lunas-network
+    volumes:
+      - ./kentro-proxy:/app
+    working_dir: /app
+    command: sh -c "npm install && node server.js"
+
+networks:
+  api-lunas_lunas-network:
+    external: true

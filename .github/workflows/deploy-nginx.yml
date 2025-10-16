@@ -27,3 +27,5 @@ jobs:
           git pull origin master
           chmod +x deploy-nginx.sh
           ./deploy-nginx.sh
+
+

@@ -1,0 +1,2093 @@
+<html lang="pt-BR"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Detalhes da Proposta - Lunas Digital v20250103050000</title>
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- SVG Gradient Definition -->
+    <style>.vue-notification-group{display:block;position:fixed;z-index:5000}.vue-notification-wrapper{display:block;overflow:hidden;width:100%;margin:0;padding:0}.notification-title{font-weight:600}.vue-notification-template{display:block;box-sizing:border-box;background:#fff;text-align:left}.vue-notification{display:block;box-sizing:border-box;text-align:left;font-size:12px;padding:10px;margin:0 5px 5px;color:#fff;background:#44a4fc;border-left:5px solid #187FE7}.vue-notification.warn{background:#ffb648;border-left-color:#f48a06}.vue-notification.error{background:#e54d42;border-left-color:#b82e24}.vue-notification.success{background:#68cd86;border-left-color:#42a85f}.vn-fade-enter-active,.vn-fade-leave-active,.vn-fade-move{transition:all .5s}.vn-fade-enter-from,.vn-fade-leave-to{opacity:0}</style><style>.vue-notification-group{display:block;position:fixed;z-index:5000}.vue-notification-wrapper{display:block;overflow:hidden;width:100%;margin:0;padding:0}.notification-title{font-weight:600}.vue-notification-template{display:block;box-sizing:border-box;background:#fff;text-align:left}.vue-notification{display:block;box-sizing:border-box;text-align:left;font-size:12px;padding:10px;margin:0 5px 5px;color:#fff;background:#44a4fc;border-left:5px solid #187FE7}.vue-notification.warn{background:#ffb648;border-left-color:#f48a06}.vue-notification.error{background:#e54d42;border-left-color:#b82e24}.vue-notification.success{background:#68cd86;border-left-color:#42a85f}.vn-fade-enter-active,.vn-fade-leave-active,.vn-fade-move{transition:all .5s}.vn-fade-enter-from,.vn-fade-leave-to{opacity:0}</style><link type="text/css" rel="stylesheet" href="//fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"><link type="text/css" rel="stylesheet" href="//fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"></head><body><svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1"></stop>
+                <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1"></stop>
+            </linearGradient>
+        </defs>
+    </svg>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #ffffff; 
+            min-height: 100vh; 
+            color: #334155;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(96, 165, 250, 0.3);
+        }
+
+        .header-content {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-icon {
+            width: 32px;
+            height: 32px;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        .header h1 { 
+            margin: 0;
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-subtitle {
+            margin: 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .section:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feather-icon {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            transition: all 0.3s ease;
+        }
+
+        .feather-icon.large {
+            width: 20px;
+            height: 20px;
+        }
+
+        .feather-icon.small {
+            width: 14px;
+            height: 14px;
+        }
+
+        .feather-icon.title {
+            width: 24px;
+            height: 24px;
+            stroke: url(#gradient);
+            stroke-width: 2.5;
+        }
+
+        .contrato-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .contrato-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .contrato-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .contrato-title {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex: 1;
+        }
+
+        .contrato-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #10b981;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .contrato-checkbox {
+                width: 18px;
+                height: 18px;
+                margin-right: 0.5rem;
+            }
+
+            .troco-value {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
+            }
+
+            /* Responsividade para separadores */
+            .section-header {
+                padding: 0.6rem 0.8rem;
+            }
+
+            .section-title {
+                font-size: 0.8rem;
+            }
+
+            .section-content {
+                padding: 0.8rem;
+            }
+
+            .section-details {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+
+            .section-detail-label {
+                font-size: 0.75rem;
+            }
+
+            .section-detail-value {
+                font-size: 0.85rem;
+            }
+
+        }
+
+        .contrato-info {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .contrato-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .expand-btn {
+            background: linear-gradient(135deg, #60a5fa, #1d4ed8);
+            border: none;
+            cursor: pointer;
+            color: white;
+            transition: all 0.3s ease;
+            padding: 0.25rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
+            box-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
+        }
+
+        .expand-btn:hover {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+        }
+
+        .contrato-detalhes {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .contrato-detalhes.expanded {
+            display: block;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        /* Estilo das caixas de seleção */
+        .contrato-checkbox {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #3b82f6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            position: relative;
+            margin-right: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .contrato-checkbox:checked {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-color: #1d4ed8;
+        }
+
+        .contrato-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .contrato-checkbox:hover {
+            border-color: #1d4ed8;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Estilo do texto TROCO */
+        .troco-value {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .troco-value:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Separadores de contrato */
+        .contract-section {
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-header i {
+            color: #3b82f6;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-content {
+            padding: 1rem;
+        }
+
+        .section-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .section-detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .section-detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .section-detail-value {
+            font-size: 0.9rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+
+
+        .resumo-section {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            left: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 2px solid #f3f4f6;
+            border-top-color: #10b981;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transform: translateY(0);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .resumo-content {
+            padding: 1.5rem;
+        }
+
+        .resumo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .resumo-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .resumo-totals {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .resumo-total {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            min-width: 140px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .total-label {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #6b7280;
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .total-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .btn-contratar {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            color: white;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            min-height: 56px;
+            cursor: pointer;
+        }
+
+        .btn-contratar:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Modal de confirmação */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-text {
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-modal {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-modal-cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-modal-cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-modal-confirm {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-modal-confirm:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+        }
+
+        .modal-contratos {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+
+        .modal-contrato-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modal-contrato-item:last-child {
+            border-bottom: none;
+        }
+
+        .modal-contrato-info {
+            flex: 1;
+        }
+
+        .modal-contrato-banco {
+            font-weight: 600;
+            color: #111827;
+            font-size: 0.9rem;
+        }
+
+        .modal-contrato-detalhes {
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin-top: 0.2rem;
+        }
+
+        .modal-contrato-valor {
+            font-weight: 700;
+            color: #10b981;
+            font-size: 0.9rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .no-data-icon {
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+
+            .header {
+                padding: 1.5rem 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .header-subtitle {
+                font-size: 1rem;
+            }
+
+            .section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .section-title {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+
+            .contrato-item {
+                padding: 0.8rem;
+                margin-bottom: 0.8rem;
+            }
+
+            .contrato-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.8rem;
+            }
+
+            .contrato-title {
+                width: 100%;
+                gap: 0.5rem;
+            }
+
+            .contrato-info {
+                font-size: 0.9rem;
+                line-height: 1.4;
+            }
+
+            .contrato-actions {
+                width: 100%;
+                justify-content: space-between;
+                padding-top: 0.5rem;
+                border-top: 1px solid #e2e8f0;
+            }
+
+            .troco-value {
+                font-size: 1rem;
+            }
+
+            .expand-btn {
+                padding: 0.4rem;
+                min-width: 40px;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+                gap: 0.8rem;
+            }
+
+            .detail-item {
+                padding: 0.6rem;
+            }
+
+            .detail-label {
+                font-size: 0.75rem;
+            }
+
+            .detail-value {
+                font-size: 0.9rem;
+            }
+
+            .resumo-section {
+                bottom: 0;
+                right: 0;
+                left: 0;
+                max-width: none;
+                border-radius: 20px 20px 0 0;
+                border: none;
+                border-top: 3px solid #10b981;
+                position: fixed;
+                z-index: 1000;
+            }
+
+            body {
+                padding-bottom: 200px;
+            }
+
+            .resumo-content {
+                padding: 1rem;
+            }
+
+            .resumo-header {
+                margin-bottom: 0.8rem;
+            }
+
+            .resumo-title {
+                font-size: 1rem;
+            }
+
+            .resumo-totals {
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 1rem;
+                margin-bottom: 0.8rem;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .resumo-total {
+                flex: 1;
+                min-width: 120px;
+                padding: 0.8rem 0.5rem;
+            }
+
+            .total-label {
+                font-size: 0.65rem;
+                margin-bottom: 0.2rem;
+            }
+
+            .total-value {
+                font-size: 1.2rem;
+            }
+
+            .btn-contratar {
+                padding: 0.8rem;
+                font-size: 1rem;
+                margin-top: 0.5rem;
+            }
+
+            .contrato-checkbox {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 1rem 0.8rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header-subtitle {
+                font-size: 0.9rem;
+            }
+
+            .section {
+                padding: 0.8rem;
+            }
+
+            .contrato-item {
+                padding: 0.6rem;
+            }
+
+            .contrato-info {
+                font-size: 0.85rem;
+            }
+
+            .resumo-totals {
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 0.6rem;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .resumo-total {
+                min-width: 100px;
+                padding: 0.6rem 0.4rem;
+            }
+
+            .total-value {
+                font-size: 1.1rem;
+            }
+
+            .btn-contratar {
+                padding: 0.7rem;
+                font-size: 0.95rem;
+                min-height: 50px;
+            }
+
+            .modal-content {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .modal-title {
+                font-size: 1.1rem;
+            }
+
+            .modal-text {
+                font-size: 0.9rem;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .btn-modal {
+                padding: 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            .modal-contratos {
+                max-height: 150px;
+                padding: 0.8rem;
+            }
+
+            .modal-contrato-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .modal-contrato-valor {
+                align-self: flex-end;
+                font-size: 0.85rem;
+            }
+
+            .modal-contrato-banco {
+                font-size: 0.85rem;
+            }
+
+            .modal-contrato-detalhes {
+                font-size: 0.75rem;
+            }
+
+            .contrato-checkbox {
+                width: 24px;
+                height: 24px;
+            }
+
+            .expand-btn {
+                min-width: 48px;
+                min-height: 48px;
+                padding: 0.5rem;
+            }
+        }
+    </style>
+
+
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="header-title">
+                    <i data-feather="file-text" class="header-icon"></i>
+                    <h1>Detalhes da Proposta</h1>
+                </div>
+                <p class="header-subtitle">Selecione os contratos que deseja contratar</p>
+            </div>
+        </div>
+
+        <!-- Seção Cliente -->
+        <div id="clienteSection" class="section">
+            <div class="section-title">
+                <i data-feather="user" class="feather-icon title"></i>
+                Informações do Cliente
+            </div>
+            <div id="clienteInfo"></div>
+            
+            <!-- Ações do Cliente -->
+            <div class="client-actions" style="margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="verResumoCliente()" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-feather="file-text" style="width: 16px; height: 16px;"></i>
+                    Ver Resumo do Cliente
+                </button>
+                <button class="btn btn-primary" onclick="simularNovamente()" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-feather="calculator" style="width: 16px; height: 16px;"></i>
+                    Simular Novamente
+                </button>
+            </div>
+        </div>
+
+        <!-- Seção Contratos -->
+        <div id="contratosSection" class="section">
+            <div class="section-title">
+                <i data-feather="check-circle" class="feather-icon title"></i>
+                Contratos Disponíveis (<span id="contadorContratos">0</span> contratos)
+            </div>
+            <div id="contratosList"></div>
+        </div>
+    </div>
+
+    <!-- Resumo Fixo -->
+    <div id="resumoSection" class="resumo-section">
+        <div class="resumo-content">
+            <div class="resumo-header">
+                <div class="resumo-title">
+                    <i data-feather="dollar-sign" class="feather-icon title"></i>
+                    Resumo da Proposta
+                </div>
+            </div>
+            <div class="resumo-totals" style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+                <div class="resumo-total" style="flex: 1;">
+                    <span class="total-label">
+                        <i data-feather="file-text" class="feather-icon small"></i>
+                        Contratos
+                    </span>
+                    <span class="total-value" id="totalSelecionados">0</span>
+                </div>
+                <div class="resumo-total" style="flex: 1;">
+                    <span class="total-label">
+                        <i data-feather="trending-up" class="feather-icon small"></i>
+                        Troco Total
+                    </span>
+                    <span class="total-value">R$ <span id="totalTroco">0,00</span></span>
+                </div>
+            </div>
+            <button class="btn-contratar" onclick="contratar()">
+                <i data-feather="check-circle" class="feather-icon"></i>
+                <span>Contratar Selecionados</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação -->
+    <div class="modal-overlay" id="modalConfirmacao">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i data-feather="check-circle" class="feather-icon"></i>
+                </div>
+                <h3 class="modal-title">Confirmar Contratação</h3>
+                <p class="modal-text" id="modalText">
+                    Tem certeza que deseja contratar os contratos selecionados?
+                </p>
+                <div class="modal-contratos" id="modalContratos">
+                    <!-- Lista de contratos será inserida aqui -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-modal-cancel" onclick="fecharModal()">
+                    Cancelar
+                </button>
+                <button class="btn-modal btn-modal-confirm" onclick="confirmarContratacao()">
+                    <i data-feather="check" class="feather-icon"></i>
+                    Tenho Certeza
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let propostaData = null;
+        let contratosSelecionados = [];
+
+        // Carregar dados da proposta (otimizado)
+        function carregarProposta() {
+            try {
+                const propostaId = window.location.pathname.split('/').pop();
+                
+                console.log('🚀 Função carregarProposta executada');
+                console.log('🔍 URL atual:', window.location.href);
+                console.log('🔍 PropostaId extraído:', propostaId);
+                
+                if (!propostaId) {
+                    document.body.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">❌ ID da proposta não encontrado!</div>';
+                    return;
+                }
+
+                console.log('🔍 Buscando proposta:', propostaId);
+                
+                // Buscar dados da proposta via API
+                fetch(`/api/proposta/${propostaId}`)
+                    .then(response => {
+                        console.log('📡 Resposta da API:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        console.log('✅ Dados recebidos:', result);
+                        console.log('🔍 Result.success:', result.success);
+                        console.log('🔍 Result.dados:', result.dados);
+                        
+                        if (result.success && result.dados) {
+                            propostaData = result.dados;
+                            console.log('✅ Proposta carregada:', propostaId);
+
+                            // Renderizar interface de forma assíncrona
+                            setTimeout(() => {
+                                renderizarCliente();
+                                renderizarContratos();
+                                atualizarResumo();
+                            }, 10);
+                        } else {
+                            console.error('❌ Dados inválidos:', result);
+                            throw new Error('Dados da proposta inválidos');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao carregar proposta:', error);
+                        document.body.innerHTML = `
+                            <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                                <h2>❌ Erro ao carregar proposta</h2>
+                                <p>ID: ${propostaId}</p>
+                                <p>Erro: ${error.message}</p>
+                                <button onclick="location.reload()" style="
+                                    background: #3b82f6; 
+                                    color: white; 
+                                    padding: 10px 20px; 
+                                    border: none; 
+                                    border-radius: 8px; 
+                                    cursor: pointer; 
+                                    margin-top: 1rem;
+                                ">
+                                    🔄 Tentar Novamente
+                                </button>
+                            </div>
+                        `;
+                    });
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar proposta:', error);
+                document.body.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">❌ Erro inesperado ao carregar proposta!</div>';
+            }
+        }
+
+        function renderizarCliente() {
+            console.log('🎨 Renderizando cliente...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                return;
+            }
+            
+            const container = document.getElementById('clienteInfo');
+            const cliente = propostaData.cliente;
+            
+            console.log('🔍 Container encontrado:', container);
+            console.log('🔍 Dados do cliente:', cliente);
+            
+            if (container && cliente) {
+                container.innerHTML = `
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">Nome</div>
+                            <div class="detail-value">${cliente.nome || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Número do Benefício</div>
+                            <div class="detail-value">${cliente.nb || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Espécie</div>
+                            <div class="detail-value">${cliente.especie || '-'}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                console.error('❌ Container ou cliente não encontrado!');
+            }
+        }
+
+        function renderizarContratos() {
+            console.log('🎨 Renderizando contratos...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                return;
+            }
+            
+            const container = document.getElementById('contratosList');
+            const contratos = propostaData.contratos;
+            
+            console.log('🔍 Container encontrado:', container);
+            console.log('🔍 Dados dos contratos:', contratos);
+
+            if (container && contratos) {
+                if (!contratos || contratos.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-data">
+                            <div class="no-data-icon">📄</div>
+                            <h3>Nenhum contrato disponível</h3>
+                            <p>Não há contratos aprovados nesta proposta</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    contratos.forEach((contrato, index) => {
+                        html += `
+                            <div class="contrato-item">
+                                <div class="contrato-header">
+                                    <div class="contrato-title">
+                                        <span class="contrato-info">Contrato ${contrato.contrato || contrato.id} - ${contrato.banco?.nome || 'Banco'}</span>
+                                    </div>
+                                    <div class="contrato-actions">
+                                        <span class="troco-value">TROCO R$ ${contrato.simulacao?.troco || 0}</span>
+                                    </div>
+                                </div>
+                                <div class="contrato-detalhes">
+                                    <div class="contrato-info-grid">
+                                        <div class="info-item">
+                                            <span class="info-label">Valor da Parcela:</span>
+                                            <span class="info-value">R$ ${contrato.valor_parcela || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Valor Liberado:</span>
+                                            <span class="info-value">R$ ${contrato.valor_liberado || 'N/A'}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Parcelas Pagas:</span>
+                                            <span class="info-value">${contrato.parcelas_pagas || 0} de ${contrato.prazo_total || 0}</span>
+                                        </div>
+                                        <div class="info-item">
+                                            <span class="info-label">Taxa de Juros:</span>
+                                            <span class="info-value">${contrato.taxa_juros_mensal || 'N/A'}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            } else {
+                console.error('❌ Container ou contratos não encontrados!');
+            }
+        }
+
+        function renderizarContratosAsync(contratos, container, index) {
+            if (index >= contratos.length) {
+                // Finalizar renderização
+                feather.replace();
+                return;
+            }
+
+            const contrato = contratos[index];
+            const contratoDiv = document.createElement('div');
+            contratoDiv.className = 'contrato-item';
+            
+            // Criar HTML do contrato de forma mais eficiente
+            const bancoNome = contrato.banco?.nome || contrato.simulacao?.bancoNome || 'Banco';
+            const trocoValue = contrato.simulacao?.troco || 0;
+            
+            contratoDiv.innerHTML = `
+                <div class="contrato-header">
+                    <div class="contrato-title">
+                        <input type="checkbox" class="contrato-checkbox" 
+                               onchange="toggleContrato('${contrato.id}')" 
+                               ${contrato.selecionado ? 'checked' : ''}>
+                        <span class="contrato-info">Contrato ${contrato.contrato || contrato.id} - ${bancoNome}</span>
+                    </div>
+                    <div class="contrato-actions">
+                        <span class="troco-value">TROCO R$ ${formatBRNumber(trocoValue)}</span>
+                        <button class="expand-btn" onclick="toggleDetalhes('${contrato.id}')">
+                            <i data-feather="chevron-right" class="feather-icon small"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="contrato-detalhes" id="detalhes-${contrato.id}">
+                    <!-- Detalhes carregados sob demanda -->
+                    <div style="padding: 1rem; text-align: center; color: #64748b;">
+                        Clique para ver detalhes do contrato
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(contratoDiv);
+            
+            // Continuar renderização do próximo contrato
+            setTimeout(() => renderizarContratosAsync(contratos, container, index + 1), 10);
+        }
+
+        function toggleContrato(contratoId) {
+            const contrato = propostaData.contratos.find(c => {
+                // Tentar encontrar por ID numérico ou string
+                return c.id == contratoId || 
+                       c.contrato == contratoId || 
+                       c.numero_contrato == contratoId ||
+                       (c.id && c.id.toString() === contratoId.toString());
+            });
+            
+            if (contrato) {
+                contrato.selecionado = !contrato.selecionado;
+                console.log(`🔘 Contrato ${contratoId} ${contrato.selecionado ? 'selecionado' : 'desmarcado'}`);
+                atualizarResumo();
+            } else {
+                console.error('❌ Contrato não encontrado:', contratoId);
+                console.log('📋 Contratos disponíveis:', propostaData.contratos.map(c => ({
+                    id: c.id,
+                    contrato: c.contrato,
+                    numero_contrato: c.numero_contrato
+                })));
+            }
+        }
+
+        function toggleDetalhes(contratoId) {
+            const detalhes = document.getElementById(`detalhes-${contratoId}`);
+            const btn = event.target.closest('.expand-btn');
+            const icon = btn.querySelector('.feather-icon');
+            
+            if (detalhes.classList.contains('expanded')) {
+                detalhes.classList.remove('expanded');
+                btn.classList.remove('expanded');
+                icon.setAttribute('data-feather', 'chevron-right');
+            } else {
+                // Carregar detalhes sob demanda
+                carregarDetalhesContrato(contratoId);
+                detalhes.classList.add('expanded');
+                btn.classList.add('expanded');
+                icon.setAttribute('data-feather', 'chevron-down');
+            }
+            
+            feather.replace();
+        }
+        
+        function carregarDetalhesContrato(contratoId) {
+            const contrato = propostaData.contratos.find(c => {
+                // Tentar encontrar por ID numérico ou string
+                return c.id == contratoId || 
+                       c.contrato == contratoId || 
+                       c.numero_contrato == contratoId ||
+                       (c.id && c.id.toString() === contratoId.toString());
+            });
+            if (!contrato) {
+                console.error('❌ Contrato não encontrado para detalhes:', contratoId);
+                return;
+            }
+            
+            const detalhes = document.getElementById(`detalhes-${contratoId}`);
+            
+            // Carregar HTML dos detalhes
+            detalhes.innerHTML = `
+                <!-- Seção CONTRATO ATUAL -->
+                <div class="contract-section">
+                    <div class="section-header">
+                        <i data-feather="file-text" class="feather-icon small"></i>
+                        <h4 class="section-title">Contrato Atual</h4>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-details">
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Banco</div>
+                                <div class="section-detail-value">${contrato.banco?.nome || 'N/A'} (${contrato.banco?.codigo || 'N/A'})</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Parcela</div>
+                                <div class="section-detail-value">R$ ${formatBRNumber(contrato.valor_parcela || 0)}</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Prazo</div>
+                                <div class="section-detail-value">${contrato.prazo_total || 0} parcelas</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Parcelas Pagas</div>
+                                <div class="section-detail-value">${contrato.parcelas_pagas || 0}</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Taxa</div>
+                                <div class="section-detail-value">${contrato.taxa_juros_mensal || 0}% a.m.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção NOVO CONTRATO -->
+                <div class="contract-section">
+                    <div class="section-header">
+                        <i data-feather="refresh-cw" class="feather-icon small"></i>
+                        <h4 class="section-title">Novo Contrato</h4>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-details">
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Banco</div>
+                                <div class="section-detail-value">${contrato.simulacao?.banco || contrato.simulacao?.bancoNome || 'N/A'}</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Nova Parcela</div>
+                                <div class="section-detail-value">R$ ${formatBRNumber(contrato.simulacao?.valorParcela || contrato.simulacao?.parcela || 0)}</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Prazo</div>
+                                <div class="section-detail-value">${contrato.simulacao?.parcelas || 96} parcelas</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Nova Taxa</div>
+                                <div class="section-detail-value">${contrato.simulacao?.taxa || 0}% a.m.</div>
+                            </div>
+                            <div class="section-detail-item">
+                                <div class="section-detail-label">Troco</div>
+                                <div class="section-detail-value">R$ ${formatBRNumber(contrato.simulacao?.troco || 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Atualizar ícones apenas deste contrato
+            feather.replace();
+        }
+
+        function atualizarResumo() {
+            console.log('🎨 Atualizando resumo...');
+            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            
+            console.log('🔍 Contratos selecionados:', contratosSelecionados.length);
+            console.log('🔍 Total troco:', totalTroco);
+
+            document.getElementById('totalSelecionados').textContent = contratosSelecionados.length;
+            document.getElementById('totalTroco').textContent = formatBRNumber(totalTroco);
+        }
+
+        function contratar() {
+            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
+            
+            if (contratosSelecionados.length === 0) {
+                alert('Selecione pelo menos um contrato para contratar!');
+                return;
+            }
+
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            
+            // Atualizar texto do modal
+            document.getElementById('modalText').innerHTML = 
+                `Confirmar contratação de <strong>${contratosSelecionados.length} contrato(s)</strong> com troco total de <strong>R$ ${formatBRNumber(totalTroco)}</strong>?`;
+            
+            // Atualizar lista de contratos no modal
+            const modalContratos = document.getElementById('modalContratos');
+            modalContratos.innerHTML = contratosSelecionados.map(contrato => `
+                <div class="modal-contrato-item">
+                    <div class="modal-contrato-info">
+                        <div class="modal-contrato-banco">${contrato.simulacao?.bancoNome || contrato.simulacao?.banco || 'Banco'}</div>
+                        <div class="modal-contrato-detalhes">
+                            ${contrato.simulacao?.parcelas || 96}x de R$ ${formatBRNumber(contrato.simulacao?.valorParcela || contrato.simulacao?.parcela || 0)}
+                        </div>
+                    </div>
+                    <div class="modal-contrato-valor">
+                        R$ ${formatBRNumber(contrato.simulacao?.troco || 0)}
+                    </div>
+                </div>
+            `).join('');
+            
+            // Mostrar modal
+            document.getElementById('modalConfirmacao').classList.add('show');
+        }
+
+        function fecharModal() {
+            document.getElementById('modalConfirmacao').classList.remove('show');
+        }
+
+        /**
+         * Verificar se cliente já existe por CPF ou NB
+         */
+        async function verificarClienteExistente(cpf, nb) {
+            try {
+                console.log('🔍 Verificando cliente existente...', { cpf, nb });
+                
+                // Verificar se ClientManager está disponível
+                if (typeof window.clientManager === 'undefined') {
+                    console.log('📥 ClientManager não carregado, carregando...');
+                    await loadClientManager();
+                }
+                
+                // Buscar cliente por CPF ou NB
+                let clienteEncontrado = null;
+                
+                window.clientManager.clients.forEach((cliente, id) => {
+                    const clienteCpf = cliente.cpf?.replace(/\D/g, '') || '';
+                    const clienteNb = cliente.nb?.replace(/\D/g, '') || '';
+                    const buscaCpf = cpf?.replace(/\D/g, '') || '';
+                    const buscaNb = nb?.replace(/\D/g, '') || '';
+                    
+                    if ((buscaCpf && clienteCpf === buscaCpf) || (buscaNb && clienteNb === buscaNb)) {
+                        clienteEncontrado = id;
+                        console.log('✅ Cliente existente encontrado:', id, cliente);
+                    }
+                });
+                
+                if (clienteEncontrado) {
+                    return clienteEncontrado;
+                }
+                
+                // Se não encontrou localmente, tentar buscar na Kentro
+                console.log('🌐 Cliente não encontrado localmente, buscando na Kentro...');
+                const clienteKentro = await buscarClienteNaKentro(cpf, nb);
+                
+                if (clienteKentro) {
+                    console.log('✅ Cliente encontrado na Kentro, sincronizando...');
+                    // Criar cliente local com dados da Kentro
+                    const novoClienteId = window.clientManager.createOrUpdateClient({
+                        ...clienteKentro,
+                        sincronizado: true,
+                        dataUltimaSync: new Date().toISOString()
+                    });
+                    
+                    return novoClienteId;
+                }
+                
+                console.log('⚠️ Cliente não encontrado nem localmente nem na Kentro');
+                return null;
+                
+            } catch (error) {
+                console.error('❌ Erro ao verificar cliente existente:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Buscar cliente na Kentro API
+         */
+        async function buscarClienteNaKentro(cpf, nb) {
+            try {
+                console.log('🌐 Buscando cliente na Kentro API...');
+                
+                // Carregar KentroIntegration se necessário
+                if (typeof window.kentroIntegration === 'undefined') {
+                    await loadKentroIntegration();
+                }
+                
+                let cliente = null;
+                
+                // Buscar por CPF primeiro
+                if (cpf) {
+                    cliente = await window.kentroIntegration.buscarPorCpf(cpf.replace(/\D/g, ''));
+                }
+                
+                // Se não encontrou por CPF, tentar por NB
+                if (!cliente && nb) {
+                    cliente = await window.kentroIntegration.buscarPorNb(nb.replace(/\D/g, ''));
+                }
+                
+                return cliente;
+                
+            } catch (error) {
+                console.error('❌ Erro ao buscar na Kentro:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Carregar KentroIntegration dinamicamente
+         */
+        async function loadKentroIntegration() {
+            return new Promise((resolve, reject) => {
+                if (typeof window.kentroIntegration !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = '/operacional/kentro-integration.js';
+                script.onload = () => {
+                    window.kentroIntegration = new KentroIntegration();
+                    console.log('✅ KentroIntegration carregado');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('❌ Erro ao carregar KentroIntegration');
+                    reject(new Error('Falha ao carregar KentroIntegration'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        /**
+         * Carregar ClientManager dinamicamente
+         */
+        async function loadClientManager() {
+            return new Promise((resolve, reject) => {
+                if (typeof window.clientManager !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = '/operacional/client-manager.js';
+                script.onload = () => {
+                    window.clientManager = new ClientManager();
+                    console.log('✅ ClientManager carregado');
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('❌ Erro ao carregar ClientManager');
+                    reject(new Error('Falha ao carregar ClientManager'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+        
+        function confirmarContratacao() {
+            const contratosSelecionados = propostaData.contratos.filter(c => c.selecionado);
+            const totalTroco = contratosSelecionados.reduce((sum, c) => sum + (c.simulacao.troco || 0), 0);
+            
+            // Fechar modal
+            fecharModal();
+            
+            if (contratosSelecionados.length === 0) {
+                alert('⚠️ Selecione pelo menos um contrato para contratar!');
+                return;
+            }
+            
+            try {
+                // Carregar ClientManager dinamicamente se não estiver disponível
+                if (typeof window.clientManager === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = '/operacional/client-manager.js';
+                    script.onload = () => {
+                        console.log('✅ ClientManager carregado, processando contratação...');
+                        setTimeout(() => confirmarContratacao(), 100);
+                    };
+                    script.onerror = () => {
+                        console.error('❌ Erro ao carregar ClientManager');
+                        confirmarContratacaoManual(contratosSelecionados, totalTroco);
+                    };
+                    document.head.appendChild(script);
+                    return;
+                }
+                
+                // Preparar dados do cliente
+                const clienteData = {
+                    nome: propostaData.cliente.nome || '',
+                    cpf: propostaData.cliente.cpf || '',
+                    nascimento: propostaData.cliente.nascimento || '',
+                    telefone: propostaData.cliente.telefone || '',
+                    email: propostaData.cliente.email || '',
+                    nb: propostaData.cliente.nb || '',
+                    endereco: {
+                        cep: propostaData.cliente.cep || '',
+                        logradouro: propostaData.cliente.logradouro || '',
+                        numero: propostaData.cliente.numero || '',
+                        complemento: propostaData.cliente.complemento || '',
+                        bairro: propostaData.cliente.bairro || '',
+                        cidade: propostaData.cliente.cidade || '',
+                        uf: propostaData.cliente.uf || ''
+                    }
+                };
+                
+                // Formatar contratos selecionados
+                const contratosFormatados = contratosSelecionados.map((c, index) => ({
+                    id: index + 1,
+                    banco: c.simulacao?.bancoNovo || c.banco?.nome || 'Não definido',
+                    parcelas: 96,
+                    valorParcela: c.simulacao ? `R$ ${c.simulacao.parcela?.toFixed(2)}` : 'R$ 0,00',
+                    taxa: c.simulacao ? `${c.simulacao.taxa}%` : '0%',
+                    troco: c.simulacao ? `R$ ${c.simulacao.troco?.toFixed(2)}` : 'R$ 0,00',
+                    editando: false
+                }));
+                
+        // 🔍 VERIFICAR CLIENTE EXISTENTE PRIMEIRO
+        async function processarCliente() {
+            let clientId = await verificarClienteExistente(clienteData.cpf, clienteData.nb);
+            
+            if (clientId) {
+                console.log('✅ Cliente existente encontrado:', clientId);
+            // Atualizar dados do cliente existente
+            try {
+                window.clientManager.updateClient(clientId, clienteData);
+                console.log('✅ Dados do cliente atualizados');
+            } catch (updateError) {
+                console.warn('⚠️ Erro ao atualizar cliente existente:', updateError);
+            }
+        } else {
+            // Criar novo cliente
+            try {
+                clientId = window.clientManager.createOrUpdateClient(clienteData);
+                console.log('✅ Novo cliente criado:', clientId);
+            } catch (error) {
+                console.error('❌ Erro ao criar cliente:', error);
+                
+                // Se o erro é de duplicata NB, extrair o ID do cliente existente
+                if (error.message.includes('já está cadastrado para o cliente')) {
+                    try {
+                        // Extrair o ID do cliente da mensagem de erro
+                        const match = error.message.match(/cliente\s+([a-zA-Z0-9_]+)/);
+                        if (match && match[1]) {
+                            clientId = match[1];
+                            console.log('✅ Usando cliente existente extraído do erro:', clientId);
+                        } else {
+                            throw new Error('Não foi possível extrair ID do cliente da mensagem de erro');
+                        }
+                    } catch (extractError) {
+                        console.error('❌ Erro ao extrair ID do cliente:', extractError);
+                        // Fallback: gerar ID baseado no CPF
+                        clientId = `cliente_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                        console.log('⚠️ Usando ID gerado como fallback:', clientId);
+                    }
+                } else {
+                    console.error('❌ Erro não relacionado a duplicata, cancelando:', error);
+                    confirmarContratacaoManual(contratosSelecionados, totalTroco);
+                    return;
+                }
+            }
+            
+            // Dados da proposta
+                const proposalData = {
+                    extrato: {
+                        data: new Date().toISOString().split('T')[0],
+                        margem: propostaData.margens?.margem_disponivel_empretimo || 'R$ 0,00',
+                        origem: 'Cliente - Detalhes da Proposta'
+                    },
+                    contratos: contratosFormatados,
+                    status: 'pending',
+                    origem: 'detalhes_proposta',
+                    propostaOriginalId: propostaData.id
+                };
+                
+                // Criar proposta no sistema operacional
+                try {
+                    const proposalId = window.clientManager.addProposalToClient(clientId, proposalData);
+                    console.log('✅ Proposta criada no sistema operacional:', proposalId);
+                    
+                // Atualizar status para "CLIENTE_ACEITOU"
+                try {
+                    window.clientManager.updateProposalStatus(clientId, proposalId, 'CLIENTE_ACEITOU', {
+                        origem: 'detalhes_proposta',
+                        contratosCount: contratosSelecionados.length,
+                        trocoTotal: totalTroco
+                    });
+                    console.log('✅ Status da proposta atualizado para CLIENTE_ACEITOU');
+                } catch (statusError) {
+                    console.warn('⚠️ Erro ao atualizar status (continuando mesmo assim):', statusError.message);
+                    // Não interromper o fluxo por causa do status
+                }
+
+                // Redirecionar para formulário multi-etapas
+                const kentroId = propostaData.idoportunidade || propostaData.kentroId || null;
+                let formUrl = `/operacional/formulario-cliente.html?clientId=${clientId}&proposalId=${proposalId}`;
+                
+                if (kentroId && kentroId !== 'null' && kentroId !== '') {
+                    formUrl += `&kentroId=${kentroId}`;
+                    console.log('✅ KentroId incluído na URL:', kentroId);
+                } else {
+                    console.log('⚠️ KentroId não disponível, continuando sem ele');
+                }
+
+                // Redirecionar diretamente para o formulário
+                console.log('✅ Proposta criada com sucesso!');
+                console.log('🔄 Redirecionando para:', formUrl);
+                
+                // Mostrar notificação rápida e redirecionar
+                alert(`✅ Proposta enviada com sucesso!\n\n${contratosSelecionados.length} contrato(s)\nTroco: R$ ${formatBRNumber(totalTroco)}\n\nRedirecionando para o formulário...`);
+                
+                // Redirecionamento direto
+                setTimeout(() => {
+                    window.location.href = formUrl;
+                }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Erro ao criar proposta:', error);
+                    confirmarContratacaoManual(contratosSelecionados, totalTroco);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro geral na contratação:', error);
+                confirmarContratacaoManual(contratosSelecionados, totalTroco);
+            }
+        }
+        
+        // Chamar a função processarCliente
+        processarCliente();
+        
+        // Função de fallback para contratação manual
+        function confirmarContratacaoManual(contratosSelecionados, totalTroco) {
+            alert(`✅ Contratação realizada com sucesso!\n\n${contratosSelecionados.length} contrato(s) contratado(s)\nTroco total: R$ ${formatBRNumber(totalTroco)}\n\nEm breve você receberá mais informações.`);
+        }
+        
+        // Função para mostrar modal de redirecionamento
+        function mostrarModalRedirecionamento(clientId, proposalId, contratosSelecionados, totalTroco, formUrl) {
+            // Criar modal de sucesso com redirecionamento automático
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay show';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 2rem;
+                    max-width: 400px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                ">
+                    <div style="
+                        width: 80px;
+                        height: 80px;
+                        background: linear-gradient(135deg, #10b981, #059669);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 auto 1.5rem auto;
+                        color: white;
+                        font-size: 2rem;
+                    ">
+                        ✓
+                    </div>
+                    <h2 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.5rem;">
+                        🎉 Sucesso!
+                    </h2>
+                    <p style="color: #64748b; margin-bottom: 1.5rem; line-height: 1.6;">
+                        <strong>Contratos enviados com sucesso!</strong><br>
+                        <strong>Contratos:</strong> ${contratosSelecionados.length}<br>
+                        <strong>Troco Total:</strong> R$ ${formatBRNumber(totalTroco)}<br><br>
+                        <span id="countdown" style="color: #3b82f6; font-weight: 600;">Redirecionando em 3 segundos...</span>
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="redirecionarAgora('${formUrl}')" 
+                               style="
+                                 background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                                 color: white;
+                                 padding: 12px 24px;
+                                 border: none;
+                                 border-radius: 8px;
+                                 font-weight: 600;
+                                 cursor: pointer;
+                                 display: flex;
+                                 align-items: center;
+                                 gap: 8px;
+                               ">
+                            📝 Ir Agora
+                        </button>
+                        <button onclick="cancelarRedirecionamento()" 
+                                style="
+                                  background: #f3f4f6;
+                                  color: #374151;
+                                  border: 1px solid #d1d5db;
+                                  padding: 12px 24px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  cursor: pointer;
+                                ">
+                            ✕ Cancelar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Countdown e redirecionamento automático
+            let countdown = 3;
+            const countdownElement = modal.querySelector('#countdown');
+            
+            window.redirectTimer = setInterval(() => {
+                countdown--;
+                if (countdownElement) {
+                    countdownElement.textContent = `Redirecionando em ${countdown} segundos...`;
+                }
+                
+                if (countdown <= 0) {
+                    clearInterval(window.redirectTimer);
+                    document.body.removeChild(modal);
+                    console.log('🔄 Redirecionando automaticamente para:', formUrl);
+                    window.location.href = formUrl;
+                }
+            }, 1000);
+        }
+        
+        // Funções auxiliares para o modal
+        function redirecionarAgora(url) {
+            if (window.redirectTimer) {
+                clearInterval(window.redirectTimer);
+            }
+            console.log('🔄 Redirecionamento manual para:', url);
+            window.location.href = url;
+        }
+        
+        function cancelarRedirecionamento() {
+            if (window.redirectTimer) {
+                clearInterval(window.redirectTimer);
+            }
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                if (modal.parentElement) {
+                    modal.parentElement.removeChild(modal);
+                }
+            });
+        }
+
+        // Função para mostrar sucesso da integração
+        function mostrarSucessoIntegracao(clientId, proposalId, contratosSelecionados, totalTroco, formUrl) {
+            // Criar modal de sucesso personalizado
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 2rem;
+                    max-width: 500px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                ">
+                    <div style="
+                        width: 80px;
+                        height: 80px;
+                        background: linear-gradient(135deg, #10b981, #059669);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0 auto 1.5rem auto;
+                        color: white;
+                        font-size: 2rem;
+                    ">
+                        ✓
+                    </div>
+                    <h2 style="color: #1e293b; margin-bottom: 1rem; font-size: 1.5rem;">
+                        🎉 Contratação Enviada!
+                    </h2>
+                    <p style="color: #64748b; margin-bottom: 1.5rem; line-height: 1.6;">
+                        <strong>Cliente:</strong> ${propostaData.cliente.nome}<br>
+                        <strong>CPF:</strong> ${propostaData.cliente.cpf}<br>
+                        <strong>Contratos:</strong> ${contratosSelecionados.length}<br>
+                        <strong>Troco Total:</strong> R$ ${formatBRNumber(totalTroco)}
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <a href="${formUrl}" 
+                           style="
+                             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                             color: white;
+                             padding: 12px 24px;
+                             border-radius: 8px;
+                             text-decoration: none;
+                             font-weight: 600;
+                             display: flex;
+                             align-items: center;
+                             gap: 8px;
+                           ">
+                            📝 Completar Dados
+                        </a>
+                        <a href="/operacional/fila-digitation.html" 
+                           target="_blank" 
+                           style="
+                             background: linear-gradient(135deg, #10b981, #059669);
+                             color: white;
+                             padding: 12px 24px;
+                             border-radius: 8px;
+                             text-decoration: none;
+                             font-weight: 600;
+                             display: flex;
+                             align-items: center;
+                             gap: 8px;
+                           ">
+                            📋 Ver Fila
+                        </a>
+                        <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" 
+                                style="
+                                  background: #f3f4f6;
+                                  color: #374151;
+                                  border: 1px solid #d1d5db;
+                                  padding: 12px 24px;
+                                  border-radius: 8px;
+                                  font-weight: 600;
+                                  cursor: pointer;
+                                ">
+                            ✕ Fechar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Remover modal automaticamente após 15 segundos
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    document.body.removeChild(modal);
+                }
+            }, 15000);
+        }
+
+        function formatBRNumber(value) {
+            return parseFloat(value || 0).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Fechar modal clicando fora
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                fecharModal();
+            }
+        });
+
+        // Ver resumo do cliente
+        function verResumoCliente() {
+            try {
+                if (!propostaData || !propostaData.cliente) {
+                    alert('❌ Dados do cliente não encontrados');
+                    return;
+                }
+                
+                const cliente = propostaData.cliente;
+                const cpf = cliente.cpf || cliente.documento || '';
+                const nb = cliente.nb || cliente.numerobeneficio || '';
+                
+                console.log('🔍 Abrindo busca para cliente:', cliente.nome);
+                
+                // Construir URL de busca
+                let searchUrl = '/operacional/buscar-cliente.html';
+                
+                if (cpf) {
+                    searchUrl += `?search=${encodeURIComponent(cpf)}&type=cpf`;
+                } else if (nb) {
+                    searchUrl += `?search=${encodeURIComponent(nb)}&type=nb`;
+                } else {
+                    searchUrl += `?search=${encodeURIComponent(cliente.nome)}&type=nome`;
+                }
+                
+                // Abrir em nova aba
+                window.open(searchUrl, '_blank');
+                
+            } catch (error) {
+                console.error('❌ Erro ao abrir resumo do cliente:', error);
+                alert('❌ Erro ao abrir resumo do cliente');
+            }
+        }
+        
+        // Simular novamente
+        function simularNovamente() {
+            try {
+                if (!propostaData || !propostaData.cliente) {
+                    alert('❌ Dados do cliente não encontrados');
+                    return;
+                }
+                
+                const cliente = propostaData.cliente;
+                console.log('🧮 Abrindo simulador para:', cliente.nome);
+                
+                // Construir dados do cliente para o simulador
+                const clienteParams = {
+                    nome: cliente.nome || '',
+                    cpf: cliente.cpf || cliente.documento || '',
+                    nb: cliente.nb || cliente.numerobeneficio || '',
+                    telefone: cliente.telefone || '',
+                    email: cliente.email || ''
+                };
+                
+                // Construir URL do simulador
+                let simulatorUrl = '/INSS/simulador.html';
+                const params = new URLSearchParams();
+                
+                Object.keys(clienteParams).forEach(key => {
+                    if (clienteParams[key]) {
+                        params.append(key, clienteParams[key]);
+                    }
+                });
+                
+                if (params.toString()) {
+                    simulatorUrl += '?' + params.toString();
+                }
+                
+                // Abrir simulador em nova aba
+                window.open(simulatorUrl, '_blank');
+                
+            } catch (error) {
+                console.error('❌ Erro ao abrir simulador:', error);
+                alert('❌ Erro ao abrir simulador');
+            }
+        }
+
+        // Inicialização otimizada
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 DOM carregado, iniciando carregamento de dados...');
+            carregarProposta();
+        });
+    </script>
+
+
+
+
+<div id="p041veqrb3" style="display: block;"></div></body></html>

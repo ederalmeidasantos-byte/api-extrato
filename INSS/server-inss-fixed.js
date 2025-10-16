@@ -43,9 +43,29 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Middleware para debug de parsing
-// Middleware de debug removido temporariamente
+app.use((req, res, next) => {
+  if (req.path === '/extrair' && req.method === 'POST') {
+    console.log('🔍 [DEBUG] Middleware de debug ativado para /extrair');
+    console.log('🔍 [DEBUG] Content-Type:', req.get('Content-Type'));
+    console.log('🔍 [DEBUG] Body raw:', req.body);
+  }
+  next();
+});
 
-// Middleware de erro será movido para o final
+// Middleware para tratar erros de parsing JSON
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    console.error('❌ [DEBUG] Erro de parsing JSON:', error.message);
+    console.error('❌ [DEBUG] Content-Type:', req.get('Content-Type'));
+    console.error('❌ [DEBUG] Body:', req.body);
+    return res.status(400).json({
+      error: 'Erro de parsing JSON',
+      details: error.message,
+      contentType: req.get('Content-Type')
+    });
+  }
+  next(error);
+});
 
 // Configurar multer para uploads
 const storage = multer.diskStorage({
@@ -586,9 +606,9 @@ app.get('/extrato/:fileId', async (req, res) => {
       return res.json(cachedData);
     }
 
-    // Se não há PDF, baixar da API da Kentro
+    // Se não há PDF, baixar da API da Kentro via proxy externo
     if (!fs.existsSync(pdfPath)) {
-      console.log('📥 [INSS] PDF não encontrado localmente, baixando da API da Kentro...');
+      console.log('📥 [INSS] PDF não encontrado localmente, baixando via proxy externo...');
       try {
         const proxyUrl = 'http://72.60.159.149:3005/downloadFile';
         const formData = new URLSearchParams();
@@ -730,9 +750,9 @@ app.post('/extrair', async (req, res) => {
       }
     }
 
-    // Se não há PDF, baixar da API da Kentro
+    // Se não há PDF, baixar da API da Kentro via proxy externo
     if (!fs.existsSync(pdfPath)) {
-      console.log('📥 [INSS] PDF não encontrado localmente, baixando da API da Kentro...');
+      console.log('📥 [INSS] PDF não encontrado localmente, baixando via proxy externo...');
       try {
         const proxyUrl = 'http://72.60.159.149:3005/downloadFile';
         const formData = new URLSearchParams();
@@ -840,21 +860,6 @@ const httpsOptions = {
 };
 
 // Criar servidor HTTPS
-// Middleware para tratar erros de parsing JSON (movido para o final)
-app.use((error, req, res, next) => {
-  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
-    console.error('❌ [DEBUG] Erro de parsing JSON:', error.message);
-    console.error('❌ [DEBUG] Content-Type:', req.get('Content-Type'));
-    console.error('❌ [DEBUG] Body:', req.body);
-    return res.status(400).json({
-      error: 'Erro de parsing JSON',
-      details: error.message,
-      contentType: req.get('Content-Type')
-    });
-  }
-  next(error);
-});
-
 const httpsServer = https.createServer(httpsOptions, app);
 
 // Iniciar servidor HTTPS

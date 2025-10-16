@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes da Proposta - Lunas Digital v20250103070000</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f8fafc; 
+            min-height: 100vh; 
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(96, 165, 250, 0.3);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .status {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .card h2 {
+            color: #1e293b;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .detail-value {
+            color: #1e293b;
+            font-weight: 500;
+        }
+        
+        .contrato-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #fafafa;
+        }
+        
+        .contrato-card h3 {
+            color: #1e293b;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .contrato-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .no-data-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0.5rem;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Detalhes da Proposta</h1>
+            <p>Visualização completa dos dados da proposta</p>
+        </div>
+        
+        <div id="status" class="loading">Carregando dados...</div>
+        
+        <div id="clienteInfo"></div>
+        <div id="contratosList"></div>
+        
+        <div class="card" style="text-align: center; margin-top: 2rem;">
+            <h2>🔧 Ações</h2>
+            <button class="btn" onclick="location.reload()">🔄 Recarregar</button>
+            <button class="btn btn-secondary" onclick="window.open('/INSS/simulador', '_blank')">📊 Abrir Simulador</button>
+        </div>
+    </div>
+
+    <script>
+        let propostaData = null;
+
+        function carregarProposta() {
+            try {
+                const propostaId = window.location.pathname.split('/').pop();
+                
+                console.log('🚀 Função carregarProposta executada');
+                console.log('🔍 URL atual:', window.location.href);
+                console.log('🔍 PropostaId extraído:', propostaId);
+                
+                if (!propostaId) {
+                    document.getElementById('status').innerHTML = '<div class="status error">❌ ID da proposta não encontrado!</div>';
+                    return;
+                }
+
+                console.log('🔍 Buscando proposta:', propostaId);
+                
+                // Buscar dados da proposta via API
+                fetch(`/api/proposta/${propostaId}`)
+                    .then(response => {
+                        console.log('📡 Resposta da API:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        console.log('✅ Dados recebidos:', result);
+                        console.log('🔍 Result.success:', result.success);
+                        console.log('🔍 Result.dados:', result.dados);
+                        
+                        if (result.success && result.dados) {
+                            propostaData = result.dados;
+                            console.log('✅ Proposta carregada:', propostaId);
+                            
+                            document.getElementById('status').innerHTML = '<div class="status success">✅ Dados carregados com sucesso!</div>';
+                            
+                            // Renderizar dados
+                            renderizarCliente();
+                            renderizarContratos();
+                            
+                        } else {
+                            console.error('❌ Dados inválidos:', result);
+                            document.getElementById('status').innerHTML = '<div class="status error">❌ Dados da proposta inválidos</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao carregar proposta:', error);
+                        document.getElementById('status').innerHTML = `<div class="status error">❌ Erro ao carregar proposta: ${error.message}</div>`;
+                    });
+                
+            } catch (error) {
+                console.error('❌ Erro inesperado:', error);
+                document.getElementById('status').innerHTML = `<div class="status error">❌ Erro inesperado: ${error.message}</div>`;
+            }
+        }
+
+        function renderizarCliente() {
+            console.log('🎨 Renderizando cliente...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                return;
+            }
+            
+            const container = document.getElementById('clienteInfo');
+            const cliente = propostaData.cliente;
+            
+            console.log('🔍 Container encontrado:', container);
+            console.log('🔍 Dados do cliente:', cliente);
+            
+            if (container && cliente) {
+                container.innerHTML = `
+                    <div class="card">
+                        <h2>👤 Dados do Cliente</h2>
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Nome Completo</div>
+                                <div class="detail-value">${cliente.nome || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Número do Benefício</div>
+                                <div class="detail-value">${cliente.nb || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Espécie do Benefício</div>
+                                <div class="detail-value">${cliente.especie || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Origem</div>
+                                <div class="detail-value">${cliente.origem || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Data do Extrato</div>
+                                <div class="detail-value">${cliente.dataExtrato || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderizarContratos() {
+            console.log('🎨 Renderizando contratos...');
+            console.log('🔍 propostaData:', propostaData);
+            
+            if (!propostaData) {
+                console.error('❌ propostaData não está definida!');
+                return;
+            }
+            
+            const container = document.getElementById('contratosList');
+            const contratos = propostaData.contratos;
+            
+            console.log('🔍 Container encontrado:', container);
+            console.log('🔍 Dados dos contratos:', contratos);
+            
+            if (container && contratos) {
+                if (contratos.length === 0) {
+                    container.innerHTML = `
+                        <div class="card">
+                            <h2>📄 Contratos</h2>
+                            <div class="no-data">
+                                <div class="no-data-icon">📄</div>
+                                <p>Nenhum contrato encontrado</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let html = `
+                        <div class="card">
+                            <h2>📄 Contratos (${contratos.length})</h2>
+                    `;
+                    
+                    contratos.forEach((contrato, index) => {
+                        html += `
+                            <div class="contrato-card">
+                                <h3>Contrato ${index + 1}</h3>
+                                <div class="contrato-grid">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Número do Contrato</div>
+                                        <div class="detail-value">${contrato.contrato || 'N/A'}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Banco</div>
+                                        <div class="detail-value">${contrato.banco?.nome || 'N/A'} (${contrato.banco?.codigo || 'N/A'})</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Situação</div>
+                                        <div class="detail-value">${contrato.situacao || 'N/A'}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Valor da Parcela</div>
+                                        <div class="detail-value">R$ ${contrato.valor_parcela || 'N/A'}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Valor Liberado</div>
+                                        <div class="detail-value">R$ ${contrato.valor_liberado || 'N/A'}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Parcelas Pagas</div>
+                                        <div class="detail-value">${contrato.parcelas_pagas || 0} de ${contrato.prazo_total || 0}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Parcelas Restantes</div>
+                                        <div class="detail-value">${contrato.prazo_restante || 0}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Taxa de Juros Mensal</div>
+                                        <div class="detail-value">${contrato.taxa_juros_mensal || 'N/A'}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                }
+            }
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 DOM carregado, iniciando carregamento de dados...');
+            carregarProposta();
+        });
+    </script>
+</body>
+</html>
+
+
+

@@ -27,3 +27,5 @@ else
     echo "❌ Configuração do Nginx inválida"
     exit 1
 fi
+
+

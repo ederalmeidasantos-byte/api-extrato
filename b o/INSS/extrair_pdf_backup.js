@@ -10,10 +10,7 @@ if (!process.env.OPENAI_API_KEY) {
   throw new Error("OPENAI_API_KEY ausente");
 }
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY,
-  timeout: 300000 // 5 minutos de timeout para PDFs complexos
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ================== Helpers ==================
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -730,7 +727,7 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs, idoport
   if (fs.existsSync(jsonPath) && cacheValido(jsonPath, ttlMs)) {
     console.log("♻️ Usando JSON cacheado válido em", jsonPath);
     const cached = JSON.parse(await fsp.readFile(jsonPath, "utf-8"));
-    return { fileId, kentroId: fileId, idoportunidade, ...cached };
+    return { fileId, idoportunidade, ...cached };
   }
 
   console.log("🚀 Iniciando extração de upload:", fileId);
@@ -752,5 +749,5 @@ export async function extrairDeUpload({ fileId, pdfPath, jsonDir, ttlMs, idoport
   // Manter PDF no diretório local (temporário)
   agendarExclusaoDias(TTL_DIAS_PADRAO, pdfPath, jsonPath);
 
-  return { fileId, kentroId: fileId, idoportunidade, ...json };
+  return { fileId, idoportunidade, ...json };
 }

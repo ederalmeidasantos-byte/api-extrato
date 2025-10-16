@@ -1018,8 +1018,8 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
     
     if (cliente) {
       console.log(`✅ [KENTRO] Cliente encontrado: ${cliente.nome}`);
-      res.json({ 
-        success: true, 
+    res.json({ 
+      success: true, 
         cliente: {
           ...cliente,
           encontrado: true
@@ -1027,8 +1027,8 @@ app.post('/kentro/buscar-cliente', async (req, res) => {
       });
     } else {
       console.log(`⚠️ [KENTRO] Cliente não encontrado: ${identificador}`);
-        res.json({ 
-          success: true, 
+    res.json({ 
+      success: true, 
       cliente: {
         cpf: cpf,
           email: email,
@@ -1056,11 +1056,56 @@ app.post('/kentro/criar-oportunidade', (req, res) => {
         success: true, 
       oportunidade: {
         id: 'OP' + Date.now(),
-        cpf: cpf,
+      cpf: cpf,
         status: 'criada'
       }
     });
   } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// Proxy para API da Kentro - contornar problemas SSL do Node.js
+app.post('/api/kentro-proxy/downloadFile', async (req, res) => {
+  try {
+    const { queueId, apiKey, fileId, download } = req.body;
+    console.log(`🔄 [KENTRO-PROXY] Fazendo proxy para downloadFile: fileId=${fileId}`);
+    
+    // Usar curl do sistema para contornar problemas SSL
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    
+    const postData = `queueId=${queueId}&apiKey=${apiKey}&fileId=${fileId}&download=${download}`;
+    
+    const wgetCommand = `wget -q -O - --post-data='${postData}' \\
+      --header='Content-Type: application/x-www-form-urlencoded' \\
+      --header='User-Agent: Node.js Kentro Proxy' \\
+      --timeout=60 \\
+      'https://lunasdigital.atenderbem.com/int/downloadFile'`;
+    
+    console.log(`🔄 [KENTRO-PROXY] Executando wget para fileId=${fileId}`);
+    
+    const { stdout, stderr } = await execAsync(wgetCommand);
+    
+    if (stderr) {
+      console.error(`❌ [KENTRO-PROXY] Erro no wget: ${stderr}`);
+      throw new Error(`Erro ao executar wget: ${stderr}`);
+    }
+    
+    console.log(`✅ [KENTRO-PROXY] Sucesso! Tamanho da resposta: ${stdout.length} caracteres`);
+    
+    // Retornar a resposta como base64
+      res.json({ 
+        success: true, 
+      data: stdout
+    });
+    
+  } catch (error) {
+    console.error('❌ [KENTRO-PROXY] Erro no proxy:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 

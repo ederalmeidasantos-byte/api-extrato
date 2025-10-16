@@ -29,7 +29,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - config-vps-restructured.env
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -52,7 +52,7 @@ services:
     ports:
       - "3001:3001"
     env_file:
-      - config-vps-restructured.env
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -74,8 +74,9 @@ services:
     container_name: api-simulador-lunasdigital
     ports:
       - "3002:3002"
+      - "443:443"
     env_file:
-      - config-vps-restructured.env
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3002
@@ -89,6 +90,8 @@ services:
     volumes:
       - ./INSS:/app/INSS
       - ./var/data:/app/var/data
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /root/kentro-proxy-simple.sh:/root/kentro-proxy-simple.sh:ro
 
   # Base de Dados (Porta 3003)
   base-dados:
@@ -99,7 +102,7 @@ services:
     ports:
       - "3003:3003"
     env_file:
-      - config-vps-restructured.env
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3003
