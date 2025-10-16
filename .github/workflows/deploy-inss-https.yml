@@ -1,0 +1,152 @@
+name: Deploy INSS HTTPS Container via Hostinger API
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'INSS/**'
+      - 'Dockerfile.inss-https'
+      - 'package-inss.json'
+  workflow_dispatch:
+
+jobs:
+  deploy-https-container:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H lunasdigital.com.br >> ~/.ssh/known_hosts
+        
+    - name: Create HTTPS Dockerfile
+      run: |
+        cat > Dockerfile.inss-https << 'EOF'
+        FROM node:20-alpine
+        
+        # Instalar dependências
+        RUN apk add --no-cache openssl
+        
+        # Criar diretório da aplicação
+        WORKDIR /app
+        
+        # Copiar arquivos
+        COPY INSS/ /app/INSS/
+        COPY package-inss.json /app/package.json
+        
+        # Instalar dependências
+        RUN npm install
+        
+        # Copiar servidor HTTPS
+        COPY server-https.js /app/server.js
+        
+        # Expor portas
+        EXPOSE 3002 443
+        
+        # Comando para iniciar
+        CMD ["node", "server.js"]
+        EOF
+        
+    - name: Create HTTPS Server
+      run: |
+        cat > server-https.js << 'EOF'
+        const express = require('express');
+        const https = require('https');
+        const fs = require('fs');
+        const path = require('path');
+        
+        const app = express();
+        const PORT = process.env.PORT || 3002;
+        const HTTPS_PORT = 443;
+        
+        // Middleware para servir arquivos estáticos
+        app.use(express.static('/app/INSS'));
+        
+        // Rota principal para o simulador
+        app.get('/inss/simulador.html', (req, res) => {
+            res.sendFile(path.join('/app/INSS', 'simulador.html'));
+        });
+        
+        // Rota para servir qualquer arquivo estático
+        app.get('*', (req, res) => {
+            const filePath = path.join('/app/INSS', req.path);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                res.sendFile(filePath);
+            } else {
+                res.status(404).send('Arquivo não encontrado');
+            }
+        });
+        
+        // Configurar HTTPS
+        const sslOptions = {
+            key: fs.readFileSync('/etc/letsencrypt/live/inss.lunasdigital.com.br/privkey.pem'),
+            cert: fs.readFileSync('/etc/letsencrypt/live/inss.lunasdigital.com.br/fullchain.pem')
+        };
+        
+        // Iniciar servidor HTTP (para fallback)
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Servidor HTTP rodando na porta ${PORT}`);
+        });
+        
+        // Iniciar servidor HTTPS
+        https.createServer(sslOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+            console.log(`🔒 Servidor HTTPS rodando na porta ${HTTPS_PORT}`);
+        });
+        
+        console.log('✅ Servidor INSS Simulador iniciado com SSL direto no container!');
+        EOF
+        
+    - name: Create package.json
+      run: |
+        cat > package-inss.json << 'EOF'
+        {
+          "name": "inss-simulador-https",
+          "version": "1.0.0",
+          "description": "INSS Simulador com HTTPS direto",
+          "main": "server.js",
+          "scripts": {
+            "start": "node server.js"
+          },
+          "dependencies": {
+            "express": "^4.18.2"
+          }
+        }
+        EOF
+        
+    - name: Deploy to VPS
+      run: |
+        # Parar containers existentes
+        ssh root@lunasdigital.com.br "docker stop \$(docker ps -q --filter 'name=simulador') 2>/dev/null || true"
+        ssh root@lunasdigital.com.br "docker rm \$(docker ps -aq --filter 'name=simulador') 2>/dev/null || true"
+        
+        # Copiar arquivos para o VPS
+        scp -r INSS/ root@lunasdigital.com.br:/root/
+        scp Dockerfile.inss-https root@lunasdigital.com.br:/root/
+        scp server-https.js root@lunasdigital.com.br:/root/
+        scp package-inss.json root@lunasdigital.com.br:/root/
+        
+        # Construir e executar container
+        ssh root@lunasdigital.com.br "
+          cd /root &&
+          docker build -f Dockerfile.inss-https -t inss-https-container . &&
+          docker run -d --name inss-simulador-https \
+            -p 443:443 \
+            -p 3002:3002 \
+            -v /etc/letsencrypt:/etc/letsencrypt:ro \
+            inss-https-container
+        "
+        
+    - name: Test HTTPS
+      run: |
+        sleep 10
+        ssh root@lunasdigital.com.br "curl -I https://inss.lunasdigital.com.br/inss/simulador.html"
+        
+    - name: Show container status
+      run: |
+        ssh root@lunasdigital.com.br "docker ps | grep inss-simulador-https"
+        ssh root@lunasdigital.com.br "docker logs inss-simulador-https --tail 5"

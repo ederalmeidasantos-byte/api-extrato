@@ -1,14 +1,22 @@
-# 🚀 Guia Completo - Servidor VPS + Docker
+# 🚀 Guia Completo - Servidor VPS + Docker + Automação API Hostinger
 
 ## 📋 Visão Geral
 
-Este guia explica como configurar e executar os sistemas **CRM Lunas Digital** e **INSS Simulador** em um servidor VPS usando Docker.
+Este guia explica como configurar e executar os sistemas **CRM Lunas Digital** e **INSS Simulador** em um servidor VPS usando Docker, com **automação completa via API Hostinger**.
 
 ### 🎯 Sistemas Incluídos
 - **CRM Lunas Digital**: Sistema de gestão de clientes e propostas
 - **INSS Simulador**: Simulador de empréstimos consignados
 - **Integração WhatsApp**: Via API Kentro
 - **Nginx**: Proxy reverso e SSL
+- **🤖 Automação Completa**: Controle total do VPS via API Hostinger
+
+### ✨ Novidades - Automação Completa
+- 🖥️ **Controle VPS**: Status, backup, reinicialização via API Hostinger
+- 🐳 **Gerenciamento Docker**: Containers automatizados
+- 🚀 **Deploy Automático**: Deploy completo com um comando
+- 💾 **Backup Inteligente**: Backup do VPS + Docker + Configurações
+- 📊 **Monitoramento**: Tempo real com alertas automáticos
 
 ## 🏗️ Arquitetura do Sistema
 
@@ -23,38 +31,125 @@ Este guia explica como configurar e executar os sistemas **CRM Lunas Digital** e
                        │   SSL/HTTPS     │
                        │   Certificados  │
                        └─────────────────┘
+                              │
+                              ▼
+                       ┌─────────────────┐
+                       │  🤖 AUTOMAÇÃO    │
+                       │  API Hostinger  │
+                       │  + Docker       │
+                       └─────────────────┘
 ```
 
 ## 📁 Estrutura de Pastas
 
 ```
 VPS-DOCKER-DEPLOY/
-├── README.md                    # Este arquivo
-├── DEPLOY-RAPIDO.md             # Deploy em 5 minutos
-├── CONFIGURACAO-VPS.md          # Configuração do VPS
-├── DOCKER-COMPOSE.md             # Configuração Docker
-├── NGINX-CONFIGURACAO.md         # Configuração Nginx
-├── SSL-CERTIFICADOS.md           # Certificados SSL
-├── MONITORAMENTO.md              # Monitoramento e logs
-├── BACKUP-RESTORE.md             # Backup e restore
-├── TROUBLESHOOTING.md            # Solução de problemas
+├── README.md                           # Este arquivo
+├── AUTOMATION-README.md                # Guia da automação completa
+├── DEPLOY-RAPIDO.md                    # Deploy em 5 minutos
+├── CONFIGURACAO-VPS.md                 # Configuração do VPS
+├── ESTRUTURA-PASTA.md                  # Estrutura detalhada
+├── hostinger-docker-automation.js      # 🤖 Classe principal de automação
+├── vps-docker-automation.sh           # 🤖 Script interativo completo
+├── server-integration.js              # 🤖 Integração com server.js
+├── automation-config.env              # 🤖 Configurações da automação
+├── package-vps-automation.json        # 🤖 Dependências Node.js
 ├── scripts/
-│   ├── deploy-completo.sh        # Script de deploy completo
-│   ├── deploy-crm.sh             # Deploy apenas CRM
-│   ├── deploy-inss.sh            # Deploy apenas INSS
-│   ├── backup-sistema.sh         # Backup do sistema
-│   ├── restore-sistema.sh        # Restore do sistema
-│   └── monitor-sistema.sh         # Monitoramento
+│   ├── deploy-completo.sh             # Script de deploy completo
+│   ├── deploy-crm.sh                  # Deploy apenas CRM
+│   ├── deploy-inss.sh                 # Deploy apenas INSS
+│   ├── backup-sistema.sh              # Backup do sistema
+│   ├── restore-sistema.sh             # Restore do sistema
+│   └── monitor-sistema.sh             # Monitoramento
 ├── configs/
-│   ├── docker-compose.yml        # Docker Compose principal
-│   ├── nginx.conf                # Configuração Nginx
-│   ├── nginx-ssl.conf            # Nginx com SSL
-│   └── env-example.txt           # Variáveis de ambiente
+│   ├── docker-compose.yml             # Docker Compose principal
+│   ├── nginx.conf                     # Configuração Nginx
+│   ├── nginx-ssl.conf                 # Nginx com SSL
+│   └── env-example.txt                # Variáveis de ambiente
 └── docs/
-    ├── arquitetura.md            # Arquitetura detalhada
-    ├── portas.md                 # Portas utilizadas
-    └── seguranca.md              # Configurações de segurança
+    └── arquitetura.md                 # Arquitetura detalhada
 ```
+
+## 🤖 Automação Completa - NOVIDADE!
+
+### **Controle Total do VPS via API Hostinger**
+
+Agora você pode controlar seu VPS completamente via API! 🎯
+
+#### **🚀 Deploy Automático**
+```bash
+# Deploy completo com um comando
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher: 3 → 1 (Deploy completo)
+
+# Ou via API
+curl -X POST http://localhost:3002/api/system/deploy \
+  -H "Authorization: Bearer seu_token"
+```
+
+#### **💾 Backup Inteligente**
+```bash
+# Backup completo (VPS + Docker + Configurações)
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher: 3 → 2 (Backup completo)
+
+# Ou via API
+curl -X POST http://localhost:3002/api/system/backup
+```
+
+#### **📊 Monitoramento em Tempo Real**
+```bash
+# Monitoramento contínuo
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher: 4 → 3 (Monitoramento contínuo)
+
+# Status completo
+curl http://localhost:3002/api/system/status
+```
+
+#### **🖥️ Controle do VPS**
+```bash
+# Status do VPS via API Hostinger
+curl http://localhost:3002/api/vps/status
+
+# Backup do VPS
+curl -X POST http://localhost:3002/api/vps/backup
+
+# Reiniciar VPS
+curl -X POST http://localhost:3002/api/vps/restart \
+  -H "Authorization: Bearer seu_token"
+```
+
+### **Menu Interativo Completo**
+```
+🚀 === AUTOMAÇÃO COMPLETA VPS + DOCKER ===
+
+Escolha uma categoria:
+1) 🖥️  Gerenciamento VPS (API Hostinger)
+2) 🐳 Gerenciamento Docker
+3) 🚀 Deploy e Backup
+4) 📊 Monitoramento
+5) 🔧 Manutenção
+6) 📋 Status Completo
+7) ❓ Ajuda
+8) 🚪 Sair
+```
+
+### **Integração com server.js**
+```javascript
+// Adicionar ao seu server.js
+import './VPS-DOCKER-DEPLOY/server-integration.js';
+
+// Agora você tem todas as rotas disponíveis:
+// GET  /api/system/status     - Status completo
+// POST /api/system/deploy     - Deploy completo
+// POST /api/system/backup     - Backup completo
+// GET  /api/docker/status     - Status Docker
+// POST /api/vps/restart       - Reiniciar VPS
+// E muito mais!
+```
+
+---
 
 ## 🚀 Deploy Rápido (5 minutos)
 
@@ -357,14 +452,11 @@ ssl_prefer_server_ciphers off;
 - **GitHub**: https://github.com/lunasdigital
 
 ### **Documentação Adicional**
-- [Deploy Rápido](DEPLOY-RAPIDO.md)
-- [Configuração VPS](CONFIGURACAO-VPS.md)
-- [Docker Compose](DOCKER-COMPOSE.md)
-- [Nginx](NGINX-CONFIGURACAO.md)
-- [SSL](SSL-CERTIFICADOS.md)
-- [Monitoramento](MONITORAMENTO.md)
-- [Backup](BACKUP-RESTORE.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
+- [🤖 Automação Completa](AUTOMATION-README.md) - Guia da automação VPS + Docker
+- [⚡ Deploy Rápido](DEPLOY-RAPIDO.md) - Deploy em 5 minutos
+- [🖥️ Configuração VPS](CONFIGURACAO-VPS.md) - Configuração detalhada do VPS
+- [📁 Estrutura](ESTRUTURA-PASTA.md) - Estrutura detalhada dos arquivos
+- [🏗️ Arquitetura](docs/arquitetura.md) - Arquitetura detalhada do sistema
 
 ---
 

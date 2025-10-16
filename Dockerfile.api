@@ -1,23 +1,30 @@
 FROM node:18-alpine
 
+RUN apk add --no-cache curl bash
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S api -u 1001
+
 WORKDIR /app
 
-# Copiar package.json e instalar dependências
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package-api.json package.json
+RUN npm install --only=production && npm cache clean --force
 
-# Copiar código da API e simulador
-COPY server.js ./
-COPY INSS/ ./INSS/
-COPY assets/ ./assets/
+COPY api-extrair-calculo.js ./
+COPY INSS/extrair_pdf.js ./INSS/
+COPY INSS/calculo.js ./INSS/
+COPY INSS/beneficios.js ./INSS/
+COPY INSS/bancos.js ./INSS/
 
-# Criar diretórios necessários
-RUN mkdir -p var/data/{clientes,propostas,extratos,uploads,tenants}
-RUN mkdir -p logs
+RUN mkdir -p /app/var/data/extratos && \
+    chown -R api:nodejs /app && \
+    chown -R api:nodejs /app/var
 
-# Expor porta
-EXPOSE 3002
+USER api
 
-# Comando para iniciar a API
-CMD ["node", "server.js"]
+EXPOSE 3003
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3003/health || exit 1
+
+CMD ["node", "api-extrair-calculo.js"]

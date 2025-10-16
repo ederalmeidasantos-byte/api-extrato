@@ -1,13 +1,14 @@
-# ⚡ Deploy Rápido - 5 Minutos
+# ⚡ Deploy Rápido - 5 Minutos + Automação Completa
 
 ## 🎯 Objetivo
-Configurar e executar os sistemas CRM e INSS em um VPS em menos de 5 minutos.
+Configurar e executar os sistemas CRM e INSS em um VPS em menos de 5 minutos, com **automação completa via API Hostinger**.
 
 ## 📋 Pré-requisitos
 - ✅ VPS com Ubuntu 20.04+ ou Debian 10+
 - ✅ Acesso root ou sudo
 - ✅ Domínios configurados no DNS
 - ✅ Portas 80/443 abertas
+- ✅ **Token API Hostinger** (para automação)
 
 ## 🚀 Passo a Passo
 
@@ -95,7 +96,34 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### **6. Configurar Nginx (1 minuto)**
+### **6. Configurar Automação (1 minuto)**
+```bash
+# Copiar configurações da automação
+cp VPS-DOCKER-DEPLOY/automation-config.env .env
+
+# Editar configurações
+nano .env
+
+# Configurações mínimas necessárias:
+# HOSTINGER_API_TOKEN=seu_token_aqui
+# VPS_ID=1035582
+# VPS_IP=72.60.159.149
+# CRM_CONTAINER=crm-lunas-digital
+# INSS_CONTAINER=inss-lunas-digital
+```
+
+### **7. Testar Automação (30 segundos)**
+```bash
+# Tornar script executável
+chmod +x VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+
+# Executar automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+
+# Escolher opção 6 (Status Completo) para verificar
+```
+
+### **8. Configurar Nginx (1 minuto)**
 ```bash
 # Instalar Nginx
 apt install nginx -y
@@ -118,6 +146,19 @@ systemctl enable nginx
 ```
 
 ## ✅ Verificação Final
+
+### **Testar Automação**
+```bash
+# Status completo via automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher opção 6 (Status Completo)
+
+# Ou via API
+curl http://localhost:3002/api/system/status
+
+# Health check
+curl http://localhost:3002/api/services/health
+```
 
 ### **Testar Sistemas**
 ```bash

@@ -1,8 +1,8 @@
-# 🖥️ Configuração Completa do VPS
+# 🖥️ Configuração Completa do VPS + Automação API Hostinger
 
 ## 📋 Visão Geral
 
-Este guia detalha como configurar um VPS do zero para executar os sistemas CRM e INSS com Docker.
+Este guia detalha como configurar um VPS do zero para executar os sistemas CRM e INSS com Docker, incluindo **automação completa via API Hostinger**.
 
 ## 🎯 Requisitos do VPS
 
@@ -605,14 +605,91 @@ systemctl status docker
 systemctl status nginx
 ```
 
-## 🎉 VPS Configurado!
+## 🤖 Configuração da Automação API Hostinger
 
-Seu VPS está pronto para executar os sistemas CRM e INSS! 🚀
+### **1. Obter Token da API Hostinger**
+```bash
+# Acessar painel Hostinger
+# Ir em API → Gerar novo token
+# Copiar o token gerado
+```
+
+### **2. Configurar Automação**
+```bash
+# Copiar arquivo de configuração
+cp VPS-DOCKER-DEPLOY/automation-config.env .env
+
+# Editar configurações
+nano .env
+
+# Configurações principais:
+HOSTINGER_API_TOKEN="seu_token_aqui"
+VPS_ID="1035582"
+VPS_IP="72.60.159.149"
+CRM_CONTAINER="crm-lunas-digital"
+INSS_CONTAINER="inss-lunas-digital"
+BACKUP_DIR="/opt/lunasdigital/backups"
+MONITORING_INTERVAL="60"
+```
+
+### **3. Instalar Dependências da Automação**
+```bash
+# Instalar dependências Node.js
+npm install axios
+
+# Tornar scripts executáveis
+chmod +x VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+chmod +x VPS-DOCKER-DEPLOY/scripts/*.sh
+```
+
+### **4. Testar Automação**
+```bash
+# Executar automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+
+# Escolher opção 6 (Status Completo) para verificar
+# Deve mostrar:
+# - Status do VPS via API Hostinger
+# - Status dos containers Docker
+# - Status dos serviços HTTP
+```
+
+### **5. Integrar com server.js**
+```bash
+# Adicionar ao seu server.js
+import './VPS-DOCKER-DEPLOY/server-integration.js';
+
+# Reiniciar servidor
+pm2 restart server
+
+# Testar endpoints
+curl http://localhost:3002/api/system/status
+curl http://localhost:3002/api/vps/status
+```
+
+### **6. Configurar Monitoramento Automático**
+```bash
+# Adicionar ao crontab para monitoramento automático
+crontab -e
+
+# Adicionar linhas:
+# Backup automático diário às 2h
+0 2 * * * /opt/lunasdigital/VPS-DOCKER-DEPLOY/vps-docker-automation.sh backup
+
+# Monitoramento a cada 5 minutos
+*/5 * * * * curl -s http://localhost:3002/api/services/health > /dev/null
+```
+
+---
+
+## 🎉 VPS Configurado com Automação!
+
+Seu VPS está pronto para executar os sistemas CRM e INSS com **automação completa**! 🚀
 
 ### **Próximos Passos**
 1. **Clonar repositórios**
 2. **Configurar variáveis de ambiente**
-3. **Executar deploy**
+3. **Executar deploy via automação**
 4. **Testar funcionalidades**
 
 ### **Comandos Úteis**
@@ -622,16 +699,22 @@ systemctl status docker nginx
 docker ps
 nginx -t
 
+# Automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+curl http://localhost:3002/api/system/status
+
 # Logs
 journalctl -u docker -f
 journalctl -u nginx -f
 docker logs -f crm-container
 
-# Backup
-/opt/lunasdigital/scripts/backup.sh
+# Backup via automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher: 3 → 2 (Backup completo)
 
-# Monitoramento
-/opt/lunasdigital/scripts/monitor.sh
+# Monitoramento via automação
+./VPS-DOCKER-DEPLOY/vps-docker-automation.sh
+# Escolher: 4 → 3 (Monitoramento contínuo)
 ```
 
 ---

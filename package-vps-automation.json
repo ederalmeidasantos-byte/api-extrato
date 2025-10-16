@@ -1,0 +1,25 @@
+{
+  "name": "lunas-vps-automation",
+  "version": "1.0.0",
+  "description": "Automação do VPS Lunas Digital via API Hostinger",
+  "main": "lunas-vps-automation.js",
+  "scripts": {
+    "start": "node lunas-vps-automation.js",
+    "monitor": "node -e \"const LunasVPS = require('./lunas-vps-automation'); const auto = new LunasVPS(); auto.startMonitoring();\"",
+    "deploy": "node -e \"const LunasVPS = require('./lunas-vps-automation'); const auto = new LunasVPS(); auto.deployApplication();\"",
+    "backup": "node -e \"const LunasVPS = require('./lunas-vps-automation'); const auto = new LunasVPS(); auto.createAutomaticBackup();\"",
+    "status": "node -e \"const LunasVPS = require('./lunas-vps-automation'); const auto = new LunasVPS(); auto.checkServicesStatus();\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "keywords": [
+    "hostinger",
+    "vps",
+    "automation",
+    "api",
+    "lunas-digital"
+  ],
+  "author": "Lunas Digital",
+  "license": "MIT"
+}

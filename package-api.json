@@ -1,0 +1,23 @@
+{
+  "name": "inss-api-extrair-calculo",
+  "version": "1.0.0",
+  "description": "API dedicada para extração de PDFs e cálculo de propostas INSS",
+  "main": "api-extrair-calculo.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api-extrair-calculo.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "openai": "^4.20.1",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["inss", "extracao", "calculo", "api", "docker"],
+  "author": "Lunas Digital",
+  "license": "ISC"
+}

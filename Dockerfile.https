@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+# Instalar dependências
+RUN apk add --no-cache openssl
+
+# Criar diretório da aplicação
+WORKDIR /app
+
+# Copiar arquivos
+COPY INSS/ /app/INSS/
+COPY server-https-container.js /app/server.js
+
+# Instalar dependências
+RUN npm init -y && npm install express
+
+# Expor portas
+EXPOSE 3002 443
+
+# Comando para iniciar
+CMD ["node", "server.js"]
