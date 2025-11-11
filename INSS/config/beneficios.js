@@ -1,0 +1,1 @@
+// Copiando conteúdo do arquivo beneficios.js
