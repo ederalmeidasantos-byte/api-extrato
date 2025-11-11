@@ -15,6 +15,146 @@
 
 ## 📅 JANEIRO 2025
 
+### [11/01/2025] - Feature: Validações de Idade, Data de Extrato e Correções de Códigos de Banco
+
+#### Problema Identificado
+- Simulador não validava idade do cliente contra regras dos bancos
+- Extratos antigos (mais de 7 dias) eram aceitos quando deveriam ser rejeitados
+- Códigos de banco inválidos (4 dígitos como "3404", "3430") causavam problemas na simulação
+- Erro `telefone.replace is not a function` ao carregar alguns extratos
+- Status "Formulário Finalizado" não aparecia na lista de propostas
+- Sistema criava múltiplas propostas para o mesmo CPF ao invés de atualizar existente
+
+#### Solução Implementada
+**Arquivos Modificados:**
+
+1. **`INSS/core/calculo.js`** - Linhas 176-306, 239-245, 530-648
+   - Nova função `validarIdadeParaRoteiro()` - Valida idade contra regras do banco
+   - Nova função `calcularIdadeDoExtrato()` - Calcula idade a partir da data de nascimento
+   - Nova função `corrigirCodigoBanco()` - Corrige códigos de banco inválidos (4 dígitos)
+   - Validação de idade adicionada em `aplicarRoteiro()` antes de aprovar contrato
+   - Idade do cliente calculada e adicionada aos contratos no `calcularTrocoEndpoint()`
+   - Correção automática de códigos de banco inválidos ao processar contratos
+
+2. **`INSS/simulador-logic.js`** - Linhas 1386-1414, 1420-1445, 1569-1695, 1755-1850
+   - Nova função `validarDataExtrato()` - Valida se extrato tem no máximo 7 dias
+   - Nova função `mostrarAvisoDataExtrato()` - Exibe aviso visual de extrato antigo
+   - Nova função `removerAvisoDataExtrato()` - Remove aviso quando válido
+   - Validação de data do extrato em `atualizarDadosCliente()`, `simularContrato()` e `simularTodosContratos()`
+   - Correção do erro `telefone.replace` - Conversão explícita para string antes de usar `.replace()`
+   - Melhorias na função `calcularIdade()` - Validações adicionais e tratamento de erros
+   - Busca de data de nascimento em múltiplos locais (extrato, cliente, dados_pessoais)
+
+3. **`INSS/server-8443-https.mjs`** - Linhas 701-779, 1202-1275
+   - Lógica para verificar proposta existente por CPF antes de criar nova
+   - Atualização automática de status quando proposta existente é encontrada
+   - Novo endpoint `PATCH /api/proposta/:cpf/status` - Atualizar status manualmente
+   - Mesclagem inteligente de dados ao atualizar proposta existente
+
+4. **`INSS/tests/propostas.html`** - Linhas 404-411, 495-504, 532-545, 555-572
+   - Status "Formulário Finalizado" adicionado ao filtro
+   - Badge azul (`badge-info`) para status "Formulário Finalizado"
+   - Status contabilizado nas estatísticas
+   - Logs de debug para verificar status carregados
+
+**Código Implementado:**
+
+```javascript
+// Validação de idade do cliente
+function validarIdadeParaRoteiro(idadeCliente, roteiro) {
+  if (!idadeCliente || idadeCliente <= 0) {
+    return { valido: false, motivo: "Idade do cliente não informada" };
+  }
+  
+  // Parsear regra de idade (ex: "21 a 73 anos")
+  const match = idadeStr.match(/(\d+)\s*(?:a|à|-)\s*(\d+)/);
+  const idadeMin = parseInt(match[1]);
+  const idadeMax = parseInt(match[2]);
+  
+  if (idadeCliente < idadeMin || idadeCliente > idadeMax) {
+    return { 
+      valido: false, 
+      motivo: `Idade do cliente (${idadeCliente} anos) fora da faixa permitida pelo banco (${idadeMin} a ${idadeMax} anos)` 
+    };
+  }
+  
+  return { valido: true };
+}
+
+// Validação de data do extrato
+function validarDataExtrato(dataExtrato) {
+  const [dia, mes, ano] = dataExtrato.split('/');
+  const dataExtratoObj = new Date(ano, mes - 1, dia);
+  const hoje = new Date();
+  const diffDays = Math.floor((hoje - dataExtratoObj) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays > 7) {
+    return { 
+      valido: false, 
+      mensagem: `Extrato muito antigo (${diffDays} dias). O extrato deve ter no máximo 7 dias para simular.`
+    };
+  }
+  
+  return { valido: true };
+}
+
+// Correção de código de banco inválido
+function corrigirCodigoBanco(codigoBanco, numeroContrato) {
+  const codigoStr = String(codigoBanco).trim();
+  
+  // Se tem 4 dígitos, tentar extrair código válido do início do contrato
+  if (codigoStr.length === 4 && /^\d{4}$/.test(codigoStr)) {
+    const contratoStr = String(numeroContrato);
+    const possivelCodigo = contratoStr.substring(0, 3);
+    if (/^\d{3}$/.test(possivelCodigo)) {
+      return possivelCodigo;
+    }
+  }
+  
+  return codigoStr;
+}
+```
+
+#### Fluxo de Validação Implementado
+1. **Banco X analisa idade** → Se fora da faixa, rejeita e passa para o próximo
+2. **Analisa parcela** → Se abaixo do mínimo, rejeita
+3. **Analisa saldo** → Se abaixo do mínimo, rejeita
+4. **Analisa espécie** → Se não permitida, rejeita
+5. **Analisa regras específicas** → Se não atender, rejeita
+6. **Se passar em todas as validações** → Aprova
+
+#### Comandos Utilizados
+```bash
+# Enviar arquivos atualizados
+scp "INSS/core/calculo.js" root@72.60.159.149:/root/api-lunas/API\ Lunas/INSS/core/calculo.js
+scp "INSS/simulador-logic.js" root@72.60.159.149:/root/INSS/simulador-logic.js
+scp "INSS/server-8443-https.mjs" root@72.60.159.149:/root/INSS/server-8443-https.mjs
+scp "INSS/tests/propostas.html" root@72.60.159.149:/root/INSS/tests/propostas.html
+
+# Reiniciar PM2
+ssh root@72.60.159.149 "pm2 restart inss-port-8443"
+ssh root@72.60.159.149 "pm2 restart inss-api-3004"
+```
+
+#### Resultados Obtidos
+- ✅ **Validação de idade** → Contratos rejeitados se idade fora da faixa do banco
+- ✅ **Validação de data** → Extratos antigos (>7 dias) bloqueados com aviso visual
+- ✅ **Correção de códigos** → Códigos inválidos (4 dígitos) corrigidos automaticamente
+- ✅ **Erro telefone corrigido** → Conversão explícita para string antes de `.replace()`
+- ✅ **Status "Formulário Finalizado"** → Aparece na lista com badge azul
+- ✅ **Atualização automática** → Propostas existentes são atualizadas ao invés de duplicadas
+- ✅ **Endpoint manual** → `PATCH /api/proposta/:cpf/status` para atualizar status
+
+#### Notas Importantes
+- **Validação de Idade**: Rejeita contrato se idade do cliente estiver fora da faixa permitida pelo banco
+- **Validação de Data**: Bloqueia simulação se extrato tiver mais de 7 dias
+- **Correção Automática**: Códigos de banco inválidos são corrigidos usando primeiros 3 dígitos do contrato
+- **Atualização Inteligente**: Sistema verifica proposta existente por CPF antes de criar nova
+- **Mesclagem de Dados**: Ao atualizar proposta, mantém dados antigos e mescla com novos
+- **Status Visível**: "Formulário Finalizado" aparece na lista com filtro e estatísticas
+
+---
+
 ### [11/01/2025] - Feature: Sistema de Roteiro Dinâmico com Bancos Ativos/Inativos
 
 #### Problema Identificado
